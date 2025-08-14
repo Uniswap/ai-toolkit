@@ -18,7 +18,52 @@
           "buildDepsName": "build-deps",
           "watchDepsName": "watch-deps"
         }
+      },
+      "exclude": [
+        "packages/commands/agnostic/*",
+        "packages/agents/agnostic/*",
+        "packages/commands/typescript/*"
+      ]
+    },
+    {
+      "plugin": "@nx/js/typescript",
+      "include": [
+        "packages/commands/agnostic/*",
+        "packages/agents/agnostic/*",
+        "packages/commands/typescript/*"
+      ],
+      "options": {
+        "typecheck": {
+          "targetName": "typecheck"
+        }
       }
     }
-  ]
+  ],
+  "targetDefaults": {
+    "@nx/js:tsc": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"]
+    },
+    "build": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"]
+    },
+    "lint": {
+      "cache": true,
+      "inputs": ["default", "{workspaceRoot}/.eslintrc.json"]
+    },
+    "format": {
+      "cache": true,
+      "inputs": ["default", "{workspaceRoot}/.prettierrc.json"]
+    }
+  },
+  "parallel": 5,
+  "cacheDirectory": "node_modules/.cache/nx",
+  "release": {
+    "version": {
+      "preVersionCommand": "bunx nx run-many -t build"
+    }
+  }
 }

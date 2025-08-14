@@ -2,20 +2,51 @@
   "name": "@ai-toolkit/source",
   "version": "0.0.0",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "build": "nx run-many --target=build --all",
+    "lint": "nx run-many --target=lint --all",
+    "format": "nx format:write",
+    "format:check": "nx format:check"
+  },
   "private": true,
-  "dependencies": {},
+  "dependencies": {
+    "@nx/devkit": "21.3.11"
+  },
   "devDependencies": {
+    "@nx/eslint": "^21.3.11",
+    "@nx/jest": "21.3.11",
     "@nx/js": "21.3.11",
+    "@nx/plugin": "^21.3.11",
     "@swc-node/register": "~1.9.1",
+    "@swc/cli": "~0.6.0",
     "@swc/core": "~1.5.7",
     "@swc/helpers": "~0.5.11",
+    "@types/node": "18.16.9",
+    "@typescript-eslint/eslint-plugin": "^8.39.1",
+    "@typescript-eslint/parser": "^8.39.1",
+    "eslint": "^9.33.0",
     "nx": "21.3.11",
     "prettier": "^2.6.2",
     "tslib": "^2.3.0",
-    "typescript": "~5.8.2"
+    "typescript": "~5.8.2",
+    "verdaccio": "^6.0.5"
   },
   "workspaces": [
-    "packages/*"
-  ]
+    "packages/*",
+    "packages/commands/*",
+    "packages/agents/*"
+  ],
+  "nx": {
+    "includedScripts": [],
+    "targets": {
+      "local-registry": {
+        "executor": "@nx/js:verdaccio",
+        "options": {
+          "port": 4873,
+          "config": ".verdaccio/config.yml",
+          "storage": "tmp/local-registry/storage"
+        }
+      }
+    }
+  }
 }

@@ -1,0 +1,24 @@
+{
+  "generators": {
+    "init": {
+      "factory": "./dist/generators/init",
+      "schema": "./dist/generators/schema.json",
+      "description": "One-shot installer for Claude Code configs"
+    },
+    "add-command": {
+      "factory": "./dist/generators/add-command",
+      "schema": "./dist/generators/schema.json",
+      "description": "Add a new Claude Code command"
+    },
+    "add-agent": {
+      "factory": "./dist/generators/add-agent",
+      "schema": "./dist/generators/schema.json",
+      "description": "Add a new Claude Code agent"
+    },
+    "content-package": {
+      "factory": "./dist/generators/content-package",
+      "schema": "./dist/generators/schema.json",
+      "description": "Create a new content package for commands or agents"
+    }
+  }
+}

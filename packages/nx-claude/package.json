@@ -1,0 +1,55 @@
+{
+  "name": "@ai-toolkit/nx-claude",
+  "version": "0.0.1",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo",
+    "generators.json"
+  ],
+  "nx": {
+    "targets": {
+      "build": {
+        "executor": "@nx/js:tsc",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "options": {
+          "outputPath": "packages/nx-claude/dist",
+          "main": "packages/nx-claude/src/index.ts",
+          "tsConfig": "packages/nx-claude/tsconfig.lib.json",
+          "rootDir": "packages/nx-claude/src",
+          "generatePackageJson": false,
+          "assets": [
+            {
+              "input": "./packages/nx-claude/src",
+              "glob": "**/!(*.ts)",
+              "output": "."
+            },
+            {
+              "input": "./packages/nx-claude/src",
+              "glob": "**/*.d.ts",
+              "output": "."
+            }
+          ]
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@nx/devkit": "21.3.11",
+    "tslib": "^2.3.0"
+  },
+  "generators": "./generators.json"
+}
