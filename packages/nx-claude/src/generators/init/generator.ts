@@ -68,21 +68,8 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     ])
   );
 
-  // First, get the installation type if not provided
+  // Get the installation type (Nx will prompt via schema.json if not provided)
   let installationType = options.installationType;
-  if (!installationType && !options.nonInteractive) {
-    const { type } = await prompt<{ type: 'global' | 'local' }>({
-      type: 'select',
-      name: 'type',
-      message:
-        'Would you like to install agents and commands globally or locally?',
-      choices: [
-        { message: 'Global (~/.claude)', name: 'global' },
-        { message: 'Local (./.claude in current directory)', name: 'local' },
-      ],
-    } as any);
-    installationType = type;
-  }
 
   // Check for existing files in both locations
   const globalDir = path.join(process.env.HOME || '~', '.claude');

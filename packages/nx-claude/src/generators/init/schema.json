@@ -9,13 +9,16 @@
       "description": "Installation type (global or local)",
       "enum": ["global", "local"],
       "x-prompt": {
-        "message": "Would you like to install agents and commands globally or locally?",
+        "message": "📍 Installation Location Options:\n  • Global: Available to Claude Code in ALL projects on this machine\n  • Local: Available only when Claude Code is run from this specific project\n\nWould you like to install agents and commands globally or locally?",
         "type": "list",
         "items": [
-          { "value": "global", "label": "Global (~/.claude)" },
+          {
+            "value": "global",
+            "label": "Global (~/.claude) - Use anywhere on this machine"
+          },
           {
             "value": "local",
-            "label": "Local (./.claude in current directory)"
+            "label": "Local (./.claude) - Use only in this project"
           }
         ]
       }
