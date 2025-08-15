@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "$id": "Init",
+  "title": "Initialize Claude Code configuration",
+  "type": "object",
+  "properties": {
+    "installationType": {
+      "type": "string",
+      "description": "Installation type (global or local)",
+      "enum": ["global", "local"],
+      "x-prompt": {
+        "message": "Would you like to install agents and commands globally or locally?",
+        "type": "list",
+        "items": [
+          { "value": "global", "label": "Global (~/.claude)" },
+          {
+            "value": "local",
+            "label": "Local (./.claude in current directory)"
+          }
+        ]
+      }
+    },
+    "confirmLocalPath": {
+      "type": "boolean",
+      "description": "Confirm local installation path"
+    },
+    "commands": {
+      "type": "array",
+      "description": "Specific commands to install",
+      "items": {
+        "type": "string"
+      }
+    },
+    "allCommands": {
+      "type": "boolean",
+      "description": "Install all available commands",
+      "default": false
+    },
+    "agents": {
+      "type": "array",
+      "description": "Specific agents to install",
+      "items": {
+        "type": "string"
+      }
+    },
+    "allAgents": {
+      "type": "boolean",
+      "description": "Install all available agents",
+      "default": false
+    },
+    "dryRun": {
+      "type": "boolean",
+      "description": "Show what would be installed without making changes",
+      "default": false
+    },
+    "nonInteractive": {
+      "type": "boolean",
+      "description": "Run without prompts",
+      "default": false
+    },
+    "force": {
+      "type": "boolean",
+      "description": "Overwrite existing files",
+      "default": false
+    }
+  },
+  "required": []
+}

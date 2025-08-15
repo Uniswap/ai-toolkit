@@ -5,15 +5,18 @@ allowed-tools: Bash(git diff:*), Bash(git show:*)
 ---
 
 ## Inputs
+
 - Target path or glob.
 - Optional `--goal` (default: readability).
 
 ## Task
+
 - Use **refactorer** to propose small, reviewable patches aligned with the goal.
 - If style changes dominate, use **style-enforcer** to generate small fixes.
 - Return patches only; do not apply automatically.
 
 ## Output
+
 - `summary`
 - `patches[]`
 - `followups[]`

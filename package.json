@@ -6,7 +6,9 @@
     "build": "nx run-many --target=build --all",
     "lint": "nx run-many --target=lint --all",
     "format": "nx format:write",
-    "format:check": "nx format:check"
+    "format:check": "nx format:check",
+    "prepare": "lefthook install",
+    "lefthook": "lefthook run pre-commit"
   },
   "private": true,
   "dependencies": {
@@ -24,7 +26,9 @@
     "@types/node": "18.16.9",
     "@typescript-eslint/eslint-plugin": "^8.39.1",
     "@typescript-eslint/parser": "^8.39.1",
+    "enquirer": "^2.4.1",
     "eslint": "^9.33.0",
+    "lefthook": "^1.12.3",
     "nx": "21.3.11",
     "prettier": "^2.6.2",
     "tslib": "^2.3.0",

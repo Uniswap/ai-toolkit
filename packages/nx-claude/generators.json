@@ -1,8 +1,8 @@
 {
   "generators": {
     "init": {
-      "factory": "./dist/generators/init",
-      "schema": "./dist/generators/schema.json",
+      "factory": "./dist/generators/init/generator",
+      "schema": "./dist/generators/init/schema.json",
       "description": "One-shot installer for Claude Code configs"
     },
     "add-command": {
