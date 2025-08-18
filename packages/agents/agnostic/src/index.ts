@@ -5,6 +5,7 @@ type Agent =
   | 'debug-assistant'
   | 'doc-writer'
   | 'refactorer'
+  | 'researcher'
   | 'style-enforcer'
   | 'test-writer';
 
@@ -37,6 +38,11 @@ export const agents: Agents = {
   refactorer: {
     description: 'Improve code structure and design',
     filePath: './refactorer.md',
+  },
+  researcher: {
+    description:
+      'Conduct comprehensive research by combining web docs with codebase analysis',
+    filePath: './researcher.md',
   },
   'style-enforcer': {
     description: 'Ensure code style consistency',

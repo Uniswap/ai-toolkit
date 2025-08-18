@@ -4,6 +4,7 @@ type CommandName =
   | 'gen-tests'
   | 'plan-feature'
   | 'refactor'
+  | 'research'
   | 'review-pr'
   | 'understand-area';
 
@@ -34,6 +35,11 @@ export const commands: Commands = {
   refactor: {
     description: 'Refactor code for better structure',
     filePath: './refactor.md',
+  },
+  research: {
+    description:
+      'Research a topic by combining web search with codebase analysis',
+    filePath: './research.md',
   },
   'review-pr': {
     description: 'Review pull requests for quality',
