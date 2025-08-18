@@ -1,7 +1,7 @@
 ---
 description: Deep dive into a codebase area to build comprehensive understanding before implementation.
 argument-hint: <natural language description of what you want to understand>
-allowed-tools: Bash(git ls-files:*), Bash(find:*)
+allowed-tools: Bash(git ls-files:*), Bash(find:*), Fetch(*), Bash(git log:*), Bash(git show:*), Bash(bunx nx graph:*)
 ---
 
 ## Inputs
@@ -45,4 +45,3 @@ Return the structured analysis from context-loader:
 - `gotchas`: Non-obvious behaviors and pitfalls
 - `implementation-notes`: Key considerations for new work
 - `testing-approach`: How this area is tested
-- `ready-status`: Confirmation of analysis completion
