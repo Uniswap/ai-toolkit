@@ -46,3 +46,4 @@ Thumbs.db
 # Claude
 
 .claude/local/
+.claude

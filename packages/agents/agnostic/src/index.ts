@@ -1,5 +1,6 @@
 // Agent types
 type Agent =
+  | 'context-loader'
   | 'code-explainer'
   | 'debug-assistant'
   | 'doc-writer'
@@ -16,6 +17,11 @@ type Agents = {
 
 // Export agents with descriptions and file paths
 export const agents: Agents = {
+  'context-loader': {
+    description:
+      'Deep dive and understand codebase areas before implementation',
+    filePath: './context-loader.md',
+  },
   'code-explainer': {
     description: 'Analyze and explain complex code',
     filePath: './code-explainer.md',

@@ -4,7 +4,8 @@ type CommandName =
   | 'gen-tests'
   | 'plan-feature'
   | 'refactor'
-  | 'review-pr';
+  | 'review-pr'
+  | 'understand-area';
 
 export type Commands = {
   [key in CommandName]: {
@@ -37,5 +38,9 @@ export const commands: Commands = {
   'review-pr': {
     description: 'Review pull requests for quality',
     filePath: './review-pr.md',
+  },
+  'understand-area': {
+    description: 'Deep dive into codebase areas before implementation',
+    filePath: './understand-area.md',
   },
 } as const;
