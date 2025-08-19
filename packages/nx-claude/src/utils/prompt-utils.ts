@@ -14,6 +14,11 @@ export interface SchemaProperty {
         type?: string;
         items?: Array<{ value: string; label: string }>;
       };
+  'always-prompt'?: boolean;
+  'prompt-message'?: string;
+  'prompt-type'?: string;
+  'prompt-items'?: Array<{ value: string; label: string }>;
+  'prompt-when'?: string;
 }
 
 export interface Schema {
@@ -34,7 +39,8 @@ export async function promptForMissingOptions<T extends Record<string, any>>(
     otherLocationCommands?: Set<string>;
     otherLocationAgents?: Set<string>;
     installationType?: 'global' | 'local';
-  } = {}
+  } = {},
+  explicitlyProvidedOptions?: Map<string, any> | Set<string>
 ): Promise<T> {
   // Load schema
   const schemaContent = fs.readFileSync(schemaPath, 'utf-8');
@@ -42,15 +48,50 @@ export async function promptForMissingOptions<T extends Record<string, any>>(
 
   const result: any = { ...options };
 
-  // Skip all prompts if non-interactive
-  if (result.nonInteractive) {
+  // Skip all prompts if no-interactive (check various formats Nx might provide)
+  if (
+    result['no-interactive'] ||
+    result.noInteractive ||
+    result['non-interactive'] ||
+    result.nonInteractive
+  ) {
+    // Apply defaults for any missing values
+    for (const [key, property] of Object.entries(schema.properties)) {
+      if (result[key] === undefined && property.default !== undefined) {
+        result[key] = property.default;
+      }
+    }
     return result;
   }
 
   // Process each property in order
   for (const [key, property] of Object.entries(schema.properties)) {
-    if (result[key] !== undefined && result[key] !== null) {
-      // Skip if value already provided
+    // Check if value was explicitly provided via CLI
+    let wasExplicitlyProvided = false;
+    if (explicitlyProvidedOptions) {
+      // Handle both Map and Set for backward compatibility
+      if (explicitlyProvidedOptions instanceof Map) {
+        wasExplicitlyProvided =
+          explicitlyProvidedOptions.has(key) ||
+          explicitlyProvidedOptions.has(key.replace(/-/g, ''));
+      } else {
+        // Legacy Set support
+        wasExplicitlyProvided =
+          explicitlyProvidedOptions.has(key) ||
+          explicitlyProvidedOptions.has(key.replace(/-/g, ''));
+      }
+    }
+
+    // Determine if we should prompt for this property
+    const shouldPrompt = property['always-prompt']
+      ? // For always-prompt fields, only skip if value was explicitly provided
+        !wasExplicitlyProvided
+      : // For regular fields (backward compatibility with x-prompt),
+        // skip if value exists at all (provided or defaulted)
+        (result[key] === undefined || result[key] === null) &&
+        !wasExplicitlyProvided;
+
+    if (!shouldPrompt) {
       continue;
     }
 
@@ -62,8 +103,13 @@ export async function promptForMissingOptions<T extends Record<string, any>>(
       }
     }
 
-    if (key === 'nonInteractive') {
-      // Never prompt for nonInteractive
+    if (
+      key === 'nonInteractive' ||
+      key === 'non-interactive' ||
+      key === 'no-interactive' ||
+      key === 'noInteractive'
+    ) {
+      // Never prompt for no-interactive flag
       continue;
     }
 
@@ -72,8 +118,22 @@ export async function promptForMissingOptions<T extends Record<string, any>>(
       continue;
     }
 
+    // Check for conditional prompting (prompt-when)
+    if (property['prompt-when']) {
+      // Simple evaluation of condition (only supports === for now)
+      const [field, operator, value] = property['prompt-when'].split(' ');
+      if (operator === '===' && result[field] !== value.replace(/['"]/g, '')) {
+        continue;
+      }
+    }
+
     // Generate prompt based on property type
-    const promptResult = await promptForProperty(key, property, context);
+    const promptResult = await promptForProperty(
+      key,
+      property,
+      context,
+      result
+    );
     if (promptResult !== undefined) {
       result[key] = promptResult;
 
@@ -106,18 +166,44 @@ async function promptForProperty(
     otherLocationCommands?: Set<string>;
     otherLocationAgents?: Set<string>;
     installationType?: 'global' | 'local';
-  }
+  },
+  currentValues?: Record<string, any>
 ): Promise<any> {
   const promptMessage = getPromptMessage(key, property);
 
-  // Handle different property types
-  if (property.type === 'boolean') {
+  // Handle different property types based on prompt-type or inferred type
+  const promptType =
+    property['prompt-type'] ||
+    (property.type === 'boolean'
+      ? 'confirm'
+      : property.enum
+      ? 'select'
+      : property.type === 'string'
+      ? 'input'
+      : null);
+
+  if (promptType === 'confirm' || property.type === 'boolean') {
     const { value } = await prompt<{ value: boolean }>({
       type: 'confirm',
       name: 'value',
       message: promptMessage,
       initial: property.default ?? false,
     });
+    return value;
+  }
+
+  if (promptType === 'list' && property['prompt-items']) {
+    // List selection with custom items
+    const { value } = await prompt<{ value: string }>({
+      type: 'select',
+      name: 'value',
+      message: promptMessage,
+      choices: property['prompt-items'].map((item) => ({
+        name: item.value,
+        value: item.value,
+        message: item.label,
+      })),
+    } as any);
     return value;
   }
 
@@ -269,7 +355,12 @@ async function promptMultiSelectWithAll(
 }
 
 function getPromptMessage(key: string, property: SchemaProperty): string {
-  // Use x-prompt if available
+  // Use prompt-message if available (new format)
+  if (property['prompt-message']) {
+    return property['prompt-message'];
+  }
+
+  // Use x-prompt if available (backward compatibility)
   if (property['x-prompt']) {
     if (typeof property['x-prompt'] === 'string') {
       return property['x-prompt'];

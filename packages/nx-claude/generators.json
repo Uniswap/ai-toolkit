@@ -19,6 +19,11 @@
       "factory": "./dist/generators/content-package",
       "schema": "./dist/generators/schema.json",
       "description": "Create a new content package for commands or agents"
+    },
+    "hooks": {
+      "factory": "./dist/generators/hooks/generator",
+      "schema": "./dist/generators/hooks/schema.json",
+      "description": "Install Claude Code notification hooks"
     }
   }
 }

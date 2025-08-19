@@ -4,7 +4,11 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { execSync } from 'child_process';
 import { InitGeneratorSchema } from './schema';
-import { promptForMissingOptions } from './prompt-utils';
+import { promptForMissingOptions } from '../../utils/prompt-utils';
+import {
+  getExplicitlyProvidedOptions,
+  isNxNoInteractiveProvided,
+} from '../hooks/cli-parser';
 
 // Import available commands and agents from content packages
 import { commands as agnosticCommands } from '@ai-toolkit/commands-agnostic';
@@ -101,10 +105,23 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     Object.keys(agnosticAgents)
   );
 
+  // Get explicitly provided CLI options
+  const explicitlyProvided = getExplicitlyProvidedOptions();
+
+  // Check if Nx's no-interactive flag was provided
+  const nxNoInteractiveProvided = isNxNoInteractiveProvided();
+
+  // Pass the no-interactive flag to prompt-utils via options
+  const optionsWithNoInteractive = {
+    ...options,
+    installationType,
+    'no-interactive': nxNoInteractiveProvided,
+  };
+
   let normalizedOptions;
   try {
     normalizedOptions = await promptForMissingOptions(
-      { ...options, installationType },
+      optionsWithNoInteractive,
       schemaPath,
       {
         availableCommands: Object.keys(agnosticCommands),
@@ -116,7 +133,8 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
         otherLocationCommands,
         otherLocationAgents,
         installationType,
-      }
+      },
+      explicitlyProvided
     );
   } catch (error: any) {
     if (error.message?.includes('Installation cancelled')) {

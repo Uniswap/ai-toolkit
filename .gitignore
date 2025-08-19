@@ -46,4 +46,7 @@ Thumbs.db
 # Claude
 
 .claude/local/
-.claude
+
+# Spec Workflow
+
+.spec-workflow/
