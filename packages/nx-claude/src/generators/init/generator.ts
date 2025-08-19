@@ -9,6 +9,7 @@ import { promptForMissingOptions } from '../../utils/prompt-utils';
 import {
   getExplicitlyProvidedOptions,
   isNxNoInteractiveProvided,
+  isNxDryRunProvided,
 } from '../hooks/cli-parser';
 
 // Import available commands and agents from content packages
@@ -42,8 +43,28 @@ function checkExistingFiles(
 }
 
 export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
-  // Step 1: Check if Claude CLI is installed (skip only if explicitly non-interactive)
-  if (!options.nonInteractive) {
+  // Get explicitly provided CLI options
+  const explicitlyProvided = getExplicitlyProvidedOptions();
+
+  // Check if Nx's dry-run flag was provided in any form
+  const nxDryRunProvided = isNxDryRunProvided();
+
+  // If Nx dry-run was provided, set our dryRun option to true
+  if (nxDryRunProvided) {
+    options.dryRun = true;
+    // Also mark it as explicitly provided
+    explicitlyProvided.set('dryRun', true);
+  }
+
+  // Check if Nx's no-interactive flag was provided
+  const nxNoInteractiveProvided = isNxNoInteractiveProvided();
+
+  // Step 1: Check if Claude CLI is installed
+  if (
+    !nxNoInteractiveProvided &&
+    !options.nonInteractive &&
+    !options.dryRun
+  ) {
     const isClaudeInstalled = checkClaudeInstalled();
     if (!isClaudeInstalled) {
       logger.warn('⚠️  Claude CLI is not installed');
@@ -78,12 +99,6 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   const globalDir = path.join(homeDir, '.claude');
   const localDir = path.join(process.cwd(), '.claude');
 
-  // Get explicitly provided CLI options
-  const explicitlyProvided = getExplicitlyProvidedOptions();
-
-  // Check if Nx's no-interactive flag was provided
-  const nxNoInteractiveProvided = isNxNoInteractiveProvided();
-
   // Check for existing files in BOTH locations upfront
   // This is needed to show cross-location indicators
   const globalExistingCommands = checkExistingFiles(
@@ -110,7 +125,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   // Pass the no-interactive flag to prompt-utils via options
   const optionsWithNoInteractive = {
     ...options,
-    'no-interactive': nxNoInteractiveProvided,
+    'no-interactive': nxNoInteractiveProvided || options.nonInteractive,
   };
 
   let normalizedOptions;
@@ -138,7 +153,9 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     throw error;
   }
 
-  if (normalizedOptions.dryRun) {
+  // Handle dry-run mode
+  const isDryRun = normalizedOptions.dryRun;
+  if (isDryRun) {
     logger.info('🔍 DRY RUN MODE - No files will be modified');
   }
 
@@ -158,7 +175,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
 
   // Check for existing installation and handle force prompt (skip in dry-run mode)
   const relativeManifestPath = path.join(relativeTargetDir, 'manifest.json');
-  if (!normalizedOptions.dryRun) {
+  if (!isDryRun) {
     if (tree.exists(relativeManifestPath)) {
       if (!normalizedOptions.force) {
         if (normalizedOptions.nonInteractive) {
@@ -267,7 +284,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   logger.info(`  Commands: ${installedCommands.length} selected`);
   logger.info(`  Agents: ${installedAgents.length} selected`);
 
-  if (normalizedOptions.dryRun) {
+  if (isDryRun) {
     logger.info('\n📋 Would install:');
     installedFiles.forEach((file) => {
       logger.info(`  - ${file}`);
