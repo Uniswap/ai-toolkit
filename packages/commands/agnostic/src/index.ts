@@ -2,6 +2,7 @@ type CommandName =
   | 'explain-file'
   | 'fix-bug'
   | 'gen-tests'
+  | 'plan'
   | 'plan-feature'
   | 'refactor'
   | 'research'
@@ -27,6 +28,11 @@ export const commands: Commands = {
   'gen-tests': {
     description: 'Generate comprehensive test suites',
     filePath: './gen-tests.md',
+  },
+  plan: {
+    description:
+      'Create a detailed implementation plan for a task without writing code',
+    filePath: './plan.md',
   },
   'plan-feature': {
     description: 'Plan implementation for new features',

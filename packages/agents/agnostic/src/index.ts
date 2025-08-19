@@ -4,6 +4,7 @@ type Agent =
   | 'code-explainer'
   | 'debug-assistant'
   | 'doc-writer'
+  | 'planner'
   | 'refactorer'
   | 'researcher'
   | 'style-enforcer'
@@ -34,6 +35,10 @@ export const agents: Agents = {
   'doc-writer': {
     description: 'Generate documentation and comments',
     filePath: './doc-writer.md',
+  },
+  planner: {
+    description: 'Create detailed implementation plans without writing code',
+    filePath: './planner.md',
   },
   refactorer: {
     description: 'Improve code structure and design',
