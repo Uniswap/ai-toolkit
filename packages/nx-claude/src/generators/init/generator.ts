@@ -49,11 +49,11 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   // Check if Nx's dry-run flag was provided in any form
   const nxDryRunProvided = isNxDryRunProvided();
 
-  // If Nx dry-run was provided, set our dryRun option to true
+  // If Nx dry-run was provided, set our dry option to true
   if (nxDryRunProvided) {
-    options.dryRun = true;
+    options.dry = true;
     // Also mark it as explicitly provided
-    explicitlyProvided.set('dryRun', true);
+    explicitlyProvided.set('dry', true);
   }
 
   // Check if Nx's no-interactive flag was provided
@@ -63,6 +63,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   if (
     !nxNoInteractiveProvided &&
     !options.nonInteractive &&
+    !options.dry &&
     !options.dryRun
   ) {
     const isClaudeInstalled = checkClaudeInstalled();
@@ -153,8 +154,8 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     throw error;
   }
 
-  // Handle dry-run mode
-  const isDryRun = normalizedOptions.dryRun;
+  // Handle dry-run mode (check both dry and dryRun for compatibility)
+  const isDryRun = normalizedOptions.dry || normalizedOptions.dryRun;
   if (isDryRun) {
     logger.info('🔍 DRY RUN MODE - No files will be modified');
   }
