@@ -102,22 +102,117 @@ bunx nx generate @ai-toolkit/nx-claude:content-package
 
 ### Schema-Driven Prompting
 
-All generators use a schema-driven approach for user interaction:
+All generators use a sophisticated schema-driven approach for user interaction that extends standard JSON Schema with custom prompt properties:
 
-1. **schema.json**: Defines all configuration options
+1. **schema.json**: Defines all configuration options with custom extensions
 2. **schema.d.ts**: TypeScript interface for type safety
 3. **prompt-utils.ts**: Shared utility for generating prompts from schema
-4. **x-prompt**: Schema annotations for custom prompt messages
+4. **Custom Properties**: Multiple ways to control prompting behavior
 
-Example schema structure:
+#### Custom Schema Properties
+
+The package implements several custom schema properties that extend JSON Schema for rich CLI interactions:
+
+##### Standard x-prompt (Nx Compatible)
 
 ```json
 {
+  "installationType": {
+    "type": "string",
+    "enum": ["global", "local"],
+    "x-prompt": "Choose installation location"
+  }
+}
+```
+
+##### Enhanced Prompt Properties (Our Extensions)
+
+We've extended the schema system with additional properties for finer control:
+
+```json
+{
+  "backup": {
+    "type": "boolean",
+    "default": true,
+    "always-prompt": true, // Force prompting even when default exists
+    "prompt-message": "💾 Backup existing configuration?", // Custom message with emoji
+    "prompt-type": "confirm" // Specify prompt type explicitly
+  },
+  "commands": {
+    "type": "array",
+    "prompt-type": "multiselect",
+    "prompt-items": [
+      // Custom items for select/multiselect
+      { "value": "cmd1", "label": "Command 1 - Description" },
+      { "value": "cmd2", "label": "Command 2 - Description" }
+    ],
+    "prompt-when": "installationType === 'local'" // Conditional prompting
+  }
+}
+```
+
+#### Prompt Control Properties
+
+| Property         | Type             | Purpose                                    | Example                      |
+| ---------------- | ---------------- | ------------------------------------------ | ---------------------------- |
+| `x-prompt`       | string \| object | Nx-compatible prompt configuration         | `"Choose an option"`         |
+| `always-prompt`  | boolean          | Force prompting even with defaults         | `true`                       |
+| `prompt-message` | string           | Custom prompt message (overrides x-prompt) | `"💾 Backup?"`               |
+| `prompt-type`    | string           | Explicit prompt type                       | `"confirm"`, `"multiselect"` |
+| `prompt-items`   | array            | Custom items for select prompts            | `[{value, label}]`           |
+| `prompt-when`    | string           | Conditional expression for prompting       | `"mode === 'advanced'"`      |
+
+#### Prompt Resolution Logic
+
+The prompt-utils.ts utility resolves prompts with the following precedence:
+
+1. **Skip if explicitly provided via CLI** (unless `always-prompt: true`)
+2. **Check conditional prompting** (`prompt-when` expression)
+3. **Message resolution order**:
+   - `prompt-message` (highest priority)
+   - `x-prompt.message` or `x-prompt` string
+   - Auto-generated from property name
+4. **Type resolution order**:
+   - `prompt-type` (highest priority)
+   - `x-prompt.type`
+   - Inferred from schema type and constraints
+
+#### CLI Parsing Enhancements
+
+The package includes sophisticated CLI argument parsing to handle:
+
+- **Nx flag variations**: `--no-interactive`, `--non-interactive`, etc.
+- **Boolean negations**: `--no-backup`, `--skip-tests`
+- **Camel/kebab conversion**: `--dry-run` → `dryRun`
+- **Explicit tracking**: Distinguishes CLI-provided vs. default values
+
+Example schema showcasing all features:
+
+```json
+{
+  "$schema": "https://json-schema.org/schema",
   "properties": {
-    "installationType": {
+    "mode": {
       "type": "string",
-      "enum": ["global", "local"],
-      "x-prompt": "Choose installation location"
+      "enum": ["sound", "speech", "both"],
+      "prompt-message": "🔊 Select notification type",
+      "prompt-type": "select",
+      "default": "sound"
+    },
+    "test": {
+      "type": "boolean",
+      "always-prompt": true,
+      "prompt-message": "🧪 Test notifications after installation?",
+      "prompt-type": "confirm",
+      "default": false
+    },
+    "verbose": {
+      "type": "boolean",
+      "description": "Show detailed output",
+      "x-prompt": {
+        "message": "Enable verbose logging?",
+        "type": "confirm"
+      }
     }
   }
 }
@@ -155,12 +250,23 @@ Standard approaches for file management:
 
 ### prompt-utils.ts
 
-Shared by multiple generators for consistent prompting:
+Located at `src/utils/prompt-utils.ts`, this utility is shared by multiple generators for consistent prompting:
 
-- **promptForMissingOptions**: Main entry point
-- **promptForProperty**: Type-specific prompt generation
-- **promptMultiSelectWithAll**: Enhanced multi-select
-- **getPromptMessage**: Schema to prompt message mapping
+**Core Functions**:
+
+- **promptForMissingOptions**: Main entry point that processes schema and handles all prompting
+- **promptForProperty**: Type-specific prompt generation with custom property support
+- **promptMultiSelectWithAll**: Enhanced multi-select with "All" option
+- **getPromptMessage**: Resolves prompt message from multiple sources (prompt-message, x-prompt, auto-generated)
+- **parseCliArgs**: Sophisticated CLI argument parser handling Nx variations
+
+**Key Features**:
+
+- Handles both Map and Set for tracking explicitly provided options
+- Supports conditional prompting via `prompt-when` expressions
+- Respects `always-prompt` to force user interaction
+- Provides context-aware prompts (e.g., "exists globally" indicators)
+- Full support for no-interactive mode
 
 ### Common Patterns
 
