@@ -1,7 +1,7 @@
 ---
 description: Create a detailed implementation plan for a task without writing code
 argument-hint: <task description>
-allowed-tools: Read(*), Glob(*), Grep(*), LS(*), WebSearch(*), WebFetch(*)
+allowed-tools: Read(*), Glob(*), Grep(*), LS(*), WebSearch(*), WebFetch(*), Write(*), MultiEdit(*)
 ---
 
 # Plan Command
@@ -22,12 +22,14 @@ This two-step process ensures the planner has deep understanding before creating
 ## Inputs
 
 Accept natural language description and extract:
+
 - `task`: The full description of what needs to be implemented/fixed/refactored
 - `scope`: Any specific scope or boundaries mentioned
 - `constraints`: Any explicit constraints or requirements
 - `context_findings`: Automatically include context-loader findings from `/understand-area` if available
 
 Examples:
+
 - `/plan add user authentication with JWT tokens`
 - `/plan refactor the data pipeline to use async/await`
 - `/plan fix the memory leak in the image processing module`
@@ -36,6 +38,7 @@ Examples:
 ## Task
 
 Generate a detailed implementation plan that:
+
 1. Leverages any context-loader findings if available
 2. Analyzes the current codebase state
 3. Defines the exact scope of changes
@@ -46,6 +49,7 @@ Generate a detailed implementation plan that:
 ## Context Integration
 
 **Claude Code**: When you have findings from a previous `/understand-area` command, automatically extract and pass:
+
 - Key components and their responsibilities
 - Existing patterns and conventions
 - Dependencies and integration points
@@ -55,6 +59,7 @@ Generate a detailed implementation plan that:
 ## Delegation
 
 Invoke **planner** with:
+
 - `task`: The complete task description
 - `scope`: Extracted scope/boundaries (optional)
 - `constraints`: Any specific constraints (optional)
@@ -67,13 +72,11 @@ Invoke **planner** with:
 
 ## Output
 
-Return the structured plan from planner:
-- `overview`: Brief summary of proposed changes
-- `scope`: Exact boundaries of implementation
-- `current-state`: Analysis of existing code
-- `implementation-steps`: Detailed step-by-step plan
-- `files-to-modify`: List of files that will need changes
-- `new-files`: Any new files that need creation
-- `challenges`: Potential issues and mitigations
-- `testing-strategy`: How to test the implementation
-- `success-criteria`: Definition of done
+Return the plan summary from planner:
+
+- `plan_file_path`: Absolute path to the generated markdown plan file
+- `summary`: Brief summary of what was planned
+- `task_analyzed`: Original task that was analyzed
+- `context_used`: Whether context-loader findings were leveraged
+
+The detailed plan is written to the markdown file for use with `/review-plan` or future reference.
