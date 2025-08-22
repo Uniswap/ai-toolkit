@@ -54,7 +54,8 @@
     "dryRun": {
       "type": "boolean",
       "description": "Show what would be installed without making changes",
-      "default": false
+      "default": false,
+      "always-prompt": true
     },
     "nonInteractive": {
       "type": "boolean",

@@ -72,14 +72,14 @@ The interactive flow will:
 ### Non-Interactive Global Installation
 
 ```bash
-bunx nx generate @ai-toolkit/nx-claude:init --non-interactive --installation-type=global --all-commands --all-agents
+bunx nx generate @ai-toolkit/nx-claude:init --no-interactive --installation-type=global --all-commands --all-agents
 ```
 
 ### Non-Interactive Local Installation
 
 ```bash
 # Must be run from project root
-bunx nx generate @ai-toolkit/nx-claude:init --non-interactive --installation-type=local --confirm-local-path=true --all-commands --all-agents
+bunx nx generate @ai-toolkit/nx-claude:init --no-interactive --installation-type=local --confirm-local-path=true --all-commands --all-agents
 ```
 
 ### Dry Run to Preview

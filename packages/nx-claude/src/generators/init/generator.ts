@@ -2,9 +2,14 @@ import { Tree, formatFiles, logger, writeJson } from '@nx/devkit';
 import { prompt } from 'enquirer';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 import { execSync } from 'child_process';
 import { InitGeneratorSchema } from './schema';
-import { promptForMissingOptions } from './prompt-utils';
+import { promptForMissingOptions } from '../../utils/prompt-utils';
+import {
+  getExplicitlyProvidedOptions,
+  isNxNoInteractiveProvided,
+} from '../hooks/cli-parser';
 
 // Import available commands and agents from content packages
 import { commands as agnosticCommands } from '@ai-toolkit/commands-agnostic';
@@ -37,8 +42,8 @@ function checkExistingFiles(
 }
 
 export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
-  // Step 1: Check if Claude CLI is installed
-  if (!options.nonInteractive && !options.dryRun) {
+  // Step 1: Check if Claude CLI is installed (skip only if explicitly non-interactive)
+  if (!options.nonInteractive) {
     const isClaudeInstalled = checkClaudeInstalled();
     if (!isClaudeInstalled) {
       logger.warn('⚠️  Claude CLI is not installed');
@@ -68,55 +73,62 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     ])
   );
 
-  // Get the installation type (Nx will prompt via schema.json if not provided)
-  let installationType = options.installationType;
+  // Define directory paths
+  const homeDir = os.homedir();
+  const globalDir = path.join(homeDir, '.claude');
+  const localDir = path.join(process.cwd(), '.claude');
 
-  // Check for existing files in both locations
-  const globalDir = path.join(process.env.HOME || '~', '.claude');
-  const localDir = './.claude';
+  // Get explicitly provided CLI options
+  const explicitlyProvided = getExplicitlyProvidedOptions();
 
-  // Check current target directory for overwrites
-  const checkTargetDir = installationType === 'global' ? globalDir : localDir;
-  const existingCommands = checkExistingFiles(
-    checkTargetDir,
+  // Check if Nx's no-interactive flag was provided
+  const nxNoInteractiveProvided = isNxNoInteractiveProvided();
+
+  // Check for existing files in BOTH locations upfront
+  // This is needed to show cross-location indicators
+  const globalExistingCommands = checkExistingFiles(
+    globalDir,
     'commands',
     Object.keys(agnosticCommands)
   );
-  const existingAgents = checkExistingFiles(
-    checkTargetDir,
+  const globalExistingAgents = checkExistingFiles(
+    globalDir,
+    'agents',
+    Object.keys(agnosticAgents)
+  );
+  const localExistingCommands = checkExistingFiles(
+    localDir,
+    'commands',
+    Object.keys(agnosticCommands)
+  );
+  const localExistingAgents = checkExistingFiles(
+    localDir,
     'agents',
     Object.keys(agnosticAgents)
   );
 
-  // Check the other location for cross-location indicators
-  const otherDir = installationType === 'global' ? localDir : globalDir;
-  const otherLocationCommands = checkExistingFiles(
-    otherDir,
-    'commands',
-    Object.keys(agnosticCommands)
-  );
-  const otherLocationAgents = checkExistingFiles(
-    otherDir,
-    'agents',
-    Object.keys(agnosticAgents)
-  );
+  // Pass the no-interactive flag to prompt-utils via options
+  const optionsWithNoInteractive = {
+    ...options,
+    'no-interactive': nxNoInteractiveProvided,
+  };
 
   let normalizedOptions;
   try {
     normalizedOptions = await promptForMissingOptions(
-      { ...options, installationType },
+      optionsWithNoInteractive,
       schemaPath,
       {
         availableCommands: Object.keys(agnosticCommands),
         availableAgents: Object.keys(agnosticAgents),
         commandDescriptions,
         agentDescriptions,
-        existingCommands,
-        existingAgents,
-        otherLocationCommands,
-        otherLocationAgents,
-        installationType,
-      }
+        globalExistingCommands,
+        globalExistingAgents,
+        localExistingCommands,
+        localExistingAgents,
+      },
+      explicitlyProvided
     );
   } catch (error: any) {
     if (error.message?.includes('Installation cancelled')) {
@@ -131,28 +143,38 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   }
 
   // Determine target directory based on installation type
-  const targetDir =
-    normalizedOptions.installationType === 'global'
-      ? path.join(process.env.HOME || '~', '.claude')
-      : './.claude';
+  const isGlobalInstall = normalizedOptions.installationType === 'global';
+  const workspaceRoot = process.cwd();
 
-  // Check for existing installation and handle force prompt
-  const manifestPath = path.join(targetDir, 'manifest.json');
-  if (tree.exists(manifestPath)) {
-    if (!normalizedOptions.force) {
-      if (normalizedOptions.nonInteractive) {
-        logger.warn(
-          'Installation cancelled - existing Claude configuration found. Use --force to overwrite.'
-        );
-        return;
-      }
+  // For global installations, calculate relative path from workspace to home
+  const targetDir = isGlobalInstall
+    ? path.join(homeDir, '.claude')
+    : path.join(workspaceRoot, '.claude');
 
-      const shouldOverwrite = await promptOverwrite();
-      if (!shouldOverwrite) {
-        logger.warn(
-          'Installation cancelled - existing Claude configuration found'
-        );
-        return;
+  // Calculate relative path from workspace root for tree.write()
+  const relativeTargetDir = isGlobalInstall
+    ? path.relative(workspaceRoot, targetDir)
+    : '.claude';
+
+  // Check for existing installation and handle force prompt (skip in dry-run mode)
+  const relativeManifestPath = path.join(relativeTargetDir, 'manifest.json');
+  if (!normalizedOptions.dryRun) {
+    if (tree.exists(relativeManifestPath)) {
+      if (!normalizedOptions.force) {
+        if (normalizedOptions.nonInteractive) {
+          logger.warn(
+            'Installation cancelled - existing Claude configuration found. Use --force to overwrite.'
+          );
+          return;
+        }
+
+        const shouldOverwrite = await promptOverwrite();
+        if (!shouldOverwrite) {
+          logger.warn(
+            'Installation cancelled - existing Claude configuration found'
+          );
+          return;
+        }
       }
     }
   }
@@ -160,6 +182,10 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   // Create directory structure
   const commandsDir = path.join(targetDir, 'commands');
   const agentsDir = path.join(targetDir, 'agents');
+
+  // Relative paths for tree.write()
+  const relativeCommandsDir = path.join(relativeTargetDir, 'commands');
+  const relativeAgentsDir = path.join(relativeTargetDir, 'agents');
 
   // Collect files to install
   const installedCommands: string[] = [];
@@ -171,10 +197,6 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     ? Object.keys(agnosticCommands)
     : normalizedOptions.commands || [];
 
-  // Get the actual file path to the source files
-  // When running from dist, we need to go back to workspace root
-  const workspaceRoot = process.cwd();
-
   for (const commandName of commandsToInstall) {
     const sourcePath = path.join(
       workspaceRoot,
@@ -182,11 +204,17 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
       `${commandName}.md`
     );
     const destPath = path.join(commandsDir, `${commandName}.md`);
+    const relativeDestPath = path.join(
+      relativeCommandsDir,
+      `${commandName}.md`
+    );
 
     try {
       if (fs.existsSync(sourcePath)) {
         const content = fs.readFileSync(sourcePath, 'utf-8');
-        tree.write(destPath, content);
+        if (!normalizedOptions.dryRun) {
+          tree.write(relativeDestPath, content);
+        }
         installedCommands.push(commandName);
         installedFiles.push(path.relative(targetDir, destPath));
       } else {
@@ -209,11 +237,14 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
       `${agentName}.md`
     );
     const destPath = path.join(agentsDir, `${agentName}.md`);
+    const relativeDestPath = path.join(relativeAgentsDir, `${agentName}.md`);
 
     try {
       if (fs.existsSync(sourcePath)) {
         const content = fs.readFileSync(sourcePath, 'utf-8');
-        tree.write(destPath, content);
+        if (!normalizedOptions.dryRun) {
+          tree.write(relativeDestPath, content);
+        }
         installedAgents.push(agentName);
         installedFiles.push(path.relative(targetDir, destPath));
       } else {
@@ -229,8 +260,8 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   logger.info(
     `  Location: ${
       normalizedOptions.installationType === 'global'
-        ? 'Global (~/.claude)'
-        : 'Local (./.claude)'
+        ? `Global (${targetDir})`
+        : `Local (${targetDir})`
     }`
   );
   logger.info(`  Commands: ${installedCommands.length} selected`);
@@ -253,7 +284,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     files: installedFiles,
   };
 
-  writeJson(tree, manifestPath, manifest);
+  writeJson(tree, relativeManifestPath, manifest);
 
   await formatFiles(tree);
 

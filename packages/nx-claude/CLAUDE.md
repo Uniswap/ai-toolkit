@@ -1,0 +1,310 @@
+# CLAUDE.md - @ai-toolkit/nx-claude Package
+
+## Overview
+
+The `@ai-toolkit/nx-claude` package provides Nx generators for setting up and managing Claude Code configurations, commands, agents, and notification hooks. This package is the primary tooling interface for the AI Toolkit, offering both one-shot installers and incremental configuration management.
+
+## Package Structure
+
+```
+packages/nx-claude/
+├── src/
+│   ├── generators/
+│   │   ├── init/           # One-shot installer for commands/agents
+│   │   ├── hooks/          # Notification hooks installer
+│   │   ├── add-command/    # Add individual commands
+│   │   ├── add-agent/      # Add individual agents
+│   │   └── content-package/ # Create new content packages
+│   └── index.ts            # Package exports
+├── generators.json         # Generator registration
+└── package.json           # Package configuration
+```
+
+## Available Generators
+
+### 1. init - One-Shot Configuration Installer
+
+**Purpose**: Primary entry point for setting up Claude Code configurations
+
+**Usage**:
+
+```bash
+bunx nx generate @ai-toolkit/nx-claude:init
+```
+
+**Key Features**:
+
+- Interactive installation wizard
+- Global (~/.claude) or local (./.claude) installation
+- Detects existing files and offers overwrite options
+- Creates manifest.json for tracking installations
+- Sources content from @ai-toolkit content packages
+
+**Documentation**: [src/generators/init/CLAUDE.md](src/generators/init/CLAUDE.md)
+
+### 2. hooks - Notification Hooks Installer
+
+**Purpose**: Installs audio/speech notifications for Claude Code
+
+**Usage**:
+
+```bash
+bunx nx generate @ai-toolkit/nx-claude:hooks
+```
+
+**Key Features**:
+
+- Automated hook installation process
+- Sound or speech notifications
+- Automatic backup and rollback
+- Cross-platform support
+- Test mode for verification
+
+**Documentation**: [src/generators/hooks/CLAUDE.md](src/generators/hooks/CLAUDE.md)
+
+### 3. add-command - Add Individual Commands
+
+**Purpose**: Add a single command to an existing Claude configuration
+
+**Usage**:
+
+```bash
+bunx nx generate @ai-toolkit/nx-claude:add-command
+```
+
+**Status**: Placeholder implementation - needs completion
+
+### 4. add-agent - Add Individual Agents
+
+**Purpose**: Add a single agent to an existing Claude configuration
+
+**Usage**:
+
+```bash
+bunx nx generate @ai-toolkit/nx-claude:add-agent
+```
+
+**Status**: Placeholder implementation - needs completion
+
+### 5. content-package - Create Content Packages
+
+**Purpose**: Scaffold new content packages for commands or agents
+
+**Usage**:
+
+```bash
+bunx nx generate @ai-toolkit/nx-claude:content-package
+```
+
+**Status**: Placeholder implementation - needs completion
+
+## Generator Development Patterns
+
+### Schema-Driven Prompting
+
+All generators use a schema-driven approach for user interaction:
+
+1. **schema.json**: Defines all configuration options
+2. **schema.d.ts**: TypeScript interface for type safety
+3. **prompt-utils.ts**: Shared utility for generating prompts from schema
+4. **x-prompt**: Schema annotations for custom prompt messages
+
+Example schema structure:
+
+```json
+{
+  "properties": {
+    "installationType": {
+      "type": "string",
+      "enum": ["global", "local"],
+      "x-prompt": "Choose installation location"
+    }
+  }
+}
+```
+
+### Content Resolution
+
+Generators source content from dedicated packages:
+
+- `@ai-toolkit/commands-agnostic`: Language-agnostic commands
+- `@ai-toolkit/agents-agnostic`: Language-agnostic agents
+- Future: Language-specific content packages
+
+### Error Handling Patterns
+
+Consistent error handling across generators:
+
+1. Validate prerequisites (CLI tools, paths)
+2. Confirm destructive operations
+3. Create backups before modifications
+4. Provide rollback on failure
+5. Clear error messages with remediation steps
+
+### File Operation Patterns
+
+Standard approaches for file management:
+
+1. Check existence before write
+2. Offer overwrite confirmation
+3. Use dry-run mode for preview
+4. Create manifests for tracking
+5. Preserve user customizations
+
+## Shared Utilities
+
+### prompt-utils.ts
+
+Shared by multiple generators for consistent prompting:
+
+- **promptForMissingOptions**: Main entry point
+- **promptForProperty**: Type-specific prompt generation
+- **promptMultiSelectWithAll**: Enhanced multi-select
+- **getPromptMessage**: Schema to prompt message mapping
+
+### Common Patterns
+
+1. **Installation Detection**: Check both global and local locations
+2. **Cross-Location Awareness**: Show "(exists globally/locally)" indicators
+3. **Batch Operations**: Support --all-commands, --all-agents flags
+4. **No-Interactive Mode**: Support CI/CD with --no-interactive
+5. **Force Mode**: Override safety checks with --force
+
+## Integration with Nx
+
+### Generator Registration
+
+All generators are registered in `generators.json`:
+
+```json
+{
+  "generators": {
+    "init": {
+      "factory": "./dist/generators/init/generator",
+      "schema": "./dist/generators/init/schema.json",
+      "description": "One-shot installer for Claude Code configs"
+    },
+    "hooks": {
+      "factory": "./dist/generators/hooks/generator",
+      "schema": "./dist/generators/hooks/schema.json",
+      "description": "Install Claude Code notification hooks"
+    }
+    // ... other generators
+  }
+}
+```
+
+### Building and Testing
+
+```bash
+# Build the package
+bunx nx build nx-claude
+
+# Run tests
+bunx nx test nx-claude
+
+# Test generators locally
+bunx nx generate @ai-toolkit/nx-claude:init --dry-run
+bunx nx generate @ai-toolkit/nx-claude:hooks --dry-run
+```
+
+### Nx Workspace Integration
+
+The package leverages Nx features:
+
+- **Project Configuration**: Defined in project.json
+- **Build System**: Uses @nx/js:tsc executor
+- **Testing**: Uses @nx/jest:jest executor
+- **Linting**: Integrated with workspace ESLint config
+- **Formatting**: Uses workspace Prettier config
+
+## Development Guidelines
+
+### Adding New Generators
+
+1. Create generator directory: `src/generators/[name]/`
+2. Add required files:
+   - `generator.ts` - Main logic
+   - `schema.json` - Configuration schema
+   - `schema.d.ts` - TypeScript types
+   - `generator.spec.ts` - Tests
+   - `README.md` - User documentation
+   - `CLAUDE.md` - AI assistant documentation
+3. Register in `generators.json`
+4. Export from `src/index.ts` if needed
+5. Update this CLAUDE.md file
+
+### Testing Strategy
+
+Each generator should have:
+
+1. **Unit Tests**: Test individual functions
+2. **Integration Tests**: Test full generator flow
+3. **Schema Tests**: Validate schema structure
+4. **Prompt Tests**: Test interactive flows
+5. **File Operation Tests**: Test read/write operations
+
+### Documentation Requirements
+
+Every generator MUST maintain:
+
+1. **README.md**: User-facing documentation
+2. **CLAUDE.md**: AI assistant documentation
+3. **Schema comments**: Describe each option
+4. **Code comments**: Explain complex logic
+5. **Update package CLAUDE.md**: Keep this file current
+
+## Future Enhancements
+
+### Planned Generators
+
+1. **update-command**: Update existing commands
+2. **remove-command**: Remove installed commands
+3. **update-agent**: Update existing agents
+4. **remove-agent**: Remove installed agents
+5. **migrate**: Migrate configurations between versions
+
+### Planned Features
+
+1. **Version Management**: Track and update content versions
+2. **Dependency Resolution**: Handle command/agent dependencies
+3. **Conflict Detection**: Detect incompatible configurations
+4. **Rollback System**: Comprehensive undo capabilities
+5. **Configuration Profiles**: Multiple configuration sets
+
+## Package Dependencies
+
+### Runtime Dependencies
+
+- `@nx/devkit`: Nx generator utilities
+- `enquirer`: Interactive prompts
+- Built-in Node.js modules (fs, path, child_process)
+
+### Content Dependencies
+
+- `@ai-toolkit/commands-agnostic`: Command templates
+- `@ai-toolkit/agents-agnostic`: Agent configurations
+
+### External Tools (via generators)
+
+- **init**: Requires Claude CLI (checks and offers installation)
+- **hooks**: Requires Node.js, npm, Git
+
+## Maintenance Requirements
+
+⚠️ **CRITICAL**: This CLAUDE.md file must be updated whenever:
+
+- New generators are added
+- Generator functionality changes
+- Schema properties are modified
+- New patterns are established
+- Dependencies change
+- File structures change
+
+This documentation serves as the source of truth for AI assistants working with the nx-claude package.
+
+## Version History
+
+- **1.0.0**: Initial release with init generator
+- **1.1.0**: Added hooks generator for notifications
+- Future versions will be documented here
