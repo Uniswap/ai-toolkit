@@ -2,9 +2,11 @@ type CommandName =
   | 'explain-file'
   | 'fix-bug'
   | 'gen-tests'
+  | 'plan'
   | 'plan-feature'
   | 'refactor'
   | 'research'
+  | 'review-plan'
   | 'review-pr'
   | 'understand-area';
 
@@ -28,6 +30,11 @@ export const commands: Commands = {
     description: 'Generate comprehensive test suites',
     filePath: './gen-tests.md',
   },
+  plan: {
+    description:
+      'Create a detailed implementation plan for a task without writing code',
+    filePath: './plan.md',
+  },
   'plan-feature': {
     description: 'Plan implementation for new features',
     filePath: './plan-feature.md',
@@ -40,6 +47,11 @@ export const commands: Commands = {
     description:
       'Research a topic by combining web search with codebase analysis',
     filePath: './research.md',
+  },
+  'review-plan': {
+    description:
+      'Critically review an implementation plan for completeness and feasibility',
+    filePath: './review-plan.md',
   },
   'review-pr': {
     description: 'Review pull requests for quality',
