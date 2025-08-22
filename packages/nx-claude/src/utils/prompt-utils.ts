@@ -34,11 +34,11 @@ export async function promptForMissingOptions<T extends Record<string, any>>(
     availableAgents?: string[];
     commandDescriptions?: Record<string, string>;
     agentDescriptions?: Record<string, string>;
-    existingCommands?: Set<string>;
-    existingAgents?: Set<string>;
-    otherLocationCommands?: Set<string>;
-    otherLocationAgents?: Set<string>;
-    installationType?: 'global' | 'local';
+    // Explicit global/local format
+    globalExistingCommands?: Set<string>;
+    globalExistingAgents?: Set<string>;
+    localExistingCommands?: Set<string>;
+    localExistingAgents?: Set<string>;
   } = {},
   explicitlyProvidedOptions?: Map<string, any> | Set<string>
 ): Promise<T> {
@@ -161,11 +161,11 @@ async function promptForProperty(
     availableAgents?: string[];
     commandDescriptions?: Record<string, string>;
     agentDescriptions?: Record<string, string>;
-    existingCommands?: Set<string>;
-    existingAgents?: Set<string>;
-    otherLocationCommands?: Set<string>;
-    otherLocationAgents?: Set<string>;
-    installationType?: 'global' | 'local';
+    // Explicit global/local format
+    globalExistingCommands?: Set<string>;
+    globalExistingAgents?: Set<string>;
+    localExistingCommands?: Set<string>;
+    localExistingAgents?: Set<string>;
   },
   currentValues?: Record<string, any>
 ): Promise<any> {
@@ -221,26 +221,54 @@ async function promptForProperty(
   if (property.type === 'array') {
     // Multi-select for arrays
     if (key === 'commands' && context.availableCommands) {
+      // Determine which file sets to use based on installation type
+      const installationType = currentValues?.installationType;
+
+      let existingSet: Set<string> | undefined;
+      let otherLocationSet: Set<string> | undefined;
+
+      if (installationType === 'global') {
+        existingSet = context.globalExistingCommands;
+        otherLocationSet = context.localExistingCommands;
+      } else if (installationType === 'local') {
+        existingSet = context.localExistingCommands;
+        otherLocationSet = context.globalExistingCommands;
+      }
+
       return await promptMultiSelectWithAll(
         promptMessage,
         context.availableCommands,
         'commands',
         context.commandDescriptions,
-        context.existingCommands,
-        context.otherLocationCommands,
-        context.installationType
+        existingSet,
+        otherLocationSet,
+        installationType
       );
     }
 
     if (key === 'agents' && context.availableAgents) {
+      // Determine which file sets to use based on installation type
+      const installationType = currentValues?.installationType;
+
+      let existingSet: Set<string> | undefined;
+      let otherLocationSet: Set<string> | undefined;
+
+      if (installationType === 'global') {
+        existingSet = context.globalExistingAgents;
+        otherLocationSet = context.localExistingAgents;
+      } else if (installationType === 'local') {
+        existingSet = context.localExistingAgents;
+        otherLocationSet = context.globalExistingAgents;
+      }
+
       return await promptMultiSelectWithAll(
         promptMessage,
         context.availableAgents,
         'agents',
         context.agentDescriptions,
-        context.existingAgents,
-        context.otherLocationAgents,
-        context.installationType
+        existingSet,
+        otherLocationSet,
+        installationType
       );
     }
 
