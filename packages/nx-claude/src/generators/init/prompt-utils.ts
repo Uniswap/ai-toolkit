@@ -229,7 +229,7 @@ async function promptMultiSelectWithAll(
     name: 'selected',
     message,
     choices: displayChoices,
-    initial: [],
+    initial: displayChoices.map((_, index) => index), // Select all by default
     hint: 'Use <space> to select, <a> to toggle all, <return> to submit',
     validate: (value: string[]) => {
       if (value.length === 0) {
