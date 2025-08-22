@@ -84,6 +84,12 @@ After making any changes to files in this repository, Claude Code MUST:
    - Development guidelines specific to that package
    - Recent changes and their rationale
 
+### README.md File Management
+
+After making any changes to files in this repository, Claude Code MUST:
+
+1. check all `README.md` files in directories with changes and, if appropriate, UPDATE the `README.md` file(s) so they're accurate, reliable, valid, and indicative of the state of the repository with the added changes
+
 ## Git Hooks Configuration
 
 ### Lefthook Setup

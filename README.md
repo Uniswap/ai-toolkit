@@ -1,18 +1,87 @@
-# AiToolkit
+# AI Toolkit
 
 <a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+## Overview
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/js?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+The **AI Toolkit** is a standardized collection of AI agents and commands designed for Claude Code workflows. Its goal is to allow anyone at Uniswap to install and configure Claude Code to be maximally useful, all in a single command (`bunx install-all`)
 
-## Generate a library
+**What it provides:**
+
+- **One-shot Installation**: Automated setup of Claude Code configurations
+- **Pre-built AI Agents**: Specialized subagents for code explanation, refactoring, testing, research, and more. Claude Code will use these automatically without any need for manual direction by the user
+- **Ready-to-use Commands**: Quick access patterns (called "[Slash commands](https://docs.anthropic.com/en/docs/claude-code/slash-commands)") for common development workflows like understanding codebases (`/understand-area`), generating tests (`/gen-tests`), and planning features (`/plan-feature`)
+- **Standardized Patterns**: Create a common toolset of Claude Code commands and agents shared by everyone at Uniswap
+
+**Why it exists:**
+
+Instead of each person at Uniswap manually configuring AI assistant behaviors for each project, the AI Toolkit provides curated, tested configurations that can be installed instantly. This makes AI-assisted development more consistent, efficient, and accessible to Uni teams.
+
+## Prerequisites
+
+Before working with this repository, ensure you have the following tools installed:
+
+- **[Bun](https://bun.sh)** (recommended) or **Node.js 18+** with npm
+
+## Getting Started
+
+### 1. Install Dependencies
+
+```bash
+# Clone the repository
+git clone https://github.com/Uniswap/ai-toolkit
+cd ai-toolkit
+
+# Install all dependencies (also sets up git hooks automatically)
+bun install # or npm install if you're not using bun
+```
+
+### 2. Setup Claude Code Integration
+
+### Option A: Install Everything (Recommended)
+
+```bash
+# One-shot installer - installs Claude Code at ~/.claude and sets up all agents + commands
+bun run install-all
+
+# Install Claude code hooks, which are custom scripts that hook into Claude Code's lifecycle (such as emitting sound notifications when Claude Code needs your input)
+```
+
+### Option B: Selective Installation
+
+```bash
+# Install just the notification hooks
+bunx nx generate @ai-toolkit/nx-claude:hooks
+
+# Or preview what would be installed (dry-run mode)
+bunx nx generate @ai-toolkit/nx-claude:init --dry-run
+```
+
+### Verify Installation
+
+```bash
+# Make sure you have Claude Code installed, and that the agents + commands are available when you run `claude`
+
+claude # this should open up the Claude Code REPL
+
+# executing the "/agents" slash command should show that multiple agents have been installed
+> /agents
+
+# you should see custom /slash commands, such as "/plan-feature", are now available to you in your Claude Code REPL.
+> /plan-feature
+```
+
+Once installed, you'll have access to powerful Claude Code agents and commands that make development workflows more efficient and consistent.
+
+## Contributing
+
+### Generate a library
 
 ```sh
 npx nx g @nx/js:lib packages/pkg1 --publishable --importPath=@my-org/pkg1
 ```
 
-## Run tasks
+### Run tasks
 
 To build the library use:
 
@@ -30,7 +99,7 @@ These targets are either [inferred automatically](https://nx.dev/concepts/inferr
 
 [More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 
-## Versioning and releasing
+### Versioning and releasing
 
 To version and release the library use
 
@@ -42,7 +111,7 @@ Pass `--dry-run` to see what would happen without actually releasing the library
 
 [Learn more about Nx release &raquo;](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 
-## Keep TypeScript project references up to date
+### Keep TypeScript project references up to date
 
 Nx automatically updates TypeScript [project references](https://www.typescriptlang.org/docs/handbook/project-references.html) in `tsconfig.json` files to ensure they remain accurate based on your project dependencies (`import` or `require` statements). This sync is automatically done when running tasks such as `build` or `typecheck`, which require updated references to function correctly.
 
@@ -60,9 +129,9 @@ npx nx sync:check
 
 [Learn more about nx sync](https://nx.dev/reference/nx-commands#sync)
 
-## Set up CI!
+### Set up CI!
 
-### Step 1
+#### Step 1
 
 To connect to Nx Cloud, run the following command:
 
@@ -77,7 +146,7 @@ Connecting to Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/
 - [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 - [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 
-### Step 2
+#### Step 2
 
 Use the following command to configure a CI workflow for your workspace:
 
@@ -87,22 +156,23 @@ npx nx g ci-workflow
 
 [Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 
-## Install Nx Console
+### Install Nx Console
 
 Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
 
 [Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 
-## Useful links
+### Useful links
 
 Learn more:
 
-- [Learn more about this workspace setup](https://nx.dev/nx-api/js?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
+- [Learn more about this workspace setup](https://nx.dev/nx-api/js?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 - [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 - [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 - [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 
 And join the Nx community:
+
 - [Discord](https://go.nx.dev/community)
 - [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
 - [Our Youtube channel](https://www.youtube.com/@nxdevtools)
