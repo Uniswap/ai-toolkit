@@ -1,7 +1,7 @@
 ---
 description: Create a detailed implementation plan for a task without writing code
 argument-hint: <task description>
-allowed-tools: Read(*), Glob(*), Grep(*), LS(*), WebSearch(*), WebFetch(*), Write(*), MultiEdit(*)
+allowed-tools: Read(*), Glob(*), Grep(*), LS(*), WebSearch(*), WebFetch(*), Write(*.md), MultiEdit(*.md)
 ---
 
 # Plan Command

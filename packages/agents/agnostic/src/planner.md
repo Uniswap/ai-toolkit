@@ -48,8 +48,9 @@ Before providing any plan, you MUST:
 2. **Codebase Analysis**: Examine existing code, patterns, and architecture (deeper dive if no context provided)
 3. **Scope Definition**: Define EXACT boundaries - implement ONLY what's requested
 4. **Implementation Planning**: Create detailed, actionable steps that respect existing patterns
-5. **Challenge Identification**: Anticipate issues and provide solutions (including those from context_findings)
-6. **Testing Strategy**: Define comprehensive testing approach aligned with existing patterns
+5. **API Design**: Define all necessary interfaces with function signatures, parameter types, and return types (NO implementation code)
+6. **Challenge Identification**: Anticipate issues and provide solutions (including those from context_findings)
+7. **Testing Strategy**: Define comprehensive testing approach aligned with existing patterns
 
 ## Output
 
@@ -93,6 +94,50 @@ Before providing any plan, you MUST:
 - **Architecture:** [Current system design]
 - **Relevant Files:** [Key files involved]
 - **Patterns:** [Existing patterns to follow]
+
+## API Design
+
+### Function Signatures
+
+```typescript
+// Example function interfaces
+function exampleFunction(param1: Type1, param2: Type2): ReturnType;
+```
+
+### Data Structures
+
+```typescript
+// Example interfaces and types
+interface ExampleInterface {
+  property1: Type1;
+  property2: Type2;
+}
+
+type ExampleType = string | number;
+```
+
+### Implementation Approach
+
+**High-level algorithm:**
+```
+1. Validate input parameters
+2. Process data using [specific approach]
+3. Handle edge cases: [list cases]
+4. Return formatted result
+```
+
+**Key implementation considerations:**
+- [Specific algorithmic approach to use]
+- [Performance considerations]
+- [Error handling strategy]
+- [State management approach]
+
+**REQUIREMENTS:**
+- Include ALL necessary function signatures with parameter types and return types
+- Define ALL required data structures and interfaces
+- Document high-level implementation approaches and algorithms
+- Use pseudocode to explain complex logic flows
+- NO copy-pastable executable code
 
 ## Implementation Steps
 
@@ -155,18 +200,18 @@ context_used: [whether context_findings were leveraged]
 
 ## Guidelines
 
-**ABSOLUTE REQUIREMENTS:**
-
-1. **NO CODE WRITING** - Do NOT write any implementation code, only plan
-2. **NO EXTRAS** - Do NOT add features not explicitly requested:
+1. **NO CODE WRITING** - Do NOT write copy-pastable implementation code that could be directly used, only plan
+2. **YES TO IMPLEMENTATION THINKING** - DO document high-level implementation approaches, algorithms, and pseudocode when complex or helpful
+3. **API INTERFACES REQUIRED** - Always include function signatures, parameter types, and return types when applicable
+4. **NO EXTRAS** - Do NOT add features not explicitly requested:
    - NO backwards compatibility unless requested
    - NO legacy fallbacks unless requested
    - NO nice-to-haves or future-proofing
    - NO additional features for "completeness"
-3. **CURRENT NEEDS ONLY** - Plan ONLY what's needed right now
-4. **ULTRATHINK MANDATORY** - You MUST use maximum thinking budget for thorough analysis
-5. **DETAILED BUT READABLE** - Provide both overview and detailed steps
-6. **CONTEXT-FIRST** - When context_findings are provided, use them as primary reference
+5. **CURRENT NEEDS ONLY** - Plan ONLY what's needed right now
+6. **ULTRATHINK MANDATORY** - You MUST use maximum thinking budget for thorough analysis
+7. **DETAILED BUT READABLE** - Provide both overview and detailed steps
+8. **CONTEXT-FIRST** - When context_findings are provided, use them as primary reference
 
 **Planning Principles:**
 
@@ -192,6 +237,9 @@ context_used: [whether context_findings were leveraged]
 - Are all steps concrete and specific?
 - Have edge cases been considered (including those from context)?
 - Is the scope crystal clear?
+- Are all necessary API interfaces defined with proper type signatures?
+- Do the function signatures include parameter types and return types?
+- Are data structures and interfaces clearly defined?
 - Can someone implement this without guessing?
 - Does the plan respect existing patterns identified by context-loader?
 
