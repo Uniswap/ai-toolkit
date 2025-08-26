@@ -23,6 +23,38 @@ Before working with this repository, ensure you have the following tools install
 
 - **[Bun](https://bun.sh)** (recommended) or **Node.js 18+** with npm
 
+### Setting up GitHub Packages Access
+
+Since this package is published to GitHub Packages, you'll need to authenticate first:
+
+1. **Create a GitHub Personal Access Token (PAT)**:
+
+   - Go to GitHub Settings → Developer settings → Personal access tokens
+   - Create a token with `read:packages` scope
+   - Save the token securely
+
+2. **Configure npm to use GitHub Packages**:
+
+   ```bash
+   # Add to your ~/.npmrc or project .npmrc
+   @uniswap:registry=https://npm.pkg.github.com
+   //npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN
+   ```
+
+   Alternatively, set the token in your shell environment:
+
+   ```bash
+   export NODE_AUTH_TOKEN=YOUR_GITHUB_TOKEN
+   ```
+
+   Then, use:
+
+   ```bash
+   # Add to your ~/.npmrc or project .npmrc
+   @uniswap:registry=https://npm.pkg.github.com
+   //npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
+   ```
+
 ## Getting Started
 
 ### 1. Install Dependencies
