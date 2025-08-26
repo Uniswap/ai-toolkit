@@ -9,7 +9,8 @@
     "format": "nx format:write",
     "format:check": "nx format:check",
     "prepare": "lefthook install",
-    "lefthook": "lefthook run pre-commit"
+    "lefthook": "lefthook run pre-commit",
+    "claude:init": "nx generate @ai-toolkit/nx-claude:init"
   },
   "private": true,
   "dependencies": {
