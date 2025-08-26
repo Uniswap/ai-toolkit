@@ -6,6 +6,7 @@ type CommandName =
   | 'address-pr-issues'
   | 'auto-spec'
   | 'create-pr'
+  | 'claude-docs'
   | 'deploy'
   | 'execute-plan'
   | 'explain-file'
@@ -38,6 +39,11 @@ export const commands: Commands = {
     description:
       'Autonomously create and implement a complete spec workflow with multi-agent collaboration, bypassing manual review steps through intelligent consensus-building',
     filePath: './auto-spec.md',
+  },
+  'claude-docs': {
+    description:
+      'Initialize or update CLAUDE.md documentation files throughout the repository',
+    filePath: './claude-docs.md',
   },
   'create-pr': {
     description:
