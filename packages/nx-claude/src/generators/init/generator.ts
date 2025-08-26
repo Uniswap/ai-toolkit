@@ -216,11 +216,33 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     : normalizedOptions.commands || [];
 
   for (const commandName of commandsToInstall) {
-    const sourcePath = path.join(
-      workspaceRoot,
-      'packages/commands/agnostic/src',
-      `${commandName}.md`
-    );
+    // Search through all subdirectories under packages/commands/
+    const commandsBaseDir = path.join(workspaceRoot, 'packages/commands');
+    let sourcePath: string | null = null;
+
+    // Check if commands directory exists
+    if (fs.existsSync(commandsBaseDir)) {
+      // Get all subdirectories (agnostic, mobile, web, etc.)
+      const commandSubDirs = fs.readdirSync(commandsBaseDir).filter((item) => {
+        const itemPath = path.join(commandsBaseDir, item);
+        return fs.statSync(itemPath).isDirectory();
+      });
+
+      // Search for the command file in each subdirectory's src folder
+      for (const subDir of commandSubDirs) {
+        const potentialPath = path.join(
+          commandsBaseDir,
+          subDir,
+          'src',
+          `${commandName}.md`
+        );
+        if (fs.existsSync(potentialPath)) {
+          sourcePath = potentialPath;
+          break;
+        }
+      }
+    }
+
     const destPath = path.join(commandsDir, `${commandName}.md`);
     const relativeDestPath = path.join(
       relativeCommandsDir,
@@ -228,7 +250,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     );
 
     try {
-      if (fs.existsSync(sourcePath)) {
+      if (sourcePath && fs.existsSync(sourcePath)) {
         const content = fs.readFileSync(sourcePath, 'utf-8');
         if (!normalizedOptions.dryRun) {
           tree.write(relativeDestPath, content);
@@ -249,16 +271,38 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     : normalizedOptions.agents || [];
 
   for (const agentName of agentsToInstall) {
-    const sourcePath = path.join(
-      workspaceRoot,
-      'packages/agents/agnostic/src',
-      `${agentName}.md`
-    );
+    // Search through all subdirectories under packages/agents/
+    const agentsBaseDir = path.join(workspaceRoot, 'packages/agents');
+    let sourcePath: string | null = null;
+
+    // Check if agents directory exists
+    if (fs.existsSync(agentsBaseDir)) {
+      // Get all subdirectories (agnostic, mobile, web, etc.)
+      const agentSubDirs = fs.readdirSync(agentsBaseDir).filter((item) => {
+        const itemPath = path.join(agentsBaseDir, item);
+        return fs.statSync(itemPath).isDirectory();
+      });
+
+      // Search for the agent file in each subdirectory's src folder
+      for (const subDir of agentSubDirs) {
+        const potentialPath = path.join(
+          agentsBaseDir,
+          subDir,
+          'src',
+          `${agentName}.md`
+        );
+        if (fs.existsSync(potentialPath)) {
+          sourcePath = potentialPath;
+          break;
+        }
+      }
+    }
+
     const destPath = path.join(agentsDir, `${agentName}.md`);
     const relativeDestPath = path.join(relativeAgentsDir, `${agentName}.md`);
 
     try {
-      if (fs.existsSync(sourcePath)) {
+      if (sourcePath && fs.existsSync(sourcePath)) {
         const content = fs.readFileSync(sourcePath, 'utf-8');
         if (!normalizedOptions.dryRun) {
           tree.write(relativeDestPath, content);
