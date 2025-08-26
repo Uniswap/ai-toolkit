@@ -51,6 +51,14 @@
       "description": "Install all available agents",
       "default": false
     },
+    "dry": {
+      "type": "boolean",
+      "description": "Preview installation without making changes",
+      "default": false,
+      "always-prompt": true,
+      "prompt-message": "👁️ Run in dry-run mode (preview only)?",
+      "prompt-type": "confirm"
+    },
     "dryRun": {
       "type": "boolean",
       "description": "Show what would be installed without making changes",
