@@ -9,15 +9,48 @@ The `init` generator is the primary entry point for setting up Claude Code confi
 ### What It Does
 
 1. **Claude CLI Check**: Verifies Claude CLI installation and offers to install it if missing
-2. **Installation Type Selection**: Prompts user to choose between global (~/.claude) or local (./.claude) installation
-3. **Local Path Confirmation**: For local installations only, confirms the user is at project root (exits if not)
-4. **Schema-Driven Interactive Setup**: Dynamically generates prompts from `schema.json` for all configuration options
-5. **Cross-Location Detection**: Shows when files exist in the other location (e.g., "exists globally" when installing locally)
-6. **Overwrite Detection**: Indicates which files will be overwritten in the target location
-7. **Smart Multi-Select**: Provides multi-select with 'a' key for toggle all functionality
-8. **Content Deployment**: Copies selected commands and agents from content packages to the target directory
-9. **Manifest Generation**: Creates a `manifest.json` file tracking installed components, version, and installation metadata
-10. **Collision Detection**: Checks for existing installations and prompts for overwrite confirmation (unless forced)
+2. **Automatic Fallback Installation**: If curl installation fails, automatically attempts npm installation as fallback
+3. **Installation Type Selection**: Prompts user to choose between global (~/.claude) or local (./.claude) installation
+4. **Local Path Confirmation**: For local installations only, confirms the user is at project root (exits if not)
+5. **Schema-Driven Interactive Setup**: Dynamically generates prompts from `schema.json` for all configuration options
+6. **Cross-Location Detection**: Shows when files exist in the other location (e.g., "exists globally" when installing locally)
+7. **Overwrite Detection**: Indicates which files will be overwritten in the target location
+8. **Smart Multi-Select**: Provides multi-select with 'a' key for toggle all functionality
+9. **Content Deployment**: Copies selected commands and agents from content packages to the target directory
+10. **Manifest Generation**: Creates a `manifest.json` file tracking installed components, version, and installation metadata
+11. **Collision Detection**: Checks for existing installations and prompts for overwrite confirmation (unless forced)
+12. **Installation Verification**: Verifies successful installation using `claude doctor` or `which claude`
+
+### Claude CLI Installation
+
+The generator automatically handles Claude CLI installation with intelligent fallback:
+
+1. **Primary Method (curl)**: Attempts to install using the official curl script
+
+   - Command: `curl -fsSL https://claude.ai/install.sh | bash`
+   - Works best on macOS and most Linux distributions
+   - 5-minute timeout protection
+
+2. **Fallback Method (npm)**: Automatically triggered if curl fails
+
+   - Command: `npm install -g @anthropic-ai/claude-code`
+   - Better for restricted environments or Windows systems
+   - Does NOT use sudo to avoid permission issues
+   - Handles specific error cases:
+     - npm not found: Prompts to install Node.js
+     - Permission errors: Suggests manual installation with `migrate-installer`
+     - Network failures: Provides manual instructions
+
+3. **Verification**: After successful installation (either method)
+
+   - Primary check: Runs `claude doctor` to verify setup
+   - Fallback check: Uses `which claude` if doctor command unavailable
+   - PATH warnings: Alerts if CLI installed but not in PATH
+
+4. **Manual Instructions**: Provided if both methods fail
+   - Shows curl and npm commands for manual execution
+   - Links to official documentation
+   - Suggests troubleshooting with `claude doctor`
 
 ### Installation Modes
 
@@ -87,6 +120,12 @@ bunx nx generate @ai-toolkit/nx-claude:init --no-interactive --installation-type
 ```bash
 bunx nx generate @ai-toolkit/nx-claude:init --dry-run --all-commands --all-agents
 ```
+
+In dry-run mode, if Claude CLI is not installed, the generator will show:
+
+- The installation methods that would be attempted (curl → npm → manual)
+- The files that would be installed
+- No actual changes will be made to the system
 
 ### Selective Installation
 
@@ -162,12 +201,20 @@ The generated `manifest.json` contains:
    - Validates local installation path
    - Detects existing files in both locations
    - Orchestrates file copying and manifest creation
-2. **prompt-utils.ts**: Schema-driven prompt generation module
+2. **Claude CLI Installation Functions**:
+   - **installClaude**: Main orchestrator for installation with fallback logic
+   - **installViaCurl**: Primary installation method using official curl script
+   - **installViaNpm**: Fallback installation method using npm
+   - **verifyInstallation**: Verifies CLI installation success
+   - **provideManualInstructions**: Displays manual installation steps when auto-install fails
+3. **prompt-utils.ts**: Schema-driven prompt generation module
    - **promptForMissingOptions**: Reads schema.json and generates prompts for missing options
    - **promptForProperty**: Handles different property types (boolean, string, array, enum)
    - **promptMultiSelectWithAll**: Enhanced multi-select with file existence indicators
-3. **checkExistingFiles**: Detects which files already exist in target locations
-4. **promptOverwrite**: Manages collision detection and user confirmation
+4. **checkExistingFiles**: Detects which files already exist in target locations
+5. **promptOverwrite**: Manages collision detection and user confirmation
+6. **checkClaudeInstalled**: Checks if Claude CLI is already installed
+7. **promptInstallClaude**: Prompts user for consent to install Claude CLI
 
 ### Schema-Driven Prompting
 
@@ -191,6 +238,12 @@ The generator uses `schema.json` as the single source of truth for all options:
 - Checks for existing installations
 - Handles missing content gracefully
 - Provides informative logging throughout the process
+- **Installation-specific error handling**:
+  - Command not found errors (curl/npm)
+  - Permission denied errors
+  - Network timeouts (5-minute limit)
+  - PATH configuration issues
+  - Platform compatibility warnings
 
 ## Development Notes
 

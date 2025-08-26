@@ -35,10 +35,15 @@ bunx nx generate @ai-toolkit/nx-claude:init
 **Key Features**:
 
 - Interactive installation wizard
+- **Automatic Claude CLI installation with fallback mechanism**:
+  - Primary: curl installation method
+  - Fallback: npm installation if curl fails
+  - Manual: Instructions provided if both fail
 - Global (~/.claude) or local (./.claude) installation
 - Detects existing files and offers overwrite options
 - Creates manifest.json for tracking installations
 - Sources content from @ai-toolkit content packages
+- Cross-platform support (macOS, Linux, Windows)
 
 **Documentation**: [src/generators/init/CLAUDE.md](src/generators/init/CLAUDE.md)
 
@@ -409,8 +414,23 @@ Every generator MUST maintain:
 
 This documentation serves as the source of truth for AI assistants working with the nx-claude package.
 
+## Troubleshooting
+
+### Claude CLI Installation Issues
+
+If the `init` generator fails to install Claude CLI:
+
+1. **curl fails on Linux/WSL**: The generator will automatically attempt npm installation
+2. **npm permission errors**: Run `npm install -g @anthropic-ai/claude-code` manually, then `claude migrate-installer`
+3. **npm not found**: Install Node.js from https://nodejs.org/
+4. **PATH issues**: After installation, restart your terminal or manually add Claude to PATH
+5. **Platform-specific issues**: Visit https://claude.ai/download for platform-specific instructions
+
+The generator provides automatic fallback from curl to npm installation, ensuring Claude CLI can be installed on most systems.
+
 ## Version History
 
 - **1.0.0**: Initial release with init generator
 - **1.1.0**: Added hooks generator for notifications
+- **1.2.0**: Added automatic fallback mechanism for Claude CLI installation (curl → npm)
 - Future versions will be documented here

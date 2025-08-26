@@ -60,12 +60,9 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   const nxNoInteractiveProvided = isNxNoInteractiveProvided();
 
   // Step 1: Check if Claude CLI is installed
-  if (
-    !nxNoInteractiveProvided &&
-    !options.nonInteractive &&
-    !options.dry &&
-    !options.dryRun
-  ) {
+  const isDryRun = options.dry || options.dryRun;
+
+  if (!nxNoInteractiveProvided && !options.nonInteractive && !isDryRun) {
     const isClaudeInstalled = checkClaudeInstalled();
     if (!isClaudeInstalled) {
       logger.warn('⚠️  Claude CLI is not installed');
@@ -76,6 +73,14 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     } else {
       logger.info('✅ Claude CLI is installed');
     }
+  } else if (isDryRun && !checkClaudeInstalled()) {
+    logger.info('🔍 DRY RUN: Claude CLI is not installed');
+    logger.info('Would attempt installation in this order:');
+    logger.info('  1. curl -fsSL https://claude.ai/install.sh | bash');
+    logger.info(
+      '  2. npm install -g @anthropic-ai/claude-code (if curl fails)'
+    );
+    logger.info('  3. Manual instructions (if both fail)');
   }
 
   // Handle interactive mode with schema-driven prompts
@@ -154,8 +159,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     throw error;
   }
 
-  // Handle dry-run mode (check both dry and dryRun for compatibility)
-  const isDryRun = normalizedOptions.dry || normalizedOptions.dryRun;
+  // Handle dry-run mode - reuse the isDryRun variable from above
   if (isDryRun) {
     logger.info('🔍 DRY RUN MODE - No files will be modified');
   }
@@ -375,32 +379,139 @@ async function promptInstallClaude(): Promise<boolean> {
 }
 
 async function installClaude(): Promise<void> {
-  // Check if on macOS
   const platform = process.platform;
+
+  // Platform check remains but with adjusted messaging
   if (platform !== 'darwin') {
-    logger.error(
-      '❌ Claude CLI installation is currently only supported on macOS'
+    logger.warn(
+      '⚠️  Note: Claude CLI installation may require additional steps on non-macOS platforms'
     );
-    logger.info(
-      'Please visit https://claude.ai/download for installation instructions for your platform'
-    );
-    return;
   }
 
   logger.info('📦 Installing Claude CLI...');
+
+  // Try curl installation first
+  const curlSuccess = await installViaCurl();
+  if (curlSuccess) {
+    await verifyInstallation('curl');
+    return;
+  }
+
+  // Fallback to npm if curl fails
+  logger.info('Curl method failed, falling back to npm installation...');
+  const npmSuccess = await installViaNpm();
+  if (npmSuccess) {
+    await verifyInstallation('npm');
+    return;
+  }
+
+  // If both fail, provide manual instructions
+  provideManualInstructions();
+}
+
+/**
+ * Attempts to install Claude CLI using the curl method
+ * @returns true if installation succeeded, false otherwise
+ */
+async function installViaCurl(): Promise<boolean> {
+  logger.info('Attempting installation via curl...');
+
   try {
+    // Check if curl is available
+    execSync('which curl', { stdio: 'ignore' });
+
     execSync('curl -fsSL https://claude.ai/install.sh | bash', {
       stdio: 'inherit',
       shell: '/bin/bash',
+      timeout: 300000, // 5 minute timeout
     });
-    logger.info('✅ Claude CLI installed successfully!');
-  } catch (error) {
-    logger.error('❌ Failed to install Claude CLI');
-    logger.error(`Error: ${error}`);
-    logger.info(
-      'Please try installing manually: curl -fsSL https://claude.ai/install.sh | bash'
-    );
+
+    logger.info('✅ Claude CLI installed successfully via curl!');
+    return true;
+  } catch (error: any) {
+    logger.warn('Curl installation failed, attempting npm fallback...');
+    logger.debug(`Curl error details: ${error.message}`);
+    return false;
   }
+}
+
+/**
+ * Attempts to install Claude CLI using npm as a fallback method
+ * @returns true if installation succeeded, false otherwise
+ */
+async function installViaNpm(): Promise<boolean> {
+  logger.info('Installing via npm: npm install -g @anthropic-ai/claude-code');
+
+  try {
+    // Check if npm is available
+    execSync('which npm', { stdio: 'ignore' });
+
+    // Note: NOT using sudo to avoid permission issues
+    execSync('npm install -g @anthropic-ai/claude-code', {
+      stdio: 'inherit',
+      timeout: 300000, // 5 minute timeout
+    });
+
+    logger.info('✅ Claude CLI installed successfully via npm!');
+    return true;
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      logger.error('❌ npm not found. Please install Node.js and npm first.');
+      logger.info('Visit https://nodejs.org/ to install Node.js');
+    } else if (
+      error.message?.includes('permission') ||
+      error.message?.includes('EACCES')
+    ) {
+      logger.error('❌ npm installation failed due to permissions.');
+      logger.info('Try running: npm install -g @anthropic-ai/claude-code');
+      logger.info('Then run: claude migrate-installer');
+    } else {
+      logger.error(`❌ npm installation failed: ${error.message}`);
+    }
+    return false;
+  }
+}
+
+/**
+ * Verifies that Claude CLI was successfully installed
+ * @param method The installation method that was used
+ */
+async function verifyInstallation(method: 'curl' | 'npm'): Promise<void> {
+  try {
+    // First try claude doctor
+    execSync('claude doctor', { stdio: 'ignore' });
+    logger.info(
+      `✅ Claude CLI verified successfully (installed via ${method})`
+    );
+  } catch {
+    // Fallback to basic which check
+    try {
+      execSync('which claude', { stdio: 'ignore' });
+      logger.info(`✅ Claude CLI found (installed via ${method})`);
+      logger.info('Run "claude doctor" to verify your setup');
+    } catch {
+      logger.warn('⚠️  Claude CLI installed but not found in PATH');
+      logger.info(
+        'You may need to restart your terminal or add Claude to your PATH'
+      );
+    }
+  }
+}
+
+/**
+ * Provides manual installation instructions when automatic methods fail
+ */
+function provideManualInstructions(): void {
+  logger.error('❌ Automatic installation failed');
+  logger.info('\n📚 Manual Installation Instructions:');
+  logger.info('1. Via curl: curl -fsSL https://claude.ai/install.sh | bash');
+  logger.info('2. Via npm: npm install -g @anthropic-ai/claude-code');
+  logger.info(
+    '3. Visit: https://claude.ai/download for platform-specific instructions'
+  );
+  logger.info(
+    '\nFor troubleshooting, run "claude doctor" after manual installation'
+  );
 }
 
 async function promptOverwrite(): Promise<boolean> {
