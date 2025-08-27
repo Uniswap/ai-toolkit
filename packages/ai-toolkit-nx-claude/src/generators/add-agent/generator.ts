@@ -139,7 +139,7 @@ This package contains agent configurations specific to ${targetPackage}.
 Install this package to access ${targetPackage}-specific agents in Claude Code:
 
 \`\`\`bash
-bunx nx generate @ai-toolkit/nx-claude:init
+bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init
 \`\`\`
 
 Then select the agents from this package during the installation process.
@@ -155,7 +155,7 @@ Then select the agents from this package during the installation process.
 To add new agents to this package:
 
 \`\`\`bash
-bunx nx generate @ai-toolkit/nx-claude:add-agent
+bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:add-agent
 \`\`\`
 
 After adding or modifying agents, regenerate the index:

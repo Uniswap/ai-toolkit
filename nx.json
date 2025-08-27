@@ -68,8 +68,23 @@
   "parallel": 5,
   "cacheDirectory": "node_modules/.cache/nx",
   "release": {
+    "projects": ["packages/*"],
+    "projectsRelationship": "independent",
     "version": {
-      "preVersionCommand": "bunx nx run-many -t build"
+      "conventionalCommits": true,
+      "preVersionCommand": "bunx nx run-many -t build",
+      "git": {
+        "commit": true,
+        "tag": true
+      }
+    },
+    "changelog": {
+      "projectChangelogs": true,
+      "createRelease": "github",
+      "git": {
+        "commit": true,
+        "tag": true
+      }
     }
   }
 }

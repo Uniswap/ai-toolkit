@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "$id": "SetupRegistryProxy",
+  "title": "Setup Registry Proxy",
+  "description": "Configure shell proxy for routing @uniswap/ai-toolkit* packages to GitHub registry",
+  "type": "object",
+  "properties": {
+    "shellConfig": {
+      "type": "object",
+      "description": "Override shell detection (optional)",
+      "properties": {
+        "shell": {
+          "type": "string",
+          "enum": ["bash", "zsh", "fish"],
+          "description": "Shell type"
+        },
+        "rcFile": {
+          "type": "string",
+          "description": "Path to shell configuration file"
+        }
+      }
+    },
+    "force": {
+      "type": "boolean",
+      "default": false,
+      "description": "Overwrite existing proxy configuration",
+      "x-prompt": "Overwrite existing proxy configuration if it exists?"
+    },
+    "backup": {
+      "type": "boolean",
+      "default": true,
+      "description": "Backup existing proxy file before overwriting",
+      "x-prompt": "Backup existing configuration before overwriting?"
+    },
+    "test": {
+      "type": "boolean",
+      "default": true,
+      "description": "Test the proxy installation after setup",
+      "x-prompt": "Test the proxy after installation?"
+    }
+  },
+  "required": []
+}

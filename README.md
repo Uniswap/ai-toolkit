@@ -25,7 +25,9 @@ Before working with this repository, ensure you have the following tools install
 
 ### Setting up GitHub Packages Access
 
-Since this package is published to GitHub Packages, you'll need to authenticate first:
+The `@uniswap/ai-toolkit-nx-claude` package is published to GitHub Packages with restricted access for Uniswap organization members.
+
+#### For Uniswap Organization Members
 
 1. **Create a GitHub Personal Access Token (PAT)**:
 
@@ -33,27 +35,40 @@ Since this package is published to GitHub Packages, you'll need to authenticate 
    - Create a token with `read:packages` scope
    - Save the token securely
 
-2. **Configure npm to use GitHub Packages**:
+2. **Configure npm authentication for GitHub Packages**:
 
    ```bash
-   # Add to your ~/.npmrc or project .npmrc
-   @uniswap:registry=https://npm.pkg.github.com
+   # Add to your ~/.npmrc
    //npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN
    ```
 
-   Alternatively, set the token in your shell environment:
+   Or use environment variable:
 
    ```bash
    export NODE_AUTH_TOKEN=YOUR_GITHUB_TOKEN
-   ```
 
-   Then, use:
-
-   ```bash
-   # Add to your ~/.npmrc or project .npmrc
-   @uniswap:registry=https://npm.pkg.github.com
+   # Then add to ~/.npmrc:
    //npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
    ```
+
+   **Note**: We don't set the entire `@uniswap` scope to GitHub Packages to avoid conflicts with public npm packages.
+
+#### Standalone Package Usage (Uniswap Members Only)
+
+Once authenticated, you can run the ai-toolkit-nx-claude init generator directly:
+
+```bash
+# Install and run with npx (specify GitHub registry)
+npx --registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude
+
+# Or install globally first
+npm install -g @uniswap/ai-toolkit-nx-claude --registry=https://npm.pkg.github.com
+
+# Then run directly
+ai-toolkit-nx-claude
+```
+
+This will install Claude Code configurations to your global `~/.claude` directory or local `./.claude` directory.
 
 ## Getting Started
 
@@ -83,10 +98,10 @@ bun run install-all
 
 ```bash
 # Install just the notification hooks
-bunx nx generate @ai-toolkit/nx-claude:hooks
+bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks
 
 # Or preview what would be installed (dry-run mode)
-bunx nx generate @ai-toolkit/nx-claude:init --dry-run
+bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init --dry-run
 ```
 
 ### Verify Installation
@@ -161,7 +176,7 @@ npx nx sync:check
 
 [Learn more about nx sync](https://nx.dev/reference/nx-commands#sync)
 
-### Set up CI!
+### Set up CI
 
 #### Step 1
 
@@ -187,6 +202,23 @@ npx nx g ci-workflow
 ```
 
 [Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+
+### Automated Package Publishing
+
+The repository includes an automated publishing workflow (`.github/workflows/publish-packages.yml`) that:
+
+- **Triggers on push to main**: Automatically publishes affected packages when changes are merged
+- **Uses Nx Release**: Leverages Nx's built-in release capabilities with conventional commits
+- **Independent versioning**: Each package can be versioned and released independently
+- **GitHub Packages**: Publishes to GitHub Packages with organization-restricted access
+- **Dry-run support**: Can be manually triggered with dry-run option for testing
+
+To publish packages:
+
+1. Merge changes to main with conventional commit messages (feat:, fix:, etc.)
+2. The workflow automatically detects affected packages
+3. Versions are bumped based on commit types
+4. Packages are published to GitHub Packages
 
 ### Install Nx Console
 

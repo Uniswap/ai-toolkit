@@ -31,7 +31,7 @@ This generator provides a streamlined installation process that:
 ### Module Structure
 
 ```
-packages/nx-claude/src/generators/hooks/
+packages/ai-toolkit-nx-claude/src/generators/hooks/
 ├── generator.ts           # Main generator orchestrator
 ├── generator.spec.ts      # Test suite
 ├── schema.json           # Configuration schema for Nx
@@ -254,7 +254,7 @@ To extend the generator:
 Use verbose mode to debug issues:
 
 ```bash
-bunx nx generate @ai-toolkit/nx-claude:hooks --verbose
+bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks --verbose
 ```
 
 This preserves the cloned repository and shows detailed output.
@@ -270,7 +270,7 @@ This preserves the cloned repository and shows detailed output.
 
 ### Generator Registration
 
-Registered in `packages/nx-claude/generators.json`:
+Registered in `packages/ai-toolkit-nx-claude/generators.json`:
 
 ```json
 {
@@ -294,7 +294,7 @@ bunx nx build nx-claude
 bunx nx test nx-claude
 
 # Test locally
-bunx nx generate @ai-toolkit/nx-claude:hooks --dry-run
+bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks --dry-run
 ```
 
 ## Future Enhancements

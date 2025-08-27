@@ -220,29 +220,65 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     : normalizedOptions.commands || [];
 
   for (const commandName of commandsToInstall) {
-    // Search through all subdirectories under packages/commands/
-    const commandsBaseDir = path.join(workspaceRoot, 'packages/commands');
     let sourcePath: string | null = null;
 
-    // Check if commands directory exists
-    if (fs.existsSync(commandsBaseDir)) {
-      // Get all subdirectories (agnostic, mobile, web, etc.)
-      const commandSubDirs = fs.readdirSync(commandsBaseDir).filter((item) => {
-        const itemPath = path.join(commandsBaseDir, item);
-        return fs.statSync(itemPath).isDirectory();
-      });
+    // First check for bundled content (when running as standalone package)
+    const bundledContentDir = path.join(
+      __dirname,
+      '..',
+      '..',
+      'content',
+      'commands'
+    );
+    if (fs.existsSync(bundledContentDir)) {
+      // Check in bundled content subdirectories
+      const contentSubDirs = fs
+        .readdirSync(bundledContentDir)
+        .filter((item) => {
+          const itemPath = path.join(bundledContentDir, item);
+          return fs.statSync(itemPath).isDirectory();
+        });
 
-      // Search for the command file in each subdirectory's src folder
-      for (const subDir of commandSubDirs) {
+      for (const subDir of contentSubDirs) {
         const potentialPath = path.join(
-          commandsBaseDir,
+          bundledContentDir,
           subDir,
-          'src',
           `${commandName}.md`
         );
         if (fs.existsSync(potentialPath)) {
           sourcePath = potentialPath;
           break;
+        }
+      }
+    }
+
+    // Fall back to workspace lookup if not found in bundled content
+    if (!sourcePath) {
+      // Search through all subdirectories under packages/commands/
+      const commandsBaseDir = path.join(workspaceRoot, 'packages/commands');
+
+      // Check if commands directory exists
+      if (fs.existsSync(commandsBaseDir)) {
+        // Get all subdirectories (agnostic, mobile, web, etc.)
+        const commandSubDirs = fs
+          .readdirSync(commandsBaseDir)
+          .filter((item) => {
+            const itemPath = path.join(commandsBaseDir, item);
+            return fs.statSync(itemPath).isDirectory();
+          });
+
+        // Search for the command file in each subdirectory's src folder
+        for (const subDir of commandSubDirs) {
+          const potentialPath = path.join(
+            commandsBaseDir,
+            subDir,
+            'src',
+            `${commandName}.md`
+          );
+          if (fs.existsSync(potentialPath)) {
+            sourcePath = potentialPath;
+            break;
+          }
         }
       }
     }
@@ -275,29 +311,63 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     : normalizedOptions.agents || [];
 
   for (const agentName of agentsToInstall) {
-    // Search through all subdirectories under packages/agents/
-    const agentsBaseDir = path.join(workspaceRoot, 'packages/agents');
     let sourcePath: string | null = null;
 
-    // Check if agents directory exists
-    if (fs.existsSync(agentsBaseDir)) {
-      // Get all subdirectories (agnostic, mobile, web, etc.)
-      const agentSubDirs = fs.readdirSync(agentsBaseDir).filter((item) => {
-        const itemPath = path.join(agentsBaseDir, item);
-        return fs.statSync(itemPath).isDirectory();
-      });
+    // First check for bundled content (when running as standalone package)
+    const bundledContentDir = path.join(
+      __dirname,
+      '..',
+      '..',
+      'content',
+      'agents'
+    );
+    if (fs.existsSync(bundledContentDir)) {
+      // Check in bundled content subdirectories
+      const contentSubDirs = fs
+        .readdirSync(bundledContentDir)
+        .filter((item) => {
+          const itemPath = path.join(bundledContentDir, item);
+          return fs.statSync(itemPath).isDirectory();
+        });
 
-      // Search for the agent file in each subdirectory's src folder
-      for (const subDir of agentSubDirs) {
+      for (const subDir of contentSubDirs) {
         const potentialPath = path.join(
-          agentsBaseDir,
+          bundledContentDir,
           subDir,
-          'src',
           `${agentName}.md`
         );
         if (fs.existsSync(potentialPath)) {
           sourcePath = potentialPath;
           break;
+        }
+      }
+    }
+
+    // Fall back to workspace lookup if not found in bundled content
+    if (!sourcePath) {
+      // Search through all subdirectories under packages/agents/
+      const agentsBaseDir = path.join(workspaceRoot, 'packages/agents');
+
+      // Check if agents directory exists
+      if (fs.existsSync(agentsBaseDir)) {
+        // Get all subdirectories (agnostic, mobile, web, etc.)
+        const agentSubDirs = fs.readdirSync(agentsBaseDir).filter((item) => {
+          const itemPath = path.join(agentsBaseDir, item);
+          return fs.statSync(itemPath).isDirectory();
+        });
+
+        // Search for the agent file in each subdirectory's src folder
+        for (const subDir of agentSubDirs) {
+          const potentialPath = path.join(
+            agentsBaseDir,
+            subDir,
+            'src',
+            `${agentName}.md`
+          );
+          if (fs.existsSync(potentialPath)) {
+            sourcePath = potentialPath;
+            break;
+          }
         }
       }
     }

@@ -4,7 +4,7 @@
   "files": [],
   "references": [
     {
-      "path": "./packages/nx-claude"
+      "path": "./packages/ai-toolkit-nx-claude"
     },
     {
       "path": "./packages/commands/agnostic"

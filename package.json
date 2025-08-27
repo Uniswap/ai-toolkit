@@ -3,14 +3,14 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "install-all": "nx generate @ai-toolkit/nx-claude:init && nx generate @ai-toolkit/nx-claude:hooks",
+    "install-all": "nx generate @ai-toolkit/ai-toolkit-nx-claude:init && nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks",
     "build": "nx run-many --target=build --all",
     "lint": "nx run-many --target=lint --all",
     "format": "nx format:write",
     "format:check": "nx format:check",
     "prepare": "lefthook install",
     "lefthook": "lefthook run pre-commit",
-    "claude:init": "nx generate @ai-toolkit/nx-claude:init"
+    "claude:init": "nx generate @ai-toolkit/ai-toolkit-nx-claude:init"
   },
   "private": true,
   "dependencies": {

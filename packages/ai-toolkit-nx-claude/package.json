@@ -1,9 +1,16 @@
 {
-  "name": "@ai-toolkit/nx-claude",
+  "name": "@uniswap/ai-toolkit-nx-claude",
   "version": "0.0.1",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "ai-toolkit-nx-claude": "./dist/cli.js"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  },
   "exports": {
     "./package.json": "./package.json",
     ".": {
@@ -26,21 +33,31 @@
           "{options.outputPath}"
         ],
         "options": {
-          "outputPath": "packages/nx-claude/dist",
-          "main": "packages/nx-claude/src/index.ts",
-          "tsConfig": "packages/nx-claude/tsconfig.lib.json",
-          "rootDir": "packages/nx-claude/src",
+          "outputPath": "packages/ai-toolkit-nx-claude/dist",
+          "main": "packages/ai-toolkit-nx-claude/src/index.ts",
+          "tsConfig": "packages/ai-toolkit-nx-claude/tsconfig.lib.json",
+          "rootDir": "packages/ai-toolkit-nx-claude/src",
           "generatePackageJson": false,
           "assets": [
             {
-              "input": "./packages/nx-claude/src",
+              "input": "./packages/ai-toolkit-nx-claude/src",
               "glob": "**/!(*.ts)",
               "output": "."
             },
             {
-              "input": "./packages/nx-claude/src",
+              "input": "./packages/ai-toolkit-nx-claude/src",
               "glob": "**/*.d.ts",
               "output": "."
+            },
+            {
+              "input": "./packages/commands/agnostic/src",
+              "glob": "**/*.md",
+              "output": "content/commands/agnostic"
+            },
+            {
+              "input": "./packages/agents/agnostic/src",
+              "glob": "**/*.md",
+              "output": "content/agents/agnostic"
             }
           ]
         },
@@ -61,5 +78,14 @@
       }
     }
   },
-  "generators": "./generators.json"
+  "generators": "./generators.json",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/uniswap/ai-toolkit.git",
+    "directory": "packages/ai-toolkit-nx-claude"
+  },
+  "dependencies": {
+    "@nx/devkit": "*",
+    "enquirer": "*"
+  }
 }

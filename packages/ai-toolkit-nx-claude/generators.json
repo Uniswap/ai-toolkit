@@ -24,6 +24,11 @@
       "factory": "./dist/generators/hooks/generator",
       "schema": "./dist/generators/hooks/schema.json",
       "description": "Install Claude Code notification hooks"
+    },
+    "setup-registry-proxy": {
+      "factory": "./dist/generators/setup-registry-proxy/generator",
+      "schema": "./dist/generators/setup-registry-proxy/schema.json",
+      "description": "Setup shell proxy for routing @uniswap/ai-toolkit* packages to GitHub registry"
     }
   }
 }

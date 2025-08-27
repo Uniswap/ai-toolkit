@@ -26,10 +26,10 @@ The generator will check for these dependencies and warn if missing:
 
 ```bash
 # From any directory (installs globally to ~/.claude/hooks/)
-bunx nx generate @ai-toolkit/nx-claude:hooks
+bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks
 
 # Or with npm
-npm run nx generate @ai-toolkit/nx-claude:hooks
+npm run nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks
 ```
 
 ### Interactive Mode (Default)
@@ -44,22 +44,22 @@ When run without options, the generator will interactively prompt for:
 
 ```bash
 # Install with all defaults (using Nx's built-in flag)
-bunx nx generate @ai-toolkit/nx-claude:hooks --no-interactive
+bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks --no-interactive
 
 # Dry run to preview changes
-bunx nx generate @ai-toolkit/nx-claude:hooks --dry
+bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks --dry
 
 # Also works with --dry-run alias for Nx compatibility
-bunx nx generate @ai-toolkit/nx-claude:hooks --dry-run
+bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks --dry-run
 
 # Skip backup during installation
-bunx nx generate @ai-toolkit/nx-claude:hooks --backup=false --no-interactive
+bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks --backup=false --no-interactive
 
 # Force installation (skip dependency checks)
-bunx nx generate @ai-toolkit/nx-claude:hooks --force
+bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks --force
 
 # Verbose output for debugging
-bunx nx generate @ai-toolkit/nx-claude:hooks --verbose
+bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks --verbose
 ```
 
 ## Generator Options
@@ -112,7 +112,7 @@ After installation, you can test the hooks:
 
 ```bash
 # Run with verbose flag to get testing option
-bunx nx generate @ai-toolkit/nx-claude:hooks --verbose
+bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks --verbose
 
 # When prompted, choose to test the hooks
 # You should hear a notification sound
@@ -211,8 +211,8 @@ This generator provides an automated installation process for Claude Code notifi
 To contribute to this generator:
 
 1. Fork the AI Toolkit repository
-2. Make your changes in `packages/nx-claude/src/generators/hooks/`
-3. Add tests in `packages/nx-claude/src/generators/hooks/generator.spec.ts`
+2. Make your changes in `packages/ai-toolkit-nx-claude/src/generators/hooks/`
+3. Add tests in `packages/ai-toolkit-nx-claude/src/generators/hooks/generator.spec.ts`
 4. Submit a pull request
 
 ## License

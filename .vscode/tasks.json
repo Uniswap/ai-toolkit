@@ -5,10 +5,10 @@
       "type": "nx",
       "project": "",
       "command": "run",
-      "positional": "@ai-toolkit/nx-claude:build",
+      "positional": "@ai-toolkit/ai-toolkit-nx-claude:build",
       "flags": [],
       "problemMatcher": [],
-      "label": "nx: nx run @ai-toolkit/nx-claude:build"
+      "label": "nx: nx run @ai-toolkit/ai-toolkit-nx-claude:build"
     }
   ]
 }
