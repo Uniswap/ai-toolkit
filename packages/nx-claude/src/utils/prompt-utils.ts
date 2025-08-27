@@ -28,7 +28,7 @@ export interface Schema {
 
 export async function promptForMissingOptions<T extends Record<string, any>>(
   options: T,
-  schemaPath: string,
+  schemaPath: string | Schema,
   context: {
     availableCommands?: string[];
     availableAgents?: string[];
@@ -39,12 +39,19 @@ export async function promptForMissingOptions<T extends Record<string, any>>(
     globalExistingAgents?: Set<string>;
     localExistingCommands?: Set<string>;
     localExistingAgents?: Set<string>;
+    // Dynamic packages support
+    availablePackages?: string[];
   } = {},
   explicitlyProvidedOptions?: Map<string, any> | Set<string>
 ): Promise<T> {
-  // Load schema
-  const schemaContent = fs.readFileSync(schemaPath, 'utf-8');
-  const schema: Schema = JSON.parse(schemaContent);
+  // Load schema - support both file path and direct schema object
+  let schema: Schema;
+  if (typeof schemaPath === 'string') {
+    const schemaContent = fs.readFileSync(schemaPath, 'utf-8');
+    schema = JSON.parse(schemaContent);
+  } else {
+    schema = schemaPath;
+  }
 
   const result: any = { ...options };
 
@@ -166,6 +173,8 @@ async function promptForProperty(
     globalExistingAgents?: Set<string>;
     localExistingCommands?: Set<string>;
     localExistingAgents?: Set<string>;
+    // Dynamic packages support
+    availablePackages?: string[];
   },
   currentValues?: Record<string, any>
 ): Promise<any> {
@@ -207,13 +216,26 @@ async function promptForProperty(
     return value;
   }
 
-  if (property.enum) {
-    // Enum selection
+  if (property.enum || (key === 'package' && context.availablePackages)) {
+    // Enum selection or dynamic package selection
+    const choices = property.enum || context.availablePackages || [];
     const { value } = await prompt<{ value: string }>({
       type: 'select',
       name: 'value',
       message: promptMessage,
-      choices: property.enum.map((e) => ({ name: e, value: e })),
+      choices: choices.map((choice: string) => {
+        if (key === 'package' && choice === '__create_new__') {
+          return {
+            name: '__create_new__',
+            value: '__create_new__',
+            message: '➕ Create new package',
+          };
+        }
+        if (key === 'package') {
+          return { name: choice, value: choice, message: `📦 ${choice}` };
+        }
+        return { name: choice, value: choice };
+      }),
     } as any);
     return value;
   }

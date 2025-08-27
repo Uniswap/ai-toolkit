@@ -1,0 +1,46 @@
+---
+name: <%= name %>
+description: <%= description %>
+---
+
+# /<%= name %> Command
+
+## Description
+
+This command [TODO: Add detailed description of what this command does].
+
+## Usage
+
+```
+/<%= name %> [arguments]
+```
+
+## Arguments
+
+- `arg1`: [TODO: Description of argument 1]
+- `arg2`: [TODO: Description of argument 2]
+
+## Instructions
+
+[TODO: Paste your command instructions here. This should include:
+- What the command accomplishes
+- Step-by-step process it follows
+- Expected inputs and outputs
+- Error handling behavior
+- Any special considerations]
+
+## Examples
+
+### Example 1: [TODO: Basic usage]
+```
+/<%= name %> example-arg
+```
+
+### Example 2: [TODO: Advanced usage]
+```
+/<%= name %> --option value
+```
+
+## Implementation Notes
+
+[TODO: Add any implementation-specific notes, dependencies, or requirements]
