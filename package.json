@@ -17,7 +17,10 @@
     "@nx/devkit": "21.3.11"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.34.0",
     "@nx/eslint": "^21.3.11",
+    "@nx/eslint-plugin": "21.3.11",
     "@nx/jest": "21.3.11",
     "@nx/js": "21.3.11",
     "@nx/plugin": "^21.3.11",
@@ -30,6 +33,7 @@
     "@typescript-eslint/parser": "^8.39.1",
     "enquirer": "^2.4.1",
     "eslint": "^9.33.0",
+    "jsonc-eslint-parser": "^2.1.0",
     "lefthook": "^1.12.3",
     "nx": "21.3.11",
     "prettier": "^2.6.2",

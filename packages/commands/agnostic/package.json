@@ -13,5 +13,26 @@
     },
     "./package.json": "./package.json"
   },
+  "nx": {
+    "targets": {
+      "generate-index": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "bun run scripts/generate.ts",
+          "cwd": "packages/commands/agnostic"
+        },
+        "dependsOn": [
+          "@ai-toolkit/utils:build"
+        ],
+        "inputs": [
+          "{projectRoot}/src/*.md",
+          "{projectRoot}/scripts/generate.ts"
+        ],
+        "outputs": [
+          "{projectRoot}/src/index.ts"
+        ]
+      }
+    }
+  },
   "dependencies": {}
 }

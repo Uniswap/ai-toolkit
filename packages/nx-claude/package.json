@@ -43,7 +43,21 @@
               "output": "."
             }
           ]
-        }
+        },
+        "dependsOn": [
+          {
+            "projects": [
+              "@ai-toolkit/agents-agnostic"
+            ],
+            "target": "generate-index"
+          },
+          {
+            "projects": [
+              "@ai-toolkit/commands-agnostic"
+            ],
+            "target": "generate-index"
+          }
+        ]
       }
     }
   },

@@ -6,15 +6,9 @@
     "outDir": "dist",
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
     "emitDeclarationOnly": false,
+    "forceConsistentCasingInFileNames": true,
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
-  "references": [
-    {
-      "path": "../agents/agnostic/tsconfig.lib.json"
-    },
-    {
-      "path": "../commands/agnostic/tsconfig.lib.json"
-    }
-  ]
+  "references": []
 }
