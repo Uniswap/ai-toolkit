@@ -31,6 +31,13 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4 # 1e60f620b9541d16bece96c5465dc8ee9832be0b
+        with:
+          node-version: '22.13.1'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@uniswap'
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2 # 4b7b77a97a4c3a13b0e470ba53503636353a4c3a
         with:
@@ -46,9 +53,11 @@ jobs:
 
       - name: Configure npm for GitHub Packages
         run: |
-          echo "//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}" >> ~/.npmrc
+          # Set up .npmrc with GitHub token for authentication
+          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> ~/.npmrc
+          echo "@uniswap:registry=https://npm.pkg.github.com" >> ~/.npmrc
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
       - name: Build packages
         run: bunx nx run-many --target=build
@@ -61,7 +70,7 @@ jobs:
           bunx nx release publish --dry-run
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Version affected packages
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
@@ -76,7 +85,8 @@ jobs:
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
         run: |
           echo "Publishing affected packages"
-          bunx nx release publish
+          # Use npm for publishing to ensure compatibility with GitHub Packages
+          npx nx release publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
