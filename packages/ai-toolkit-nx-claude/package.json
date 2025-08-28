@@ -1,15 +1,11 @@
 {
   "name": "@uniswap/ai-toolkit-nx-claude",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
     "ai-toolkit-nx-claude": "./dist/cli.js"
-  },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com",
-    "access": "restricted"
   },
   "exports": {
     "./package.json": "./package.json",
