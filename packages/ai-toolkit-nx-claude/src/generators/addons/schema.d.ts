@@ -2,7 +2,7 @@ export interface AddonsGeneratorSchema {
   /** The addon to install */
   addon?: 'spec-workflow-mcp';
   /** Dashboard startup mode */
-  dashboardMode?: 'always' | 'ask' | 'manual';
+  dashboardMode?: 'always' | 'manual';
   /** Dashboard port (default: auto) */
   port?: number;
   /** GitHub personal access token for private packages */

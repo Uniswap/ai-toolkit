@@ -15,13 +15,12 @@
     "dashboardMode": {
       "type": "string",
       "description": "Dashboard startup mode",
-      "enum": ["always", "ask", "manual"],
-      "default": "ask",
+      "enum": ["always", "manual"],
+      "default": "always",
       "prompt-message": "📊 When should the spec-workflow dashboard start?",
       "prompt-type": "select",
       "prompt-items": [
         { "value": "always", "label": "Always (auto-start on Claude launch)" },
-        { "value": "ask", "label": "Ask (prompt when opening project)" },
         { "value": "manual", "label": "Manual (start via command only)" }
       ]
     },

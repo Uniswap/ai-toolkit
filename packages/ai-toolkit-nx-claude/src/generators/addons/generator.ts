@@ -46,7 +46,7 @@ export default async function generator(
     // Use schema defaults in dry-run mode, no prompting
     options = {
       addon: schema.addon || 'spec-workflow-mcp',
-      dashboardMode: schema.dashboardMode || 'ask',
+      dashboardMode: schema.dashboardMode || 'always',
       port: schema.port || 0,
       githubToken: schema.githubToken,
       force: schema.force || false,
@@ -251,8 +251,6 @@ async function installMcpAddon(
     // Dashboard mode flags
     if (options.dashboardMode === 'always') {
       additionalArgs.push('--AutoStartDashboard');
-    } else if (options.dashboardMode === 'ask') {
-      additionalArgs.push('--AskStartDashboard');
     }
     // manual mode doesn't need a flag
 
@@ -347,13 +345,11 @@ async function updateConfiguration(
     // Update dashboard mode
     if (options.dashboardMode) {
       // Remove existing dashboard flags
-      argUpdates.remove!.push('--AutoStartDashboard', '--AskStartDashboard');
+      argUpdates.remove!.push('--AutoStartDashboard');
 
       // Add new dashboard flag
       if (options.dashboardMode === 'always') {
         argUpdates.add!.push('--AutoStartDashboard');
-      } else if (options.dashboardMode === 'ask') {
-        argUpdates.add!.push('--AskStartDashboard');
       }
     }
 
@@ -398,13 +394,9 @@ function showUsageInstructions(
       console.log(
         `   Dashboard URL: http://localhost:${options.port || 50014}`
       );
-    } else if (options.dashboardMode === 'ask') {
-      console.log(
-        '3. You will be prompted to start the dashboard when opening the project'
-      );
     } else {
       console.log(
-        '3. Start the dashboard manually with: spec-workflow dashboard'
+        '3. Start the dashboard manually with: npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/spec-workflow-mcp@latest --dashboard'
       );
     }
 
