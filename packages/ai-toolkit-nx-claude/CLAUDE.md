@@ -10,10 +10,10 @@ This package can be run directly via npx/bunx without cloning the repository:
 
 ```bash
 # For Uniswap organization members only
-npx --registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude
+npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude
 
 # Or install globally first
-npm install -g @uniswap/ai-toolkit-nx-claude --registry=https://npm.pkg.github.com
+npm install -g @uniswap/ai-toolkit-nx-claude --@uniswap:registry=https://npm.pkg.github.com
 ai-toolkit-nx-claude
 ```
 

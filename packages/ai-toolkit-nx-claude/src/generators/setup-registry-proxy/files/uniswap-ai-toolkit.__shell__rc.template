@@ -43,7 +43,7 @@ _proxy_npm_command() {
     if [ "$original_cmd" = "bunx" ]; then
         # Use npx instead of bunx for GitHub packages
         echo "📦 Using npx for GitHub package (bunx doesn't support custom registries)..." >&2
-        npx --registry=https://npm.pkg.github.com "$@"
+        npx --@uniswap:registry=https://npm.pkg.github.com "$@"
         return $?
     fi
 
@@ -67,7 +67,7 @@ _proxy_npm_command() {
     # For npx, we need special handling
     if [ "$original_cmd" = "npx" ]; then
         # Build the command with registry injected early
-        local new_args=("--registry=https://npm.pkg.github.com")
+        local new_args=("--@uniswap:registry=https://npm.pkg.github.com")
         new_args+=("$@")
         command "$original_cmd" "${new_args[@]}"
         return $?
@@ -113,7 +113,7 @@ _proxy_npm_command() {
                     found_subcommand=true
                     # Add registry right after subcommand
                     if [ "$registry_added" = false ]; then
-                        new_args+=("--registry=https://npm.pkg.github.com")
+                        new_args+=("--@uniswap:registry=https://npm.pkg.github.com")
                         registry_added=true
                     fi
                     continue
@@ -126,7 +126,7 @@ _proxy_npm_command() {
 
     # If we didn't add registry yet (no subcommand found), add it now
     if [ "$registry_added" = false ]; then
-        new_args+=("--registry=https://npm.pkg.github.com")
+        new_args+=("--@uniswap:registry=https://npm.pkg.github.com")
     fi
 
     # Execute the command with modified arguments

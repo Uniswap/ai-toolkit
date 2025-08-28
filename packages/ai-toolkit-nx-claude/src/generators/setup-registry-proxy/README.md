@@ -9,7 +9,7 @@ When Uniswap packages are published to GitHub Packages with organization-restric
 1. Configure npm to use GitHub registry for the `@uniswap` scope
 2. But this breaks access to public `@uniswap` packages on npm
 
-This proxy solves the problem by intercepting npm/npx/yarn/bun commands and adding `--registry=https://npm.pkg.github.com` only for packages that match `@uniswap/ai-toolkit*`.
+This proxy solves the problem by intercepting npm/npx/yarn/bun commands and adding `--@uniswap:registry=https://npm.pkg.github.com` only for packages that match `@uniswap/ai-toolkit*`.
 
 ## What It Does
 
@@ -46,7 +46,7 @@ npx -y @uniswap/spec-workflow-mcp@latest --help
 Are automatically transformed to:
 
 ```bash
-npx --registry=https://npm.pkg.github.com -y @uniswap/spec-workflow-mcp@latest --help
+npx --@uniswap:registry=https://npm.pkg.github.com -y @uniswap/spec-workflow-mcp@latest --help
 ```
 
 But regular commands remain unchanged:

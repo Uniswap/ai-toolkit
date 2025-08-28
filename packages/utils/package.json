@@ -16,7 +16,6 @@
     }
   },
   "nx": {
-    "name": "utils",
     "tags": [
       "type:util"
     ],

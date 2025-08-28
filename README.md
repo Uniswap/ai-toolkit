@@ -59,10 +59,10 @@ Once authenticated, you can run the ai-toolkit-nx-claude init generator directly
 
 ```bash
 # Install and run with npx (specify GitHub registry)
-npx --registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude
+npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude
 
 # Or install globally first
-npm install -g @uniswap/ai-toolkit-nx-claude --registry=https://npm.pkg.github.com
+npm install -g @uniswap/ai-toolkit-nx-claude --@uniswap:registry=https://npm.pkg.github.com
 
 # Then run directly
 ai-toolkit-nx-claude

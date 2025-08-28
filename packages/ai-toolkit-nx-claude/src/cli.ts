@@ -11,7 +11,7 @@ async function main() {
   // Show help message
   if (args.includes('--help') || args.includes('-h')) {
     console.log(
-      'Usage: npx --registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude'
+      'Usage: npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude'
     );
     console.log(
       '\nThis command runs the nx-claude init generator to install Claude Code configurations.'
@@ -55,7 +55,7 @@ async function main() {
       );
       console.error('\nTo gain access:');
       console.error(
-        '1. Ensure you are logged into npm with: npm login --registry=https://npm.pkg.github.com'
+        '1. Ensure you are logged into npm with: npm login --@uniswap:registry=https://npm.pkg.github.com'
       );
       console.error(
         '2. Verify you are a member of the Uniswap organization on GitHub'
@@ -82,7 +82,9 @@ async function main() {
       console.error('2. You are not authenticated properly');
       console.error('3. Your npm registry is not configured correctly');
       console.error('\nTry running:');
-      console.error('  npm login --registry=https://npm.pkg.github.com');
+      console.error(
+        '  npm login --@uniswap:registry=https://npm.pkg.github.com'
+      );
       console.error(
         '  echo "//npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN" >> ~/.npmrc'
       );
