@@ -3,13 +3,13 @@
   "version": "0.1.1",
   "private": true,
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts",
-      "default": "./src/index.ts"
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js",
+      "default": "./dist/src/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -30,6 +30,27 @@
         ],
         "outputs": [
           "{projectRoot}/src/index.ts"
+        ]
+      },
+      "build": {
+        "executor": "@nx/js:tsc",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "options": {
+          "outputPath": "packages/commands/agnostic/dist",
+          "main": "packages/commands/agnostic/src/index.ts",
+          "tsConfig": "packages/commands/agnostic/tsconfig.lib.json",
+          "assets": [
+            {
+              "input": "packages/commands/agnostic/src",
+              "glob": "**/*.md",
+              "output": "."
+            }
+          ]
+        },
+        "dependsOn": [
+          "generate-index"
         ]
       }
     }

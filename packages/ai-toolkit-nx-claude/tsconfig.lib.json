@@ -6,7 +6,16 @@
     "outDir": "dist",
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
     "emitDeclarationOnly": false,
-    "types": ["node"]
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "es2022",
+    "types": ["node"],
+    "paths": {
+      "@ai-toolkit/commands-agnostic": [
+        "../commands/agnostic/dist/src/index.js"
+      ],
+      "@ai-toolkit/agents-agnostic": ["../agents/agnostic/dist/src/index.js"]
+    }
   },
   "include": ["src/**/*.ts"],
   "references": [

@@ -34,25 +34,27 @@
     },
     "packages/agents/agnostic": {
       "name": "@ai-toolkit/agents-agnostic",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@ai-toolkit/utils": "workspace:*",
       },
     },
     "packages/ai-toolkit-nx-claude": {
       "name": "@uniswap/ai-toolkit-nx-claude",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "bin": {
-        "ai-toolkit-nx-claude": "./dist/cli.js",
+        "ai-toolkit-nx-claude": "./dist/cli-generator.js",
       },
       "dependencies": {
+        "@ai-toolkit/agents-agnostic": "workspace:*",
+        "@ai-toolkit/commands-agnostic": "workspace:*",
         "@nx/devkit": "*",
         "enquirer": "*",
       },
     },
     "packages/commands/agnostic": {
       "name": "@ai-toolkit/commands-agnostic",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@ai-toolkit/utils": "workspace:*",
       },
@@ -63,7 +65,7 @@
     },
     "packages/utils": {
       "name": "@ai-toolkit/utils",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "tslib": "^2.3.0",
       },

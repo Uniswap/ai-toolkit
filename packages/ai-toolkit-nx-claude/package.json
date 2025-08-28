@@ -62,13 +62,13 @@
             "projects": [
               "@ai-toolkit/agents-agnostic"
             ],
-            "target": "generate-index"
+            "target": "build"
           },
           {
             "projects": [
               "@ai-toolkit/commands-agnostic"
             ],
-            "target": "generate-index"
+            "target": "build"
           }
         ]
       },
@@ -91,6 +91,8 @@
   },
   "dependencies": {
     "@nx/devkit": "*",
-    "enquirer": "*"
+    "enquirer": "*",
+    "@ai-toolkit/commands-agnostic": "workspace:*",
+    "@ai-toolkit/agents-agnostic": "workspace:*"
   }
 }

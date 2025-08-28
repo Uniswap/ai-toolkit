@@ -148,22 +148,26 @@ function shouldRunStandalone(): boolean {
  */
 async function runGeneratorDirectly(generatorName: string, args: string[]) {
   try {
-    // Dynamically import the generator (need .js extension for ESM)
+    // Use require for CommonJS modules
     const generatorPath = path.join(
       __dirname,
       'generators',
       generatorName,
       'generator.js'
     );
-    const generatorModule = await import(generatorPath);
+
+    // Use require for CommonJS compatibility
+    const generatorModule = require(generatorPath);
 
     // Handle both default and named exports
     // Generators export named functions like 'initGenerator', 'hooksGenerator', etc.
     const generatorFnName = `${generatorName}Generator`;
     const generator =
-      generatorModule.default || generatorModule[generatorFnName];
+      generatorModule.default ||
+      generatorModule[generatorFnName] ||
+      generatorModule;
 
-    if (!generator) {
+    if (!generator || typeof generator !== 'function') {
       throw new Error(`Generator function not found for '${generatorName}'`);
     }
 
@@ -200,15 +204,36 @@ function parseCliArgs(args: string[]): Record<string, any> {
     const arg = args[i];
 
     if (arg.startsWith('--')) {
-      const key = arg.slice(2);
+      let key = arg.slice(2);
       const nextArg = args[i + 1];
 
-      // Handle boolean flags
-      if (!nextArg || nextArg.startsWith('--')) {
-        options[key] = true;
-      } else {
-        options[key] = nextArg;
+      // Handle key=value format
+      let value: any = true;
+      if (key.includes('=')) {
+        const [k, v] = key.split('=');
+        key = k;
+        value = v;
+      } else if (nextArg && !nextArg.startsWith('--')) {
+        value = nextArg;
         i++; // Skip next arg since we consumed it
+      }
+
+      // Convert kebab-case to camelCase
+      const camelKey = key.replace(/-([a-z])/g, (_, letter) =>
+        letter.toUpperCase()
+      );
+
+      // Handle negations (--no-interactive -> nonInteractive: true)
+      if (camelKey.startsWith('no') && camelKey.length > 2) {
+        const actualKey = camelKey[2].toLowerCase() + camelKey.slice(3);
+        // Special case for noInteractive/nonInteractive
+        if (actualKey === 'interactive') {
+          options['nonInteractive'] = true;
+        } else {
+          options[actualKey] = false;
+        }
+      } else {
+        options[camelKey] = value;
       }
     }
   }

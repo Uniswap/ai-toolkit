@@ -5,7 +5,10 @@
     "rootDir": "src",
     "outDir": "dist",
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
-    "emitDeclarationOnly": true,
+    "emitDeclarationOnly": false,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "es2022",
     "forceConsistentCasingInFileNames": true,
     "types": ["node"]
   },
