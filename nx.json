@@ -68,7 +68,13 @@
   "parallel": 5,
   "cacheDirectory": "node_modules/.cache/nx",
   "release": {
-    "projects": ["packages/*"],
+    "projects": [
+      "@uniswap/ai-toolkit-nx-claude",
+      "utils",
+      "@ai-toolkit/agents-agnostic",
+      "@ai-toolkit/commands-agnostic",
+      "@ai-toolkit/commands-typescript"
+    ],
     "projectsRelationship": "independent",
     "version": {
       "conventionalCommits": true,

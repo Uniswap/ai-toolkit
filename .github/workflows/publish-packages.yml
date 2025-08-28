@@ -50,21 +50,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Get affected packages
-        id: affected
-        run: |
-          # Get list of affected packages that have changes
-          AFFECTED=$(bunx nx show projects --affected --base=HEAD~1 --head=HEAD --json)
-          echo "affected=$AFFECTED" >> $GITHUB_OUTPUT
-
-      - name: Build affected packages
-        run: bunx nx affected --target=build --base=HEAD~1 --head=HEAD
+      - name: Build packages
+        run: bunx nx run-many --target=build
 
       - name: Version and publish packages (dry run)
         if: github.event.inputs.dryRun == 'true' || github.event_name == 'workflow_dispatch'
         run: |
-          bunx nx release version --projects=$(echo '${{ steps.affected.outputs.affected }}' | jq -r '.[]' | tr '\n' ',') --dry-run
-          bunx nx release publish --projects=$(echo '${{ steps.affected.outputs.affected }}' | jq -r '.[]' | tr '\n' ',') --dry-run
+          echo "Running dry-run for affected packages"
+          # Use --first-release if no previous tags exist
+          bunx nx release version --first-release --dry-run || bunx nx release version --dry-run
+          bunx nx release publish --dry-run
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -73,30 +68,17 @@ jobs:
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
         id: version
         run: |
-          # Get affected projects as comma-separated list
-          PROJECTS=$(echo '${{ steps.affected.outputs.affected }}' | jq -r '.[]' | tr '\n' ',')
-
-          if [ -n "$PROJECTS" ]; then
-            echo "Versioning packages: $PROJECTS"
-            bunx nx release version --projects=$PROJECTS
-          else
-            echo "No affected packages to version"
-          fi
+          echo "Versioning affected packages"
+          # Use --first-release if no previous tags exist
+          bunx nx release version --first-release || bunx nx release version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish affected packages
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
         run: |
-          # Get affected projects as comma-separated list
-          PROJECTS=$(echo '${{ steps.affected.outputs.affected }}' | jq -r '.[]' | tr '\n' ',')
-
-          if [ -n "$PROJECTS" ]; then
-            echo "Publishing packages: $PROJECTS"
-            bunx nx release publish --projects=$PROJECTS
-          else
-            echo "No affected packages to publish"
-          fi
+          echo "Publishing affected packages"
+          bunx nx release publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
