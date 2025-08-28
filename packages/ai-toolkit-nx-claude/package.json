@@ -7,6 +7,9 @@
   "bin": {
     "ai-toolkit-nx-claude": "./dist/cli-generator.js"
   },
+  "scripts": {
+    "postinstall": "node -e \"const fs = require('fs'); const path = require('path'); const bin = path.join(__dirname, 'dist', 'cli-generator.js'); if (fs.existsSync(bin)) { fs.chmodSync(bin, '755'); }\""
+  },
   "exports": {
     "./package.json": "./package.json",
     ".": {
