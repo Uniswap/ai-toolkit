@@ -7,9 +7,6 @@
   "bin": {
     "ai-toolkit-nx-claude": "./dist/cli-generator.js"
   },
-  "scripts": {
-    "postinstall": "node -e \"const fs = require('fs'); const path = require('path'); const bin = path.join(__dirname, 'dist', 'cli-generator.js'); if (fs.existsSync(bin)) { fs.chmodSync(bin, '755'); }\""
-  },
   "exports": {
     "./package.json": "./package.json",
     ".": {
@@ -26,7 +23,7 @@
   ],
   "nx": {
     "targets": {
-      "build": {
+      "build-tsc": {
         "executor": "@nx/js:tsc",
         "outputs": [
           "{options.outputPath}"
@@ -59,6 +56,19 @@
               "output": "content/agents/agnostic"
             }
           ]
+        }
+      },
+      "build": {
+        "executor": "nx:run-commands",
+        "outputs": [
+          "{workspaceRoot}/packages/ai-toolkit-nx-claude/dist"
+        ],
+        "options": {
+          "commands": [
+            "nx run @uniswap/ai-toolkit-nx-claude:build-tsc",
+            "chmod +x packages/ai-toolkit-nx-claude/dist/cli-generator.js"
+          ],
+          "parallel": false
         },
         "dependsOn": [
           {
