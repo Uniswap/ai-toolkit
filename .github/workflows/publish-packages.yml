@@ -57,8 +57,7 @@ jobs:
         if: github.event.inputs.dryRun == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           echo "Running dry-run for affected packages"
-          # Use --first-release if no previous tags exist
-          bunx nx release version --first-release --dry-run || bunx nx release version --dry-run
+          bunx nx release version --dry-run
           bunx nx release publish --dry-run
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -69,8 +68,7 @@ jobs:
         id: version
         run: |
           echo "Versioning affected packages"
-          # Use --first-release if no previous tags exist
-          bunx nx release version --first-release || bunx nx release version
+          bunx nx release version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
