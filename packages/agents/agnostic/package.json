@@ -22,7 +22,7 @@
           "cwd": "packages/agents/agnostic"
         },
         "dependsOn": [
-          "utils:build"
+          "@ai-toolkit/utils:build"
         ],
         "inputs": [
           "{projectRoot}/src/*.md",
