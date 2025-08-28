@@ -12,7 +12,6 @@
  * - ai-toolkit-nx-claude:addons -> addons generator
  * - ai-toolkit-nx-claude:add-command -> add-command generator
  * - ai-toolkit-nx-claude:add-agent -> add-agent generator
- * - ai-toolkit-nx-claude:content-package -> content-package generator
  */
 
 import { handleNxExecution } from './cli-utils';
@@ -32,7 +31,6 @@ const ALL_GENERATORS = {
   ...GENERATORS,
   'add-command': 'Add a new Claude Code command to existing or new packages',
   'add-agent': 'Add a new Claude Code agent to existing or new packages',
-  'content-package': 'Create a new content package for commands or agents',
 };
 
 // Extract generator name from arguments or return null for interactive mode

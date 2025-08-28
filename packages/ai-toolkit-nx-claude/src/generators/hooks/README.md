@@ -210,7 +210,7 @@ This generator provides an automated installation process for Claude Code notifi
 
 To contribute to this generator:
 
-1. Fork the AI Toolkit repository
+1. Fork or pull down the AI Toolkit repository
 2. Make your changes in `packages/ai-toolkit-nx-claude/src/generators/hooks/`
 3. Add tests in `packages/ai-toolkit-nx-claude/src/generators/hooks/generator.spec.ts`
 4. Submit a pull request

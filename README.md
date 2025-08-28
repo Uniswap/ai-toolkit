@@ -122,11 +122,27 @@ Once installed, you'll have access to powerful Claude Code agents and commands t
 
 ## Contributing
 
-### Generate a library
+Regardless of your level of familiarity with Nx, we welcome contributions! It's highly recommended to install and use the Nx Console extension for your IDE (VSCode, Cursor, or IntelliJ) to enhance your experience. By doing this, it will also automatically install the mcp server, which will be picked up by your IDE.
+
+If you use a cli tool like Claude Code, you'll need to manually install the mcp server by running:
+
+```sh
+claude mcp add nx-mcp npx nx-mcp@latest --scope user
+```
+
+Once the MCP is installed, chat with your favorite AI tool to understand how to use it effectively to accomplish what you want to do!
+
+Common tasks (such as adding an agent or command) will likely have a corresponding Nx generator that you can run to scaffold out the necessary files and configurations.
+
+These will also usually have accompanying docs, and will hve a cli-based interface to guide you through the options.
+
+````sh
+
+### Generate a publishable library
 
 ```sh
 npx nx g @nx/js:lib packages/pkg1 --publishable --importPath=@my-org/pkg1
-```
+````
 
 ### Run tasks
 
@@ -142,19 +158,15 @@ To run any task with Nx use:
 npx nx <target> <project-name>
 ```
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or in the `nx` property of `package.json` files.
 
 [More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 
 ### Versioning and releasing
 
-To version and release the library use
+This is done automatically in the CI on pushes to `main`.
 
-```
-npx nx release
-```
-
-Pass `--dry-run` to see what would happen without actually releasing the library.
+Checkout the [publish-packages.yml](.github/workflows/publish-packages.yml) workflow file for more information.
 
 [Learn more about Nx release &raquo;](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 

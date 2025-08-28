@@ -40,9 +40,6 @@ npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude
 
 # Add a new agent to packages
 npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude:add-agent
-
-# Create a new content package
-npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude:content-package
 ```
 
 ### List Available Generators
@@ -59,7 +56,6 @@ npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude
 - **addons** - Install and configure Claude Code addons including MCP servers
 - **add-command** - Add a new Claude Code command to existing or new packages
 - **add-agent** - Add a new Claude Code agent to existing or new packages
-- **content-package** - Create a new content package for commands or agents
 
 ## Building
 

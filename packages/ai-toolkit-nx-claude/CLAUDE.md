@@ -29,8 +29,7 @@ packages/ai-toolkit-nx-claude/
 │   │   ├── hooks/              # Notification hooks installer
 │   │   ├── setup-registry-proxy/ # Shell proxy for GitHub registry routing
 │   │   ├── add-command/        # Add individual commands
-│   │   ├── add-agent/          # Add individual agents
-│   │   └── content-package/    # Create new content packages
+│   │   └── add-agent/          # Add individual agents
 │   └── index.ts            # Package exports
 ├── generators.json         # Generator registration
 └── package.json           # Package configuration
@@ -124,18 +123,6 @@ bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:add-command
 
 ```bash
 bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:add-agent
-```
-
-**Status**: Placeholder implementation - needs completion
-
-### 6. content-package - Create Content Packages
-
-**Purpose**: Scaffold new content packages for commands or agents
-
-**Usage**:
-
-```bash
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:content-package
 ```
 
 **Status**: Placeholder implementation - needs completion
