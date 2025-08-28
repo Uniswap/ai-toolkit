@@ -34,22 +34,12 @@
         "type": "string"
       }
     },
-    "allCommands": {
-      "type": "boolean",
-      "description": "Install all available commands",
-      "default": false
-    },
     "agents": {
       "type": "array",
       "description": "Specific agents to install",
       "items": {
         "type": "string"
       }
-    },
-    "allAgents": {
-      "type": "boolean",
-      "description": "Install all available agents",
-      "default": false
     },
     "dry": {
       "type": "boolean",
@@ -58,12 +48,6 @@
       "always-prompt": true,
       "prompt-message": "👁️ Run in dry-run mode (preview only)?",
       "prompt-type": "confirm"
-    },
-    "dryRun": {
-      "type": "boolean",
-      "description": "Show what would be installed without making changes",
-      "default": false,
-      "always-prompt": true
     },
     "nonInteractive": {
       "type": "boolean",

@@ -314,7 +314,7 @@ Located at `src/utils/prompt-utils.ts`, this utility is shared by multiple gener
 
 1. **Installation Detection**: Check both global and local locations
 2. **Cross-Location Awareness**: Show "(exists globally/locally)" indicators
-3. **Batch Operations**: Support --all-commands, --all-agents flags
+3. **Multi-Select with All**: Use 'a' key to toggle all items in prompts
 4. **No-Interactive Mode**: Support CI/CD with --no-interactive
 5. **Force Mode**: Override safety checks with --force
 
@@ -352,8 +352,8 @@ bunx nx build ai-toolkit-nx-claude
 bunx nx test ai-toolkit-nx-claude
 
 # Test generators locally
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init --dry-run
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks --dry-run
+bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init --dry
+bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks --dry
 ```
 
 ### Nx Workspace Integration

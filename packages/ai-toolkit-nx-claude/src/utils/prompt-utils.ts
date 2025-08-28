@@ -432,12 +432,6 @@ function getPromptMessage(key: string, property: SchemaProperty): string {
       return 'Select commands to install (use <space> to select, <a> to toggle all):';
     case 'agents':
       return 'Select agents to install (use <space> to select, <a> to toggle all):';
-    case 'allCommands':
-      return 'Install all available commands?';
-    case 'allAgents':
-      return 'Install all available agents?';
-    case 'dryRun':
-      return 'Preview installation without making changes (dry run)?';
     case 'force':
       return 'Overwrite existing installation?';
     default:

@@ -60,7 +60,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   const nxNoInteractiveProvided = isNxNoInteractiveProvided();
 
   // Step 1: Check if Claude CLI is installed
-  const isDryRun = options.dry || options.dryRun;
+  const isDryRun = options.dry;
 
   if (!nxNoInteractiveProvided && !options.nonInteractive && !isDryRun) {
     const isClaudeInstalled = checkClaudeInstalled();
@@ -215,9 +215,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   const installedFiles: string[] = [];
 
   // Install selected commands
-  const commandsToInstall = normalizedOptions.allCommands
-    ? Object.keys(agnosticCommands)
-    : normalizedOptions.commands || [];
+  const commandsToInstall = normalizedOptions.commands || [];
 
   for (const commandName of commandsToInstall) {
     let sourcePath: string | null = null;
@@ -292,7 +290,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     try {
       if (sourcePath && fs.existsSync(sourcePath)) {
         const content = fs.readFileSync(sourcePath, 'utf-8');
-        if (!normalizedOptions.dryRun) {
+        if (!normalizedOptions.dry) {
           tree.write(relativeDestPath, content);
         }
         installedCommands.push(commandName);
@@ -306,9 +304,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   }
 
   // Install selected agents
-  const agentsToInstall = normalizedOptions.allAgents
-    ? Object.keys(agnosticAgents)
-    : normalizedOptions.agents || [];
+  const agentsToInstall = normalizedOptions.agents || [];
 
   for (const agentName of agentsToInstall) {
     let sourcePath: string | null = null;
@@ -378,7 +374,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     try {
       if (sourcePath && fs.existsSync(sourcePath)) {
         const content = fs.readFileSync(sourcePath, 'utf-8');
-        if (!normalizedOptions.dryRun) {
+        if (!normalizedOptions.dry) {
           tree.write(relativeDestPath, content);
         }
         installedAgents.push(agentName);

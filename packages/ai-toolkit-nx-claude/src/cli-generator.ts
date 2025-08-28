@@ -18,13 +18,18 @@
 import { handleNxExecution } from './cli-utils';
 import { prompt } from 'enquirer';
 
-// Available generators
+// Available generators (only show user-facing ones in interactive mode)
 const GENERATORS = {
   init: 'One-shot installer for Claude Code configs',
   hooks: 'Install Claude Code notification hooks',
+  addons: 'Install and configure Claude Code addons including MCP servers',
   'setup-registry-proxy':
     'Setup shell proxy for routing @uniswap/ai-toolkit* packages to GitHub registry',
-  addons: 'Install and configure Claude Code addons including MCP servers',
+};
+
+// All generators including internal ones (for validation)
+const ALL_GENERATORS = {
+  ...GENERATORS,
   'add-command': 'Add a new Claude Code command to existing or new packages',
   'add-agent': 'Add a new Claude Code agent to existing or new packages',
   'content-package': 'Create a new content package for commands or agents',
@@ -35,14 +40,14 @@ function getGeneratorName(args: string[]): string | null {
   // Check if first argument is a generator name (not a flag)
   if (args.length > 0 && !args[0].startsWith('-')) {
     const generatorName = args[0];
-    // Validate it's a known generator
-    if (generatorName in GENERATORS) {
+    // Validate it's a known generator (check against ALL generators)
+    if (generatorName in ALL_GENERATORS) {
       return generatorName;
     }
     // If an invalid generator name was provided, show error
     console.error(`\n❌ Unknown generator: '${generatorName}'\n`);
     console.error('Available generators:');
-    Object.entries(GENERATORS).forEach(([name, description]) => {
+    Object.entries(ALL_GENERATORS).forEach(([name, description]) => {
       console.error(`  • ${name}: ${description}`);
     });
     process.exit(1);
@@ -78,14 +83,14 @@ async function main() {
 
   // Remove generator name from args if it was provided
   let processedArgs =
-    args.length > 0 && !args[0].startsWith('-') && args[0] in GENERATORS
+    args.length > 0 && !args[0].startsWith('-') && args[0] in ALL_GENERATORS
       ? args.slice(1)
       : args;
 
   // Show list of available generators
   if (processedArgs.includes('--list') || processedArgs.includes('-l')) {
     console.log('Available generators:\n');
-    Object.entries(GENERATORS).forEach(([name, description]) => {
+    Object.entries(ALL_GENERATORS).forEach(([name, description]) => {
       console.log(`  ${name.padEnd(25)} ${description}`);
     });
     console.log('\nUsage:');
