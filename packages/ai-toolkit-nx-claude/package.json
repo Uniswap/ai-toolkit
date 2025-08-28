@@ -5,7 +5,14 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "ai-toolkit-nx-claude": "./dist/cli.js"
+    "ai-toolkit-nx-claude": "./dist/cli-generator.js",
+    "ai-toolkit-nx-claude:init": "./dist/cli-generator.js",
+    "ai-toolkit-nx-claude:hooks": "./dist/cli-generator.js",
+    "ai-toolkit-nx-claude:setup-registry-proxy": "./dist/cli-generator.js",
+    "ai-toolkit-nx-claude:addons": "./dist/cli-generator.js",
+    "ai-toolkit-nx-claude:add-command": "./dist/cli-generator.js",
+    "ai-toolkit-nx-claude:add-agent": "./dist/cli-generator.js",
+    "ai-toolkit-nx-claude:content-package": "./dist/cli-generator.js"
   },
   "exports": {
     "./package.json": "./package.json",

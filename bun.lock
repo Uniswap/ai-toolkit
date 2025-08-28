@@ -9,11 +9,11 @@
       "devDependencies": {
         "@eslint/eslintrc": "^3.3.1",
         "@eslint/js": "^9.34.0",
-        "@nx/eslint": "^21.3.11",
+        "@nx/eslint": "21.3.11",
         "@nx/eslint-plugin": "21.3.11",
         "@nx/jest": "21.3.11",
         "@nx/js": "21.3.11",
-        "@nx/plugin": "^21.3.11",
+        "@nx/plugin": "21.3.11",
         "@swc-node/register": "~1.9.1",
         "@swc/cli": "~0.6.0",
         "@swc/core": "~1.5.7",
@@ -34,14 +34,14 @@
     },
     "packages/agents/agnostic": {
       "name": "@ai-toolkit/agents-agnostic",
-      "version": "0.0.1",
+      "version": "0.1.0",
       "dependencies": {
         "@ai-toolkit/utils": "workspace:*",
       },
     },
     "packages/ai-toolkit-nx-claude": {
       "name": "@uniswap/ai-toolkit-nx-claude",
-      "version": "0.0.1",
+      "version": "0.2.0",
       "bin": {
         "ai-toolkit-nx-claude": "./dist/cli.js",
       },
@@ -52,18 +52,18 @@
     },
     "packages/commands/agnostic": {
       "name": "@ai-toolkit/commands-agnostic",
-      "version": "0.0.1",
+      "version": "0.1.0",
       "dependencies": {
         "@ai-toolkit/utils": "workspace:*",
       },
     },
     "packages/commands/typescript": {
       "name": "@ai-toolkit/commands-typescript",
-      "version": "0.0.1",
+      "version": "0.1.0",
     },
     "packages/utils": {
       "name": "@ai-toolkit/utils",
-      "version": "0.0.1",
+      "version": "0.1.0",
       "dependencies": {
         "tslib": "^2.3.0",
       },
