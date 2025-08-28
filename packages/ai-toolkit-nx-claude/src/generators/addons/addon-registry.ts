@@ -14,7 +14,7 @@ export interface AddonMetadata {
   /** Description */
   description: string;
   /** Type of addon */
-  type: 'mcp-server' | 'extension' | 'tool';
+  type: 'mcp-server' | 'extension' | 'tool' | 'project-setup';
   /** Package name for the addon */
   packageName: string;
   /** Registry URL (optional, defaults to npm) */
@@ -43,6 +43,17 @@ export interface AddonMetadata {
     /** Required system commands */
     commands?: string[];
   };
+  /** Project setup configuration */
+  projectSetup?: {
+    /** Git repository to clone */
+    repositoryUrl: string;
+    /** Path within repo to copy from */
+    configSourcePath: string;
+    /** Directory name to create in project */
+    targetDirectory: string;
+    /** Whether repo needs authentication */
+    requiresAuth: boolean;
+  };
 }
 
 /**
@@ -64,6 +75,12 @@ const ADDON_REGISTRY: AddonMetadata[] = [
       args: ['@uniswap/spec-workflow-mcp@latest'],
       supportsDashboard: true,
       defaultPort: 50014,
+    },
+    projectSetup: {
+      repositoryUrl: 'https://github.com/Uniswap/spec-workflow-mcp.git',
+      configSourcePath: 'configs',
+      targetDirectory: '.spec-workflow',
+      requiresAuth: false,
     },
     requirements: {
       node: '>=18.0.0',

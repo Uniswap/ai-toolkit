@@ -9,6 +9,15 @@
       "flags": [],
       "problemMatcher": [],
       "label": "nx: nx run @ai-toolkit/ai-toolkit-nx-claude:build"
+    },
+    {
+      "type": "nx",
+      "project": "",
+      "command": "generate",
+      "positional": "@uniswap/ai-toolkit-nx-claude:setup-registry-proxy",
+      "flags": ["--no-interactive"],
+      "problemMatcher": [],
+      "label": "nx: nx generate @uniswap/ai-toolkit-nx-claude:setup-registry-proxy --no-interactive"
     }
   ]
 }

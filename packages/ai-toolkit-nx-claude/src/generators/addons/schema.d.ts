@@ -11,4 +11,6 @@ export interface AddonsGeneratorSchema {
   force?: boolean;
   /** Skip installation verification */
   skipVerification?: boolean;
+  /** Path to the project where spec-workflow should be installed */
+  projectPath?: string;
 }

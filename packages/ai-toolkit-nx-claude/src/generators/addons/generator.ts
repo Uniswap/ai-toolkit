@@ -20,6 +20,7 @@ import {
   updateMcpServer,
   // removeMcpServer,
 } from './claude-mcp-installer';
+import { setupSpecWorkflow } from './spec-workflow-setup';
 
 /**
  * Main generator function for installing Claude Code addons
@@ -30,6 +31,9 @@ export default async function generator(
 ): Promise<void> {
   console.log('\n🎯 Claude Code Addons Installer');
   console.log('================================\n');
+
+  // Track whether project setup was performed
+  let projectSetupCompleted = false;
 
   // Check if Nx dry-run flag was provided
   const isDryRun = isNxDryRunProvided();
@@ -167,6 +171,29 @@ export default async function generator(
   // Install the addon based on type
   if (addon.type === 'mcp-server') {
     await installMcpAddon(addon, options);
+
+    // If the addon has project setup configuration, set up the project as well
+    if (addon.projectSetup && !options.dryRun) {
+      // Ask user if they want to set up project configuration
+      const { setupProject } = await require('enquirer').prompt({
+        type: 'confirm',
+        name: 'setupProject',
+        message:
+          '📁 Would you like to set up spec-workflow configuration in a project?',
+        initial: true,
+      });
+
+      if (setupProject) {
+        await installProjectSetup(addon, options);
+        projectSetupCompleted = true;
+      }
+    } else if (addon.projectSetup && options.dryRun) {
+      console.log(
+        '\n📁 [DRY-RUN] Would prompt to set up project configuration'
+      );
+      await installProjectSetup(addon, options);
+      projectSetupCompleted = true; // In dry-run, we simulate completion
+    }
   } else {
     throw new Error(`Addon type '${addon.type}' is not yet supported`);
   }
@@ -181,15 +208,17 @@ export default async function generator(
       console.log('✅ Installation verified successfully');
 
       // Show usage instructions
-      showUsageInstructions(addon, options);
+      showUsageInstructions(addon, options, projectSetupCompleted);
     } else {
       console.log('⚠️  Could not verify installation');
       console.log('   The addon may still work correctly.');
+      // Show usage instructions anyway
+      showUsageInstructions(addon, options, projectSetupCompleted);
     }
   } else if (options.dryRun) {
     console.log('\n🔍 [DRY-RUN] Skipping installation verification');
     // Still show usage instructions in dry-run mode
-    showUsageInstructions(addon, options);
+    showUsageInstructions(addon, options, projectSetupCompleted);
   }
 
   if (options.dryRun) {
@@ -250,6 +279,44 @@ async function installMcpAddon(
   }
 
   console.log(`✅ ${installResult.message}`);
+}
+
+/**
+ * Install project setup configuration for an addon
+ */
+async function installProjectSetup(
+  addon: any,
+  options: AddonsGeneratorSchema & { dryRun?: boolean }
+): Promise<void> {
+  console.log('\n🔧 Setting up project configuration...');
+
+  // Prompt for project path if not provided
+  let projectPath = options.projectPath;
+
+  if (!projectPath && !options.dryRun) {
+    const { path } = await require('enquirer').prompt({
+      type: 'input',
+      name: 'path',
+      message:
+        '📁 Project path where spec-workflow config should be added (leave empty for current directory):',
+      initial: '',
+    });
+    projectPath = path;
+  }
+
+  // Use current directory if no path provided
+  if (!projectPath) {
+    projectPath = process.cwd();
+    console.log(`📍 Using current directory: ${projectPath}`);
+  }
+
+  const result = await setupSpecWorkflow(projectPath, options);
+
+  if (!result.success) {
+    throw new Error(result.message);
+  }
+
+  console.log(`✅ ${result.message}`);
 }
 
 /**
@@ -316,7 +383,8 @@ async function updateConfiguration(
  */
 function showUsageInstructions(
   addon: any,
-  options: AddonsGeneratorSchema & { dryRun?: boolean }
+  options: AddonsGeneratorSchema & { dryRun?: boolean },
+  projectSetupCompleted: boolean = false
 ): void {
   console.log('\n📚 Usage Instructions:');
   console.log('====================\n');
@@ -345,11 +413,30 @@ function showUsageInstructions(
     console.log('  • create-spec-doc - Create spec documents');
     console.log('  • spec-status - Check specification status');
     console.log('  • manage-tasks - Manage implementation tasks');
+    console.log('  • request-approval - Request human approval for documents');
+    console.log('  • orchestrate-with-agents - Use AI agent orchestration');
     console.log('  • And more...');
 
-    console.log('\n🚀 Quick Start:');
+    // If project setup was also configured and completed
+    if (addon.projectSetup && projectSetupCompleted) {
+      console.log('\n📁 Project Configuration:');
+      console.log(
+        '  ✅ Spec-workflow configuration has been added to your project'
+      );
+      console.log('  • .spec-workflow/ - Configuration directory');
+      console.log(
+        '  • .spec-workflow/orchestration.yaml - Agent orchestration config'
+      );
+
+      console.log('\n🤖 Agent Orchestration:');
+      console.log('  Automatic agent orchestration is ENABLED by default');
+      console.log('  Edit .spec-workflow/orchestration.yaml to customize');
+    }
+
+    console.log('\n🚀 Quick Start - restart Claude Code and:');
     console.log('  1. Ask Claude: "Show me the spec workflow guide"');
     console.log('  2. Ask Claude: "Help me create a new spec for [feature]"');
     console.log('  3. Visit the dashboard to monitor progress');
+    console.log('  4. Start creating specs for your features!');
   }
 }

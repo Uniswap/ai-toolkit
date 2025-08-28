@@ -45,6 +45,11 @@
       "type": "boolean",
       "description": "Skip installation verification",
       "default": false
+    },
+    "projectPath": {
+      "type": "string",
+      "description": "Path to the project where spec-workflow should be installed",
+      "x-skip-prompt": true
     }
   },
   "required": []

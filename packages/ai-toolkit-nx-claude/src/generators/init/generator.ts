@@ -60,7 +60,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   const nxNoInteractiveProvided = isNxNoInteractiveProvided();
 
   // Step 1: Check if Claude CLI is installed
-  const isDryRun = options.dry;
+  let isDryRun = options.dry; // Will be updated after prompting
 
   if (!nxNoInteractiveProvided && !options.nonInteractive && !isDryRun) {
     const isClaudeInstalled = checkClaudeInstalled();
@@ -159,7 +159,10 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     throw error;
   }
 
-  // Handle dry-run mode - reuse the isDryRun variable from above
+  // Update isDryRun with the user's selection from prompts
+  isDryRun = normalizedOptions.dry || false;
+
+  // Handle dry-run mode
   if (isDryRun) {
     logger.info('🔍 DRY RUN MODE - No files will be modified');
   }
@@ -180,20 +183,13 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
 
   // Check for existing installation and handle force prompt (skip in dry-run mode)
   const relativeManifestPath = path.join(relativeTargetDir, 'manifest.json');
+
   if (!isDryRun) {
     if (tree.exists(relativeManifestPath)) {
       if (!normalizedOptions.force) {
         if (normalizedOptions.nonInteractive) {
           logger.warn(
             'Installation cancelled - existing Claude configuration found. Use --force to overwrite.'
-          );
-          return;
-        }
-
-        const shouldOverwrite = await promptOverwrite();
-        if (!shouldOverwrite) {
-          logger.warn(
-            'Installation cancelled - existing Claude configuration found'
           );
           return;
         }
@@ -290,7 +286,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     try {
       if (sourcePath && fs.existsSync(sourcePath)) {
         const content = fs.readFileSync(sourcePath, 'utf-8');
-        if (!normalizedOptions.dry) {
+        if (!isDryRun) {
           tree.write(relativeDestPath, content);
         }
         installedCommands.push(commandName);
@@ -374,7 +370,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     try {
       if (sourcePath && fs.existsSync(sourcePath)) {
         const content = fs.readFileSync(sourcePath, 'utf-8');
-        if (!normalizedOptions.dry) {
+        if (!isDryRun) {
           tree.write(relativeDestPath, content);
         }
         installedAgents.push(agentName);
@@ -407,22 +403,26 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     return;
   }
 
-  // Create manifest
-  const manifest: Manifest = {
-    version: '1.0.0',
-    installedAt: new Date().toISOString(),
-    commands: installedCommands,
-    agents: installedAgents,
-    files: installedFiles,
-  };
+  // Create manifest (skip in dry-run mode)
+  if (!isDryRun) {
+    const manifest: Manifest = {
+      version: '1.0.0',
+      installedAt: new Date().toISOString(),
+      commands: installedCommands,
+      agents: installedAgents,
+      files: installedFiles,
+    };
 
-  writeJson(tree, relativeManifestPath, manifest);
+    writeJson(tree, relativeManifestPath, manifest);
 
-  await formatFiles(tree);
+    await formatFiles(tree);
+  }
 
-  logger.info('✅ Claude Code configuration installed successfully!');
-  logger.info(`📁 Location: ${targetDir}`);
-  logger.info(`📝 Use these in Claude Code immediately`);
+  if (!isDryRun) {
+    logger.info('✅ Claude Code configuration installed successfully!');
+    logger.info(`📁 Location: ${targetDir}`);
+    logger.info(`📝 Use these in Claude Code immediately`);
+  }
 }
 
 function checkClaudeInstalled(): boolean {
@@ -578,16 +578,6 @@ function provideManualInstructions(): void {
   logger.info(
     '\nFor troubleshooting, run "claude doctor" after manual installation'
   );
-}
-
-async function promptOverwrite(): Promise<boolean> {
-  const { overwrite } = await prompt<{ overwrite: boolean }>({
-    type: 'confirm',
-    name: 'overwrite',
-    message: 'Claude configuration already exists. Overwrite?',
-    initial: false,
-  });
-  return overwrite;
 }
 
 export default initGenerator;

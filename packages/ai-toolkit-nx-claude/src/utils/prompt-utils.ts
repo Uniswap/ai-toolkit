@@ -14,6 +14,7 @@ export interface SchemaProperty {
         type?: string;
         items?: Array<{ value: string; label: string }>;
       };
+  'x-skip-prompt'?: boolean;
   'always-prompt'?: boolean;
   'prompt-message'?: string;
   'prompt-type'?: string;
@@ -87,6 +88,15 @@ export async function promptForMissingOptions<T extends Record<string, any>>(
           explicitlyProvidedOptions.has(key) ||
           explicitlyProvidedOptions.has(key.replace(/-/g, ''));
       }
+    }
+
+    // Check if this property should skip prompting entirely
+    if (property['x-skip-prompt']) {
+      // Apply default if value is missing
+      if (result[key] === undefined && property.default !== undefined) {
+        result[key] = property.default;
+      }
+      continue;
     }
 
     // Determine if we should prompt for this property

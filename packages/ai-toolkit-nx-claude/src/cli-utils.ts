@@ -64,13 +64,10 @@ function handleExecutionError(error: any, generatorName: string) {
     );
     console.error('\nTo gain access:');
     console.error(
-      '1. Ensure you are logged into npm with: npm login --@uniswap:registry=https://npm.pkg.github.com'
+      '1. Verify you are a member of the Uniswap organization on GitHub'
     );
     console.error(
-      '2. Verify you are a member of the Uniswap organization on GitHub'
-    );
-    console.error(
-      '3. Check that your npm token has the required "read:packages" scope'
+      '2. Check that your npm token has the required "read:packages" scope'
     );
     console.error(
       '\nFor more information, see: https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry#authenticating-to-github-packages'
@@ -88,10 +85,10 @@ function handleExecutionError(error: any, generatorName: string) {
     );
     console.error('\nThis may be because:');
     console.error('1. The package has not been published yet');
-    console.error('2. You are not authenticated properly');
-    console.error('3. Your npm registry is not configured correctly');
+    console.error(
+      '2. You are not authenticated properly (check your GitHub PAT)'
+    );
     console.error('\nTry running:');
-    console.error('  npm login --@uniswap:registry=https://npm.pkg.github.com');
     console.error(
       '  echo "//npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN" >> ~/.npmrc'
     );

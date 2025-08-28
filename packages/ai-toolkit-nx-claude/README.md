@@ -4,11 +4,9 @@ This package provides Nx generators for setting up and managing Claude Code conf
 
 ## Installation
 
-This package is published to GitHub Packages and requires authentication:
+This package is published to GitHub Packages and requires authentication to access. Ensure you have a GitHub personal access token with appropriate scopes configured in your npm settings. More information available in the root README.md file.
 
-```bash
-npm login --@uniswap:registry=https://npm.pkg.github.com
-```
+````bash
 
 ## Usage
 
@@ -16,7 +14,7 @@ npm login --@uniswap:registry=https://npm.pkg.github.com
 
 ```bash
 npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude
-```
+````
 
 ### Run Specific Generators
 
