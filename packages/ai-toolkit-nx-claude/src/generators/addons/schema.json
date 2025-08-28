@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "$id": "SchemaForAddons",
+  "title": "Addons Installation",
+  "type": "object",
+  "description": "Install and configure Claude Code addons including MCP servers.",
+  "properties": {
+    "addon": {
+      "type": "string",
+      "description": "The addon to install",
+      "enum": ["spec-workflow-mcp"],
+      "default": "spec-workflow-mcp",
+      "x-prompt": "Select addon to install"
+    },
+    "dashboardMode": {
+      "type": "string",
+      "description": "Dashboard startup mode",
+      "enum": ["always", "ask", "manual"],
+      "default": "ask",
+      "prompt-message": "📊 When should the spec-workflow dashboard start?",
+      "prompt-type": "select",
+      "prompt-items": [
+        { "value": "always", "label": "Always (auto-start on Claude launch)" },
+        { "value": "ask", "label": "Ask (prompt when opening project)" },
+        { "value": "manual", "label": "Manual (start via command only)" }
+      ]
+    },
+    "port": {
+      "type": "number",
+      "description": "Dashboard port (default: auto)",
+      "default": 0,
+      "prompt-message": "🔌 Dashboard port (0 for auto)"
+    },
+    "githubToken": {
+      "type": "string",
+      "description": "GitHub personal access token for private packages",
+      "prompt-message": "🔑 GitHub personal access token (for private @uniswap packages)"
+    },
+    "force": {
+      "type": "boolean",
+      "description": "Force installation even if already exists",
+      "default": false
+    },
+    "skipVerification": {
+      "type": "boolean",
+      "description": "Skip installation verification",
+      "default": false
+    }
+  },
+  "required": []
+}

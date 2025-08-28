@@ -29,6 +29,11 @@
       "factory": "./dist/generators/setup-registry-proxy/generator",
       "schema": "./dist/generators/setup-registry-proxy/schema.json",
       "description": "Setup shell proxy for routing @uniswap/ai-toolkit* packages to GitHub registry"
+    },
+    "addons": {
+      "factory": "./dist/generators/addons/generator",
+      "schema": "./dist/generators/addons/schema.json",
+      "description": "Install and configure Claude Code addons including MCP servers"
     }
   }
 }
