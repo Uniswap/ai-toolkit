@@ -71,6 +71,15 @@
             "target": "generate-index"
           }
         ]
+      },
+      "postbuild": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "chmod +x packages/ai-toolkit-nx-claude/dist/cli-generator.js"
+        },
+        "dependsOn": [
+          "build"
+        ]
       }
     }
   },
