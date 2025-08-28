@@ -85,7 +85,7 @@ The generator pulls content from:
 When run without options, the generator will interactively prompt for all configuration choices:
 
 ```bash
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init
+bunx nx generate @uniswap/ai-toolkit-nx-claude:init
 ```
 
 The interactive flow will:
@@ -103,20 +103,20 @@ The interactive flow will:
 ### Non-Interactive Global Installation
 
 ```bash
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init --no-interactive --installation-type=global --commands=review-pr,gen-tests,plan-feature --agents=test-writer,doc-writer,planner
+bunx nx generate @uniswap/ai-toolkit-nx-claude:init --no-interactive --installation-type=global --commands=review-pr,gen-tests,plan-feature --agents=test-writer,doc-writer,planner
 ```
 
 ### Non-Interactive Local Installation
 
 ```bash
 # Must be run from project root
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init --no-interactive --installation-type=local --confirm-local-path=true --commands=review-pr,gen-tests,plan-feature --agents=test-writer,doc-writer,planner
+bunx nx generate @uniswap/ai-toolkit-nx-claude:init --no-interactive --installation-type=local --confirm-local-path=true --commands=review-pr,gen-tests,plan-feature --agents=test-writer,doc-writer,planner
 ```
 
 ### Dry Run to Preview
 
 ```bash
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init --dry
+bunx nx generate @uniswap/ai-toolkit-nx-claude:init --dry
 ```
 
 In dry-run mode, if Claude CLI is not installed, the generator will show:
@@ -128,7 +128,7 @@ In dry-run mode, if Claude CLI is not installed, the generator will show:
 ### Selective Installation
 
 ```bash
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init --installation-type=global --commands=review-pr,gen-tests --agents=test-writer,doc-writer
+bunx nx generate @uniswap/ai-toolkit-nx-claude:init --installation-type=global --commands=review-pr,gen-tests --agents=test-writer,doc-writer
 ```
 
 ## File Structure Created
@@ -260,13 +260,13 @@ To add new commands or agents:
 bunx nx build nx-claude
 
 # Test global installation with dry-run
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init --dry --installation-type=global
+bunx nx generate @uniswap/ai-toolkit-nx-claude:init --dry --installation-type=global
 
 # Test local installation (must be at project root)
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init --installation-type=local --confirm-local-path=true
+bunx nx generate @uniswap/ai-toolkit-nx-claude:init --installation-type=local --confirm-local-path=true
 
 # Test interactive mode
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init
+bunx nx generate @uniswap/ai-toolkit-nx-claude:init
 
 # Verify global installation
 ls -la ~/.claude/

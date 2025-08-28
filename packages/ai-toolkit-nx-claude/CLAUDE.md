@@ -1,8 +1,8 @@
-# CLAUDE.md - @ai-toolkit/ai-toolkit-nx-claude Package
+# CLAUDE.md - @uniswap/ai-toolkit-nx-claude Package
 
 ## Overview
 
-The `@ai-toolkit/ai-toolkit-nx-claude` package (published as `@uniswap/ai-toolkit-nx-claude` to GitHub Packages) provides Nx generators for setting up and managing Claude Code configurations, commands, agents, and notification hooks. This package is the primary tooling interface for the AI Toolkit, offering both one-shot installers and incremental configuration management.
+The `@uniswap/ai-toolkit-nx-claude` package (published as `@uniswap/ai-toolkit-nx-claude` to GitHub Packages) provides Nx generators for setting up and managing Claude Code configurations, commands, agents, and notification hooks. This package is the primary tooling interface for the AI Toolkit, offering both one-shot installers and incremental configuration management.
 
 ### Standalone Package Usage
 
@@ -44,7 +44,7 @@ packages/ai-toolkit-nx-claude/
 **Usage**:
 
 ```bash
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init
+bunx nx generate @uniswap/ai-toolkit-nx-claude:init
 ```
 
 **Key Features**:
@@ -69,7 +69,7 @@ bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init
 **Usage**:
 
 ```bash
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks
+bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks
 ```
 
 **Key Features**:
@@ -89,7 +89,7 @@ bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks
 **Usage**:
 
 ```bash
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:setup-registry-proxy
+bunx nx generate @uniswap/ai-toolkit-nx-claude:setup-registry-proxy
 ```
 
 **Key Features**:
@@ -110,7 +110,7 @@ bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:setup-registry-proxy
 **Usage**:
 
 ```bash
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:add-command
+bunx nx generate @uniswap/ai-toolkit-nx-claude:add-command
 ```
 
 **Status**: Placeholder implementation - needs completion
@@ -122,7 +122,7 @@ bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:add-command
 **Usage**:
 
 ```bash
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:add-agent
+bunx nx generate @uniswap/ai-toolkit-nx-claude:add-agent
 ```
 
 **Status**: Placeholder implementation - needs completion
@@ -339,8 +339,8 @@ bunx nx build ai-toolkit-nx-claude
 bunx nx test ai-toolkit-nx-claude
 
 # Test generators locally
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init --dry
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks --dry
+bunx nx generate @uniswap/ai-toolkit-nx-claude:init --dry
+bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks --dry
 ```
 
 ### Nx Workspace Integration

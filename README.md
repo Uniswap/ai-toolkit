@@ -98,10 +98,10 @@ bun run install-all
 
 ```bash
 # Install just the notification hooks
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks
+bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks
 
 # Or preview what would be installed (dry-run mode)
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init --dry-run
+bunx nx generate @uniswap/ai-toolkit-nx-claude:init --dry-run
 ```
 
 ### Verify Installation
