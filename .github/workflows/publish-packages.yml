@@ -77,7 +77,13 @@ jobs:
         if: github.event.inputs.dryRun == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           echo "Running dry-run for affected packages with tag: ${{ steps.npm-tag.outputs.tag }}"
-          bunx nx release version --dry-run
+          if [[ "${{ github.ref_name }}" == "next" ]]; then
+            echo "Using prerelease versioning for next branch"
+            bunx nx release version --preid=next --prerelease --dry-run
+          else
+            echo "Using standard versioning for main branch"
+            bunx nx release version --dry-run
+          fi
           npx nx release publish --dry-run --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://npm.pkg.github.com
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -88,7 +94,13 @@ jobs:
         id: version
         run: |
           echo "Versioning affected packages"
-          bunx nx release version
+          if [[ "${{ github.ref_name }}" == "next" ]]; then
+            echo "Using prerelease versioning for next branch"
+            bunx nx release version --preid=next --prerelease
+          else
+            echo "Using standard versioning for main branch"
+            bunx nx release version
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
