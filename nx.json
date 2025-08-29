@@ -79,6 +79,7 @@
       "@ai-toolkit/commands-typescript"
     ],
     "projectsRelationship": "independent",
+    "releaseTagPattern": "{projectName}@{version}",
     "version": {
       "conventionalCommits": true,
       "preVersionCommand": "bunx nx run-many -t build",

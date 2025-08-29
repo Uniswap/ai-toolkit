@@ -468,10 +468,14 @@ The package is configured for standalone publishing to GitHub Packages:
 
 Publishing is handled through GitHub Actions (`.github/workflows/publish-packages.yml`):
 
-1. **Trigger**: On push to main branch
+1. **Trigger**: On push to main or next branch
 2. **Detection**: Uses Nx affected to detect changed packages
-3. **Versioning**: Conventional commits determine version bumps
-4. **Publishing**: Automatic publish to GitHub Packages
+3. **Versioning**:
+   - **main branch**: Standard versioning with conventional commits (e.g., `0.4.0`)
+   - **next branch**: Prerelease versioning with `-next.X` suffix (e.g., `0.4.0-next.0`)
+4. **Publishing**:
+   - **main branch**: Published with `latest` npm tag
+   - **next branch**: Published with `next` npm tag
 5. **GitHub Releases**: Created automatically with changelog
 
 ### Manual Publishing
@@ -482,11 +486,22 @@ For manual publishing (maintainers only):
 # Build the package
 bunx nx build ai-toolkit-nx-claude
 
-# Version the package (first release)
-bunx nx release version --projects=@uniswap/ai-toolkit-nx-claude --first-release
+# For main branch (latest):
+bunx nx release version --projects=@uniswap/ai-toolkit-nx-claude
+bunx nx release publish --projects=@uniswap/ai-toolkit-nx-claude --tag=latest
 
-# Publish to GitHub Packages
-bunx nx release publish --projects=@uniswap/ai-toolkit-nx-claude
+# For next branch (prerelease):
+bunx nx release version --projects=@uniswap/ai-toolkit-nx-claude --preid=next --prerelease
+bunx nx release publish --projects=@uniswap/ai-toolkit-nx-claude --tag=next
+```
+
+### Fixing Version Misalignment
+
+If the `next` branch version gets out of sync with `latest`:
+
+```bash
+# Run the reset script to fix prerelease versioning
+./packages/ai-toolkit-nx-claude/scripts/reset-prerelease-version.sh
 ```
 
 ## Version History
