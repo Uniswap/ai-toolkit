@@ -37,7 +37,7 @@ jobs:
         with:
           node-version: '22.13.1'
           registry-url: 'https://npm.pkg.github.com'
-          scope: '@uniswap'
+          scope: '@ai-toolkit'
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2 # 4b7b77a97a4c3a13b0e470ba53503636353a4c3a
@@ -79,7 +79,7 @@ jobs:
         run: |
           echo "Running dry-run for affected packages with tag: ${{ steps.npm-tag.outputs.tag }}"
           bunx nx release version --dry-run
-          bunx nx release publish --dry-run --tag=${{ steps.npm-tag.outputs.tag }}
+          bunx nx release publish --dry-run --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://npm.pkg.github.com
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -98,7 +98,7 @@ jobs:
         run: |
           echo "Publishing affected packages with tag: ${{ steps.npm-tag.outputs.tag }}"
           # Use npm for publishing to ensure compatibility with GitHub Packages
-          npx nx release publish --tag=${{ steps.npm-tag.outputs.tag }}
+          npx nx release publish --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://npm.pkg.github.com
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
