@@ -79,7 +79,7 @@ jobs:
           echo "Running dry-run for affected packages with tag: ${{ steps.npm-tag.outputs.tag }}"
           if [[ "${{ github.ref_name }}" == "next" ]]; then
             echo "Using prerelease versioning for next branch"
-            bunx nx release version --preid=next --prerelease --dry-run
+            bunx nx release version prerelease --preid=next --dry-run
           else
             echo "Using standard versioning for main branch"
             bunx nx release version --dry-run
@@ -96,7 +96,7 @@ jobs:
           echo "Versioning affected packages"
           if [[ "${{ github.ref_name }}" == "next" ]]; then
             echo "Using prerelease versioning for next branch"
-            bunx nx release version --preid=next --prerelease
+            bunx nx release version prerelease --preid=next
           else
             echo "Using standard versioning for main branch"
             bunx nx release version
