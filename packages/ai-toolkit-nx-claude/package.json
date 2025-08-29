@@ -82,7 +82,9 @@
           "commands": [
             "nx run @uniswap/ai-toolkit-nx-claude:compile",
             "nx run @uniswap/ai-toolkit-nx-claude:bundle",
-            "chmod +x packages/ai-toolkit-nx-claude/dist/cli-generator.js"
+            "cp packages/ai-toolkit-nx-claude/src/generators/init/setup-github-packages.sh packages/ai-toolkit-nx-claude/dist/generators/init/setup-github-packages.sh",
+            "chmod +x packages/ai-toolkit-nx-claude/dist/cli-generator.js",
+            "chmod +x packages/ai-toolkit-nx-claude/dist/generators/init/setup-github-packages.sh"
           ],
           "parallel": false
         },

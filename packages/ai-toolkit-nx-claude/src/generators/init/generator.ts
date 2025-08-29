@@ -415,6 +415,24 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
       logger.info('  - Backup existing shell configuration before changes');
     }
 
+    // Show GitHub Packages auth setup plan if selected
+    if (normalizedOptions.setupGithubPackagesAuth) {
+      logger.info(
+        '\n🔐 Would also set up GitHub Package Registry authentication:'
+      );
+      logger.info('  - Check if gh CLI is installed (install if missing)');
+      logger.info('  - Verify GitHub authentication has read:packages scope');
+      logger.info('  - Get GitHub token via gh auth token');
+      logger.info('  - Detect your shell (bash, zsh, etc.)');
+      logger.info(
+        '  - Add NODE_AUTH_TOKEN export to your shell config (~/.zshrc or ~/.bashrc)'
+      );
+      logger.info(
+        '  - Configure ~/.npmrc to use ${NODE_AUTH_TOKEN} for GitHub Packages'
+      );
+      logger.info('  - This allows seamless installation of @uniswap packages');
+    }
+
     return;
   }
 
@@ -455,6 +473,21 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
         logger.info(
           'bun x nx generate @ai-toolkit/ai-toolkit-nx-claude:setup-registry-proxy'
         );
+      }
+    }
+
+    // Run GitHub Packages auth setup if user opted in
+    if (normalizedOptions.setupGithubPackagesAuth) {
+      logger.info('\n🔐 Setting up GitHub Package Registry authentication...');
+      try {
+        await runGithubPackagesAuthSetup();
+        logger.info(
+          '✅ GitHub Package Registry authentication setup complete!'
+        );
+      } catch (error) {
+        logger.warn(`⚠️  GitHub Packages auth setup failed: ${error}`);
+        logger.info('You can run the setup script manually later:');
+        logger.info(`${path.join(__dirname, 'setup-github-packages.sh')}`);
       }
     }
   }
@@ -613,6 +646,39 @@ function provideManualInstructions(): void {
   logger.info(
     '\nFor troubleshooting, run "claude doctor" after manual installation'
   );
+}
+
+/**
+ * Runs the GitHub Packages authentication setup script
+ */
+async function runGithubPackagesAuthSetup(): Promise<void> {
+  // Find the script path relative to the built output (same directory as generator.js)
+  const scriptPath = path.join(__dirname, 'setup-github-packages.sh');
+
+  // Check if script exists
+  if (!fs.existsSync(scriptPath)) {
+    throw new Error(`Setup script not found at: ${scriptPath}`);
+  }
+
+  // Make script executable
+  try {
+    execSync(`chmod +x "${scriptPath}"`, { stdio: 'ignore' });
+  } catch (error) {
+    logger.debug(`Failed to make script executable: ${error}`);
+  }
+
+  // Run the script
+  try {
+    execSync(`"${scriptPath}"`, {
+      stdio: 'inherit',
+      timeout: 300000, // 5 minute timeout
+    });
+  } catch (error: any) {
+    if (error.code === 127) {
+      throw new Error('Script execution failed - command not found');
+    }
+    throw error;
+  }
 }
 
 export default initGenerator;
