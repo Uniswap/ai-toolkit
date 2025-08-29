@@ -7,4 +7,5 @@ export interface InitGeneratorSchema {
   nonInteractive?: boolean;
   force?: boolean;
   setupRegistryProxy?: boolean;
+  setupGithubPackagesAuth?: boolean;
 }
