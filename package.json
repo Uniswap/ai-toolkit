@@ -19,6 +19,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.34.0",
+    "@nx/esbuild": "^21.4.1",
     "@nx/eslint": "21.3.11",
     "@nx/eslint-plugin": "21.3.11",
     "@nx/jest": "21.3.11",
@@ -32,6 +33,7 @@
     "@typescript-eslint/eslint-plugin": "^8.39.1",
     "@typescript-eslint/parser": "^8.39.1",
     "enquirer": "^2.4.1",
+    "esbuild": "^0.25.9",
     "eslint": "^9.33.0",
     "jsonc-eslint-parser": "^2.1.0",
     "lefthook": "^1.12.3",
