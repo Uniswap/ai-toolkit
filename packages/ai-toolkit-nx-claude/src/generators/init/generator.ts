@@ -11,6 +11,7 @@ import {
   isNxNoInteractiveProvided,
   isNxDryRunProvided,
 } from '../hooks/cli-parser';
+import setupRegistryProxyGenerator from '../setup-registry-proxy/generator';
 
 // Import available commands and agents from content packages
 import { commands as agnosticCommands } from '@ai-toolkit/commands-agnostic';
@@ -400,6 +401,20 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     installedFiles.forEach((file) => {
       logger.info(`  - ${file}`);
     });
+
+    // Show registry proxy setup plan if selected
+    if (normalizedOptions.setupRegistryProxy) {
+      logger.info('\n🔧 Would also set up registry proxy:');
+      logger.info('  - Auto-detect your shell (bash, zsh, or fish)');
+      logger.info(
+        '  - Create proxy functions for npm/npx/yarn/bun/pnpm commands'
+      );
+      logger.info(
+        '  - Update shell configuration to route @uniswap packages to GitHub registry'
+      );
+      logger.info('  - Backup existing shell configuration before changes');
+    }
+
     return;
   }
 
@@ -422,6 +437,26 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     logger.info('✅ Claude Code configuration installed successfully!');
     logger.info(`📁 Location: ${targetDir}`);
     logger.info(`📝 Use these in Claude Code immediately`);
+
+    // Run setup-registry-proxy generator if user opted in
+    if (normalizedOptions.setupRegistryProxy) {
+      logger.info('\n🔧 Setting up registry proxy...');
+      try {
+        await setupRegistryProxyGenerator(tree, {
+          shellConfig: undefined, // Will auto-detect
+          force: normalizedOptions.force,
+          backup: true, // Always backup when called from init
+          test: false, // Don't test during init flow
+        });
+        logger.info('✅ Registry proxy setup complete!');
+      } catch (error) {
+        logger.warn(`⚠️  Registry proxy setup failed: ${error}`);
+        logger.info('You can run it manually later with:');
+        logger.info(
+          'bun x nx generate @ai-toolkit/ai-toolkit-nx-claude:setup-registry-proxy'
+        );
+      }
+    }
   }
 }
 

@@ -6,4 +6,5 @@ export interface InitGeneratorSchema {
   dry?: boolean;
   nonInteractive?: boolean;
   force?: boolean;
+  setupRegistryProxy?: boolean;
 }

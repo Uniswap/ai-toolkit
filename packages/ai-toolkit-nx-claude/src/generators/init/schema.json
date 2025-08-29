@@ -58,6 +58,15 @@
       "type": "boolean",
       "description": "Overwrite existing files",
       "default": false
+    },
+    "setupRegistryProxy": {
+      "type": "boolean",
+      "description": "Setup registry proxy for npm commands",
+      "default": false,
+      "x-prompt": {
+        "message": "🔧 Would you like to set up a registry proxy to automatically route @uniswap packages to GitHub registry?\nThis makes it easier to use AI Toolkit packages without specifying --registry flags.",
+        "type": "confirm"
+      }
     }
   },
   "required": []
