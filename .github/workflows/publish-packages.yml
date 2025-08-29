@@ -55,8 +55,7 @@ jobs:
       - name: Configure npm for GitHub Packages
         run: |
           # Set up .npmrc with GitHub token for authentication
-          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> ~/.npmrc
-          echo "@uniswap:registry=https://npm.pkg.github.com" >> ~/.npmrc
+          echo "@uniswap:registry=https://npm.pkg.github.com" >> .npmrc
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
@@ -79,7 +78,7 @@ jobs:
         run: |
           echo "Running dry-run for affected packages with tag: ${{ steps.npm-tag.outputs.tag }}"
           bunx nx release version --dry-run
-          bunx nx release publish --dry-run --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://npm.pkg.github.com
+          npx nx release publish --dry-run --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://npm.pkg.github.com
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -106,7 +105,7 @@ jobs:
       - name: Push version commits and tags
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
         run: |
-          git push origin main --follow-tags
+          git push origin ${{ github.ref_name }} --follow-tags
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
