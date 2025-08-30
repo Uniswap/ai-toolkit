@@ -23,7 +23,7 @@
   ],
   "nx": {
     "targets": {
-      "build": {
+      "build-tsc": {
         "executor": "@nx/js:tsc",
         "outputs": [
           "{options.outputPath}"
@@ -61,6 +61,19 @@
               "output": "content/agents/agnostic"
             }
           ]
+        }
+      },
+      "build": {
+        "executor": "nx:run-commands",
+        "outputs": [
+          "{workspaceRoot}/packages/ai-toolkit-nx-claude/dist"
+        ],
+        "options": {
+          "commands": [
+            "nx run @uniswap/ai-toolkit-nx-claude:build-tsc",
+            "chmod +x packages/ai-toolkit-nx-claude/dist/cli-generator.js"
+          ],
+          "parallel": false
         },
         "dependsOn": [
           {
@@ -80,12 +93,7 @@
       "postbuild": {
         "executor": "nx:run-commands",
         "options": {
-          "commands": [
-            "chmod +x packages/ai-toolkit-nx-claude/dist/cli-generator.js",
-            "cp packages/ai-toolkit-nx-claude/src/generators/init/setup-github-packages.sh packages/ai-toolkit-nx-claude/dist/generators/init/setup-github-packages.sh 2>/dev/null || true",
-            "chmod +x packages/ai-toolkit-nx-claude/dist/generators/init/setup-github-packages.sh 2>/dev/null || true"
-          ],
-          "parallel": false
+          "command": "chmod +x packages/ai-toolkit-nx-claude/dist/cli-generator.js"
         },
         "dependsOn": [
           "build",
