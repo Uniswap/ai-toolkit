@@ -151,11 +151,18 @@ async function runGeneratorDirectly(generatorName: string, args: string[]) {
       hooks: 'hooksGenerator',
       'setup-registry-proxy': 'setupRegistryProxyGenerator',
       addons: 'addonsGenerator',
+      'add-command': 'addCommandGenerator',
+      'add-agent': 'addAgentGenerator',
     };
 
     const generatorFnName = generatorFunctionMap[generatorName];
     if (!generatorFnName) {
-      throw new Error(`Unknown generator: ${generatorName}`);
+      // This error format matches what users are seeing
+      console.error(`\n❌ Generator '${generatorName}' not found`);
+      console.error(
+        `Available generators: ${Object.keys(generatorFunctionMap).join(', ')}`
+      );
+      process.exit(1);
     }
 
     // Use require for CommonJS modules
@@ -166,23 +173,72 @@ async function runGeneratorDirectly(generatorName: string, args: string[]) {
       'generator.js'
     );
 
+    // Debug logging to understand the path resolution
+    if (!fs.existsSync(generatorPath)) {
+      console.error(`\n❌ Generator file not found at: ${generatorPath}`);
+      console.error(`Current __dirname: ${__dirname}`);
+      console.error(`Looking for generator: ${generatorName}`);
+
+      // Try to list what's actually in the generators directory
+      const generatorsDir = path.join(__dirname, 'generators');
+      if (fs.existsSync(generatorsDir)) {
+        console.error(`\nContents of generators directory:`);
+        const dirs = fs.readdirSync(generatorsDir);
+        dirs.forEach((dir) => {
+          const genPath = path.join(generatorsDir, dir);
+          if (fs.statSync(genPath).isDirectory()) {
+            const genFile = path.join(genPath, 'generator.js');
+            console.error(
+              `  ${dir}: ${
+                fs.existsSync(genFile)
+                  ? '✓ generator.js exists'
+                  : '✗ generator.js missing'
+              }`
+            );
+          }
+        });
+      } else {
+        console.error(`Generators directory not found at: ${generatorsDir}`);
+      }
+
+      throw new Error(`Generator file not found: ${generatorName}`);
+    }
+
     // Use require for CommonJS compatibility
     const generatorModule = require(generatorPath);
 
     // Try different ways to access the generator function
-    const generator =
-      generatorModule[generatorFnName] ||
-      generatorModule.default ||
-      generatorModule;
+    // Priority order: named export, default export, module itself
+    let generator = generatorModule[generatorFnName];
+
+    if (!generator && generatorModule.default) {
+      generator = generatorModule.default;
+    }
+
+    if (!generator && typeof generatorModule === 'function') {
+      generator = generatorModule;
+    }
 
     if (!generator || typeof generator !== 'function') {
+      // Debug information when generator can't be found
+      const moduleExports = Object.keys(generatorModule);
+      console.error(`\n❌ Generator function not found for '${generatorName}'`);
+      console.error(`Expected function name: ${generatorFnName}`);
+      console.error(`Available exports: ${moduleExports.join(', ')}`);
       console.error(
-        `Debug: Available exports in module:`,
-        Object.keys(generatorModule)
+        `Export types: ${moduleExports
+          .map((key) => `${key}: ${typeof generatorModule[key]}`)
+          .join(', ')}`
       );
-      throw new Error(
-        `Generator function '${generatorFnName}' not found for '${generatorName}'`
+
+      // Provide the same error format users are seeing
+      console.error(`\n❌ Generator '${generatorName}' not found`);
+      console.error(
+        `Available generators: ${Object.keys(generatorFunctionMap)
+          .filter((g) => g !== generatorName)
+          .join(', ')}`
       );
+      process.exit(1);
     }
 
     // Parse CLI args into options
@@ -199,15 +255,31 @@ async function runGeneratorDirectly(generatorName: string, args: string[]) {
   } catch (error: any) {
     if (
       error.code === 'MODULE_NOT_FOUND' ||
-      error.message?.includes('Cannot find module')
+      error.message?.includes('Cannot find module') ||
+      error.message?.includes('Generator file not found')
     ) {
-      console.error(`\n❌ Generator '${generatorName}' not found`);
+      console.error(`\n❌ Failed to load generator '${generatorName}'`);
+
+      // If it's a file not found error, the detailed logging was already shown
+      if (!error.message?.includes('Generator file not found')) {
+        console.error(`Error details: ${error.message}`);
+      }
+
       console.error(
-        'Available generators: init, hooks, setup-registry-proxy, addons'
+        '\nThis may indicate a packaging or installation issue with the npm package.'
+      );
+      console.error(
+        'Please report this issue at: https://github.com/uniswap/ai-toolkit/issues'
       );
       process.exit(1);
     }
     console.error(`Error running generator '${generatorName}':`, error.message);
+
+    // Show stack trace for debugging if not a known error type
+    if (process.env.DEBUG) {
+      console.error(error.stack);
+    }
+
     process.exit(1);
   }
 }
