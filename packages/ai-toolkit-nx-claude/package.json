@@ -49,6 +49,11 @@
             "packages/ai-toolkit-nx-claude/README.md",
             "packages/ai-toolkit-nx-claude/generators.json",
             {
+              "input": "./packages/ai-toolkit-nx-claude/src",
+              "glob": "**/schema.json",
+              "output": "."
+            },
+            {
               "input": "./packages/commands/agnostic/src",
               "glob": "**/*.md",
               "output": "content/commands/agnostic"
