@@ -183,7 +183,7 @@ async function runGeneratorDirectly(generatorName: string, args: string[]) {
     if (error.code === 'MODULE_NOT_FOUND') {
       console.error(`\n❌ Generator '${generatorName}' not found`);
       console.error(
-        'Available generators: init, hooks, setup-registry-proxy, addons, add-command, add-agent'
+        'Available generators: init, hooks, setup-registry-proxy, addons'
       );
       process.exit(1);
     }
