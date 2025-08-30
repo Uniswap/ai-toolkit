@@ -145,6 +145,19 @@ function shouldRunStandalone(): boolean {
  */
 async function runGeneratorDirectly(generatorName: string, args: string[]) {
   try {
+    // Map generator names to their actual function names
+    const generatorFunctionMap: Record<string, string> = {
+      init: 'initGenerator',
+      hooks: 'hooksGenerator',
+      'setup-registry-proxy': 'setupRegistryProxyGenerator',
+      addons: 'addonsGenerator',
+    };
+
+    const generatorFnName = generatorFunctionMap[generatorName];
+    if (!generatorFnName) {
+      throw new Error(`Unknown generator: ${generatorName}`);
+    }
+
     // Use require for CommonJS modules
     const generatorPath = path.join(
       __dirname,
@@ -156,16 +169,20 @@ async function runGeneratorDirectly(generatorName: string, args: string[]) {
     // Use require for CommonJS compatibility
     const generatorModule = require(generatorPath);
 
-    // Handle both default and named exports
-    // Generators export named functions like 'initGenerator', 'hooksGenerator', etc.
-    const generatorFnName = `${generatorName}Generator`;
+    // Try different ways to access the generator function
     const generator =
-      generatorModule.default ||
       generatorModule[generatorFnName] ||
+      generatorModule.default ||
       generatorModule;
 
     if (!generator || typeof generator !== 'function') {
-      throw new Error(`Generator function not found for '${generatorName}'`);
+      console.error(
+        `Debug: Available exports in module:`,
+        Object.keys(generatorModule)
+      );
+      throw new Error(
+        `Generator function '${generatorFnName}' not found for '${generatorName}'`
+      );
     }
 
     // Parse CLI args into options
@@ -180,14 +197,18 @@ async function runGeneratorDirectly(generatorName: string, args: string[]) {
     // Apply changes
     await applyTreeChanges(tree);
   } catch (error: any) {
-    if (error.code === 'MODULE_NOT_FOUND') {
+    if (
+      error.code === 'MODULE_NOT_FOUND' ||
+      error.message?.includes('Cannot find module')
+    ) {
       console.error(`\n❌ Generator '${generatorName}' not found`);
       console.error(
         'Available generators: init, hooks, setup-registry-proxy, addons'
       );
       process.exit(1);
     }
-    throw error;
+    console.error(`Error running generator '${generatorName}':`, error.message);
+    process.exit(1);
   }
 }
 
