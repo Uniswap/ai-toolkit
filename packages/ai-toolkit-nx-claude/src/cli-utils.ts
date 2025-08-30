@@ -166,16 +166,25 @@ async function runGeneratorDirectly(generatorName: string, args: string[]) {
     }
 
     // Use require for CommonJS modules
-    const generatorPath = path.join(
+    // Support both .js and .cjs outputs
+    const jsPath = path.join(
       __dirname,
       'generators',
       generatorName,
       'generator.js'
     );
+    const cjsPath = path.join(
+      __dirname,
+      'generators',
+      generatorName,
+      'generator.cjs'
+    );
+    const generatorPath = fs.existsSync(jsPath) ? jsPath : cjsPath;
 
     // Debug logging to understand the path resolution
     if (!fs.existsSync(generatorPath)) {
-      console.error(`\n❌ Generator file not found at: ${generatorPath}`);
+      console.error(`\n❌ Generator file not found at: ${jsPath}`);
+      console.error(`Also tried: ${cjsPath}`);
       console.error(`Current __dirname: ${__dirname}`);
       console.error(`Looking for generator: ${generatorName}`);
 
