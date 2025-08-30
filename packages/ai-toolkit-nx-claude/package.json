@@ -23,31 +23,36 @@
   ],
   "nx": {
     "targets": {
-      "build-tsc": {
-        "executor": "@nx/js:tsc",
+      "bundle": {
+        "executor": "@nx/esbuild:esbuild",
         "outputs": [
           "{options.outputPath}"
         ],
+        "dependsOn": [
+          "types"
+        ],
         "options": {
           "outputPath": "packages/ai-toolkit-nx-claude/dist",
-          "main": "packages/ai-toolkit-nx-claude/src/index.ts",
+          "main": "packages/ai-toolkit-nx-claude/src/cli-generator.ts",
+          "additionalEntryPoints": [
+            "packages/ai-toolkit-nx-claude/src/index.ts",
+            "packages/ai-toolkit-nx-claude/src/generators/init/generator.ts",
+            "packages/ai-toolkit-nx-claude/src/generators/hooks/generator.ts",
+            "packages/ai-toolkit-nx-claude/src/generators/setup-registry-proxy/generator.ts",
+            "packages/ai-toolkit-nx-claude/src/generators/addons/generator.ts",
+            "packages/ai-toolkit-nx-claude/src/generators/add-command/generator.ts",
+            "packages/ai-toolkit-nx-claude/src/generators/add-agent/generator.ts"
+          ],
           "tsConfig": "packages/ai-toolkit-nx-claude/tsconfig.lib.json",
-          "rootDir": "packages/ai-toolkit-nx-claude/src",
+          "bundle": true,
+          "platform": "node",
+          "format": "cjs",
+          "external": [],
           "generatePackageJson": false,
           "assets": [
             {
               "input": "./packages/ai-toolkit-nx-claude/src",
               "glob": "**/!(*.ts)",
-              "output": "."
-            },
-            {
-              "input": "./packages/ai-toolkit-nx-claude/src",
-              "glob": "**/*.d.ts",
-              "output": "."
-            },
-            {
-              "input": "./packages/ai-toolkit-nx-claude/src",
-              "glob": "**/schema.json",
               "output": "."
             },
             {
@@ -63,6 +68,17 @@
           ]
         }
       },
+      "types": {
+        "executor": "@nx/js:tsc",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "options": {
+          "outputPath": "packages/ai-toolkit-nx-claude/dist",
+          "tsConfig": "packages/ai-toolkit-nx-claude/tsconfig.types.json",
+          "assets": []
+        }
+      },
       "build": {
         "executor": "nx:run-commands",
         "outputs": [
@@ -70,7 +86,7 @@
         ],
         "options": {
           "commands": [
-            "nx run @uniswap/ai-toolkit-nx-claude:build-tsc",
+            "nx run @uniswap/ai-toolkit-nx-claude:bundle",
             "chmod +x packages/ai-toolkit-nx-claude/dist/cli-generator.js"
           ],
           "parallel": false

@@ -21,7 +21,8 @@
       "@ai-toolkit/agents-agnostic": ["packages/agents/agnostic/src/index.ts"],
       "@ai-toolkit/commands-agnostic": [
         "packages/commands/agnostic/src/index.ts"
-      ]
+      ],
+      "@ai-toolkit/utils": ["packages/utils/src/index.ts"]
     },
     "customConditions": ["development"]
   }
