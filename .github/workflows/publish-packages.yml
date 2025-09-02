@@ -222,24 +222,23 @@ jobs:
         run: |
           echo "Starting sync of next branch with main..."
 
-          # Fetch all branches
-          git fetch origin main:main
-          git fetch origin next:next
+          # Fetch all remote branches
+          git fetch origin
 
-          # Check if next branch exists
-          if ! git show-ref --verify --quiet refs/heads/next; then
-            echo "Next branch does not exist. Skipping sync."
+          # Check if next branch exists on remote
+          if ! git show-ref --verify --quiet refs/remotes/origin/next; then
+            echo "Next branch does not exist on remote. Skipping sync."
             exit 0
           fi
 
-          # Switch to next branch
-          git checkout next
+          # Switch to next branch (tracking origin/next)
+          git checkout -B next origin/next
 
           # Attempt to rebase next onto main
           echo "Rebasing next onto main..."
 
-          # Try to rebase
-          if git rebase main; then
+          # Try to rebase onto origin/main
+          if git rebase origin/main; then
             echo "✅ Rebase successful!"
 
             # Force push the rebased next branch
@@ -252,7 +251,7 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "The \`next\` branch has been successfully rebased onto \`main\`." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "- **Main branch**: $(git rev-parse --short main)" >> $GITHUB_STEP_SUMMARY
+            echo "- **Main branch**: $(git rev-parse --short origin/main)" >> $GITHUB_STEP_SUMMARY
             echo "- **Next branch**: $(git rev-parse --short next)" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ Rebase failed due to conflicts"
