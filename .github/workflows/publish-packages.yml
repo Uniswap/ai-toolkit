@@ -87,7 +87,7 @@ jobs:
           npx nx release publish --dry-run --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://npm.pkg.github.com
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
       - name: Version affected packages
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
@@ -98,8 +98,61 @@ jobs:
             echo "Using prerelease versioning for next branch"
             bunx nx release version prerelease --preid=next
           else
-            echo "Using standard versioning for main branch"
-            bunx nx release version
+            echo "Checking for version graduation on main branch"
+            
+            # Get list of publishable packages from nx.json release projects
+            RELEASE_PROJECTS=$(node -p "JSON.stringify(require('./nx.json').release.projects || [])" 2>/dev/null || echo "[]")
+            echo "Release projects: $RELEASE_PROJECTS"
+            
+            # Check if any publishable package has a prerelease version
+            HAS_PRERELEASE=false
+            GRADUATE_COMMANDS=""
+            
+            # Parse the JSON array and check each project
+            for PROJECT in $(echo "$RELEASE_PROJECTS" | node -p "JSON.parse(fs.readFileSync(0)).join(' ')"); do
+              # Skip non-package projects (like 'utils' which might not have a package.json)
+              if [[ ! -f "packages/${PROJECT#@*/}/package.json" ]] && [[ ! -f "${PROJECT}/package.json" ]]; then
+                echo "Skipping $PROJECT (no package.json found)"
+                continue
+              fi
+              
+              # Try to find the package.json (handle both scoped and unscoped names)
+              PACKAGE_PATH=""
+              if [[ -f "packages/${PROJECT#@*/}/package.json" ]]; then
+                PACKAGE_PATH="packages/${PROJECT#@*/}/package.json"
+              elif [[ -f "${PROJECT}/package.json" ]]; then
+                PACKAGE_PATH="${PROJECT}/package.json"
+              else
+                # Try to find it using the project name directly
+                PACKAGE_PATH=$(find . -name "package.json" -path "*/packages/*" | xargs grep -l "\"name\": \"$PROJECT\"" | head -1)
+              fi
+              
+              if [[ -n "$PACKAGE_PATH" ]]; then
+                PACKAGE_VERSION=$(node -p "require('./$PACKAGE_PATH').version" 2>/dev/null || echo "")
+                echo "Checking $PROJECT: version $PACKAGE_VERSION"
+                
+                if [[ "$PACKAGE_VERSION" == *"-next."* ]]; then
+                  # Extract base version without prerelease suffix
+                  BASE_VERSION=${PACKAGE_VERSION%-next.*}
+                  echo "  → Will graduate from $PACKAGE_VERSION to $BASE_VERSION"
+                  HAS_PRERELEASE=true
+                  
+                  # Build the graduation command for this package
+                  if [[ -n "$GRADUATE_COMMANDS" ]]; then
+                    GRADUATE_COMMANDS="$GRADUATE_COMMANDS && "
+                  fi
+                  GRADUATE_COMMANDS="${GRADUATE_COMMANDS}bunx nx release version $BASE_VERSION --projects=$PROJECT"
+                fi
+              fi
+            done
+            
+            if [[ "$HAS_PRERELEASE" == "true" ]]; then
+              echo "Graduating prerelease versions to stable"
+              eval "$GRADUATE_COMMANDS"
+            else
+              echo "No prerelease versions found, using standard versioning for main branch"
+              bunx nx release version
+            fi
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
