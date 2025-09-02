@@ -1,6 +1,6 @@
 {
   "name": "@uniswap/ai-toolkit-nx-claude",
-  "version": "0.4.1-next.5",
+  "version": "0.4.1-next.6",
   "main": "./dist/index.cjs",
   "module": "./dist/index.cjs",
   "types": "./dist/index.d.ts",
@@ -129,27 +129,6 @@
         "executor": "nx:run-commands",
         "options": {
           "command": "chmod +x packages/ai-toolkit-nx-claude/dist/cli-generator.cjs"
-        },
-        "dependsOn": [
-          "build",
-          {
-            "projects": [
-              "@ai-toolkit/agents-agnostic"
-            ],
-            "target": "build"
-          },
-          {
-            "projects": [
-              "@ai-toolkit/commands-agnostic"
-            ],
-            "target": "build"
-          }
-        ]
-      },
-      "nx-claude:exec": {
-        "executor": "nx:run-commands",
-        "options": {
-          "command": "node packages/ai-toolkit-nx-claude/dist/cli-generator.js"
         },
         "dependsOn": [
           "build"

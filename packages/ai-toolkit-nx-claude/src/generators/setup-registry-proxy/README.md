@@ -23,10 +23,10 @@ This proxy solves the problem by intercepting npm/npx/yarn/bun commands and addi
 
 ```bash
 # Run the generator
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:setup-registry-proxy
+bunx nx generate @uniswap/ai-toolkit-nx-claude:setup-registry-proxy
 
 # Or with options
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:setup-registry-proxy --force --test
+bunx nx generate @uniswap/ai-toolkit-nx-claude:setup-registry-proxy --force --test
 ```
 
 ## Options

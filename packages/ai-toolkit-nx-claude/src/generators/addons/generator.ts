@@ -179,7 +179,7 @@ export default async function generator(
         type: 'confirm',
         name: 'setupProject',
         message:
-          '📁 Would you like to set up spec-workflow configuration in a project?',
+          '📁 Would you like to set up spec-workflow configuration for a particular project?',
         initial: true,
       });
 
@@ -386,7 +386,9 @@ function showUsageInstructions(
   console.log('====================\n');
 
   if (addon.id === 'spec-workflow-mcp') {
-    console.log('1. Restart Claude Code to load the new MCP server');
+    console.log(
+      '1. Start a new instance ofClaude Code to load the new MCP server'
+    );
     console.log('2. Open your project in Claude Code');
 
     if (options.dashboardMode === 'always') {
@@ -425,7 +427,7 @@ function showUsageInstructions(
       console.log('  Edit .spec-workflow/orchestration.yaml to customize');
     }
 
-    console.log('\n🚀 Quick Start - restart Claude Code and:');
+    console.log('\n🚀 Quick Start - start a new instance of Claude Code and:');
     console.log('  1. Ask Claude: "Show me the spec workflow guide"');
     console.log('  2. Ask Claude: "Help me create a new spec for [feature]"');
     console.log('  3. Visit the dashboard to monitor progress');
