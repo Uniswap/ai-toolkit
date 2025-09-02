@@ -132,10 +132,12 @@ jobs:
               echo "Bumping stable versions to new prerelease versions"
               # First, let Nx determine the version bump based on conventional commits
               # This will bump from 0.1.2 -> 0.1.3 (or 0.2.0, or 1.0.0 depending on commits)
-              bunx nx release version --skip-commit
+              # Use --git-commit=false and --git-tag=false to avoid committing yet
+              bunx nx release version --git-commit=false --git-tag=false
               
               # Then convert the new version to a prerelease
               # This will convert 0.1.3 -> 0.1.3-next.0 (or 0.2.0 -> 0.2.0-next.0, etc.)
+              # This command will do the actual commit and tagging
               bunx nx release version prerelease --preid=next
             else
               echo "Using standard prerelease versioning for next branch"
