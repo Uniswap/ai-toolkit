@@ -95,8 +95,52 @@ jobs:
         run: |
           echo "Versioning affected packages"
           if [[ "${{ github.ref_name }}" == "next" ]]; then
-            echo "Using prerelease versioning for next branch"
-            bunx nx release version prerelease --preid=next
+            echo "Checking for stable versions that need to be converted to prerelease"
+            
+            # Get list of publishable packages from nx.json release projects
+            RELEASE_PROJECTS=$(node -p "JSON.stringify(require('./nx.json').release.projects || [])" 2>/dev/null || echo "[]")
+            echo "Release projects: $RELEASE_PROJECTS"
+            
+            # Check if any package has a stable version (no prerelease suffix)
+            NEEDS_BUMP=false
+            
+            for PROJECT in $(echo "$RELEASE_PROJECTS" | node -p "JSON.parse(fs.readFileSync(0)).join(' ')"); do
+              # Find the package.json for this project
+              PACKAGE_PATH=""
+              if [[ -f "packages/${PROJECT#@*/}/package.json" ]]; then
+                PACKAGE_PATH="packages/${PROJECT#@*/}/package.json"
+              elif [[ -f "${PROJECT}/package.json" ]]; then
+                PACKAGE_PATH="${PROJECT}/package.json"
+              else
+                PACKAGE_PATH=$(find . -name "package.json" -path "*/packages/*" | xargs grep -l "\"name\": \"$PROJECT\"" | head -1)
+              fi
+              
+              if [[ -n "$PACKAGE_PATH" ]]; then
+                PACKAGE_VERSION=$(node -p "require('./$PACKAGE_PATH').version" 2>/dev/null || echo "")
+                echo "Checking $PROJECT: version $PACKAGE_VERSION"
+                
+                # Check if it's a stable version (no prerelease suffix)
+                if [[ "$PACKAGE_VERSION" != *"-"* && -n "$PACKAGE_VERSION" ]]; then
+                  echo "  → Found stable version, will bump to next prerelease"
+                  NEEDS_BUMP=true
+                  break
+                fi
+              fi
+            done
+            
+            if [[ "$NEEDS_BUMP" == "true" ]]; then
+              echo "Bumping stable versions to new prerelease versions"
+              # First, let Nx determine the version bump based on conventional commits
+              # This will bump from 0.1.2 -> 0.1.3 (or 0.2.0, or 1.0.0 depending on commits)
+              bunx nx release version --skip-commit
+              
+              # Then convert the new version to a prerelease
+              # This will convert 0.1.3 -> 0.1.3-next.0 (or 0.2.0 -> 0.2.0-next.0, etc.)
+              bunx nx release version prerelease --preid=next
+            else
+              echo "Using standard prerelease versioning for next branch"
+              bunx nx release version prerelease --preid=next
+            fi
           else
             echo "Checking for version graduation on main branch"
 
