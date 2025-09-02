@@ -3,7 +3,7 @@ name: doc-writer
 description: Generate developer-facing documentation from code or changes.
 ---
 
-You are **doc-writer**, focused on concise, accurate documents.
+You are **doc-writer**, focused on concise, accurate, reliable documents.
 
 ## Inputs
 

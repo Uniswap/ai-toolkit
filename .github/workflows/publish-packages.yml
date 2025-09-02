@@ -52,13 +52,6 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
 
-      - name: Configure npm for GitHub Packages
-        run: |
-          # Set up .npmrc with GitHub token for authentication
-          echo "@uniswap:registry=https://npm.pkg.github.com" >> .npmrc
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-
       - name: Determine npm tag
         id: npm-tag
         run: |
@@ -96,14 +89,14 @@ jobs:
           echo "Versioning affected packages"
           if [[ "${{ github.ref_name }}" == "next" ]]; then
             echo "Checking for stable versions that need to be converted to prerelease"
-            
+
             # Get list of publishable packages from nx.json release projects
             RELEASE_PROJECTS=$(node -p "JSON.stringify(require('./nx.json').release.projects || [])" 2>/dev/null || echo "[]")
             echo "Release projects: $RELEASE_PROJECTS"
-            
+
             # Check if any package has a stable version (no prerelease suffix)
             NEEDS_BUMP=false
-            
+
             for PROJECT in $(echo "$RELEASE_PROJECTS" | node -p "JSON.parse(fs.readFileSync(0)).join(' ')"); do
               # Find the package.json for this project
               PACKAGE_PATH=""
@@ -114,11 +107,11 @@ jobs:
               else
                 PACKAGE_PATH=$(find . -name "package.json" -path "*/packages/*" | xargs grep -l "\"name\": \"$PROJECT\"" | head -1)
               fi
-              
+
               if [[ -n "$PACKAGE_PATH" ]]; then
                 PACKAGE_VERSION=$(node -p "require('./$PACKAGE_PATH').version" 2>/dev/null || echo "")
                 echo "Checking $PROJECT: version $PACKAGE_VERSION"
-                
+
                 # Check if it's a stable version (no prerelease suffix)
                 if [[ "$PACKAGE_VERSION" != *"-"* && -n "$PACKAGE_VERSION" ]]; then
                   echo "  → Found stable version, will bump to next prerelease"
@@ -127,14 +120,14 @@ jobs:
                 fi
               fi
             done
-            
+
             if [[ "$NEEDS_BUMP" == "true" ]]; then
               echo "Bumping stable versions to new prerelease versions"
-              
+
               # Build a list of all packages that need bumping with their new versions
               PROJECTS_TO_BUMP=""
               VERSION_MAP=""
-              
+
               for PROJECT in $(echo "$RELEASE_PROJECTS" | node -p "JSON.parse(fs.readFileSync(0)).join(' ')"); do
                 # Find the package.json for this project
                 PACKAGE_PATH=""
@@ -145,43 +138,43 @@ jobs:
                 else
                   PACKAGE_PATH=$(find . -name "package.json" -path "*/packages/*" | xargs grep -l "\"name\": \"$PROJECT\"" | head -1)
                 fi
-                
+
                 if [[ -n "$PACKAGE_PATH" ]]; then
                   PACKAGE_VERSION=$(node -p "require('./$PACKAGE_PATH').version" 2>/dev/null || echo "")
-                  
+
                   # If it's a stable version, calculate the next minor prerelease
                   if [[ "$PACKAGE_VERSION" != *"-"* && -n "$PACKAGE_VERSION" ]]; then
                     # Parse version and bump minor for next branch development
                     IFS='.' read -r MAJOR MINOR PATCH <<< "$PACKAGE_VERSION"
                     NEW_MINOR=$((MINOR + 1))
                     NEW_VERSION="${MAJOR}.${NEW_MINOR}.0-next.0"
-                    
+
                     echo "Will set $PROJECT from $PACKAGE_VERSION to $NEW_VERSION"
-                    
+
                     # Add to the list of projects to bump
                     if [[ -n "$PROJECTS_TO_BUMP" ]]; then
                       PROJECTS_TO_BUMP="$PROJECTS_TO_BUMP,$PROJECT"
                     else
                       PROJECTS_TO_BUMP="$PROJECT"
                     fi
-                    
+
                     # Store the version mapping
                     VERSION_MAP="${VERSION_MAP}${PROJECT}:${NEW_VERSION}\n"
                   fi
                 fi
               done
-              
+
               if [[ -n "$PROJECTS_TO_BUMP" ]]; then
                 echo "Bumping all stable packages together..."
-                
+
                 # Create a temporary file with version updates
                 echo -e "$VERSION_MAP" > /tmp/version_map.txt
-                
+
                 # Apply all version updates in a single command to avoid dependency conflicts
                 while IFS=: read -r PROJECT VERSION; do
                   if [[ -n "$PROJECT" && -n "$VERSION" ]]; then
                     echo "Applying version $VERSION to $PROJECT"
-                    
+
                     # Find and update the package.json directly
                     PACKAGE_PATH=""
                     if [[ -f "packages/${PROJECT#@*/}/package.json" ]]; then
@@ -191,7 +184,7 @@ jobs:
                     else
                       PACKAGE_PATH=$(find . -name "package.json" -path "*/packages/*" | xargs grep -l "\"name\": \"$PROJECT\"" | head -1)
                     fi
-                    
+
                     if [[ -n "$PACKAGE_PATH" ]]; then
                       # Update version in package.json
                       node -e "
@@ -203,14 +196,14 @@ jobs:
                     fi
                   fi
                 done < /tmp/version_map.txt
-                
+
                 # Update bun lockfile
                 bun install
-                
+
                 # Commit and tag
                 git add .
                 git commit -m "chore(release): bump stable versions to next prerelease [skip ci]"
-                
+
                 # Create tags for each package
                 while IFS=: read -r PROJECT VERSION; do
                   if [[ -n "$PROJECT" && -n "$VERSION" ]]; then
@@ -224,7 +217,7 @@ jobs:
                     fi
                   fi
                 done < /tmp/version_map.txt
-                
+
                 # Clean up
                 rm -f /tmp/version_map.txt
               fi
