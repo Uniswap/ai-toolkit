@@ -81,9 +81,9 @@
     "projectsRelationship": "independent",
     "releaseTagPattern": "{projectName}@{version}",
     "version": {
-      "conventionalCommits": true,
-      "preVersionCommand": "bunx nx run-many -t build",
+      "currentVersionResolver": "git-tag",
       "fallbackCurrentVersionResolver": "disk",
+      "updateDependents": "auto",
       "git": {
         "commit": true,
         "tag": true
