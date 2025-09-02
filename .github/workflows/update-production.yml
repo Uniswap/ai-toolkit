@@ -128,19 +128,59 @@ jobs:
         run: |
           PR_NUMBER=${{ steps.create-pr.outputs.pr_number }}
 
-          # Enable auto-merge with merge commit
-          gh pr merge $PR_NUMBER \
-            --auto \
-            --merge \
-            --delete-branch=false
+          # Wait for PR to be ready (GitHub needs time to initialize the PR)
+          echo "Waiting for PR to be ready..."
+          sleep 5
 
-          echo "Auto-merge enabled for PR #$PR_NUMBER"
+          # Check if PR is ready for auto-merge
+          MAX_RETRIES=5
+          RETRY_COUNT=0
 
-          # Add a comment to the PR
-          gh pr comment $PR_NUMBER \
-            --body "🚀 Auto-merge has been enabled. This PR will merge automatically once all checks pass.
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES to enable auto-merge..."
+            
+            # Check PR merge status first
+            PR_STATUS=$(gh pr view $PR_NUMBER --json mergeable,mergeStateStatus,autoMergeRequest --jq '.mergeStateStatus' || echo "UNKNOWN")
+            echo "Current PR merge state: $PR_STATUS"
+            
+            # Try to enable auto-merge
+            if gh pr merge $PR_NUMBER --auto --merge --delete-branch=false 2>&1; then
+              echo "✅ Auto-merge enabled successfully for PR #$PR_NUMBER"
+              
+              # Add a comment to the PR
+              gh pr comment $PR_NUMBER \
+                --body "🚀 Auto-merge has been enabled. This PR will merge automatically once all checks pass.
 
-            The \`next\` branch will be automatically rebased onto \`main\` after the merge completes."
+                The \`next\` branch will be automatically rebased onto \`main\` after the merge completes."
+              
+              break
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "Failed to enable auto-merge, waiting 10 seconds before retry..."
+                sleep 10
+              else
+                echo "⚠️  Could not enable auto-merge after $MAX_RETRIES attempts."
+                echo "This might be due to branch protection settings or missing required status checks."
+                echo "The PR can still be merged manually or auto-merge can be enabled from the GitHub UI."
+                
+                # Add a comment about manual intervention
+                gh pr comment $PR_NUMBER \
+                  --body "⚠️  Auto-merge could not be enabled automatically. 
+                  
+                  This may be due to:
+                  - Branch protection rules requiring specific status checks
+                  - PR still initializing
+                  - Missing required approvals
+                  
+                  You can enable auto-merge manually from the GitHub UI once the PR is ready, or merge it manually when checks pass."
+                
+                # Don't fail the workflow, just continue
+                exit 0
+              fi
+            fi
+          done
 
       - name: Wait for checks (optional)
         if: steps.create-pr.outputs.pr_created == 'true' && github.event.inputs.skipChecks == 'false'
