@@ -73,7 +73,7 @@
   "release": {
     "projects": [
       "@uniswap/ai-toolkit-nx-claude",
-      "utils",
+      "@ai-toolkit/utils",
       "@ai-toolkit/agents-agnostic",
       "@ai-toolkit/commands-agnostic",
       "@ai-toolkit/commands-typescript"
