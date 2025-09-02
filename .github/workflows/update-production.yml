@@ -50,72 +50,77 @@ jobs:
           # Since we're already on next branch, just fetch the latest changes
           git fetch origin
 
-          # Update local main branch to match origin/main
-          git fetch origin main:main
+          # Debug: Show current branch and remote branches
+          echo "Current branch: $(git branch --show-current)"
+          echo "Remote branches:"
+          git branch -r
 
           # Get commit count difference (using origin/main vs current HEAD)
-          COMMIT_COUNT=$(git rev-list --count origin/main..HEAD)
+          COMMIT_COUNT=$(git rev-list --count origin/main..HEAD || echo "0")
+          echo "Commit count difference: $COMMIT_COUNT"
 
           if [ "$COMMIT_COUNT" -eq "0" ]; then
             echo "No new commits to merge from next to main"
             echo "pr_created=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # Generate PR title with date
-          DATE=$(date +'%Y-%m-%d')
-          PR_TITLE="chore: promote next to production ($DATE)"
-
-          # Generate PR body with commit list
-          PR_BODY="## Production Deployment
-
-          This PR promotes the \`next\` branch to \`main\` for production release.
-
-          ### Commits included ($COMMIT_COUNT):
-          \`\`\`
-          $(git log origin/main..HEAD --oneline)
-          \`\`\`
-
-          ### Merge Strategy
-          Using **merge commit** to preserve full commit history for changelog generation.
-
-          ---
-          *This PR was automatically created by the Update Production workflow.*"
-
-          # Check if a PR already exists
-          EXISTING_PR=$(gh pr list --base main --head next --state open --json number --jq '.[0].number' || echo "")
-
-          if [ -n "$EXISTING_PR" ]; then
-            echo "PR #$EXISTING_PR already exists from next to main"
-            PR_NUMBER=$EXISTING_PR
-            PR_URL="https://github.com/${{ github.repository }}/pull/$PR_NUMBER"
-            
-            # Update the existing PR
-            gh pr edit $PR_NUMBER \
-              --title "$PR_TITLE" \
-              --body "$PR_BODY"
-            
-            echo "Updated existing PR #$PR_NUMBER"
+            echo "Skipping PR creation as there are no new commits"
           else
-            # Create the PR using GitHub CLI
-            # Since we're already on next branch, we can use HEAD or explicitly specify the branch
-            PR_URL=$(gh pr create \
-              --base main \
-              --head ${{ github.ref_name }} \
-              --title "$PR_TITLE" \
-              --body "$PR_BODY" \
-              --label "production-deployment" \
-              2>&1)
-            
-            # Extract PR number from URL
-            PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
-            
-            echo "Created PR #$PR_NUMBER: $PR_URL"
-          fi
+            echo "Found $COMMIT_COUNT new commits to merge"
 
-          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-          echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
-          echo "pr_created=true" >> $GITHUB_OUTPUT
+            # Generate PR title with date
+            DATE=$(date +'%Y-%m-%d')
+            PR_TITLE="chore: promote next to production ($DATE)"
+
+            # Generate PR body with commit list
+            PR_BODY="## Production Deployment
+
+            This PR promotes the \`next\` branch to \`main\` for production release.
+
+            ### Commits included ($COMMIT_COUNT):
+            \`\`\`
+            $(git log origin/main..HEAD --oneline)
+            \`\`\`
+
+            ### Merge Strategy
+            Using **merge commit** to preserve full commit history for changelog generation.
+
+            ---
+            *This PR was automatically created by the Update Production workflow.*"
+
+            # Check if a PR already exists
+            EXISTING_PR=$(gh pr list --base main --head next --state open --json number --jq '.[0].number' || echo "")
+
+            if [ -n "$EXISTING_PR" ]; then
+              echo "PR #$EXISTING_PR already exists from next to main"
+              PR_NUMBER=$EXISTING_PR
+              PR_URL="https://github.com/${{ github.repository }}/pull/$PR_NUMBER"
+              
+              # Update the existing PR
+              gh pr edit $PR_NUMBER \
+                --title "$PR_TITLE" \
+                --body "$PR_BODY"
+              
+              echo "Updated existing PR #$PR_NUMBER"
+            else
+              # Create the PR using GitHub CLI
+              # Since we're already on next branch, we can use HEAD or explicitly specify the branch
+              PR_URL=$(gh pr create \
+                --base main \
+                --head ${{ github.ref_name }} \
+                --title "$PR_TITLE" \
+                --body "$PR_BODY" \
+                --label "production-deployment" \
+                2>&1)
+              
+              # Extract PR number from URL
+              PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
+              
+              echo "Created PR #$PR_NUMBER: $PR_URL"
+            fi
+
+            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+            echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+            echo "pr_created=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Enable auto-merge
         if: steps.create-pr.outputs.pr_created == 'true'
