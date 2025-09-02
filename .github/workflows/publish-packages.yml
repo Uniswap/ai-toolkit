@@ -187,12 +187,24 @@ jobs:
 
                     if [[ -n "$PACKAGE_PATH" ]]; then
                       # Update version in package.json
+                      echo "Updating $PACKAGE_PATH with version $VERSION"
                       node -e "
                         const fs = require('fs');
                         const pkg = JSON.parse(fs.readFileSync('$PACKAGE_PATH', 'utf8'));
+                        const oldVersion = pkg.version;
                         pkg.version = '$VERSION';
                         fs.writeFileSync('$PACKAGE_PATH', JSON.stringify(pkg, null, 2) + '\\n');
+                        console.log('Updated ' + pkg.name + ' from ' + oldVersion + ' to ' + pkg.version);
                       "
+                      
+                      # Verify the update
+                      UPDATED_VERSION=$(node -p "require('./$PACKAGE_PATH').version" 2>/dev/null || echo "")
+                      if [[ "$UPDATED_VERSION" == "$VERSION" ]]; then
+                        echo "✓ Successfully updated to $UPDATED_VERSION"
+                      else
+                        echo "✗ ERROR: Version update failed! Expected $VERSION but got $UPDATED_VERSION"
+                        exit 1
+                      fi
                     fi
                   fi
                 done < /tmp/version_map.txt
@@ -200,12 +212,21 @@ jobs:
                 # Update bun lockfile
                 bun install
 
+                # Show what files were modified
+                echo "Modified files:"
+                git status --short
+                
                 # Commit and tag (only if there are changes)
                 git add .
                 if git diff --staged --quiet; then
                   echo "No changes to commit after version bump"
                 else
+                  echo "Committing version bumps..."
                   git commit -m "chore(release): bump stable versions to next prerelease [skip ci]"
+                  
+                  # Show what was committed
+                  echo "Committed changes:"
+                  git show --stat HEAD
                 fi
 
                 # Create tags for each package
