@@ -93,12 +93,12 @@ jobs:
               echo "PR #$EXISTING_PR already exists from next to main"
               PR_NUMBER=$EXISTING_PR
               PR_URL="https://github.com/${{ github.repository }}/pull/$PR_NUMBER"
-              
+
               # Update the existing PR
               gh pr edit $PR_NUMBER \
                 --title "$PR_TITLE" \
                 --body "$PR_BODY"
-              
+
               echo "Updated existing PR #$PR_NUMBER"
             else
               # Create the PR using GitHub CLI
@@ -108,12 +108,11 @@ jobs:
                 --head ${{ github.ref_name }} \
                 --title "$PR_TITLE" \
                 --body "$PR_BODY" \
-                --label "production-deployment" \
                 2>&1)
-              
+
               # Extract PR number from URL
               PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
-              
+
               echo "Created PR #$PR_NUMBER: $PR_URL"
             fi
 
