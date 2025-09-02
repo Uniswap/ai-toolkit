@@ -1,0 +1,259 @@
+name: Update Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      skipChecks:
+        description: 'Skip status checks before merging (use with caution)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  create-and-merge-pr:
+    runs-on: ubuntu-24.04
+    # Only allow this workflow to run from the next branch
+    if: github.ref == 'refs/heads/next'
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install GitHub CLI
+        run: |
+          # GitHub CLI should be pre-installed on ubuntu-latest runners
+          # But let's verify it's available
+          which gh || (echo "GitHub CLI not found" && exit 1)
+          gh --version
+
+      - name: Configure Git
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+      - name: Create PR from next to main
+        id: create-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Fetch latest branches
+          # Since we're already on next branch, just fetch the latest changes
+          git fetch origin
+
+          # Debug: Show current branch and remote branches
+          echo "Current branch: $(git branch --show-current)"
+          echo "Remote branches:"
+          git branch -r
+
+          # Get commit count difference (using origin/main vs current HEAD)
+          COMMIT_COUNT=$(git rev-list --count origin/main..HEAD || echo "0")
+          echo "Commit count difference: $COMMIT_COUNT"
+
+          if [ "$COMMIT_COUNT" -eq "0" ]; then
+            echo "No new commits to merge from next to main"
+            echo "pr_created=false" >> $GITHUB_OUTPUT
+            echo "Skipping PR creation as there are no new commits"
+          else
+            echo "Found $COMMIT_COUNT new commits to merge"
+
+            # Generate PR title with date
+            DATE=$(date +'%Y-%m-%d')
+            PR_TITLE="chore: promote next to production ($DATE)"
+
+            # Generate PR body with commit list
+            PR_BODY="## Production Deployment
+
+            This PR promotes the \`next\` branch to \`main\` for production release.
+
+            ### Commits included ($COMMIT_COUNT):
+            \`\`\`
+            $(git log origin/main..HEAD --oneline)
+            \`\`\`
+
+            ### Merge Strategy
+            Using **merge commit** to preserve full commit history for changelog generation.
+
+            ---
+            *This PR was automatically created by the Update Production workflow.*"
+
+            # Check if a PR already exists
+            EXISTING_PR=$(gh pr list --base main --head next --state open --json number --jq '.[0].number' || echo "")
+
+            if [ -n "$EXISTING_PR" ]; then
+              echo "PR #$EXISTING_PR already exists from next to main"
+              PR_NUMBER=$EXISTING_PR
+              PR_URL="https://github.com/${{ github.repository }}/pull/$PR_NUMBER"
+
+              # Update the existing PR
+              gh pr edit $PR_NUMBER \
+                --title "$PR_TITLE" \
+                --body "$PR_BODY"
+
+              echo "Updated existing PR #$PR_NUMBER"
+            else
+              # Create the PR using GitHub CLI
+              # Since we're already on next branch, we can use HEAD or explicitly specify the branch
+              PR_URL=$(gh pr create \
+                --base main \
+                --head ${{ github.ref_name }} \
+                --title "$PR_TITLE" \
+                --body "$PR_BODY" \
+                2>&1)
+
+              # Extract PR number from URL
+              PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
+
+              echo "Created PR #$PR_NUMBER: $PR_URL"
+            fi
+
+            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+            echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+            echo "pr_created=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Enable auto-merge
+        if: steps.create-pr.outputs.pr_created == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ steps.create-pr.outputs.pr_number }}
+
+          # Wait for PR to be ready (GitHub needs time to initialize the PR)
+          echo "Waiting for PR to be ready..."
+          sleep 5
+
+          # Check if PR is ready for auto-merge
+          MAX_RETRIES=5
+          RETRY_COUNT=0
+
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES to enable auto-merge..."
+            
+            # Check PR merge status first
+            PR_STATUS=$(gh pr view $PR_NUMBER --json mergeable,mergeStateStatus,autoMergeRequest --jq '.mergeStateStatus' || echo "UNKNOWN")
+            echo "Current PR merge state: $PR_STATUS"
+            
+            # Try to enable auto-merge
+            if gh pr merge $PR_NUMBER --auto --merge --delete-branch=false 2>&1; then
+              echo "✅ Auto-merge enabled successfully for PR #$PR_NUMBER"
+              
+              # Add a comment to the PR
+              gh pr comment $PR_NUMBER \
+                --body "🚀 Auto-merge has been enabled. This PR will merge automatically once all checks pass.
+
+                The \`next\` branch will be automatically rebased onto \`main\` after the merge completes."
+              
+              break
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "Failed to enable auto-merge, waiting 10 seconds before retry..."
+                sleep 10
+              else
+                echo "⚠️  Could not enable auto-merge after $MAX_RETRIES attempts."
+                echo "This might be due to branch protection settings or missing required status checks."
+                echo "The PR can still be merged manually or auto-merge can be enabled from the GitHub UI."
+                
+                # Add a comment about manual intervention
+                gh pr comment $PR_NUMBER \
+                  --body "⚠️  Auto-merge could not be enabled automatically. 
+                  
+                  This may be due to:
+                  - Branch protection rules requiring specific status checks
+                  - PR still initializing
+                  - Missing required approvals
+                  
+                  You can enable auto-merge manually from the GitHub UI once the PR is ready, or merge it manually when checks pass."
+                
+                # Don't fail the workflow, just continue
+                exit 0
+              fi
+            fi
+          done
+
+      - name: Wait for checks (optional)
+        if: steps.create-pr.outputs.pr_created == 'true' && github.event.inputs.skipChecks == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ steps.create-pr.outputs.pr_number }}
+
+          echo "Waiting for PR checks to complete..."
+
+          # Wait up to 30 minutes for checks to pass
+          TIMEOUT=1800
+          ELAPSED=0
+          INTERVAL=30
+
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            # Check PR status
+            PR_STATUS=$(gh pr view $PR_NUMBER --json mergeable,mergeStateStatus --jq '.mergeStateStatus')
+
+            echo "Current merge status: $PR_STATUS"
+
+            if [ "$PR_STATUS" = "CLEAN" ] || [ "$PR_STATUS" = "HAS_HOOKS" ]; then
+              echo "✅ PR is ready to merge!"
+              exit 0
+            elif [ "$PR_STATUS" = "BLOCKED" ]; then
+              echo "⏳ Waiting for checks to pass..."
+            elif [ "$PR_STATUS" = "DIRTY" ] || [ "$PR_STATUS" = "UNKNOWN" ]; then
+              echo "⚠️  PR has conflicts or unknown status. Manual intervention may be required."
+              exit 1
+            fi
+
+            sleep $INTERVAL
+            ELAPSED=$((ELAPSED + INTERVAL))
+          done
+
+          echo "❌ Timeout waiting for checks to pass"
+          exit 1
+
+      - name: Force merge if requested
+        if: steps.create-pr.outputs.pr_created == 'true' && github.event.inputs.skipChecks == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ steps.create-pr.outputs.pr_number }}
+
+          echo "⚠️  Force merging PR #$PR_NUMBER (skipping checks)"
+
+          # Force merge the PR
+          gh pr merge $PR_NUMBER \
+            --merge \
+            --delete-branch=false \
+            --admin
+
+          echo "✅ PR #$PR_NUMBER has been merged"
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ "${{ steps.create-pr.outputs.pr_created }}" = "true" ]; then
+            echo "## 📦 Production Update Summary" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- **PR Number**: #${{ steps.create-pr.outputs.pr_number }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **PR URL**: ${{ steps.create-pr.outputs.pr_url }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Skip Checks**: ${{ github.event.inputs.skipChecks }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The \`next\` branch has been promoted to \`main\` for production deployment." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Next steps:" >> $GITHUB_STEP_SUMMARY
+            echo "1. The publish-packages workflow will automatically run" >> $GITHUB_STEP_SUMMARY
+            echo "2. Packages will be published with the \`latest\` tag" >> $GITHUB_STEP_SUMMARY
+            echo "3. The \`next\` branch will be rebased onto \`main\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ℹ️ No Updates Required" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The \`next\` branch has no new commits to merge into \`main\`." >> $GITHUB_STEP_SUMMARY
+          fi
