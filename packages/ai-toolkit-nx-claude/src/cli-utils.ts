@@ -11,7 +11,7 @@ export async function handleNxExecution(generatorName: string, args: string[]) {
   // Show help message if requested
   if (args.includes('--help') || args.includes('-h')) {
     console.log(
-      `Usage: npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude:${generatorName}`
+      `Usage: npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest ${generatorName}`
     );
     console.log(
       `\nThis command runs the nx-claude ${generatorName} generator.`
@@ -105,7 +105,7 @@ function handleExecutionError(error: any, generatorName: string) {
     console.error('  npm install -g nx');
     console.error('\nOr use npx to run without installing:');
     console.error(
-      `  npx nx generate @uniswap/ai-toolkit-nx-claude:${generatorName}`
+      `  npx nx generate @uniswap/ai-toolkit-nx-claude@latest ${generatorName}`
     );
     console.error(
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'

@@ -93,6 +93,15 @@
         "dependsOn": [
           "build"
         ]
+      },
+      "nx-claude:exec": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "node packages/ai-toolkit-nx-claude/dist/cli-generator.js"
+        },
+        "dependsOn": [
+          "build"
+        ]
       }
     }
   },

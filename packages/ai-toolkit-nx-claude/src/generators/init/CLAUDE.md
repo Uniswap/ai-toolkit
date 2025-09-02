@@ -103,14 +103,14 @@ The interactive flow will:
 ### Non-Interactive Global Installation
 
 ```bash
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init --no-interactive --installation-type=global --commands=review-pr,gen-tests,plan-feature --agents=test-writer,doc-writer,planner
+bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init --no-interactive --installation-type=global --commands=review-pr,gen-tests,plan --agents=test-writer,doc-writer,planner
 ```
 
 ### Non-Interactive Local Installation
 
 ```bash
 # Must be run from project root
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init --no-interactive --installation-type=local --confirm-local-path=true --commands=review-pr,gen-tests,plan-feature --agents=test-writer,doc-writer,planner
+bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init --no-interactive --installation-type=local --confirm-local-path=true --commands=review-pr,gen-tests,plan --agents=test-writer,doc-writer,planner
 ```
 
 ### Dry Run to Preview
@@ -140,7 +140,7 @@ bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init --installation-type=globa
 ├── commands/
 │   ├── review-pr.md
 │   ├── gen-tests.md
-│   ├── plan-feature.md
+│   ├── plan.md
 │   ├── explain-file.md
 │   ├── fix-bug.md
 │   └── refactor.md
@@ -161,7 +161,7 @@ bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init --installation-type=globa
 ├── commands/
 │   ├── review-pr.md
 │   ├── gen-tests.md
-│   ├── plan-feature.md
+│   ├── plan.md
 │   ├── explain-file.md
 │   ├── fix-bug.md
 │   └── refactor.md

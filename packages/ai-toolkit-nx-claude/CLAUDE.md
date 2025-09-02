@@ -10,30 +10,27 @@ This package can be run directly via npx/bunx without cloning the repository:
 
 ```bash
 # For Uniswap organization members only
-npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude
+npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest
 
-# Or install globally first
-npm install -g @uniswap/ai-toolkit-nx-claude --@uniswap:registry=https://npm.pkg.github.com
-ai-toolkit-nx-claude
-```
-
-Authentication to GitHub Packages is required (see README for setup instructions).
+Authentication to GitHub Packages is required (see README for setup instructions OR use the `init` generator from `ai-toolkit-nx-claude`).
 
 ## Package Structure
 
 ```
+
 packages/ai-toolkit-nx-claude/
 ├── src/
-│   ├── generators/
-│   │   ├── init/               # One-shot installer for commands/agents
-│   │   ├── hooks/              # Notification hooks installer
-│   │   ├── setup-registry-proxy/ # Shell proxy for GitHub registry routing
-│   │   ├── add-command/        # Add individual commands
-│   │   └── add-agent/          # Add individual agents
-│   └── index.ts            # Package exports
-├── generators.json         # Generator registration
-└── package.json           # Package configuration
-```
+│ ├── generators/
+│ │ ├── init/ # One-shot installer for commands/agents
+│ │ ├── hooks/ # Notification hooks installer
+│ │ ├── setup-registry-proxy/ # Shell proxy for GitHub registry routing
+│ │ ├── add-command/ # Add individual commands
+│ │ └── add-agent/ # Add individual agents
+│ └── index.ts # Package exports
+├── generators.json # Generator registration
+└── package.json # Package configuration
+
+````
 
 ## Available Generators
 
@@ -45,7 +42,7 @@ packages/ai-toolkit-nx-claude/
 
 ```bash
 bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init
-```
+````
 
 **Key Features**:
 

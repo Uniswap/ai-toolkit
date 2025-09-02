@@ -107,5 +107,5 @@ If you prefer to set this up manually:
 export UNISWAP_AI_TOOLKIT_QUIET=1
 
 # Or completely bypass the proxy
-command npm install @uniswap/ai-toolkit-nx-claude
+command npm install ...
 ```

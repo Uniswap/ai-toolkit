@@ -3,13 +3,16 @@
 // To regenerate, run: bunx nx run @ai-toolkit/commands-agnostic:generate-index
 
 type CommandName =
+  | 'deploy'
   | 'explain-file'
   | 'fix-bug'
   | 'gen-tests'
+  | 'implement-spec'
+  | 'monitor'
   | 'plan'
-  | 'plan-feature'
   | 'refactor'
   | 'research'
+  | 'review-code'
   | 'review-plan'
   | 'review-pr'
   | 'understand-area';
@@ -22,40 +25,55 @@ export type Commands = {
 };
 
 export const commands: Commands = {
+  deploy: {
+    description:
+      'Orchestrate deployment pipelines, infrastructure setup, and CI/CD configuration using specialized deployment agents.',
+    filePath: './deploy.md',
+  },
   'explain-file': {
     description:
-      'Explain a file or module in plain English with responsibilities, invariants, and risks.',
+      'Comprehensive code explanation using multi-agent analysis for architecture, patterns, security, and performance insights.',
     filePath: './explain-file.md',
   },
   'fix-bug': {
     description:
-      'Diagnose an error message or failing test and propose a smallest-possible fix with an optional regression test.',
+      'Comprehensively diagnose bugs with root cause analysis, systematic fixes, regression tests, and prevention strategies.',
     filePath: './fix-bug.md',
   },
   'gen-tests': {
     description:
-      'Generate or extend tests for one or more files using the test-writer subagent.',
+      'Generate comprehensive tests with advanced testing strategies, scenario generation, and edge case identification using the enhanced test-writer agent.',
     filePath: './gen-tests.md',
+  },
+  'implement-spec': {
+    description:
+      'Orchestrate implementation of spec-workflow tasks using intelligent agent coordination, parallel execution, and quality gates.',
+    filePath: './implement-spec.md',
+  },
+  monitor: {
+    description:
+      'Set up comprehensive monitoring for applications with automated metrics identification, alerting, and dashboard configuration',
+    filePath: './monitor.md',
   },
   plan: {
     description:
-      'Create a detailed implementation plan for a task without writing code',
+      'Create a comprehensive implementation plan with hierarchical task decomposition, agent orchestration, and risk assessment for any task, feature, refactor, or architectural change',
     filePath: './plan.md',
-  },
-  'plan-feature': {
-    description:
-      'Turn a natural-language feature idea into a concrete implementation plan with tasks and file-level changes.',
-    filePath: './plan-feature.md',
   },
   refactor: {
     description:
-      'Suggest and return minimal, safe refactors for a file or path.',
+      'Orchestrate comprehensive refactoring with architectural analysis, pattern application, and incremental safety checks.',
     filePath: './refactor.md',
   },
   research: {
     description:
       'Research a topic by combining web search with codebase analysis for comprehensive understanding.',
     filePath: './research.md',
+  },
+  'review-code': {
+    description:
+      'Comprehensive code review using multiple specialized agents for architecture, security, performance, and style analysis.',
+    filePath: './review-code.md',
   },
   'review-plan': {
     description:
@@ -64,7 +82,7 @@ export const commands: Commands = {
   },
   'review-pr': {
     description:
-      'Review the current changes or a specified branch/commit-range. Summarize risks and suggest improvements.',
+      'Orchestrate comprehensive pull request review using specialized agents for architecture, security, performance, testing, and maintainability analysis.',
     filePath: './review-pr.md',
   },
   'understand-area': {

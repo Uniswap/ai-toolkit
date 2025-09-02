@@ -10,7 +10,7 @@ The **AI Toolkit** is a standardized collection of AI agents and commands design
 
 - **One-shot Installation**: Automated setup of Claude Code configurations
 - **Pre-built AI Agents**: Specialized subagents for code explanation, refactoring, testing, research, and more. Claude Code will use these automatically without any need for manual direction by the user
-- **Ready-to-use Commands**: Quick access patterns (called "[Slash commands](https://docs.anthropic.com/en/docs/claude-code/slash-commands)") for common development workflows like understanding codebases (`/understand-area`), generating tests (`/gen-tests`), and planning features (`/plan-feature`)
+- **Ready-to-use Commands**: Quick access patterns (called "[Slash commands](https://docs.anthropic.com/en/docs/claude-code/slash-commands)") for common development workflows like understanding codebases (`/understand-area`), generating tests (`/gen-tests`), and planning features (`/plan`)
 - **Standardized Patterns**: Create a common toolset of Claude Code commands and agents shared by everyone at Uniswap
 
 **Why it exists:**
@@ -57,16 +57,11 @@ The `@uniswap/ai-toolkit-nx-claude` package is published to GitHub Packages with
 
 Once authenticated, you can run the ai-toolkit-nx-claude init generator directly:
 
-```bash
+````bash
 # Install and run with npx (specify GitHub registry)
-npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude
+npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest
 
-# Or install globally first
-npm install -g @uniswap/ai-toolkit-nx-claude --@uniswap:registry=https://npm.pkg.github.com
-
-# Then run directly
-ai-toolkit-nx-claude
-```
+Then choose `init`.
 
 This will install Claude Code configurations to your global `~/.claude` directory or local `./.claude` directory.
 
@@ -81,7 +76,7 @@ cd ai-toolkit
 
 # Install all dependencies (also sets up git hooks automatically)
 bun install # or npm install if you're not using bun
-```
+````
 
 ### 2. Setup Claude Code Integration
 
@@ -114,8 +109,8 @@ claude # this should open up the Claude Code REPL
 # executing the "/agents" slash command should show that multiple agents have been installed
 > /agents
 
-# you should see custom /slash commands, such as "/plan-feature", are now available to you in your Claude Code REPL.
-> /plan-feature
+# you should see custom /slash commands, such as "/plan", are now available to you in your Claude Code REPL.
+> /plan
 ```
 
 Once installed, you'll have access to powerful Claude Code agents and commands that make development workflows more efficient and consistent.
