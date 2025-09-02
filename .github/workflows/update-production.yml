@@ -1,0 +1,186 @@
+name: Update Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      skipChecks:
+        description: 'Skip status checks before merging (use with caution)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  create-and-merge-pr:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+      - name: Create PR from next to main
+        id: create-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Fetch latest branches
+          git fetch origin next:next
+          git fetch origin main:main
+
+          # Get commit count difference
+          COMMIT_COUNT=$(git rev-list --count main..next)
+
+          if [ "$COMMIT_COUNT" -eq "0" ]; then
+            echo "No new commits to merge from next to main"
+            echo "pr_created=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Generate PR title with date
+          DATE=$(date +'%Y-%m-%d')
+          PR_TITLE="chore: promote next to production ($DATE)"
+
+          # Generate PR body with commit list
+          PR_BODY="## Production Deployment
+
+          This PR promotes the \`next\` branch to \`main\` for production release.
+
+          ### Commits included ($COMMIT_COUNT):
+          \`\`\`
+          $(git log main..next --oneline)
+          \`\`\`
+
+          ### Merge Strategy
+          Using **merge commit** to preserve full commit history for changelog generation.
+
+          ---
+          *This PR was automatically created by the Update Production workflow.*"
+
+          # Create the PR using GitHub CLI
+          PR_URL=$(gh pr create \
+            --base main \
+            --head next \
+            --title "$PR_TITLE" \
+            --body "$PR_BODY" \
+            --label "production-deployment" \
+            2>&1)
+
+          # Extract PR number from URL
+          PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
+
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+          echo "pr_created=true" >> $GITHUB_OUTPUT
+
+          echo "Created PR #$PR_NUMBER: $PR_URL"
+
+      - name: Enable auto-merge
+        if: steps.create-pr.outputs.pr_created == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ steps.create-pr.outputs.pr_number }}
+
+          # Enable auto-merge with merge commit
+          gh pr merge $PR_NUMBER \
+            --auto \
+            --merge \
+            --delete-branch=false
+
+          echo "Auto-merge enabled for PR #$PR_NUMBER"
+
+          # Add a comment to the PR
+          gh pr comment $PR_NUMBER \
+            --body "🚀 Auto-merge has been enabled. This PR will merge automatically once all checks pass.
+
+            The \`next\` branch will be automatically rebased onto \`main\` after the merge completes."
+
+      - name: Wait for checks (optional)
+        if: steps.create-pr.outputs.pr_created == 'true' && github.event.inputs.skipChecks == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ steps.create-pr.outputs.pr_number }}
+
+          echo "Waiting for PR checks to complete..."
+
+          # Wait up to 30 minutes for checks to pass
+          TIMEOUT=1800
+          ELAPSED=0
+          INTERVAL=30
+
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            # Check PR status
+            PR_STATUS=$(gh pr view $PR_NUMBER --json mergeable,mergeStateStatus --jq '.mergeStateStatus')
+
+            echo "Current merge status: $PR_STATUS"
+
+            if [ "$PR_STATUS" = "CLEAN" ] || [ "$PR_STATUS" = "HAS_HOOKS" ]; then
+              echo "✅ PR is ready to merge!"
+              exit 0
+            elif [ "$PR_STATUS" = "BLOCKED" ]; then
+              echo "⏳ Waiting for checks to pass..."
+            elif [ "$PR_STATUS" = "DIRTY" ] || [ "$PR_STATUS" = "UNKNOWN" ]; then
+              echo "⚠️  PR has conflicts or unknown status. Manual intervention may be required."
+              exit 1
+            fi
+
+            sleep $INTERVAL
+            ELAPSED=$((ELAPSED + INTERVAL))
+          done
+
+          echo "❌ Timeout waiting for checks to pass"
+          exit 1
+
+      - name: Force merge if requested
+        if: steps.create-pr.outputs.pr_created == 'true' && github.event.inputs.skipChecks == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ steps.create-pr.outputs.pr_number }}
+
+          echo "⚠️  Force merging PR #$PR_NUMBER (skipping checks)"
+
+          # Force merge the PR
+          gh pr merge $PR_NUMBER \
+            --merge \
+            --delete-branch=false \
+            --admin
+
+          echo "✅ PR #$PR_NUMBER has been merged"
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ "${{ steps.create-pr.outputs.pr_created }}" = "true" ]; then
+            echo "## 📦 Production Update Summary" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- **PR Number**: #${{ steps.create-pr.outputs.pr_number }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **PR URL**: ${{ steps.create-pr.outputs.pr_url }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Skip Checks**: ${{ github.event.inputs.skipChecks }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The \`next\` branch has been promoted to \`main\` for production deployment." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Next steps:" >> $GITHUB_STEP_SUMMARY
+            echo "1. The publish-packages workflow will automatically run" >> $GITHUB_STEP_SUMMARY
+            echo "2. Packages will be published with the \`latest\` tag" >> $GITHUB_STEP_SUMMARY
+            echo "3. The \`next\` branch will be rebased onto \`main\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ℹ️ No Updates Required" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The \`next\` branch has no new commits to merge into \`main\`." >> $GITHUB_STEP_SUMMARY
+          fi
