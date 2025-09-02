@@ -298,7 +298,11 @@ jobs:
       - name: Push version commits and tags
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
         run: |
-          git push origin ${{ github.ref_name }} --follow-tags
+          # Push the commits first
+          git push origin ${{ github.ref_name }}
+
+          # Push all tags (both from manual creation and nx release)
+          git push origin --tags
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
