@@ -75,7 +75,7 @@ async function validateToken(token: string): Promise<boolean> {
   try {
     // Try to access package info using the token
     const result = execSync(
-      `npm view @uniswap/spec-workflow-mcp --@uniswap:registry=https://npm.pkg.github.com --//npm.pkg.github.com/:_authToken=${token} --json`,
+      `npm view @uniswap/ai-toolkit-nx-claude --@uniswap:registry=https://npm.pkg.github.com --//npm.pkg.github.com/:_authToken=${token} --json`,
       {
         encoding: 'utf-8',
         stdio: 'pipe',

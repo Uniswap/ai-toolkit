@@ -41,11 +41,11 @@ export async function installMcpServer(options: MCPInstallOptions): Promise<{
   // Build the Claude MCP add command
   // The server name should come from the addon ID or a specific field
   const serverName = addon.mcp?.serverName || addon.id;
-  let command = `claude mcp add ${serverName} --scope user`;
+  let command = `claude mcp add ${serverName} --scope user --`;
 
   // Add the MCP server command and args
   if (addon.mcp?.command) {
-    command += ` -- ${addon.mcp.command}`;
+    command += ` ${addon.mcp.command}`;
 
     // Add universal args based on command type
     if (addon.mcp.command === 'npx') {
@@ -54,7 +54,7 @@ export async function installMcpServer(options: MCPInstallOptions): Promise<{
 
     // Add registry for private packages
     if (addon.registry) {
-      command += ` --registry=${addon.registry}`;
+      command += ` ${addon.registry}`;
     }
 
     // Add package name and version
