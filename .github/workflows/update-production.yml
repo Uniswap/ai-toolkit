@@ -1,5 +1,15 @@
 name: Update Production
 
+# IMPORTANT: This workflow requires a Personal Access Token (PAT) with workflow permissions
+# to be stored as WORKFLOW_PAT secret. This is necessary because GitHub Actions triggered
+# by the default GITHUB_TOKEN cannot trigger other workflows (like publish-packages.yml).
+# Without a PAT, the merge to main won't trigger the publish workflow.
+#
+# To create a PAT:
+# 1. Go to GitHub Settings > Developer settings > Personal access tokens
+# 2. Create a token with 'repo' and 'workflow' scopes
+# 3. Add it as a repository secret named WORKFLOW_PAT
+
 on:
   workflow_dispatch:
     inputs:
@@ -27,7 +37,8 @@ jobs:
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Use PAT if available to allow triggering downstream workflows, fallback to GITHUB_TOKEN
+          token: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Install GitHub CLI
         run: |
@@ -44,7 +55,7 @@ jobs:
       - name: Create temporary branch and PR
         id: create-pr
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
         run: |
           # Fetch latest branches
           git fetch origin
@@ -149,7 +160,7 @@ jobs:
       - name: Enable auto-merge
         if: steps.create-pr.outputs.pr_created == 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
         run: |
           PR_NUMBER=${{ steps.create-pr.outputs.pr_number }}
 
@@ -211,7 +222,7 @@ jobs:
       - name: Wait for checks (optional)
         if: steps.create-pr.outputs.pr_created == 'true' && github.event.inputs.skipChecks == 'false'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
         run: |
           PR_NUMBER=${{ steps.create-pr.outputs.pr_number }}
 
@@ -248,7 +259,7 @@ jobs:
       - name: Force merge if requested
         if: steps.create-pr.outputs.pr_created == 'true' && github.event.inputs.skipChecks == 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
         run: |
           PR_NUMBER=${{ steps.create-pr.outputs.pr_number }}
           TEMP_BRANCH="${{ steps.create-pr.outputs.temp_branch }}"
@@ -266,7 +277,7 @@ jobs:
       - name: Cleanup temporary branch on failure
         if: failure() && steps.create-pr.outputs.temp_branch != ''
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
         run: |
           TEMP_BRANCH="${{ steps.create-pr.outputs.temp_branch }}"
           PR_NUMBER="${{ steps.create-pr.outputs.pr_number }}"
