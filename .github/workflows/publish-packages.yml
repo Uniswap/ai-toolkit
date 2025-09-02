@@ -130,15 +130,64 @@ jobs:
             
             if [[ "$NEEDS_BUMP" == "true" ]]; then
               echo "Bumping stable versions to new prerelease versions"
-              # First, let Nx determine the version bump based on conventional commits
-              # This will bump from 0.1.2 -> 0.1.3 (or 0.2.0, or 1.0.0 depending on commits)
-              # Use --git-commit=false and --git-tag=false to avoid committing yet
-              bunx nx release version --git-commit=false --git-tag=false
               
-              # Then convert the new version to a prerelease
-              # This will convert 0.1.3 -> 0.1.3-next.0 (or 0.2.0 -> 0.2.0-next.0, etc.)
-              # This command will do the actual commit and tagging
-              bunx nx release version prerelease --preid=next
+              # Due to Nx limitations with prerelease versioning, we need to manually handle
+              # the case where package.json has stable versions but git tags have prereleases.
+              # We'll explicitly set each package to the next minor prerelease version.
+              
+              for PROJECT in $(echo "$RELEASE_PROJECTS" | node -p "JSON.parse(fs.readFileSync(0)).join(' ')"); do
+                # Find the package.json for this project
+                PACKAGE_PATH=""
+                if [[ -f "packages/${PROJECT#@*/}/package.json" ]]; then
+                  PACKAGE_PATH="packages/${PROJECT#@*/}/package.json"
+                elif [[ -f "${PROJECT}/package.json" ]]; then
+                  PACKAGE_PATH="${PROJECT}/package.json"
+                else
+                  PACKAGE_PATH=$(find . -name "package.json" -path "*/packages/*" | xargs grep -l "\"name\": \"$PROJECT\"" | head -1)
+                fi
+                
+                if [[ -n "$PACKAGE_PATH" ]]; then
+                  PACKAGE_VERSION=$(node -p "require('./$PACKAGE_PATH').version" 2>/dev/null || echo "")
+                  
+                  # If it's a stable version, explicitly set the next minor prerelease
+                  if [[ "$PACKAGE_VERSION" != *"-"* && -n "$PACKAGE_VERSION" ]]; then
+                    # Parse version and bump minor for next branch development
+                    IFS='.' read -r MAJOR MINOR PATCH <<< "$PACKAGE_VERSION"
+                    NEW_MINOR=$((MINOR + 1))
+                    NEW_VERSION="${MAJOR}.${NEW_MINOR}.0-next.0"
+                    
+                    echo "Setting $PROJECT from $PACKAGE_VERSION to $NEW_VERSION"
+                    
+                    # Use nx release version with explicit version
+                    bunx nx release version "$NEW_VERSION" --projects="$PROJECT" --git-commit=false --git-tag=false
+                  fi
+                fi
+              done
+              
+              # After setting all versions, commit and tag
+              git add .
+              git commit -m "chore(release): bump stable versions to next prerelease [skip ci]"
+              
+              # Create tags for each package
+              for PROJECT in $(echo "$RELEASE_PROJECTS" | node -p "JSON.parse(fs.readFileSync(0)).join(' ')"); do
+                PACKAGE_PATH=""
+                if [[ -f "packages/${PROJECT#@*/}/package.json" ]]; then
+                  PACKAGE_PATH="packages/${PROJECT#@*/}/package.json"
+                elif [[ -f "${PROJECT}/package.json" ]]; then
+                  PACKAGE_PATH="${PROJECT}/package.json"
+                else
+                  PACKAGE_PATH=$(find . -name "package.json" -path "*/packages/*" | xargs grep -l "\"name\": \"$PROJECT\"" | head -1)
+                fi
+                
+                if [[ -n "$PACKAGE_PATH" ]]; then
+                  VERSION=$(node -p "require('./$PACKAGE_PATH').version" 2>/dev/null || echo "")
+                  if [[ -n "$VERSION" ]]; then
+                    TAG="${PROJECT}@${VERSION}"
+                    git tag "$TAG"
+                    echo "Tagged: $TAG"
+                  fi
+                fi
+              done
             else
               echo "Using standard prerelease versioning for next branch"
               bunx nx release version prerelease --preid=next
