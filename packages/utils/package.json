@@ -1,6 +1,6 @@
 {
   "name": "@ai-toolkit/utils",
-  "version": "0.1.2-next.10",
+  "version": "0.1.2-next.11",
   "private": true,
   "type": "module",
   "main": "./dist/src/index.js",
