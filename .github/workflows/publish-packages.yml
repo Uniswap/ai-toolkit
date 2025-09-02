@@ -200,9 +200,13 @@ jobs:
                 # Update bun lockfile
                 bun install
 
-                # Commit and tag
+                # Commit and tag (only if there are changes)
                 git add .
-                git commit -m "chore(release): bump stable versions to next prerelease [skip ci]"
+                if git diff --staged --quiet; then
+                  echo "No changes to commit after version bump"
+                else
+                  git commit -m "chore(release): bump stable versions to next prerelease [skip ci]"
+                fi
 
                 # Create tags for each package
                 while IFS=: read -r PROJECT VERSION; do
@@ -298,11 +302,22 @@ jobs:
       - name: Push version commits and tags
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
         run: |
-          # Push the commits first
-          git push origin ${{ github.ref_name }}
+          # Check if there are commits to push
+          if git diff origin/${{ github.ref_name }}..HEAD --quiet 2>/dev/null; then
+            echo "No new commits to push"
+          else
+            echo "Pushing commits to origin/${{ github.ref_name }}"
+            git push origin ${{ github.ref_name }}
+          fi
 
-          # Push all tags (both from manual creation and nx release)
-          git push origin --tags
+          # Check if there are tags to push
+          UNPUSHED_TAGS=$(git push --tags --dry-run 2>&1 | grep -c "new tag" || true)
+          if [[ "$UNPUSHED_TAGS" -gt 0 ]]; then
+            echo "Pushing $UNPUSHED_TAGS new tags to origin"
+            git push origin --tags
+          else
+            echo "No new tags to push"
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
