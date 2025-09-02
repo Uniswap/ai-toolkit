@@ -3,14 +3,14 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "install-all": "nx generate @ai-toolkit/ai-toolkit-nx-claude:init && nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks",
+    "install-all": "nx generate @uniswap/ai-toolkit-nx-claude:init && nx generate @uniswap/ai-toolkit-nx-claude:hooks",
     "build": "nx run-many --target=build --all",
     "lint": "nx run-many --target=lint --all",
     "format": "nx format:write",
     "format:check": "nx format:check",
     "prepare": "lefthook install",
     "lefthook": "lefthook run pre-commit",
-    "claude:init": "nx generate @ai-toolkit/ai-toolkit-nx-claude:init"
+    "claude:init": "nx generate @uniswap/ai-toolkit-nx-claude:init"
   },
   "private": true,
   "dependencies": {
@@ -33,7 +33,7 @@
     "@typescript-eslint/eslint-plugin": "^8.39.1",
     "@typescript-eslint/parser": "^8.39.1",
     "enquirer": "^2.4.1",
-    "esbuild": "^0.21.5",
+    "esbuild": "^0.25.9",
     "eslint": "^9.33.0",
     "jsonc-eslint-parser": "^2.1.0",
     "lefthook": "^1.12.3",

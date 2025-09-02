@@ -254,7 +254,7 @@ To extend the generator:
 Use verbose mode to debug issues:
 
 ```bash
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks --verbose
+bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks --verbose
 ```
 
 This preserves the cloned repository and shows detailed output.
@@ -294,7 +294,7 @@ bunx nx build nx-claude
 bunx nx test nx-claude
 
 # Test locally
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks --dry-run
+bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks --dry-run
 ```
 
 ## Future Enhancements

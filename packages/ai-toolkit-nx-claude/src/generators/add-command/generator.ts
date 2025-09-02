@@ -141,7 +141,7 @@ This package contains command configurations specific to ${targetPackage}.
 Install this package to access ${targetPackage}-specific commands in Claude Code:
 
 \`\`\`bash
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init
+bunx nx generate @uniswap/ai-toolkit-nx-claude:init
 \`\`\`
 
 Then select the commands from this package during the installation process.
@@ -157,7 +157,7 @@ Then select the commands from this package during the installation process.
 To add new commands to this package:
 
 \`\`\`bash
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:add-command
+bunx nx generate @uniswap/ai-toolkit-nx-claude:add-command
 \`\`\`
 
 After adding or modifying commands, regenerate the index:
