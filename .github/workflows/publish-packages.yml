@@ -75,7 +75,7 @@ jobs:
             bunx nx release version prerelease --preid=next --dry-run
           else
             echo "Using standard versioning for main branch"
-            bunx nx release version --dry-run
+            bunx nx release version --specifier=patch --dry-run
           fi
           npx nx release publish --dry-run --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://npm.pkg.github.com
         env:
@@ -92,7 +92,7 @@ jobs:
             bunx nx release version prerelease --preid=next
           else
             echo "Using standard versioning for main branch"
-            bunx nx release version
+            bunx nx release version --specifier=patch
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
