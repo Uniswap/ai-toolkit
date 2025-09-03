@@ -113,11 +113,6 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:init --no-interactive --installat
 bunx nx generate @uniswap/ai-toolkit-nx-claude:init --no-interactive --installation-type=local --confirm-local-path=true --commands=review-pr,gen-tests,plan-feature --agents=test-writer,doc-writer,planner
 ```
 
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init --no-interactive --installation-type=local --confirm-local-path=true --commands=review-pr,gen-tests,plan --agents=test-writer,doc-writer,planner
-=======
-
-bunx nx generate @uniswap/ai-toolkit-nx-claude:init --no-interactive --installation-type=local --confirm-local-path=true --commands=review-pr,gen-tests,plan-feature --agents=test-writer,doc-writer,planner
-
 ### Dry Run to Preview
 
 ```bash
