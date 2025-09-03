@@ -81,9 +81,8 @@
     "projectsRelationship": "independent",
     "releaseTagPattern": "{projectName}@{version}",
     "version": {
-      "currentVersionResolver": "git-tag",
+      "currentVersionResolver": "disk",
       "fallbackCurrentVersionResolver": "disk",
-      "updateDependents": "auto",
       "git": {
         "commit": true,
         "tag": true
