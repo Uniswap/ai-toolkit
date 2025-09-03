@@ -117,19 +117,70 @@ Once installed, you'll have access to powerful Claude Code agents and commands t
 
 ## Contributing
 
-Regardless of your level of familiarity with Nx, we welcome contributions! It's highly recommended to install and use the Nx Console extension for your IDE (VSCode, Cursor, or IntelliJ) to enhance your experience. By doing this, it will also automatically install the mcp server, which will be picked up by your IDE.
+We welcome contributions from all developers! This project uses a **trunk-based development workflow** with automated publishing. Please read our [Contributing Guide](./docs/readmes/CONTRIBUTING.md) for detailed information about:
 
-If you use a cli tool like Claude Code, you'll need to manually install the mcp server by running:
+- **Branch strategy** (`main` for stable, `next` for active development
+- **Development workflow** and best practices
+- **Code quality standards** and testing requirements
+- **Automated publishing** to GitHub Packages
 
-```sh
-claude mcp add nx-mcp npx nx-mcp@latest --scope user
+### Quick Start for Contributors
+
+1. **Setup your environment**:
+
+   ```bash
+   git clone https://github.com/Uniswap/ai-toolkit
+   cd ai-toolkit
+   bun install  # Sets up everything including git hooks
+   ```
+
+2. **Install recommended tools**:
+
+   - **Nx Console** for your IDE (VSCode, Cursor, or IntelliJ)
+   - **MCP server** for AI assistance:
+
+     ```bash
+     claude mcp add nx-mcp npx nx-mcp@latest --scope user
+     ```
+
+3. **Create your feature**:
+
+   ```bash
+   git checkout next
+   git checkout -b feature/your-feature
+   # Make changes, then create PR to 'next' branch
+   ```
+
+For complete contribution guidelines, see [CONTRIBUTING.md](./docs/readmes/CONTRIBUTING.md).
+
+## Development Workflow
+
+This repository follows a structured development and release workflow:
+
+### Branches
+
+- **`main`**: Stable, production-ready code (publishes with `@latest` tag)
+- **`next`**: Feature integration and testing (publishes with `@next` tag)
+- **`feature/*`**: Individual feature branches (not published)
+
+### Package Versions
+
+Our packages are available in two release channels:
+
+```bash
+# Install stable version (from main branch)
+npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest
+
+# Install prerelease version (from next branch)
+npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@next
 ```
 
-Once the MCP is installed, chat with your favorite AI tool to understand how to use it effectively to accomplish what you want to do!
+### Automated Features
 
-Common tasks (such as adding an agent or command) will likely have a corresponding Nx generator that you can run to scaffold out the necessary files and configurations.
-
-These will also usually have accompanying docs, and will hve a cli-based interface to guide you through the options.
+- **Automated Publishing**: Packages are automatically published when changes merge to `main` or `next`
+- **Version Management**: Conventional commits automatically determine version bumps
+- **Branch Synchronization**: `next` is automatically rebased onto `main` after stable releases
+- **Code Quality**: Pre-commit hooks ensure consistent formatting and linting
 
 ````sh
 
@@ -212,20 +263,42 @@ npx nx g ci-workflow
 
 ### Automated Package Publishing
 
-The repository includes an automated publishing workflow (`.github/workflows/publish-packages.yml`) that:
+The repository uses sophisticated CI/CD automation for package publishing:
 
-- **Triggers on push to main**: Automatically publishes affected packages when changes are merged
-- **Uses Nx Release**: Leverages Nx's built-in release capabilities with conventional commits
-- **Independent versioning**: Each package can be versioned and released independently
-- **GitHub Packages**: Publishes to GitHub Packages with organization-restricted access
-- **Dry-run support**: Can be manually triggered with dry-run option for testing
+#### Publishing Pipeline
 
-To publish packages:
+Our automated workflow (`.github/workflows/publish-packages.yml`) handles:
 
-1. Merge changes to main with conventional commit messages (feat:, fix:, etc.)
-2. The workflow automatically detects affected packages
-3. Versions are bumped based on commit types
-4. Packages are published to GitHub Packages
+- **Dual-branch publishing**:
+  - `main` → stable releases (`@latest` tag)
+  - `next` → prerelease versions (`@next` tag)
+- **Intelligent versioning**: Conventional commits drive automatic version bumps
+- **Independent packages**: Each package versions independently based on changes
+- **GitHub Packages registry**: Organization-scoped publishing with access control
+
+#### How It Works
+
+1. **Feature Development** (on `next` branch):
+
+   ```bash
+   git commit -m "feat: amazing new feature"
+   git push origin next
+   # Automatically publishes as 1.0.0-next.0
+   ```
+
+2. **Stable Release** (merged to `main`):
+
+   ```bash
+   # After testing on next, merge to main
+   # Automatically publishes as 1.0.0
+   ```
+
+3. **Branch Synchronization**:
+   - After `main` publishes, `next` automatically rebases
+   - Keeps development branch current with stable changes
+   - Conflicts create GitHub issues for manual resolution
+
+For technical details, see [DEVELOPMENT.md](./docs/readmes/DEVELOPMENT.md).
 
 ### Install Nx Console
 
