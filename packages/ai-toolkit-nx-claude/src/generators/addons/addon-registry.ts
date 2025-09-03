@@ -67,7 +67,7 @@ const ADDON_REGISTRY: AddonMetadata[] = [
       'MCP server for spec-driven development workflow with dashboard support',
     type: 'mcp-server',
     packageName: '@uniswap/spec-workflow-mcp',
-    registry: 'https://npm.pkg.github.com',
+    registry: '--@uniswap:registry=https://npm.pkg.github.com',
     requiresAuth: true,
     mcp: {
       serverName: 'spec-workflow',
@@ -83,7 +83,7 @@ const ADDON_REGISTRY: AddonMetadata[] = [
       requiresAuth: false,
     },
     requirements: {
-      node: '>=18.0.0',
+      node: '>=22.0.0',
       commands: ['git', 'npm'],
     },
   },

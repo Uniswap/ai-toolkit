@@ -82,6 +82,7 @@
     "releaseTagPattern": "{projectName}@{version}",
     "version": {
       "conventionalCommits": true,
+      "preVersionCommand": "bunx nx run-many -t build",
       "fallbackCurrentVersionResolver": "disk",
       "git": {
         "commit": true,
