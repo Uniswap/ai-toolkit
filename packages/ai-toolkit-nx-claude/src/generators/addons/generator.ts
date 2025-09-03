@@ -1,9 +1,11 @@
 import { Tree, formatFiles } from '@nx/devkit';
 import { AddonsGeneratorSchema } from './schema';
 import { promptForMissingOptions } from '../../utils/prompt-utils';
-import { isNxDryRunProvided } from '../../utils/cli-parser';
 import {
-  getAvailableAddons,
+  isNxDryRunProvided,
+  isNxNoInteractiveProvided,
+} from '../../utils/cli-parser';
+import {
   getAddonById,
   isAddonInstalled,
   validateAddonRequirements,
@@ -36,37 +38,39 @@ export default async function generator(
   let projectSetupCompleted = false;
 
   // Check if Nx dry-run flag was provided
-  const isDryRun = isNxDryRunProvided();
+  const dryRunFlagProvided = isNxDryRunProvided();
+  const noInteractive = isNxNoInteractiveProvided();
 
-  // Parse CLI args and prompt for missing options (skip in dry-run)
+  // Determine if we're in dry-run mode
+  let isDryRun = dryRunFlagProvided;
+
+  // If dry-run flag wasn't provided and not in no-interactive mode, prompt for it
+  if (!dryRunFlagProvided && !noInteractive) {
+    const { runDryRun } = await require('enquirer').prompt({
+      type: 'confirm',
+      name: 'runDryRun',
+      message:
+        '🔍 Would you like to run in dry-run mode (preview changes without making them)?',
+      initial: false,
+    });
+    isDryRun = runDryRun;
+  }
+
+  // Parse CLI args and prompt for missing options
   let options: AddonsGeneratorSchema & { dryRun?: boolean };
 
   if (isDryRun) {
-    console.log('🔍 Dry-run mode detected\n');
-    // Use schema defaults in dry-run mode, no prompting
-    options = {
-      addon: schema.addon || 'spec-workflow-mcp',
-      dashboardMode: schema.dashboardMode || 'always',
-      port: schema.port || 0,
-      githubToken: schema.githubToken,
-      force: schema.force || false,
-      skipVerification: schema.skipVerification || false,
-      dryRun: true,
-    };
-  } else {
-    options = (await promptForMissingOptions(
-      schema,
-      require('./schema.json')
-    )) as AddonsGeneratorSchema & { dryRun?: boolean };
-    options.dryRun = false;
+    console.log('🔍 Dry-run mode activated\n');
   }
 
-  // Show available addons
-  const addons = getAvailableAddons();
-  console.log('\n📦 Available Addons:');
-  addons.forEach((addon) => {
-    console.log(`  • ${addon.name}: ${addon.description}`);
-  });
+  // Always prompt for options (even in dry-run mode) to customize the output
+  options = (await promptForMissingOptions(
+    schema,
+    require('./schema.json')
+  )) as AddonsGeneratorSchema & { dryRun?: boolean };
+
+  // Set the dryRun flag based on our earlier determination
+  options.dryRun = isDryRun;
 
   // Get the selected addon
   const addon = getAddonById(options.addon || 'spec-workflow-mcp');
@@ -78,7 +82,7 @@ export default async function generator(
   console.log(`   ${addon.description}\n`);
 
   // Check if already installed
-  if (!options.force) {
+  if (!options.force && !options.dryRun) {
     const installed = await isAddonInstalled(addon.id);
     if (installed) {
       console.log('✅ Addon is already installed');
@@ -95,6 +99,14 @@ export default async function generator(
         await updateConfiguration(addon.id, options);
       }
       return;
+    }
+  } else if (options.dryRun) {
+    // In dry-run mode, just note if it would check for existing installation
+    const installed = await isAddonInstalled(addon.id);
+    if (installed && !options.force) {
+      console.log(
+        'ℹ️  [DRY-RUN] Addon is already installed, would prompt for update'
+      );
     }
   }
 
@@ -172,8 +184,8 @@ export default async function generator(
   if (addon.type === 'mcp-server') {
     await installMcpAddon(addon, options);
 
-    // If the addon has project setup configuration, set up the project as well
-    if (addon.projectSetup && !options.dryRun) {
+    // If the addon has project setup configuration, prompt for setup
+    if (addon.projectSetup) {
       // Ask user if they want to set up project configuration
       const { setupProject } = await require('enquirer').prompt({
         type: 'confirm',
@@ -184,15 +196,31 @@ export default async function generator(
       });
 
       if (setupProject) {
+        // Prompt for project path
+        const { projectPath } = await require('enquirer').prompt({
+          type: 'input',
+          name: 'projectPath',
+          message:
+            '📁 Enter the project path where spec-workflow config should be added:',
+          initial: process.cwd(),
+          result: (value: string) => value || process.cwd(),
+        });
+
+        options.projectPath = projectPath;
+
+        if (options.dryRun) {
+          console.log(
+            `\n📁 [DRY-RUN] Would set up project configuration at: ${projectPath}`
+          );
+        }
+
         await installProjectSetup(addon, options);
         projectSetupCompleted = true;
+      } else if (options.dryRun) {
+        console.log(
+          '\n📁 [DRY-RUN] Skipping project configuration (user chose not to set up)'
+        );
       }
-    } else if (addon.projectSetup && options.dryRun) {
-      console.log(
-        '\n📁 [DRY-RUN] Would prompt to set up project configuration'
-      );
-      await installProjectSetup(addon, options);
-      projectSetupCompleted = true; // In dry-run, we simulate completion
     }
   } else {
     throw new Error(`Addon type '${addon.type}' is not yet supported`);
@@ -288,25 +316,9 @@ async function installProjectSetup(
 ): Promise<void> {
   console.log('\n🔧 Setting up project configuration...');
 
-  // Prompt for project path if not provided
-  let projectPath = options.projectPath;
-
-  if (!projectPath && !options.dryRun) {
-    const { path } = await require('enquirer').prompt({
-      type: 'input',
-      name: 'path',
-      message:
-        '📁 Project path where spec-workflow config should be added (leave empty for current directory):',
-      initial: '',
-    });
-    projectPath = path;
-  }
-
-  // Use current directory if no path provided
-  if (!projectPath) {
-    projectPath = process.cwd();
-    console.log(`📍 Using current directory: ${projectPath}`);
-  }
+  // Use the project path from options or current directory
+  const projectPath = options.projectPath || process.cwd();
+  console.log(`📍 Using project directory: ${projectPath}`);
 
   const result = await setupSpecWorkflow(projectPath, options);
 

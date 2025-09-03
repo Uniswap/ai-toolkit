@@ -25,12 +25,19 @@ pre-commit:
       fail_text: 'Formatting failed. Please review the changes.'
 
     lint:
-      run: bunx nx affected --target=lint --base=HEAD~1
+      run: bunx nx affected --target=lint --base=HEAD~1 --fix
       tags: lint
       skip:
         - merge
         - rebase
       fail_text: 'Linting failed. Please fix the issues before committing.'
+    typecheck:
+      run: bunx nx affected --target=typecheck --base=HEAD~1
+      tags: typecheck
+      skip:
+        - merge
+        - rebase
+      fail_text: 'Typechecking failed. Please fix the issues before committing.'
 
 # Skip hooks if in CI or if LEFTHOOK=0 is set
 skip_output:

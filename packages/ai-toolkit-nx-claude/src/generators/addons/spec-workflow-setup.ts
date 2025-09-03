@@ -1,5 +1,5 @@
 import { execSync } from 'child_process';
-import { existsSync, mkdirSync, rmSync } from 'fs';
+import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { cpSync } from 'fs';
@@ -54,6 +54,7 @@ export async function setupSpecWorkflow(
     console.log('[DRY-RUN] Would create/update directory: ' + targetDir);
     console.log('[DRY-RUN] Would clone repository: @uniswap/spec-workflow-mcp');
     console.log('[DRY-RUN] Would copy/update configuration files');
+    console.log('[DRY-RUN] Would add .spec-workflow/ to .gitignore');
     return {
       success: true,
       message: '[DRY-RUN] Spec-workflow setup simulated successfully',
@@ -126,6 +127,17 @@ export async function setupSpecWorkflow(
     };
   }
 
+  // Update .gitignore to include .spec-workflow/
+  console.log('📝 Updating .gitignore...');
+  const gitignoreResult = await updateGitignore(targetPath, '.spec-workflow/');
+
+  if (!gitignoreResult.success) {
+    console.warn('⚠️  Warning:', gitignoreResult.message);
+    // Don't fail the entire setup if .gitignore update fails
+  } else {
+    console.log('✅', gitignoreResult.message);
+  }
+
   return {
     success: true,
     message: isUpdate
@@ -188,6 +200,60 @@ export async function cloneRepository(
       success: false,
       message: 'Git clone failed',
       error: error.message,
+    };
+  }
+}
+
+/**
+ * Update .gitignore file to include a pattern if not already present
+ */
+export async function updateGitignore(
+  projectPath: string,
+  pattern: string
+): Promise<{ success: boolean; message: string }> {
+  const gitignorePath = join(projectPath, '.gitignore');
+
+  try {
+    let gitignoreContent = '';
+
+    // Read existing .gitignore if it exists
+    if (existsSync(gitignorePath)) {
+      gitignoreContent = readFileSync(gitignorePath, 'utf8');
+    }
+
+    // Check if pattern already exists
+    const lines = gitignoreContent.split('\n');
+    const patternExists = lines.some((line) => {
+      const trimmedLine = line.trim();
+      return (
+        trimmedLine === pattern || trimmedLine === pattern.replace(/\/$/, '')
+      );
+    });
+
+    if (patternExists) {
+      return {
+        success: true,
+        message: `.gitignore already contains ${pattern}`,
+      };
+    }
+
+    // Add pattern to .gitignore
+    const updatedContent =
+      gitignoreContent.trim() === ''
+        ? pattern
+        : `${gitignoreContent.trim()}\n\n# Spec workflow configuration\n${pattern}`;
+
+    writeFileSync(gitignorePath, updatedContent + '\n', 'utf8');
+
+    return {
+      success: true,
+      message: `Added ${pattern} to .gitignore`,
+    };
+  } catch (error: any) {
+    console.error('❌ Failed to update .gitignore:', error.message);
+    return {
+      success: false,
+      message: `Failed to update .gitignore: ${error.message}`,
     };
   }
 }
