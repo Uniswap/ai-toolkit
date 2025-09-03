@@ -35,12 +35,12 @@ This command accomplishes the following:
 
 2. **Parse Input**: Extracts any scope or focus area from the user's natural language input
 
-3. **Delegate to Agent**: Invokes the **generate-commit-message** agent with structured git data
+3. **Delegate to Agent**: Invokes the **commit-message-generator** agent with structured git data
 
 The command generates a commit message that follows conventional format:
 
 - Concise summary line (≤100 characters)
-- Detailed explanation of WHAT and WHY (1-3 paragraphs)
+- Detailed explanation of WHAT and WHY (1-3 paragraphs, preferably 1 paragraph)
 - Claude Code signature
 
 **Expected Inputs**: Natural language scope or focus area (optional)
@@ -76,7 +76,7 @@ The command generates a commit message that follows conventional format:
 
 ## Implementation Notes
 
-The command delegates to the **generate-commit-message** agent with the following structured data:
+The command delegates to the **commit-message-generator** agent with the following structured data:
 
 ```json
 {

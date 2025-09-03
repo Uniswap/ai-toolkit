@@ -43,7 +43,7 @@ Generate a commit message with this exact structure:
 ```
 <concise summary line ≤100 characters>
 
-<1-3 paragraphs explaining WHAT and WHY>
+<1-3 paragraphs (preferably 1 paragraph) explaining WHAT and WHY>
 
 🤖 Generated with [Claude Code](https://claude.ai/code)
 ```
@@ -98,12 +98,6 @@ feat: add user authentication middleware for API endpoints
 This commit introduces JWT-based authentication middleware to secure API routes. The middleware validates tokens, extracts user information, and handles authentication errors gracefully. This addresses the security requirement to protect user data and ensure only authorized access to sensitive endpoints.
 
 🤖 Generated with [Claude Code](https://claude.ai/code)
-```
-
-## Example Usage
-
-```
-/agent commit-message-generator
 ```
 
 ## Implementation Notes
