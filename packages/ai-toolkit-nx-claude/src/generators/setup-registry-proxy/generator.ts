@@ -97,12 +97,28 @@ export async function setupRegistryProxyGenerator(
   }
 
   // Read and process the template file directly
-  const templatePath = path.join(
-    __dirname,
-    'files',
-    `uniswap-ai-toolkit.__shell__rc.template`
-  );
-  let templateContent = fs.readFileSync(templatePath, 'utf-8');
+  // Try multiple paths to handle both direct execution and npx execution
+  const possiblePaths = [
+    // Direct execution from built package
+    path.join(__dirname, 'files', `uniswap-ai-toolkit.__shell__rc.template`),
+    // Fallback: read from source if we're in development
+    path.join(
+      __dirname,
+      '..',
+      'setup-registry-proxy',
+      'files',
+      `uniswap-ai-toolkit.__shell__rc.template`
+    ),
+  ];
+
+  let templateContent = '';
+
+  for (const templatePath of possiblePaths) {
+    if (fs.existsSync(templatePath)) {
+      templateContent = fs.readFileSync(templatePath, 'utf-8');
+      break;
+    }
+  }
 
   // Replace template variables
   const substitutions = {
