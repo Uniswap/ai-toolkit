@@ -81,7 +81,7 @@
     "projectsRelationship": "independent",
     "releaseTagPattern": "{projectName}@{version}",
     "version": {
-      "currentVersionResolver": "disk",
+      "conventionalCommits": true,
       "fallbackCurrentVersionResolver": "disk",
       "git": {
         "commit": true,
