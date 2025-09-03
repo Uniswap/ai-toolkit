@@ -52,13 +52,6 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
 
-      - name: Configure npm for GitHub Packages
-        run: |
-          # Set up .npmrc with GitHub token for authentication
-          echo "@uniswap:registry=https://npm.pkg.github.com" >> .npmrc
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-
       - name: Determine npm tag
         id: npm-tag
         run: |
@@ -98,61 +91,8 @@ jobs:
             echo "Using prerelease versioning for next branch"
             bunx nx release version prerelease --preid=next
           else
-            echo "Checking for version graduation on main branch"
-
-            # Get list of publishable packages from nx.json release projects
-            RELEASE_PROJECTS=$(node -p "JSON.stringify(require('./nx.json').release.projects || [])" 2>/dev/null || echo "[]")
-            echo "Release projects: $RELEASE_PROJECTS"
-
-            # Check if any publishable package has a prerelease version
-            HAS_PRERELEASE=false
-            GRADUATE_COMMANDS=""
-
-            # Parse the JSON array and check each project
-            for PROJECT in $(echo "$RELEASE_PROJECTS" | node -p "JSON.parse(fs.readFileSync(0)).join(' ')"); do
-              # Skip non-package projects (like 'utils' which might not have a package.json)
-              if [[ ! -f "packages/${PROJECT#@*/}/package.json" ]] && [[ ! -f "${PROJECT}/package.json" ]]; then
-                echo "Skipping $PROJECT (no package.json found)"
-                continue
-              fi
-
-              # Try to find the package.json (handle both scoped and unscoped names)
-              PACKAGE_PATH=""
-              if [[ -f "packages/${PROJECT#@*/}/package.json" ]]; then
-                PACKAGE_PATH="packages/${PROJECT#@*/}/package.json"
-              elif [[ -f "${PROJECT}/package.json" ]]; then
-                PACKAGE_PATH="${PROJECT}/package.json"
-              else
-                # Try to find it using the project name directly
-                PACKAGE_PATH=$(find . -name "package.json" -path "*/packages/*" | xargs grep -l "\"name\": \"$PROJECT\"" | head -1)
-              fi
-
-              if [[ -n "$PACKAGE_PATH" ]]; then
-                PACKAGE_VERSION=$(node -p "require('./$PACKAGE_PATH').version" 2>/dev/null || echo "")
-                echo "Checking $PROJECT: version $PACKAGE_VERSION"
-
-                if [[ "$PACKAGE_VERSION" == *"-next."* ]]; then
-                  # Extract base version without prerelease suffix
-                  BASE_VERSION=${PACKAGE_VERSION%-next.*}
-                  echo "  → Will graduate from $PACKAGE_VERSION to $BASE_VERSION"
-                  HAS_PRERELEASE=true
-
-                  # Build the graduation command for this package
-                  if [[ -n "$GRADUATE_COMMANDS" ]]; then
-                    GRADUATE_COMMANDS="$GRADUATE_COMMANDS && "
-                  fi
-                  GRADUATE_COMMANDS="${GRADUATE_COMMANDS}bunx nx release version $BASE_VERSION --projects=$PROJECT"
-                fi
-              fi
-            done
-
-            if [[ "$HAS_PRERELEASE" == "true" ]]; then
-              echo "Graduating prerelease versions to stable"
-              eval "$GRADUATE_COMMANDS"
-            else
-              echo "No prerelease versions found, using standard versioning for main branch"
-              bunx nx release version
-            fi
+            echo "Using standard versioning for main branch"
+            bunx nx release version
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -170,6 +110,7 @@ jobs:
       - name: Push version commits and tags
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
         run: |
+          # Push commits and tags created by Nx
           git push origin ${{ github.ref_name }} --follow-tags
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -222,24 +163,23 @@ jobs:
         run: |
           echo "Starting sync of next branch with main..."
 
-          # Fetch all branches
-          git fetch origin main:main
-          git fetch origin next:next
+          # Fetch all remote branches
+          git fetch origin
 
-          # Check if next branch exists
-          if ! git show-ref --verify --quiet refs/heads/next; then
-            echo "Next branch does not exist. Skipping sync."
+          # Check if next branch exists on remote
+          if ! git show-ref --verify --quiet refs/remotes/origin/next; then
+            echo "Next branch does not exist on remote. Skipping sync."
             exit 0
           fi
 
-          # Switch to next branch
-          git checkout next
+          # Switch to next branch (tracking origin/next)
+          git checkout -B next origin/next
 
           # Attempt to rebase next onto main
           echo "Rebasing next onto main..."
 
-          # Try to rebase
-          if git rebase main; then
+          # Try to rebase onto origin/main
+          if git rebase origin/main; then
             echo "✅ Rebase successful!"
 
             # Force push the rebased next branch
@@ -252,7 +192,7 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "The \`next\` branch has been successfully rebased onto \`main\`." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "- **Main branch**: $(git rev-parse --short main)" >> $GITHUB_STEP_SUMMARY
+            echo "- **Main branch**: $(git rev-parse --short origin/main)" >> $GITHUB_STEP_SUMMARY
             echo "- **Next branch**: $(git rev-parse --short next)" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ Rebase failed due to conflicts"
