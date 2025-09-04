@@ -1,0 +1,27 @@
+# Vercel ignore file
+# Only files in this directory are deployed
+
+# Ignore source files (we only need dist)
+src
+*.ts
+tsconfig.*
+
+# Ignore development files
+.env
+.env.local
+*.log
+.DS_Store
+
+# Ignore test files
+*.test.js
+*.spec.js
+__tests__
+tests
+
+# Ignore docs
+*.md
+!README.md
+
+# Keep dist and api directories
+!dist/**
+!api/**

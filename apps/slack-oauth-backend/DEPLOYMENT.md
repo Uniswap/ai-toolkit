@@ -19,13 +19,15 @@ This guide walks you through deploying the Slack OAuth Backend to Vercel.
 
 ### 2. Configure Build Settings
 
-When importing, Vercel will detect the configuration from `vercel.json`. Verify these settings:
+**Important**: Set the **Root Directory** to `apps/slack-oauth-backend` in Vercel
+
+When importing, configure these settings:
 
 - **Framework Preset**: Other
-- **Root Directory**: `.` (repository root)
-- **Build Command**: `bunx nx build slack-oauth-backend`
-- **Output Directory**: `dist/apps/slack-oauth-backend`
-- **Install Command**: `bun install`
+- **Root Directory**: `apps/slack-oauth-backend` ← **IMPORTANT**
+- **Build Command**: Automatically detected from vercel.json
+- **Output Directory**: Automatically detected from vercel.json
+- **Install Command**: Automatically detected from vercel.json
 
 ### 3. Set Environment Variables
 

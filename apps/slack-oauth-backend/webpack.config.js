@@ -4,7 +4,7 @@ const nodeExternals = require('webpack-node-externals');
 
 module.exports = {
   output: {
-    path: join(__dirname, '../../dist/apps/slack-oauth-backend'),
+    path: join(__dirname, 'dist'),
   },
   plugins: [
     new NxWebpackPlugin({

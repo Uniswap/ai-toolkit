@@ -12,7 +12,7 @@
       "options": {
         "target": "node",
         "compiler": "tsc",
-        "outputPath": "dist/apps/slack-oauth-backend",
+        "outputPath": "apps/slack-oauth-backend/dist",
         "main": "apps/slack-oauth-backend/src/main.ts",
         "tsConfig": "apps/slack-oauth-backend/tsconfig.app.json",
         "generatePackageJson": true,
@@ -182,7 +182,7 @@
       "executor": "nx:run-commands",
       "options": {
         "commands": [
-          "rm -rf dist/apps/slack-oauth-backend",
+          "rm -rf apps/slack-oauth-backend/dist",
           "rm -rf apps/slack-oauth-backend/test-output"
         ]
       }

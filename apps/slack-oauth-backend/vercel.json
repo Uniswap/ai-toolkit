@@ -1,0 +1,17 @@
+{
+  "buildCommand": "cd ../.. && bunx nx build slack-oauth-backend",
+  "outputDirectory": "dist",
+  "installCommand": "cd ../.. && bun install",
+  "framework": null,
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 10
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api"
+    }
+  ]
+}
