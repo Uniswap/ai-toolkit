@@ -261,7 +261,7 @@ router.get('/health', async (req: Request, res: Response) => {
     const authTest = await slackClient.testAuth();
 
     // Get cache statistics
-    const { getCacheStats } = await import('../slack/client');
+    const { getCacheStats } = await import('../slack/client.js');
     const cacheStats = getCacheStats();
 
     res.json({
@@ -320,7 +320,7 @@ router.get('/metrics', async (req: Request, res: Response) => {
   const memoryUsage = process.memoryUsage();
 
   // Get cache statistics
-  const { getCacheStats } = await import('../slack/client');
+  const { getCacheStats } = await import('../slack/client.js');
   const cacheStats = getCacheStats();
 
   // Format metrics in Prometheus text format

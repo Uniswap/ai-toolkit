@@ -77,7 +77,7 @@ export const validateOAuthCallback = (
   req: Request,
   res: Response,
   next: NextFunction
-): void => {
+) => {
   const { code, state, error } = req.query;
   const errors: string[] = [];
 
@@ -178,7 +178,7 @@ export const validateOAuthAuthorize = (
   req: Request,
   res: Response,
   next: NextFunction
-): void => {
+) => {
   // Validate any custom scopes if provided via query params
   const { scope } = req.query;
 
@@ -199,7 +199,7 @@ export const validateOAuthAuthorize = (
     }
   }
 
-  next();
+  return next();
 };
 
 /**
@@ -245,7 +245,7 @@ export const enforceHTTPS = (
   req: Request,
   res: Response,
   next: NextFunction
-): void => {
+) => {
   // Skip in development/test environments
   if (config.nodeEnv === 'development' || config.nodeEnv === 'test') {
     return next();
@@ -309,7 +309,7 @@ export const requestLogger = (
       method: req.method,
       path: req.path,
       statusCode: res.statusCode,
-      duration: `${duration}ms`,
+      duration,
     });
   });
 

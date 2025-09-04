@@ -110,9 +110,9 @@ export async function startServer(): Promise<void> {
         try {
           // Clean up resources
           const { clearSlackCaches, getCacheStats } = await import(
-            './slack/client'
+            './slack/client.js'
           );
-          const { tokenValidationCache } = await import('./utils/cache');
+          const { tokenValidationCache } = await import('./utils/cache.js');
 
           // Log cache statistics before cleanup
           logger.info('Cache statistics at shutdown', getCacheStats());
