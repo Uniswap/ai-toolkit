@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction, RequestHandler } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { logger } from '../utils/logger';
@@ -7,19 +7,14 @@ import { config } from '../config';
 /**
  * Rate limiter for OAuth endpoints
  * Prevents abuse by limiting requests per IP
- *
- * Note: express 5 ships its own types while express-rate-limit's DT types
- * reference express 4's type definitions. To avoid cross-version type
- * incompatibilities while keeping runtime behavior, we cast the produced
- * middleware to an Express RequestHandler.
  */
-const _oauthRateLimiter = rateLimit({
+export const oauthRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10, // limit each IP to 10 requests per windowMs
   message: 'Too many OAuth attempts from this IP, please try again later.',
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  handler: (req: any, res: any) => {
+  handler: (req: Request, res: Response) => {
     logger.warn('Rate limit exceeded', {
       ip: req.ip,
       path: req.path,
@@ -62,20 +57,18 @@ const _oauthRateLimiter = rateLimit({
       </html>
     `);
   },
-} as any) as unknown as RequestHandler;
-export const oauthRateLimiter: RequestHandler = _oauthRateLimiter;
+});
 
 /**
  * General rate limiter for API endpoints
  */
-const _apiRateLimiter = rateLimit({
+export const apiRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
-} as any) as unknown as RequestHandler;
-export const apiRateLimiter: RequestHandler = _apiRateLimiter;
+});
 
 /**
  * Validates OAuth callback parameters

@@ -1,21 +1,27 @@
 # Vercel ignore file
-# NOTE: Do NOT ignore source files or tsconfig here — the Vercel build step needs them.
+# Only files in this directory are deployed
 
-# Ignore development/local-only files
+# Ignore source files (we only need dist)
+src
+*.ts
+tsconfig.*
+
+# Ignore development files
 .env
 .env.local
 *.log
 .DS_Store
 
-# Ignore test artifacts (keep source tests available if you run tests on Vercel)
+# Ignore test files
+*.test.js
+*.spec.js
 __tests__
-coverage
-test-output
+tests
 
-# Ignore miscellaneous docs except README
+# Ignore docs
 *.md
 !README.md
 
-# Keep build output and serverless function directory
+# Keep dist and api directories
 !dist/**
 !api/**
