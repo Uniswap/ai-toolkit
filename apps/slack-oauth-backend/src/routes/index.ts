@@ -9,12 +9,9 @@ const router = Router();
  * Landing page with Add to Slack button
  * GET /
  */
-router.get('/', (req: Request, res: Response) => {
-  const slackAuthUrl = `https://slack.com/oauth/v2/authorize?client_id=${
-    config.slackClientId
-  }&scope=chat:write,users:read&redirect_uri=${encodeURIComponent(
-    config.slackRedirectUri
-  )}&state=${generateState()}`;
+router.get('/', (_req: Request, res: Response) => {
+  // Use our centralized OAuth authorize endpoint so scopes stay in sync
+  const slackAuthUrl = `/slack/oauth/authorize`;
 
   const html = `
     <!DOCTYPE html>

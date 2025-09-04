@@ -143,7 +143,11 @@ export interface OAuthHandlerOptions {
   clientSecret: string;
   /** OAuth redirect URI */
   redirectUri: string;
-  /** Optional scopes to request */
+  /** Optional bot token scopes to request (for xoxb) */
+  botScopes?: string[];
+  /** Optional user token scopes to request (for xoxp) */
+  userScopes?: string[];
+  /** Back-compat: if provided without userScopes, treated as userScopes */
   scopes?: string[];
   /** State validation function */
   validateState?: (state: string | undefined) => boolean;
