@@ -1,7 +1,7 @@
 {
-  "buildCommand": "cd ../.. && bunx nx build slack-oauth-backend --configuration=production",
+  "buildCommand": "bunx nx build slack-oauth-backend --configuration=production",
   "outputDirectory": "dist",
-  "installCommand": "cd ../.. && bun install",
+  "installCommand": "bun install",
   "framework": null,
   "functions": {
     "api/index.js": {
