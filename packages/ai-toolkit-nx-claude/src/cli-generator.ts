@@ -16,6 +16,25 @@
 
 import { handleNxExecution } from './cli-utils';
 import { prompt } from 'enquirer';
+import * as path from 'path';
+import * as fs from 'fs';
+
+// Check if we're running from within the ai-toolkit repository
+function isInAiToolkitRepo(): boolean {
+  // Check if current working directory or script location is within ai-toolkit
+  const cwd = process.cwd();
+  const scriptPath = process.argv[1];
+
+  // Check for ai-toolkit indicators
+  const isInAiToolkit =
+    cwd.includes('/ai-toolkit') ||
+    scriptPath.includes('/ai-toolkit/') ||
+    (fs.existsSync(path.join(cwd, 'package.json')) &&
+      JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf-8'))
+        .name === '@ai-toolkit/source');
+
+  return isInAiToolkit;
+}
 
 // Available generators (only show user-facing ones in interactive mode)
 const GENERATORS = {
@@ -27,11 +46,14 @@ const GENERATORS = {
 };
 
 // All generators including internal ones (for validation)
-const ALL_GENERATORS = {
-  ...GENERATORS,
-  'add-command': 'Add a new Claude Code command to existing or new packages',
-  'add-agent': 'Add a new Claude Code agent to existing or new packages',
-};
+const ALL_GENERATORS = isInAiToolkitRepo()
+  ? {
+      ...GENERATORS,
+      'add-command':
+        'Add a new Claude Code command to existing or new packages',
+      'add-agent': 'Add a new Claude Code agent to existing or new packages',
+    }
+  : GENERATORS;
 
 // Extract generator name from arguments or return null for interactive mode
 function getGeneratorName(args: string[]): string | null {
@@ -60,7 +82,11 @@ async function selectGeneratorInteractively(): Promise<string> {
   console.log('\n🎯 AI Toolkit NX Claude Generator\n');
   console.log('Select a generator to run:\n');
 
-  const choices = Object.entries(GENERATORS).map(([value, label]) => ({
+  // Use ALL_GENERATORS for interactive mode when in ai-toolkit repo
+  // Otherwise use GENERATORS (which excludes internal generators)
+  const availableGenerators = isInAiToolkitRepo() ? ALL_GENERATORS : GENERATORS;
+
+  const choices = Object.entries(availableGenerators).map(([value, label]) => ({
     message: `${value.padEnd(25)} - ${label}`,
     name: value, // name is the actual value that gets returned
   }));
@@ -93,14 +119,14 @@ async function main() {
     });
     console.log('\nUsage:');
     console.log(
-      '  npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude [generator]'
+      '  npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest [generator]'
     );
     console.log('\nExamples:');
     console.log(
-      '  npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude init'
+      '  npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest init'
     );
     console.log(
-      '  npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude hooks'
+      '  npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest hooks'
     );
     process.exit(0);
   }
@@ -109,21 +135,21 @@ async function main() {
   if (processedArgs.includes('--help') || processedArgs.includes('-h')) {
     if (generatorName) {
       console.log(
-        `Usage: npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude ${generatorName}`
+        `Usage: npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest ${generatorName}`
       );
       console.log(
         `\nThis command runs the nx-claude ${generatorName} generator.`
       );
     } else {
       console.log(
-        'Usage: npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude [generator]'
+        'Usage: npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest [generator]'
       );
       console.log('\nRun without arguments for interactive mode.');
     }
     console.log('\nTo see all available generators, run with --list');
     console.log('\nTo run a specific generator:');
     console.log(
-      '  npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude [generator]'
+      '  npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest [generator]'
     );
     console.log('\nOptions are handled interactively during execution.');
     console.log('\nFor more information, see the package documentation.');
@@ -140,7 +166,7 @@ async function main() {
   if (!generatorName) {
     console.error('\n❌ No generator specified.');
     console.error(
-      '\nUsage: npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude [generator]'
+      '\nUsage: npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest [generator]'
     );
     console.error('\nRun with --list to see available generators.');
     process.exit(1);

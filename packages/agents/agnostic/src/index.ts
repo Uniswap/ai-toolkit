@@ -5,16 +5,30 @@
 // Agent types
 type Agent =
   | 'agent-capability-analyst'
+  | 'agent-optimizer'
   | 'agent-orchestrator'
+  | 'cicd-agent'
+  | 'claude-agent-discovery'
   | 'code-explainer'
+  | 'code-generator'
+  | 'commit-message-generator'
   | 'context-loader'
   | 'debug-assistant'
   | 'doc-writer'
+  | 'feedback-collector'
+  | 'infrastructure-agent'
+  | 'migration-assistant'
+  | 'pattern-learner'
+  | 'performance-analyzer'
   | 'plan-reviewer'
   | 'planner'
+  | 'pr-creator'
+  | 'prompt-engineer'
   | 'refactorer'
   | 'researcher'
+  | 'security-analyzer'
   | 'style-enforcer'
+  | 'test-runner'
   | 'test-writer';
 
 type Agents = {
@@ -28,33 +42,83 @@ type Agents = {
 export const agents: Agents = {
   'agent-capability-analyst': {
     description:
-      'Specialist in analyzing AI agent capabilities and matching them to software development tasks through semantic understanding and competency extraction',
+      'Advanced specialist in AI agent capability analysis with enhanced scoring algorithms, semantic matching for natural language tasks, and team composition recommendations for complex workflows',
     filePath: './agent-capability-analyst.md',
+  },
+  'agent-optimizer': {
+    description:
+      'Meta-agent that analyzes, optimizes, and continuously improves the performance of other AI agents through systematic refinement strategies',
+    filePath: './agent-optimizer.md',
   },
   'agent-orchestrator': {
     description:
       'Intelligent orchestrator that coordinates other AI agents for complex software development workflows, matching tasks to specialists based on capabilities',
     filePath: './agent-orchestrator.md',
   },
+  'cicd-agent': {
+    description:
+      'CI/CD pipeline specialist for automated deployment setup, workflow configuration, and release management',
+    filePath: './cicd-agent.md',
+  },
+  'claude-agent-discovery': {
+    description:
+      'Specialized agent for discovering and cataloging all available agents and commands from Claude Code directories, including local project and global user configurations',
+    filePath: './claude-agent-discovery.md',
+  },
   'code-explainer': {
     description:
-      'Explain code purpose, behavior, dependencies, and potential risks in clear developer language.',
+      'Advanced code analysis agent that explains purpose, architecture, dependencies, security vulnerabilities, and performance implications with deep pattern recognition',
     filePath: './code-explainer.md',
+  },
+  'code-generator': {
+    description:
+      'Comprehensive code generation specialist that creates production-ready code with tests, following best practices and existing patterns',
+    filePath: './code-generator.md',
+  },
+  'commit-message-generator': {
+    description:
+      'Generate well-structured git commit messages that clearly communicate the WHAT and WHY of code changes. Your messages should help future developers (including the author) understand the purpose and context of the commit.',
+    filePath: './commit-message-generator.md',
   },
   'context-loader': {
     description:
-      'Deep dive into codebase areas to build comprehensive understanding before implementation work.',
+      'Advanced context management system for deep codebase understanding, intelligent summarization, and cross-agent context sharing.',
     filePath: './context-loader.md',
   },
   'debug-assistant': {
     description:
-      'Diagnose errors from logs or failing tests and propose fixes.',
+      'Advanced debugging specialist with root cause analysis, error pattern recognition, fix validation, and prevention recommendations',
     filePath: './debug-assistant.md',
   },
   'doc-writer': {
     description:
-      'Generate developer-facing documentation from code or changes.',
+      'Advanced documentation specialist for API docs, README generation, architecture documentation, and interactive examples with quality analysis',
     filePath: './doc-writer.md',
+  },
+  'feedback-collector': {
+    description:
+      'A comprehensive agent for gathering, analyzing, and transforming execution feedback into actionable insights for continuous improvement',
+    filePath: './feedback-collector.md',
+  },
+  'infrastructure-agent': {
+    description:
+      'Infrastructure automation specialist for cloud architecture, scaling strategies, and cost optimization',
+    filePath: './infrastructure-agent.md',
+  },
+  'migration-assistant': {
+    description:
+      'Migration specialist for guiding version upgrades, compatibility checking, rollback strategies, and validation steps',
+    filePath: './migration-assistant.md',
+  },
+  'pattern-learner': {
+    description:
+      'Specializes in learning from agent executions, extracting reusable patterns, and providing recommendations for pattern application across different contexts',
+    filePath: './pattern-learner.md',
+  },
+  'performance-analyzer': {
+    description:
+      'Comprehensive performance analysis agent for identifying bottlenecks, analyzing complexity, and providing optimization strategies with measurable impact estimates',
+    filePath: './performance-analyzer.md',
   },
   'plan-reviewer': {
     description:
@@ -65,24 +129,44 @@ export const agents: Agents = {
     description: 'Create detailed implementation plans without writing code',
     filePath: './planner.md',
   },
+  'pr-creator': {
+    description:
+      'Creates or updates Graphite PRs with auto-generated conventional commit messages and comprehensive PR descriptions based on diffs',
+    filePath: './pr-creator.md',
+  },
+  'prompt-engineer': {
+    description:
+      'Expert in analyzing, optimizing, and testing prompts for AI agents and LLMs to maximize clarity, effectiveness, and efficiency',
+    filePath: './prompt-engineer.md',
+  },
   refactorer: {
     description:
-      'Propose safe, incremental refactors with small patch hunks and clear rationale.',
+      'Advanced refactoring agent with architectural analysis, safe incremental strategies, and performance optimization capabilities.',
     filePath: './refactorer.md',
   },
   researcher: {
     description:
-      'Conduct comprehensive research by combining web documentation with codebase analysis.',
+      'Conduct comprehensive research including architectural patterns, technology comparison, security analysis, and codebase pattern extraction.',
     filePath: './researcher.md',
+  },
+  'security-analyzer': {
+    description:
+      'Comprehensive security analysis agent for vulnerability assessment, threat modeling, and compliance checking',
+    filePath: './security-analyzer.md',
   },
   'style-enforcer': {
     description:
-      'Identify style and convention issues and propose idiomatic fixes.',
+      'Advanced style and convention enforcement with multi-language support, pattern detection, automated fixes, and comprehensive reporting.',
     filePath: './style-enforcer.md',
+  },
+  'test-runner': {
+    description:
+      'Automated agent testing specialist that validates agent behaviors, tests prompt variations, detects regressions, and provides comprehensive test reporting with performance metrics.',
+    filePath: './test-runner.md',
   },
   'test-writer': {
     description:
-      'Generate or extend deterministic tests for target code with clear rationale and edge-case coverage.',
+      'Generate comprehensive, deterministic tests with advanced testing strategies, scenario generation, and edge case identification.',
     filePath: './test-writer.md',
   },
 } as const;

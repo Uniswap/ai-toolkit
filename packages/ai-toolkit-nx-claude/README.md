@@ -10,10 +10,10 @@ This package is published to GitHub Packages and requires authentication to acce
 
 ## Usage
 
-### Run Default Generator (init)
+### Run Default Generator
 
 ```bash
-npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude
+npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest
 ````
 
 ### Run Specific Generators
@@ -22,28 +22,28 @@ Each generator can be run directly using colon syntax:
 
 ```bash
 # One-shot installer for Claude Code configs
-npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude:init
+npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest init
 
 # Install notification hooks
-npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude:hooks
+npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest hooks
 
 # Setup shell proxy for GitHub registry routing
-npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude:setup-registry-proxy
+npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest setup-registry-proxy
 
 # Install and configure Claude Code addons
-npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude:addons
+npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest addons
 
 # Add a new command to packages
-npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude:add-command
+npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest add-command
 
 # Add a new agent to packages
-npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude:add-agent
+npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest add-agent
 ```
 
 ### List Available Generators
 
 ```bash
-npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude --list
+npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest --list
 ```
 
 ## Available Generators

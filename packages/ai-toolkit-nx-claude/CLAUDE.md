@@ -1,8 +1,8 @@
-# CLAUDE.md - @ai-toolkit/ai-toolkit-nx-claude Package
+# CLAUDE.md - @uniswap/ai-toolkit-nx-claude Package
 
 ## Overview
 
-The `@ai-toolkit/ai-toolkit-nx-claude` package (published as `@uniswap/ai-toolkit-nx-claude` to GitHub Packages) provides Nx generators for setting up and managing Claude Code configurations, commands, agents, and notification hooks. This package is the primary tooling interface for the AI Toolkit, offering both one-shot installers and incremental configuration management.
+The `@uniswap/ai-toolkit-nx-claude` package (published as `@uniswap/ai-toolkit-nx-claude` to GitHub Packages) provides Nx generators for setting up and managing Claude Code configurations, commands, agents, and notification hooks. This package is the primary tooling interface for the AI Toolkit, offering both one-shot installers and incremental configuration management.
 
 ### Standalone Package Usage
 
@@ -10,30 +10,27 @@ This package can be run directly via npx/bunx without cloning the repository:
 
 ```bash
 # For Uniswap organization members only
-npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude
+npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest
 
-# Or install globally first
-npm install -g @uniswap/ai-toolkit-nx-claude --@uniswap:registry=https://npm.pkg.github.com
-ai-toolkit-nx-claude
-```
-
-Authentication to GitHub Packages is required (see README for setup instructions).
+Authentication to GitHub Packages is required (see README for setup instructions OR use the `init` generator from `ai-toolkit-nx-claude`).
 
 ## Package Structure
 
 ```
+
 packages/ai-toolkit-nx-claude/
 ├── src/
-│   ├── generators/
-│   │   ├── init/               # One-shot installer for commands/agents
-│   │   ├── hooks/              # Notification hooks installer
-│   │   ├── setup-registry-proxy/ # Shell proxy for GitHub registry routing
-│   │   ├── add-command/        # Add individual commands
-│   │   └── add-agent/          # Add individual agents
-│   └── index.ts            # Package exports
-├── generators.json         # Generator registration
-└── package.json           # Package configuration
-```
+│ ├── generators/
+│ │ ├── init/ # One-shot installer for commands/agents
+│ │ ├── hooks/ # Notification hooks installer
+│ │ ├── setup-registry-proxy/ # Shell proxy for GitHub registry routing
+│ │ ├── add-command/ # Add individual commands
+│ │ └── add-agent/ # Add individual agents
+│ └── index.ts # Package exports
+├── generators.json # Generator registration
+└── package.json # Package configuration
+
+````
 
 ## Available Generators
 
@@ -44,7 +41,7 @@ packages/ai-toolkit-nx-claude/
 **Usage**:
 
 ```bash
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init
+bunx nx generate @uniswap/ai-toolkit-nx-claude:init
 ```
 
 **Key Features**:
@@ -69,7 +66,7 @@ bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init
 **Usage**:
 
 ```bash
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks
+bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks
 ```
 
 **Key Features**:
@@ -89,7 +86,7 @@ bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks
 **Usage**:
 
 ```bash
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:setup-registry-proxy
+bunx nx generate @uniswap/ai-toolkit-nx-claude:setup-registry-proxy
 ```
 
 **Key Features**:
@@ -110,7 +107,7 @@ bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:setup-registry-proxy
 **Usage**:
 
 ```bash
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:add-command
+bunx nx generate @uniswap/ai-toolkit-nx-claude:add-command
 ```
 
 **Status**: Placeholder implementation - needs completion
@@ -122,7 +119,7 @@ bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:add-command
 **Usage**:
 
 ```bash
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:add-agent
+bunx nx generate @uniswap/ai-toolkit-nx-claude:add-agent
 ```
 
 **Status**: Placeholder implementation - needs completion
@@ -339,8 +336,8 @@ bunx nx build ai-toolkit-nx-claude
 bunx nx test ai-toolkit-nx-claude
 
 # Test generators locally
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:init --dry
-bunx nx generate @ai-toolkit/ai-toolkit-nx-claude:hooks --dry
+bunx nx generate @uniswap/ai-toolkit-nx-claude:init --dry
+bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks --dry
 ```
 
 ### Nx Workspace Integration
@@ -468,10 +465,14 @@ The package is configured for standalone publishing to GitHub Packages:
 
 Publishing is handled through GitHub Actions (`.github/workflows/publish-packages.yml`):
 
-1. **Trigger**: On push to main branch
+1. **Trigger**: On push to main or next branch
 2. **Detection**: Uses Nx affected to detect changed packages
-3. **Versioning**: Conventional commits determine version bumps
-4. **Publishing**: Automatic publish to GitHub Packages
+3. **Versioning**:
+   - **main branch**: Standard versioning with conventional commits (e.g., `0.4.0`)
+   - **next branch**: Prerelease versioning with `-next.X` suffix (e.g., `0.4.0-next.0`)
+4. **Publishing**:
+   - **main branch**: Published with `latest` npm tag
+   - **next branch**: Published with `next` npm tag
 5. **GitHub Releases**: Created automatically with changelog
 
 ### Manual Publishing
@@ -482,11 +483,22 @@ For manual publishing (maintainers only):
 # Build the package
 bunx nx build ai-toolkit-nx-claude
 
-# Version the package (first release)
-bunx nx release version --projects=@uniswap/ai-toolkit-nx-claude --first-release
+# For main branch (latest):
+bunx nx release version --projects=@uniswap/ai-toolkit-nx-claude
+bunx nx release publish --projects=@uniswap/ai-toolkit-nx-claude --tag=latest
 
-# Publish to GitHub Packages
-bunx nx release publish --projects=@uniswap/ai-toolkit-nx-claude
+# For next branch (prerelease):
+bunx nx release version --projects=@uniswap/ai-toolkit-nx-claude --preid=next --prerelease
+bunx nx release publish --projects=@uniswap/ai-toolkit-nx-claude --tag=next
+```
+
+### Fixing Version Misalignment
+
+If the `next` branch version gets out of sync with `latest`:
+
+```bash
+# Run the reset script to fix prerelease versioning
+./packages/ai-toolkit-nx-claude/scripts/reset-prerelease-version.sh
 ```
 
 ## Version History
