@@ -15,7 +15,7 @@ import {
   validateOAuthAuthorize,
 } from '../middleware/security';
 
-const router = Router();
+const router: import('express').Router = Router();
 
 /**
  * OAuth callback endpoint

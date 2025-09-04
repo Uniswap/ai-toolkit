@@ -3,7 +3,7 @@ import { config } from '../config';
 import { createSlackClient } from '../slack/client';
 import { logger } from '../utils/logger';
 
-const router = Router();
+const router: import('express').Router = Router();
 
 /**
  * Landing page with Add to Slack button
