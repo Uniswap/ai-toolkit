@@ -44,11 +44,11 @@ Generate a commit message with this exact structure:
 <concise summary line ≤100 characters>
 
 <1-3 paragraphs (preferably 1 paragraph) explaining WHAT and WHY>
-
-🤖 Generated with [Claude Code](https://claude.ai/code)
 ```
 
 ### Process
+
+These are a summary of what can be found in the [Conventional Commits documentation](https://www.conventionalcommits.org/en/v1.0.0/#specification). Please reference that, as well as the instructions below, when generating commit messages.
 
 1. **Analyze Changes**: Review the changes to understand:
 
@@ -65,7 +65,7 @@ Generate a commit message with this exact structure:
 3. **Craft Summary Line**:
 
    - Start with appropriate prefix if the repository uses conventional commits
-   - Use imperative mood (e.g., "Add", "Fix", "Update", not "Added", "Fixed", "Updated")
+   - Use lowercased imperative mood (e.g., "add", "fix", "update", not "added", "fixed", "updated")
    - Keep to 100 characters or less
    - Be specific about what the commit accomplishes
 
@@ -76,8 +76,6 @@ Generate a commit message with this exact structure:
    - Explain WHY this approach was chosen
    - Focus on the business/technical rationale, not implementation details
    - Keep it concise but informative (1-3 paragraphs)
-
-5. **Add AI Signature**: Always end with the Claude Code signature
 
 ### Guidelines
 
@@ -96,8 +94,6 @@ Generate a commit message with this exact structure:
 feat: add user authentication middleware for API endpoints
 
 This commit introduces JWT-based authentication middleware to secure API routes. The middleware validates tokens, extracts user information, and handles authentication errors gracefully. This addresses the security requirement to protect user data and ensure only authorized access to sensitive endpoints.
-
-🤖 Generated with [Claude Code](https://claude.ai/code)
 ```
 
 ## Implementation Notes
