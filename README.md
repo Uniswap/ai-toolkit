@@ -21,7 +21,7 @@ Instead of each person at Uniswap manually configuring AI assistant behaviors fo
 
 Before working with this repository, ensure you have the following tools installed:
 
-- **[Bun](https://bun.sh)** (recommended) or **Node.js 18+** with npm
+- **[Bun](https://bun.sh)** (recommended) or **Node.js 22+** with npm
 
 ### Setting up GitHub Packages Access
 
