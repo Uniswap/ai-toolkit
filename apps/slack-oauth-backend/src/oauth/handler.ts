@@ -218,7 +218,23 @@ export function createOAuthHandler(
     clientId: config.slackClientId,
     clientSecret: config.slackClientSecret,
     redirectUri: config.slackRedirectUri,
-    scopes: ['chat:write', 'users:read'], // Required scopes for user tokens
+    scopes: [
+      // User Token Scopes
+      'channels:history',
+      'channels:read',
+      'chat:write',
+      'groups:history',
+      'groups:read',
+      'im:history',
+      'im:read',
+      'im:write',
+      'mpim:history',
+      'mpim:read',
+      'reactions:read',
+      'reactions:write',
+      'users.profile:read',
+      'users:read',
+    ], // All configured user token scopes
     validateState,
   });
 }
