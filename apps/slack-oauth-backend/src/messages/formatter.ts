@@ -215,13 +215,27 @@ export function formatErrorMessage(
 }
 
 /**
+ * Escape HTML special characters to prevent XSS
+ */
+function escapeHtml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
  * Format success page HTML
  */
 export function formatSuccessPage(
   userName?: string,
   tokenToDisplay?: string
 ): string {
-  const title = userName ? `Success, ${userName}!` : 'Success!';
+  const safeUserName = userName ? escapeHtml(userName) : undefined;
+  const safeToken = tokenToDisplay ? escapeHtml(tokenToDisplay) : undefined;
+  const title = safeUserName ? `Success, ${safeUserName}!` : 'Success!';
 
   return `
     <!DOCTYPE html>
@@ -308,11 +322,11 @@ export function formatSuccessPage(
         </div>
         <h1>${title}</h1>
         ${
-          tokenToDisplay
+          safeToken
             ? `
         <p>Your Slack authorization was successful! We couldn't send your token via DM (the bot may need the <code>im:write</code> permission), but here it is:</p>
         <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 24px 0; word-break: break-all;">
-          <code style="font-size: 14px; color: #1f2937;">${tokenToDisplay}</code>
+          <code style="font-size: 14px; color: #1f2937;">${safeToken}</code>
         </div>
         <p style="color: #ef4444; font-size: 14px; margin-top: 16px;">
           ⚠️ <strong>Important:</strong> Copy this token now! This page won't be shown again.
@@ -322,10 +336,12 @@ export function formatSuccessPage(
         <p>Your Slack authorization was successful! Your access token has been sent to you via Slack direct message.</p>
         `
         }
-        <a href="${config.notionDocUrl}" class="button">View Setup Guide</a>
+        <a href="${escapeHtml(
+          config.notionDocUrl
+        )}" class="button">View Setup Guide</a>
         <div class="note">
           💡 <strong>Next steps:</strong> ${
-            tokenToDisplay
+            safeToken
               ? 'Copy your token above and'
               : 'Check your Slack DMs for your access token and'
           } follow the setup guide to complete the integration.
@@ -351,6 +367,7 @@ export function formatErrorPage(error: ErrorType, details?: string): string {
   };
 
   const errorMessage = errorMessages[error] || errorMessages.unknown;
+  const safeDetails = details ? escapeHtml(details) : undefined;
 
   return `
     <!DOCTYPE html>
@@ -445,11 +462,13 @@ export function formatErrorPage(error: ErrorType, details?: string): string {
           </svg>
         </div>
         <h1>Authorization Failed</h1>
-        <p>${errorMessage}</p>
-        ${details ? `<div class="error-details">${details}</div>` : ''}
+        <p>${escapeHtml(errorMessage)}</p>
+        ${safeDetails ? `<div class="error-details">${safeDetails}</div>` : ''}
         <div>
           <a href="/" class="button">Try Again</a>
-          <a href="${config.notionDocUrl}" class="button secondary">Get Help</a>
+          <a href="${escapeHtml(
+            config.notionDocUrl
+          )}" class="button secondary">Get Help</a>
         </div>
       </div>
     </body>

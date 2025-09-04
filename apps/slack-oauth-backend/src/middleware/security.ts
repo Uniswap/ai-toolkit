@@ -261,8 +261,22 @@ export const enforceHTTPS = (
       host: req.hostname,
     });
 
-    // Redirect to HTTPS
-    const httpsUrl = `https://${req.hostname}${req.originalUrl}`;
+    // Validate hostname to prevent open redirect
+    const allowedHosts = process.env.ALLOWED_HOSTS?.split(',') || [
+      req.hostname,
+    ];
+    const hostname = req.hostname;
+
+    if (!allowedHosts.includes(hostname)) {
+      logger.error('Invalid hostname in HTTPS redirect', {
+        hostname,
+        allowedHosts,
+      });
+      return res.status(400).send('Invalid request');
+    }
+
+    // Redirect to HTTPS with validated hostname
+    const httpsUrl = `https://${hostname}${req.originalUrl}`;
     return res.redirect(301, httpsUrl);
   }
 
