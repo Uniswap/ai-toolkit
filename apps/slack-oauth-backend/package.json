@@ -106,6 +106,10 @@
       "type:api"
     ]
   },
+  "scripts": {
+    "vercel:build": "bunx nx build slack-oauth-backend",
+    "vercel:dev": "vercel dev"
+  },
   "dependencies": {
     "@slack/web-api": "^7.10.0",
     "cors": "^2.8.5",
