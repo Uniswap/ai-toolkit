@@ -1,0 +1,123 @@
+{
+  "name": "@ai-toolkit/slack-oauth-backend",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "targets": {
+      "build": {
+        "executor": "@nx/esbuild:esbuild",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "defaultConfiguration": "production",
+        "options": {
+          "platform": "node",
+          "outputPath": "apps/slack-oauth-backend/dist",
+          "format": [
+            "cjs"
+          ],
+          "bundle": false,
+          "main": "apps/slack-oauth-backend/src/main.ts",
+          "tsConfig": "apps/slack-oauth-backend/tsconfig.app.json",
+          "assets": [
+            "apps/slack-oauth-backend/src/assets"
+          ],
+          "esbuildOptions": {
+            "sourcemap": true,
+            "outExtension": {
+              ".js": ".js"
+            }
+          }
+        },
+        "configurations": {
+          "development": {},
+          "production": {
+            "esbuildOptions": {
+              "sourcemap": false,
+              "outExtension": {
+                ".js": ".js"
+              }
+            }
+          }
+        }
+      },
+      "prune-lockfile": {
+        "dependsOn": [
+          "build"
+        ],
+        "cache": true,
+        "executor": "@nx/js:prune-lockfile",
+        "outputs": [
+          "{workspaceRoot}/apps/slack-oauth-backend/dist/package.json",
+          "{workspaceRoot}/apps/slack-oauth-backend/dist/bun.lockb"
+        ],
+        "options": {
+          "buildTarget": "build"
+        }
+      },
+      "copy-workspace-modules": {
+        "dependsOn": [
+          "build"
+        ],
+        "cache": true,
+        "outputs": [
+          "{workspaceRoot}/apps/slack-oauth-backend/dist/workspace_modules"
+        ],
+        "executor": "@nx/js:copy-workspace-modules",
+        "options": {
+          "buildTarget": "build"
+        }
+      },
+      "prune": {
+        "dependsOn": [
+          "prune-lockfile",
+          "copy-workspace-modules"
+        ],
+        "executor": "nx:noop"
+      },
+      "serve": {
+        "continuous": true,
+        "executor": "@nx/js:node",
+        "defaultConfiguration": "development",
+        "dependsOn": [
+          "build"
+        ],
+        "options": {
+          "buildTarget": "@ai-toolkit/slack-oauth-backend:build",
+          "runBuildTargetDependencies": false
+        },
+        "configurations": {
+          "development": {
+            "buildTarget": "@ai-toolkit/slack-oauth-backend:build:development"
+          },
+          "production": {
+            "buildTarget": "@ai-toolkit/slack-oauth-backend:build:production"
+          }
+        }
+      },
+      "test": {
+        "options": {
+          "passWithNoTests": true
+        }
+      }
+    },
+    "tags": [
+      "scope:backend",
+      "type:api"
+    ]
+  },
+  "scripts": {
+    "vercel:build": "bunx nx build slack-oauth-backend",
+    "vercel:dev": "vercel dev"
+  },
+  "dependencies": {
+    "@slack/web-api": "^7.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19"
+  }
+}

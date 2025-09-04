@@ -50,3 +50,10 @@ Thumbs.db
 # Spec Workflow
 
 .spec-workflow/
+
+test-output
+
+apps/slack-oauth-backend/.env
+apps/slack-oauth-backend/.env.local
+
+.eslintcache
