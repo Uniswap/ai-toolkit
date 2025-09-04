@@ -25,9 +25,15 @@ When importing, configure these settings:
 
 - **Framework Preset**: Other
 - **Root Directory**: `apps/slack-oauth-backend` ← **IMPORTANT**
-- **Build Command**: Automatically detected from vercel.json
-- **Output Directory**: Automatically detected from vercel.json
-- **Install Command**: Automatically detected from vercel.json
+- **Build Command**: (Leave blank - auto-detected from vercel.json)
+- **Output Directory**: (Leave blank - auto-detected from vercel.json)
+- **Install Command**: (Leave blank - auto-detected from vercel.json)
+
+The build will:
+
+1. Navigate to the monorepo root
+2. Run `bunx nx build slack-oauth-backend`
+3. Output files to the correct location for Vercel deployment
 
 ### 3. Set Environment Variables
 

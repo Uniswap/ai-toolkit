@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd ../.. && bunx nx build slack-oauth-backend",
+  "buildCommand": "cd ../.. && bunx nx build slack-oauth-backend --configuration=production",
   "outputDirectory": "dist",
   "installCommand": "cd ../.. && bun install",
   "framework": null,
