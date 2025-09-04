@@ -1,5 +1,5 @@
 {
-  "buildCommand": "bunx nx build slack-oauth-backend --configuration=production --verbose",
+  "buildCommand": "bunx nx build slack-oauth-backend",
   "outputDirectory": "dist",
   "installCommand": "bun install",
   "framework": null,
@@ -8,5 +8,10 @@
       "maxDuration": 10
     }
   },
-  "rewrites": [{ "source": "/(.*)", "destination": "/api/$1" }]
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api"
+    }
+  ]
 }
