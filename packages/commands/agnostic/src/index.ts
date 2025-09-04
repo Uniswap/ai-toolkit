@@ -16,7 +16,8 @@ type CommandName =
   | 'review-code'
   | 'review-plan'
   | 'review-pr'
-  | 'understand-area';
+  | 'understand-area'
+  | 'generate-commit-message';
 
 export type Commands = {
   [key in CommandName]: {
@@ -95,5 +96,10 @@ export const commands: Commands = {
     description:
       'Deep dive into a codebase area to build comprehensive understanding before implementation.',
     filePath: './understand-area.md',
+  },
+  'generate-commit-message': {
+    description:
+      'Generate a structured git commit message based on current changes and repository patterns',
+    filePath: './generate-commit-message.md',
   },
 } as const;

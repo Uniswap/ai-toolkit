@@ -11,6 +11,7 @@ type Agent =
   | 'claude-agent-discovery'
   | 'code-explainer'
   | 'code-generator'
+  | 'commit-message-generator'
   | 'context-loader'
   | 'debug-assistant'
   | 'doc-writer'
@@ -73,6 +74,11 @@ export const agents: Agents = {
     description:
       'Comprehensive code generation specialist that creates production-ready code with tests, following best practices and existing patterns',
     filePath: './code-generator.md',
+  },
+  'commit-message-generator': {
+    description:
+      'Generate well-structured git commit messages that clearly communicate the WHAT and WHY of code changes. Your messages should help future developers (including the author) understand the purpose and context of the commit.',
+    filePath: './commit-message-generator.md',
   },
   'context-loader': {
     description:
