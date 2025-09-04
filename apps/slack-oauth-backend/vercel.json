@@ -1,5 +1,5 @@
 {
-  "buildCommand": "bunx nx build slack-oauth-backend --configuration=production",
+  "buildCommand": "bunx nx build slack-oauth-backend --configuration=production --verbose",
   "outputDirectory": "dist",
   "installCommand": "bun install",
   "framework": null,
