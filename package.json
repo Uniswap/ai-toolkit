@@ -14,14 +14,14 @@
   },
   "private": true,
   "dependencies": {
-    "@nx/devkit": "21.3.11",
-    "express": "^4.21.2",
+    "express": "^5.1.0",
     "express-rate-limit": "^8.0.1",
     "helmet": "^8.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.34.0",
+    "@nx/devkit": "21.3.11",
     "@nx/esbuild": "21.3.11",
     "@nx/eslint": "21.3.11",
     "@nx/eslint-plugin": "21.3.11",

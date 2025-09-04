@@ -129,10 +129,10 @@ bun run apps/slack-oauth-backend/src/main.ts
 bunx nx build slack-oauth-backend --configuration=production
 
 # Run the built application
-node dist/apps/slack-oauth-backend/main.js
+node apps/slack-oauth-backend/dist/main.js
 
 # Or use PM2 for process management
-pm2 start dist/apps/slack-oauth-backend/main.js --name slack-oauth
+pm2 start apps/slack-oauth-backend/dist/main.js --name slack-oauth
 ```
 
 ## 📖 Usage Guide
@@ -246,7 +246,7 @@ RUN npm ci --only=production
 FROM node:18-alpine
 WORKDIR /app
 COPY --from=builder /app/node_modules ./node_modules
-COPY dist/apps/slack-oauth-backend ./
+COPY apps/slack-oauth-backend/dist ./
 EXPOSE 3000
 CMD ["node", "main.js"]
 ```
@@ -275,20 +275,21 @@ docker run -p 3000:3000 --env-file .env slack-oauth-backend:latest
    {
      "builds": [
        {
-         "src": "dist/apps/slack-oauth-backend/main.js",
+         "src": "apps/slack-oauth-backend/dist/main.js",
          "use": "@vercel/node"
        }
      ],
      "routes": [
        {
          "src": "/(.*)",
-         "dest": "dist/apps/slack-oauth-backend/main.js"
+         "dest": "apps/slack-oauth-backend/dist/main.js"
        }
      ]
    }
    ```
 
 3. **Deploy**:
+
    ```bash
    bunx nx build slack-oauth-backend --configuration=production
    vercel --prod
@@ -299,7 +300,7 @@ docker run -p 3000:3000 --env-file .env slack-oauth-backend:latest
 1. **Create `Procfile`**:
 
    ```
-   web: node dist/apps/slack-oauth-backend/main.js
+   web: node apps/slack-oauth-backend/dist/main.js
    ```
 
 2. **Deploy**:
@@ -342,13 +343,14 @@ docker run -p 3000:3000 --env-file .env slack-oauth-backend:latest
 
    functions:
      app:
-       handler: dist/apps/slack-oauth-backend/main.handler
+       handler: apps/slack-oauth-backend/dist/main.handler
        events:
          - http: ANY /
          - http: ANY /{proxy+}
    ```
 
 3. **Deploy**:
+
    ```bash
    bunx nx build slack-oauth-backend --configuration=production
    serverless deploy
@@ -381,7 +383,7 @@ gcloud run deploy slack-oauth-backend \
          repo: your-username/your-repo
          branch: main
        build_command: bunx nx build slack-oauth-backend --configuration=production
-       run_command: node dist/apps/slack-oauth-backend/main.js
+       run_command: node apps/slack-oauth-backend/dist/main.js
        environment_slug: node-js
        http_port: 3000
        instance_count: 1
@@ -395,6 +397,7 @@ gcloud run deploy slack-oauth-backend \
    ```
 
 2. **Deploy via CLI**:
+
    ```bash
    doctl apps create --spec app.yaml
    ```
@@ -625,7 +628,7 @@ bunx nx serve slack-oauth-backend --inspect
 LOG_LEVEL=debug bunx nx serve slack-oauth-backend 2>&1 | tee app.log
 
 # Monitor in production with PM2
-pm2 start dist/apps/slack-oauth-backend/main.js --name slack-oauth
+pm2 start apps/slack-oauth-backend/dist/main.js --name slack-oauth
 pm2 logs slack-oauth --lines 100
 pm2 monit
 
