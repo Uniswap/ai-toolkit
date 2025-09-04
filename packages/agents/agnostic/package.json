@@ -1,6 +1,6 @@
 {
   "name": "@ai-toolkit/agents-agnostic",
-  "version": "0.2.2-next.2",
+  "version": "0.2.2-next.3",
   "private": true,
   "type": "module",
   "main": "./dist/src/index.js",
