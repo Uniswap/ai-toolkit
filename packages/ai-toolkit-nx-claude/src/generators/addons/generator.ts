@@ -399,7 +399,7 @@ function showUsageInstructions(
 
   if (addon.id === 'spec-workflow-mcp') {
     console.log(
-      '1. Start a new instance ofClaude Code to load the new MCP server'
+      '1. Start a new instance of Claude Code to load the new MCP server'
     );
     console.log('2. Open your project in Claude Code');
 

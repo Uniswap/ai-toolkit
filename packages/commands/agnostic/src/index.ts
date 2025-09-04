@@ -8,6 +8,7 @@ type CommandName =
   | 'explain-file'
   | 'fix-bug'
   | 'gen-tests'
+  | 'generate-commit-message'
   | 'implement-spec'
   | 'monitor'
   | 'plan'
@@ -16,8 +17,7 @@ type CommandName =
   | 'review-code'
   | 'review-plan'
   | 'review-pr'
-  | 'understand-area'
-  | 'generate-commit-message';
+  | 'understand-area';
 
 export type Commands = {
   [key in CommandName]: {
@@ -51,6 +51,11 @@ export const commands: Commands = {
     description:
       'Generate comprehensive tests with advanced testing strategies, scenario generation, and edge case identification using the enhanced test-writer agent.',
     filePath: './gen-tests.md',
+  },
+  'generate-commit-message': {
+    description:
+      'Generate a structured git commit message based on current changes and repository patterns',
+    filePath: './generate-commit-message.md',
   },
   'implement-spec': {
     description:
@@ -96,10 +101,5 @@ export const commands: Commands = {
     description:
       'Deep dive into a codebase area to build comprehensive understanding before implementation.',
     filePath: './understand-area.md',
-  },
-  'generate-commit-message': {
-    description:
-      'Generate a structured git commit message based on current changes and repository patterns',
-    filePath: './generate-commit-message.md',
   },
 } as const;

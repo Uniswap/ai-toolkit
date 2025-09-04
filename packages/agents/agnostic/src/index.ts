@@ -126,7 +126,8 @@ export const agents: Agents = {
     filePath: './plan-reviewer.md',
   },
   planner: {
-    description: 'Create detailed implementation plans without writing code',
+    description:
+      'Create detailed implementation plans without writing code',
     filePath: './planner.md',
   },
   'pr-creator': {
