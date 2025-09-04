@@ -3,8 +3,15 @@ const { join } = require('path');
 const nodeExternals = require('webpack-node-externals');
 
 module.exports = {
+  // Build two entry points: main (standalone server) and server (exported app for Vercel)
+  entry: {
+    main: './src/main.ts',
+    server: './src/server.ts',
+  },
   output: {
     path: join(__dirname, 'dist'),
+    filename: '[name].js',
+    libraryTarget: 'commonjs2',
   },
   plugins: [
     new NxWebpackPlugin({
