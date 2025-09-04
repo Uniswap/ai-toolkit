@@ -3,6 +3,7 @@
 // To regenerate, run: bunx nx run @ai-toolkit/commands-agnostic:generate-index
 
 type CommandName =
+  | 'create-pr'
   | 'deploy'
   | 'explain-file'
   | 'fix-bug'
@@ -25,6 +26,11 @@ export type Commands = {
 };
 
 export const commands: Commands = {
+  'create-pr': {
+    description:
+      'Create or update a Graphite PR with auto-generated conventional commit messages and comprehensive descriptions based on code diffs.',
+    filePath: './create-pr.md',
+  },
   deploy: {
     description:
       'Orchestrate deployment pipelines, infrastructure setup, and CI/CD configuration using specialized deployment agents.',

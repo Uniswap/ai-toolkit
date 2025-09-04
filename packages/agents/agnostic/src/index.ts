@@ -21,6 +21,7 @@ type Agent =
   | 'performance-analyzer'
   | 'plan-reviewer'
   | 'planner'
+  | 'pr-creator'
   | 'prompt-engineer'
   | 'refactorer'
   | 'researcher'
@@ -121,6 +122,11 @@ export const agents: Agents = {
   planner: {
     description: 'Create detailed implementation plans without writing code',
     filePath: './planner.md',
+  },
+  'pr-creator': {
+    description:
+      'Creates or updates Graphite PRs with auto-generated conventional commit messages and comprehensive PR descriptions based on diffs',
+    filePath: './pr-creator.md',
   },
   'prompt-engineer': {
     description:
