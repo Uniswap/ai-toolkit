@@ -8,10 +8,7 @@
       "maxDuration": 10
     }
   },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/api"
-    }
-  ]
+  "rewrites": {
+    "rewrites": [{ "source": "/(.*)", "destination": "/api/$1" }]
+  }
 }
