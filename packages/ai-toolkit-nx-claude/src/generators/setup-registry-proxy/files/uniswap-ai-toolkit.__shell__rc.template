@@ -171,6 +171,8 @@ pnpx() {
 
 # Show message on first load (can be disabled by setting UNISWAP_AI_TOOLKIT_QUIET=1)
 if [ -z "$UNISWAP_AI_TOOLKIT_QUIET" ] && [ -z "$UNISWAP_AI_TOOLKIT_LOADED" ]; then
-    echo "🔧 Uniswap AI Toolkit registry proxy loaded - @uniswap packages will auto-route to GitHub registry"
+    echo "🔧 Uniswap AI Toolkit registry proxy loaded from ~/.uniswap-ai-toolkit.<%= shell %>rc"
+    echo "🔧 @uniswap packages will auto-route to GitHub registry"
+    echo "🔧 add 'export UNISWAP_AI_TOOLKIT_QUIET=1' inside of your ~/.uniswap-ai-toolkit.<%= shell %>rc to disable this message"
     export UNISWAP_AI_TOOLKIT_LOADED=1
 fi

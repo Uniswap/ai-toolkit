@@ -140,7 +140,7 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:init --installation-type=global -
 ├── commands/
 │   ├── review-pr.md
 │   ├── gen-tests.md
-│   ├── plan-feature.md
+│   ├── plan.md
 │   ├── explain-file.md
 │   ├── fix-bug.md
 │   └── refactor.md
@@ -161,7 +161,7 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:init --installation-type=global -
 ├── commands/
 │   ├── review-pr.md
 │   ├── gen-tests.md
-│   ├── plan-feature.md
+│   ├── plan.md
 │   ├── explain-file.md
 │   ├── fix-bug.md
 │   └── refactor.md
