@@ -106,7 +106,7 @@ async function main() {
   let generatorName = getGeneratorName(args);
 
   // Remove generator name from args if it was provided
-  let processedArgs =
+  const processedArgs =
     args.length > 0 && !args[0].startsWith('-') && args[0] in ALL_GENERATORS
       ? args.slice(1)
       : args;

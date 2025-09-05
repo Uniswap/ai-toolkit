@@ -1,14 +1,14 @@
 import { WebClient } from '@slack/web-api';
 import { config } from '../config';
-import {
+import type {
   OAuthHandler,
   OAuthHandlerOptions,
   OAuthCallbackParams,
   OAuthResult,
   OAuthTokenResponse,
-  OAuthError,
   SlackUserInfo,
 } from './types';
+import { OAuthError } from './types';
 
 /**
  * Implementation of OAuth handler for Slack

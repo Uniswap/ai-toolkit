@@ -110,16 +110,6 @@ export async function executeInstallScript(
         child.stdin.end();
       }
 
-      // Capture output if not verbose
-      if (!options.verbose) {
-        let output = '';
-        if (child.stdout) {
-          child.stdout.on('data', (data) => {
-            output += data.toString();
-          });
-        }
-      }
-
       child.on('close', (code) => {
         if (code === 0) {
           logger.info('✅ Installation script completed successfully');

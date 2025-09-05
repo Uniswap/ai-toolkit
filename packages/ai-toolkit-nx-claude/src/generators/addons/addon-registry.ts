@@ -146,7 +146,7 @@ export async function isAddonInstalled(addonId: string): Promise<boolean> {
             }
           }
         }
-      } catch (error) {
+      } catch {
         // Config parse error, continue checking
         continue;
       }
@@ -197,7 +197,7 @@ export async function getInstalledAddonConfig(
             }
           }
         }
-      } catch (error) {
+      } catch {
         continue;
       }
     }

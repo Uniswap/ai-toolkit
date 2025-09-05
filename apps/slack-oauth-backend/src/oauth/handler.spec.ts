@@ -1,6 +1,6 @@
 import { WebClient } from '@slack/web-api';
 import { SlackOAuthHandler, createOAuthHandler } from './handler';
-import { OAuthCallbackParams } from './types';
+import type { OAuthCallbackParams } from './types';
 
 // Mock the Slack WebClient
 jest.mock('@slack/web-api');

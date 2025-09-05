@@ -2,7 +2,7 @@ import { execSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
-import { AddonMetadata } from './addon-registry';
+import type { AddonMetadata } from './addon-registry';
 
 /**
  * MCP installation options
@@ -29,7 +29,7 @@ export async function installMcpServer(options: MCPInstallOptions): Promise<{
   // Check if Claude CLI is available
   try {
     execSync('claude --version', { stdio: 'ignore' });
-  } catch (error) {
+  } catch {
     return {
       success: false,
       message: 'Claude CLI not found',
@@ -178,7 +178,7 @@ export async function verifyMcpInstallation(serverName: string): Promise<{
             serverConfig: config.mcpServers[serverName],
           };
         }
-      } catch (error) {
+      } catch {
         // Config parse error, continue checking
         continue;
       }

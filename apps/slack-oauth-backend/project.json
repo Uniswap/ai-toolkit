@@ -1,9 +1,7 @@
 {
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "name": "slack-oauth-backend",
-  "sourceRoot": "apps/slack-oauth-backend/src",
-  "projectType": "application",
-  "tags": ["backend", "api", "oauth"],
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "tags": ["scope:backend", "type:api", "backend", "api", "oauth"],
   "targets": {
     "build": {
       "executor": "@nx/webpack:webpack",
@@ -44,11 +42,41 @@
         }
       }
     },
+    "prune-lockfile": {
+      "dependsOn": ["build"],
+      "cache": true,
+      "executor": "@nx/js:prune-lockfile",
+      "outputs": [
+        "{workspaceRoot}/apps/slack-oauth-backend/dist/package.json",
+        "{workspaceRoot}/apps/slack-oauth-backend/dist/bun.lockb"
+      ],
+      "options": {
+        "buildTarget": "build"
+      }
+    },
+    "copy-workspace-modules": {
+      "dependsOn": ["build"],
+      "cache": true,
+      "outputs": [
+        "{workspaceRoot}/apps/slack-oauth-backend/dist/workspace_modules"
+      ],
+      "executor": "@nx/js:copy-workspace-modules",
+      "options": {
+        "buildTarget": "build"
+      }
+    },
+    "prune": {
+      "dependsOn": ["prune-lockfile", "copy-workspace-modules"],
+      "executor": "nx:noop"
+    },
     "serve": {
+      "continuous": true,
       "executor": "@nx/js:node",
       "defaultConfiguration": "development",
+      "dependsOn": ["build"],
       "options": {
-        "buildTarget": "slack-oauth-backend:build"
+        "buildTarget": "slack-oauth-backend:build",
+        "runBuildTargetDependencies": false
       },
       "configurations": {
         "development": {
@@ -65,8 +93,8 @@
       "executor": "@nx/jest:jest",
       "outputs": ["{workspaceRoot}/apps/slack-oauth-backend/test-output"],
       "options": {
-        "jestConfig": "apps/slack-oauth-backend/jest.config.ts",
         "passWithNoTests": true,
+        "jestConfig": "apps/slack-oauth-backend/jest.config.ts",
         "coverage": false
       },
       "configurations": {
@@ -187,5 +215,7 @@
         ]
       }
     }
-  }
+  },
+  "sourceRoot": "apps/slack-oauth-backend/src",
+  "projectType": "application"
 }

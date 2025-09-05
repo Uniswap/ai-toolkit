@@ -1,4 +1,5 @@
-import { WebClient, WebClientOptions } from '@slack/web-api';
+import type { WebClientOptions } from '@slack/web-api';
+import { WebClient } from '@slack/web-api';
 import { Agent } from 'https';
 import { config } from '../config';
 import { userInfoCache, channelCache } from '../utils/cache';

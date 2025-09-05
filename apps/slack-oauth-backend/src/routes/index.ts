@@ -1,4 +1,5 @@
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import { config } from '../config';
 import { createSlackClient } from '../slack/client';
 import { logger } from '../utils/logger';
