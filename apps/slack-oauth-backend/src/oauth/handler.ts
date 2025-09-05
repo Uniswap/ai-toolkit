@@ -117,9 +117,13 @@ export class SlackOAuthHandler implements OAuthHandler {
         );
       }
 
+      // Prefer the User OAuth Token (xoxp) if present; otherwise fall back to the Bot token
+      const userToken = tokenResponse.authed_user?.access_token;
+      const selectedToken = userToken || tokenResponse.access_token;
+
       return {
         success: true,
-        accessToken: tokenResponse.access_token,
+        accessToken: selectedToken,
         user: userInfo,
         details: {
           team: tokenResponse.team,
