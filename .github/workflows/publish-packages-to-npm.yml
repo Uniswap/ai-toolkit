@@ -1,0 +1,37 @@
+name: Release
+on: workflow_dispatch
+jobs:
+  release:
+    name: Release
+    environment:
+      name: release
+    runs-on:
+      group: npm-deploy
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - name: Load Secrets
+        uses: 1password/load-secrets-action@581a835fb51b8e7ec56b71cf2ffddd7e68bb25e0
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          NPM_TOKEN: op://npm-deploy/npm-runner-token/secret
+      - name: Checkout
+        uses: actions/checkout@1e31de5234b9f8995739874a8ce0492dc87873e2
+        with:
+          submodules: 'true'
+          fetch-depth: 2
+      - name: Setup Node.js
+        uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b
+        with:
+          node-version: '22.13.1'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@ai-toolkit'
+      - name: Clean install
+        run: npm ci
+      - name: Publish
+        run: npx nx release publish
+        env:
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
