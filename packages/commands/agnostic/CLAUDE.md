@@ -13,37 +13,64 @@ This package contains agnostic command definitions for Claude Code. Commands are
 - Comprehensive risk assessment matrix with mitigation strategies
 - Team composition recommendations for parallel execution
 - Automatic complexity detection and adaptive planning
-- Full integration with `/understand-area` for context-aware planning
+- Full integration with `/explore` for context-aware planning
 - Supports all scenarios: simple bug fixes, features, refactors, and complex architectural changes
 
 ## Recommended Workflows
 
-### Context-Aware Planning Workflow
+### Complete Implementation Workflow (1-2-3-4 Flow)
 
-For optimal planning results, use this two-step process:
+For optimal results, follow this four-step linear workflow:
 
-1. **Build Context First**: `/understand-area <relevant area>`
+1. **Explore**: `/explore <relevant area>`
 
-   - Invokes the context-loader agent to deeply analyze the codebase area
-   - Returns structured findings about components, patterns, dependencies, and gotchas
+   - Deep dive into the codebase area
+   - Build comprehensive understanding
+   - Context automatically flows to next step
 
-2. **Plan with Context**: `/plan <task description>`
-   - Claude Code automatically passes context-loader findings to the planner
-   - Creates implementation plans that respect existing patterns
-   - Accounts for known edge cases and gotchas
-   - No flags needed - context is used automatically when available
+2. **Plan**: `/plan <task description>`
 
-Example:
+   - Uses exploration context automatically
+   - Creates hierarchical implementation plan
+   - Generates detailed markdown plan file
+
+3. **Review**: `/review-plan <plan-file>`
+
+   - Validates plan completeness and feasibility
+   - Checks alignment with codebase patterns
+   - Identifies risks and improvements
+
+4. **Execute**: `/execute-plan <plan-file>`
+   - Orchestrates multi-agent implementation
+   - Handles parallel execution and dependencies
+   - Applies quality gates between phases
+
+### Example Workflow
 
 ```bash
-# First, understand the authentication system
-/understand-area authentication and user management
+# Step 1: Explore and understand the authentication system
+/explore authentication and user management
 
-# Then, plan new feature (context is automatically used)
+# Step 2: Plan new feature (context from exploration is automatically used)
 /plan add two-factor authentication support
+
+# Step 3: Review the generated plan for quality
+/review-plan auth-2fa-plan.md
+
+# Step 4: Execute the approved plan
+/execute-plan auth-2fa-plan.md --parallel
 ```
 
-**Note for Claude Code**: When context-loader findings exist from a previous `/understand-area` command, automatically pass them to the planner agent as `context_findings`. This happens seamlessly without user intervention.
+### Quick Execution
+
+For simple tasks, you can skip to execution directly:
+
+```bash
+/execute-plan "fix the login validation bug"
+# Creates and executes a quick plan inline
+```
+
+**Note for Claude Code**: When context-loader findings exist from a previous `/explore` command, automatically pass them to the planner agent as `context_findings`. The workflow is designed to be seamless with context flowing automatically between commands.
 
 ## Command Structure
 
@@ -78,7 +105,7 @@ Invoke **agent-name** with parameters
 - **explain-file**: Analyze and explain code structure
 - **fix-bug**: Debug and fix issues with root cause analysis
 - **refactor**: Refactor code for better structure
-- **understand-area**: Deep dive into codebase areas
+- **explore**: Deep dive into codebase areas
 
 ### Testing & Quality Commands
 
@@ -90,6 +117,7 @@ Invoke **agent-name** with parameters
 ### Planning & Implementation Commands
 
 - **plan**: Create comprehensive implementation plans with hierarchical task decomposition
+- **execute-plan**: Execute implementation plans using intelligent agent orchestration (standalone, no spec-workflow required)
 - **implement-spec**: Orchestrate spec-workflow task implementation with parallel agent coordination
 - **research**: Combine web search with codebase analysis
 
@@ -127,9 +155,10 @@ Rather than having a single "implement everything" command, we maintain the prin
    - Risk assessment and mitigation strategies
    - Dependency analysis and execution order
 
-2. **Orchestration**: The **agent-orchestrator** handles multi-agent coordination
+2. **Execution Phase**: Use `/execute-plan` to orchestrate implementation
 
-   - Reads plans created by `/plan` command
+   - Reads plans created by `/plan` command or any markdown plan
+   - Accepts inline task descriptions for quick execution
    - Coordinates multiple specialized agents
    - Manages parallel vs sequential execution
    - Handles task dependencies and quality gates
@@ -155,22 +184,36 @@ Example workflow:
 
 ```bash
 # Step 1: Understand the codebase area
-/understand-area authentication system
+/explore authentication system
 
 # Step 2: Create a comprehensive plan
 /plan add OAuth2 integration with Google and GitHub
 
-# Step 3: The orchestrator coordinates implementation
-# Based on the plan, it will invoke appropriate agents:
-# - code-generator for new OAuth modules
-# - test-writer for authentication tests
-# - security-analyzer for vulnerability checks
-# - documentation-agent for API docs
+# Step 3: Execute the plan using intelligent orchestration
+/execute-plan oauth-plan.md
+
+# The execute-plan command will:
+# - Parse the plan structure and dependencies
+# - Coordinate appropriate agents:
+#   - code-generator for new OAuth modules
+#   - test-writer for authentication tests
+#   - security-analyzer for vulnerability checks
+#   - documentation-agent for API docs
+# - Handle parallel execution where possible
+# - Apply quality gates between phases
 ```
 
-## Recent Changes (2025-08-30)
+## Recent Changes
 
-### New Commands Added
+### Latest Updates (2025-09-05)
+
+- **execute-plan**: New standalone command for executing implementation plans
+  - Works with any markdown plan file or inline task descriptions
+  - No spec-workflow dependencies required
+  - Supports parallel execution, quality gates, and meta-agent optimization
+  - Perfect companion to the `/plan` command for complete planning-to-execution workflow
+
+### Previous Updates (2025-08-30)
 
 - **implement-spec**: Orchestrates spec-workflow task implementation with intelligent agent coordination
 - **review-code**: Comprehensive multi-agent code review for architecture, security, and performance

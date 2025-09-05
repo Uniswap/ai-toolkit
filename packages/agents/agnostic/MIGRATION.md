@@ -128,7 +128,7 @@ The new `/plan` command intelligently adapts to task complexity:
 
 ```bash
 # Step 1: Build context
-/understand-area authentication
+/explore authentication
 
 # Step 2: Create plan
 /plan add user authentication with JWT
@@ -185,7 +185,7 @@ agent: code-generator # Must match code-generator.md exactly
 
 ```bash
 # Context flows automatically
-/understand-area payment-processing
+/explore payment-processing
 /plan add refund capability  # Context automatically included
 ```
 
@@ -206,7 +206,7 @@ Always build context before planning:
 
 ```bash
 # ALWAYS start with understanding
-/understand-area <relevant-area>
+/explore <relevant-area>
 
 # THEN create plans
 /plan <task-description>
@@ -221,7 +221,7 @@ Instead of trying to implement directly, let the orchestrator coordinate:
 const result = await command.execute('/implement', task);
 
 // New: Orchestrated workflow
-const context = await command.execute('/understand-area', area);
+const context = await command.execute('/explore', area);
 const plan = await command.execute('/plan', task);
 // Orchestrator automatically handles implementation
 ```
@@ -286,7 +286,7 @@ epic:
 
 ```bash
 # Build understanding first
-/understand-area checkout process
+/explore checkout process
 
 # Create targeted plan
 /plan fix null pointer exception in checkout
@@ -314,7 +314,7 @@ epic:
 
 ```bash
 # Comprehensive understanding
-/understand-area authentication system
+/explore authentication system
 
 # Unified planning with automatic complexity detection
 /plan add OAuth2 authentication with Google and GitHub
@@ -342,7 +342,7 @@ epic:
 
 ```bash
 # Deep context building
-/understand-area database layer and data access patterns
+/explore database layer and data access patterns
 
 # Comprehensive refactoring plan
 /plan refactor database layer for improved performance and maintainability
@@ -379,7 +379,7 @@ epic:
 
 ```bash
 # Cohesive workflow with intelligent orchestration
-/understand-area src/auth    # Builds comprehensive context
+/explore src/auth    # Builds comprehensive context
 /plan add 2FA support         # Creates hierarchical plan with agent assignments
 # Orchestrator handles everything else automatically
 ```
@@ -562,7 +562,7 @@ pattern_lifecycle:
 
 ```bash
 # Always start with context
-/understand-area <area>  # Before any major work
+/explore <area>  # Before any major work
 
 # For specific file understanding
 /explain-file <file-path>
@@ -623,7 +623,7 @@ risk_assessment:
 
 ```bash
 # 1. Deep understanding
-/understand-area payment-processing
+/explore payment-processing
 
 # 2. Comprehensive planning
 /plan add subscription billing feature
@@ -767,7 +767,7 @@ memory_strategies:
 **Solution:** Use the new workflow:
 
 ```bash
-/understand-area <area>
+/explore <area>
 /plan <task>
 # Let orchestrator handle implementation
 ```
@@ -786,7 +786,7 @@ memory_strategies:
 **Solution:** Always build context first:
 
 ```bash
-/understand-area <relevant-area>
+/explore <relevant-area>
 # Then proceed with planning
 ```
 

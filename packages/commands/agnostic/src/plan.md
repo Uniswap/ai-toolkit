@@ -8,16 +8,24 @@ allowed-tools: Read(*), Glob(*), Grep(*), LS(*), WebSearch(*), WebFetch(*), Writ
 
 Create a comprehensive implementation plan with hierarchical task decomposition, intelligent agent assignment, and risk assessment for any development task - from simple bug fixes to complex architectural changes.
 
-## Recommended Workflow
+## Workflow Integration
 
-**BEST PRACTICE: Use this command AFTER running `/understand-area` for optimal results**
+This command is **Step 2** of the implementation workflow:
 
-1. First: `/understand-area <relevant area>` - Builds comprehensive context
+1. Explore → 2. **Plan** → 3. Review → 4. Execute
+
+### Recommended Workflow
+
+**BEST PRACTICE: Use this command AFTER running `/explore` for optimal results**
+
+1. First: `/explore <relevant area>` - Builds comprehensive context
 2. Then: `/plan <task>` - Creates plan using that context automatically
+3. Next: `/review-plan <plan-file>` - Review and validate the plan
+4. Finally: `/execute-plan <plan-file>` - Executes the approved implementation
 
-This two-step process ensures the planner has deep understanding before creating the implementation plan.
+This four-step process ensures optimal understanding, planning, validation, and execution.
 
-**Note for Claude Code**: When you have context-loader findings from a previous `/understand-area` command, automatically pass them to the planner agent. The user doesn't need to specify any flags.
+**Note for Claude Code**: When you have context-loader findings from a previous `/explore` command, automatically pass them to the planner agent. The user doesn't need to specify any flags.
 
 ## Inputs
 
@@ -26,7 +34,7 @@ Accept natural language description and extract:
 - `task`: The full description of what needs to be implemented/fixed/refactored
 - `scope`: Any specific scope or boundaries mentioned
 - `constraints`: Any explicit constraints or requirements
-- `context_findings`: Automatically include context-loader findings from `/understand-area` if available
+- `context_findings`: Automatically include context-loader findings from `/explore` if available
 - `complexity`: Optional complexity hint (simple|medium|complex|epic) - auto-detected if not specified
 - `timeline`: Optional timeline constraints
 - `team_size`: Optional team size for parallel execution planning
@@ -163,7 +171,7 @@ Generate a comprehensive implementation plan using enhanced orchestrator capabil
 
 ## Context Integration
 
-**Claude Code**: When you have findings from a previous `/understand-area` command, automatically extract and pass:
+**Claude Code**: When you have findings from a previous `/explore` command, automatically extract and pass:
 
 - Key components and their responsibilities
 - Existing patterns and conventions
@@ -302,8 +310,8 @@ The planner automatically adapts its output based on task complexity:
 
 ### Workflow Integration
 
-1. **Context Building**: `/understand-area` → `/plan` → `/review-plan`
-2. **Execution**: `/plan` → `/execute-plan` (leverages orchestrator for parallel execution)
+1. **Complete Implementation Flow**: `/explore` → `/plan` → `/review-plan` → `/execute-plan`
+2. **Quick Planning**: Skip explore for simple tasks: `/plan` → `/review-plan` → `/execute-plan`
 3. **Architecture**: `/plan` → `/document-architecture` (uses ADRs from plan)
 4. **Team Coordination**: `/plan` → `/assign-tasks` (uses meta-agent assignments)
 
