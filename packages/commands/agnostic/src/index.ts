@@ -3,9 +3,12 @@
 // To regenerate, run: bunx nx run @ai-toolkit/commands-agnostic:generate-index
 
 type CommandName =
+  | 'auto-spec'
   | 'create-pr'
   | 'deploy'
+  | 'execute-plan'
   | 'explain-file'
+  | 'explore'
   | 'fix-bug'
   | 'gen-tests'
   | 'generate-commit-message'
@@ -16,8 +19,7 @@ type CommandName =
   | 'research'
   | 'review-code'
   | 'review-plan'
-  | 'review-pr'
-  | 'understand-area';
+  | 'review-pr';
 
 export type Commands = {
   [key in CommandName]: {
@@ -27,6 +29,11 @@ export type Commands = {
 };
 
 export const commands: Commands = {
+  'auto-spec': {
+    description:
+      'Autonomously create and implement a complete spec workflow with multi-agent collaboration, bypassing manual review steps through intelligent consensus-building',
+    filePath: './auto-spec.md',
+  },
   'create-pr': {
     description:
       'Create or update a Graphite PR with auto-generated conventional commit messages and comprehensive descriptions based on code diffs.',
@@ -37,10 +44,20 @@ export const commands: Commands = {
       'Orchestrate deployment pipelines, infrastructure setup, and CI/CD configuration using specialized deployment agents.',
     filePath: './deploy.md',
   },
+  'execute-plan': {
+    description:
+      'Execute implementation plans using intelligent agent coordination, parallel execution, and quality gates.',
+    filePath: './execute-plan.md',
+  },
   'explain-file': {
     description:
       'Comprehensive code explanation using multi-agent analysis for architecture, patterns, security, and performance insights.',
     filePath: './explain-file.md',
+  },
+  explore: {
+    description:
+      'Deep dive into a codebase area to build comprehensive understanding before creating and implementing a plan.',
+    filePath: './explore.md',
   },
   'fix-bug': {
     description:
@@ -96,10 +113,5 @@ export const commands: Commands = {
     description:
       'Orchestrate comprehensive pull request review using specialized agents for architecture, security, performance, testing, and maintainability analysis.',
     filePath: './review-pr.md',
-  },
-  'understand-area': {
-    description:
-      'Deep dive into a codebase area to build comprehensive understanding before implementation.',
-    filePath: './understand-area.md',
   },
 } as const;

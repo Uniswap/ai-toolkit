@@ -260,18 +260,18 @@ Context flows through the system via:
 
 The command system provides high-level interfaces to the agent infrastructure:
 
-| Command            | Purpose                     | Primary Agents Used                      |
-| ------------------ | --------------------------- | ---------------------------------------- |
-| `/plan`            | Create implementation plans | planner, agent-orchestrator              |
-| `/review-plan`     | Validate and improve plans  | plan-reviewer, agent-capability-analyst  |
-| `/understand-area` | Build codebase context      | context-loader, code-explainer           |
-| `/explain-file`    | Explain specific files      | code-explainer, doc-writer               |
-| `/fix-bug`         | Resolve issues              | debug-assistant, test-writer             |
-| `/gen-tests`       | Generate test suites        | test-writer, code-generator              |
-| `/refactor`        | Improve code quality        | refactorer, style-enforcer               |
-| `/research`        | Gather information          | researcher, pattern-learner              |
-| `/monitor`         | Track execution             | feedback-collector, performance-analyzer |
-| `/review-pr`       | Review pull requests        | code-explainer, security-analyzer        |
+| Command         | Purpose                     | Primary Agents Used                      |
+| --------------- | --------------------------- | ---------------------------------------- |
+| `/plan`         | Create implementation plans | planner, agent-orchestrator              |
+| `/review-plan`  | Validate and improve plans  | plan-reviewer, agent-capability-analyst  |
+| `/explore`      | Build codebase context      | context-loader, code-explainer           |
+| `/explain-file` | Explain specific files      | code-explainer, doc-writer               |
+| `/fix-bug`      | Resolve issues              | debug-assistant, test-writer             |
+| `/gen-tests`    | Generate test suites        | test-writer, code-generator              |
+| `/refactor`     | Improve code quality        | refactorer, style-enforcer               |
+| `/research`     | Gather information          | researcher, pattern-learner              |
+| `/monitor`      | Track execution             | feedback-collector, performance-analyzer |
+| `/review-pr`    | Review pull requests        | code-explainer, security-analyzer        |
 
 ### Command-to-Agent Delegation Patterns
 
@@ -337,7 +337,7 @@ permission_hierarchy:
 ```mermaid
 graph LR
     subgraph "Phase 1: Understanding"
-        UC[/understand-area] --> CL[Context Loader]
+        UC[/explore] --> CL[Context Loader]
         CL --> KB[Knowledge Base]
     end
 
@@ -719,7 +719,7 @@ graph TD
 workflow: bug_fix_with_learning
 steps:
   1_understanding:
-    command: /understand-area
+    command: /explore
     agents: [context-loader, code-explainer]
     output: comprehensive_context
 

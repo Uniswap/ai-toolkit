@@ -1,10 +1,11 @@
-import { Tree, formatFiles, logger, writeJson } from '@nx/devkit';
+import type { Tree } from '@nx/devkit';
+import { formatFiles, logger, writeJson } from '@nx/devkit';
 import { prompt } from 'enquirer';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import { execSync } from 'child_process';
-import { InitGeneratorSchema } from './schema';
+import type { InitGeneratorSchema } from './schema';
 import { promptForMissingOptions } from '../../utils/prompt-utils';
 import {
   getExplicitlyProvidedOptions,

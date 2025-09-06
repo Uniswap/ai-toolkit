@@ -1,11 +1,7 @@
-import {
-  Tree,
-  formatFiles,
-  generateFiles,
-  joinPathFragments,
-} from '@nx/devkit';
+import type { Tree } from '@nx/devkit';
+import { formatFiles, generateFiles, joinPathFragments } from '@nx/devkit';
 import * as path from 'path';
-import { AddAgentGeneratorSchema } from './schema';
+import type { AddAgentGeneratorSchema } from './schema';
 import { promptForMissingOptions } from '../../utils/prompt-utils';
 import { libraryGenerator } from '@nx/js';
 

@@ -1,4 +1,5 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
 import { createOAuthHandler } from '../oauth/handler';
 import { createSlackClient } from '../slack/client';
 import {
@@ -8,7 +9,7 @@ import {
 } from '../messages/formatter';
 import { logger } from '../utils/logger';
 import { OAuthError, ValidationError } from '../utils/errors';
-import { OAuthCallbackParams } from '../oauth/types';
+import type { OAuthCallbackParams } from '../oauth/types';
 import {
   oauthRateLimiter,
   validateOAuthCallback,

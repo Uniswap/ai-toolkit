@@ -1,9 +1,10 @@
-import { Tree, formatFiles } from '@nx/devkit';
+import type { Tree } from '@nx/devkit';
+import { formatFiles } from '@nx/devkit';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
 import { execSync } from 'child_process';
-import { SetupRegistryProxyGeneratorSchema } from './schema';
+import type { SetupRegistryProxyGeneratorSchema } from './schema';
 
 function detectShell(): { shell: string; rcFile: string; envFile: string } {
   const homeDir = os.homedir();

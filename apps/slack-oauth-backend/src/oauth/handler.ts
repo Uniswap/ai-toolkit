@@ -1,14 +1,14 @@
 import { WebClient } from '@slack/web-api';
 import { config } from '../config';
-import {
+import type {
   OAuthHandler,
   OAuthHandlerOptions,
   OAuthCallbackParams,
   OAuthResult,
   OAuthTokenResponse,
-  OAuthError,
   SlackUserInfo,
 } from './types';
+import { OAuthError } from './types';
 
 /**
  * Implementation of OAuth handler for Slack
@@ -17,7 +17,8 @@ export class SlackOAuthHandler implements OAuthHandler {
   private readonly clientId: string;
   private readonly clientSecret: string;
   private readonly redirectUri: string;
-  private readonly scopes: string[];
+  private readonly botScopes: string[];
+  private readonly userScopes: string[];
   private readonly validateStateFn?: (state: string | undefined) => boolean;
   private readonly webClient: WebClient;
 
@@ -25,7 +26,9 @@ export class SlackOAuthHandler implements OAuthHandler {
     this.clientId = options.clientId;
     this.clientSecret = options.clientSecret;
     this.redirectUri = options.redirectUri;
-    this.scopes = options.scopes || [];
+    // Back-compat: if only `scopes` provided, treat them as user scopes
+    this.userScopes = options.userScopes || options.scopes || [];
+    this.botScopes = options.botScopes || [];
     this.validateStateFn = options.validateState;
 
     // Initialize Slack Web API client (without token for OAuth operations)
@@ -40,8 +43,15 @@ export class SlackOAuthHandler implements OAuthHandler {
       client_id: this.clientId,
       redirect_uri: this.redirectUri,
       state: state,
-      scope: this.scopes.join(','),
     });
+
+    // Granular permissions: bot scopes go in `scope`, user token scopes go in `user_scope`
+    if (this.botScopes.length > 0) {
+      params.set('scope', this.botScopes.join(','));
+    }
+    if (this.userScopes.length > 0) {
+      params.set('user_scope', this.userScopes.join(','));
+    }
 
     return `https://slack.com/oauth/v2/authorize?${params.toString()}`;
   }
@@ -107,9 +117,13 @@ export class SlackOAuthHandler implements OAuthHandler {
         );
       }
 
+      // Prefer the User OAuth Token (xoxp) if present; otherwise fall back to the Bot token
+      const userToken = tokenResponse.authed_user?.access_token;
+      const selectedToken = userToken || tokenResponse.access_token;
+
       return {
         success: true,
-        accessToken: tokenResponse.access_token,
+        accessToken: selectedToken,
         user: userInfo,
         details: {
           team: tokenResponse.team,
@@ -218,7 +232,39 @@ export function createOAuthHandler(
     clientId: config.slackClientId,
     clientSecret: config.slackClientSecret,
     redirectUri: config.slackRedirectUri,
-    scopes: ['chat:write', 'users:read'], // Required scopes for user tokens
+    // Scopes are split between bot (xoxb) and user (xoxp) tokens.
+    botScopes: [
+      'channels:history',
+      'channels:read',
+      'chat:write',
+      'groups:history',
+      'groups:read',
+      'im:history',
+      'im:read',
+      'im:write',
+      'mpim:history',
+      'mpim:read',
+      'reactions:read',
+      'reactions:write',
+      'users.profile:read',
+      'users:read',
+    ],
+    userScopes: [
+      'channels:history',
+      'channels:read',
+      'chat:write',
+      'groups:history',
+      'groups:read',
+      'im:history',
+      'im:read',
+      'im:write',
+      'mpim:history',
+      'mpim:read',
+      'reactions:read',
+      'reactions:write',
+      'users.profile:read',
+      'users:read',
+    ],
     validateState,
   });
 }

@@ -84,7 +84,7 @@ async function validateToken(token: string): Promise<boolean> {
 
     // If we get here without error, token is valid
     return result.includes('"name"');
-  } catch (error) {
+  } catch {
     // Token is invalid or package doesn't exist
     return false;
   }
@@ -158,7 +158,7 @@ export async function setupGitHubAuth(
  * Validate package access with current authentication
  */
 export async function validatePackageAccess(
-  packageName: string = '@uniswap/spec-workflow-mcp'
+  packageName = '@uniswap/spec-workflow-mcp'
 ): Promise<{
   accessible: boolean;
   error?: string;

@@ -1,6 +1,7 @@
-import { Tree, formatFiles, logger } from '@nx/devkit';
+import type { Tree } from '@nx/devkit';
+import { formatFiles, logger } from '@nx/devkit';
 import * as path from 'path';
-import { HooksGeneratorSchema } from './schema';
+import type { HooksGeneratorSchema } from './schema';
 import { promptForMissingOptions } from '../../utils/prompt-utils';
 import { checkAndValidateDependencies } from './dependency-checker';
 import { ensureRepository, cleanupRepository } from './repo-manager';

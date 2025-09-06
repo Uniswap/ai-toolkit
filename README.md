@@ -10,7 +10,7 @@ The **AI Toolkit** is a standardized collection of AI agents and commands design
 
 - **One-shot Installation**: Automated setup of Claude Code configurations
 - **Pre-built AI Agents**: Specialized subagents for code explanation, refactoring, testing, research, and more. Claude Code will use these automatically without any need for manual direction by the user
-- **Ready-to-use Commands**: Quick access patterns (called "[Slash commands](https://docs.anthropic.com/en/docs/claude-code/slash-commands)") for common development workflows like understanding codebases (`/understand-area`), generating tests (`/gen-tests`), and planning features (`/plan`)
+- **Ready-to-use Commands**: Quick access patterns (called "[Slash commands](https://docs.anthropic.com/en/docs/claude-code/slash-commands)") for common development workflows like understanding codebases (`/explore`), generating tests (`/gen-tests`), and planning features (`/plan`)
 - **Standardized Patterns**: Create a common toolset of Claude Code commands and agents shared by everyone at Uniswap
 
 **Why it exists:**

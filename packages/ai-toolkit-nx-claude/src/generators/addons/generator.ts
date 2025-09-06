@@ -1,5 +1,6 @@
-import { Tree, formatFiles } from '@nx/devkit';
-import { AddonsGeneratorSchema } from './schema';
+import type { Tree } from '@nx/devkit';
+import { formatFiles } from '@nx/devkit';
+import type { AddonsGeneratorSchema } from './schema';
 import { promptForMissingOptions } from '../../utils/prompt-utils';
 import {
   isNxDryRunProvided,
@@ -57,14 +58,12 @@ export default async function generator(
   }
 
   // Parse CLI args and prompt for missing options
-  let options: AddonsGeneratorSchema & { dryRun?: boolean };
-
   if (isDryRun) {
     console.log('🔍 Dry-run mode activated\n');
   }
 
   // Always prompt for options (even in dry-run mode) to customize the output
-  options = (await promptForMissingOptions(
+  const options = (await promptForMissingOptions(
     schema,
     require('./schema.json')
   )) as AddonsGeneratorSchema & { dryRun?: boolean };
@@ -392,7 +391,7 @@ async function updateConfiguration(
 function showUsageInstructions(
   addon: any,
   options: AddonsGeneratorSchema & { dryRun?: boolean },
-  projectSetupCompleted: boolean = false
+  projectSetupCompleted = false
 ): void {
   console.log('\n📚 Usage Instructions:');
   console.log('====================\n');

@@ -20,7 +20,7 @@ export interface GenerateIndexOptions {
 
 async function parseMarkdownFile(
   filePath: string,
-  useFilenameAsName: boolean = false
+  useFilenameAsName = false
 ): Promise<{ name: string; description: string } | null> {
   try {
     const content = await readFile(filePath, 'utf-8');

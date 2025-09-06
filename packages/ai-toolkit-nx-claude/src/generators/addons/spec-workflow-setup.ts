@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { cpSync } from 'fs';
-import { AddonsGeneratorSchema } from './schema';
+import type { AddonsGeneratorSchema } from './schema';
 
 /**
  * Result of the setup operation

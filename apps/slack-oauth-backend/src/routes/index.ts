@@ -1,4 +1,5 @@
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import { config } from '../config';
 import { createSlackClient } from '../slack/client';
 import { logger } from '../utils/logger';
@@ -9,12 +10,9 @@ const router = Router();
  * Landing page with Add to Slack button
  * GET /
  */
-router.get('/', (req: Request, res: Response) => {
-  const slackAuthUrl = `https://slack.com/oauth/v2/authorize?client_id=${
-    config.slackClientId
-  }&scope=chat:write,users:read&redirect_uri=${encodeURIComponent(
-    config.slackRedirectUri
-  )}&state=${generateState()}`;
+router.get('/', (_req: Request, res: Response) => {
+  // Use our centralized OAuth authorize endpoint so scopes stay in sync
+  const slackAuthUrl = `/slack/oauth/authorize`;
 
   const html = `
     <!DOCTYPE html>
@@ -29,7 +27,7 @@ router.get('/', (req: Request, res: Response) => {
           padding: 0;
           box-sizing: border-box;
         }
-        
+
         body {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
           background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
@@ -39,7 +37,7 @@ router.get('/', (req: Request, res: Response) => {
           justify-content: center;
           padding: 20px;
         }
-        
+
         .container {
           background: white;
           border-radius: 20px;
@@ -49,7 +47,7 @@ router.get('/', (req: Request, res: Response) => {
           width: 100%;
           text-align: center;
         }
-        
+
         .logo {
           width: 100px;
           height: 100px;
@@ -61,7 +59,7 @@ router.get('/', (req: Request, res: Response) => {
           justify-content: center;
           font-size: 48px;
         }
-        
+
         h1 {
           color: #1f2937;
           font-size: 36px;
@@ -69,27 +67,27 @@ router.get('/', (req: Request, res: Response) => {
           margin-bottom: 16px;
           letter-spacing: -0.02em;
         }
-        
+
         .subtitle {
           color: #6b7280;
           font-size: 20px;
           line-height: 1.6;
           margin-bottom: 48px;
         }
-        
+
         .features {
           display: grid;
           gap: 24px;
           margin-bottom: 48px;
           text-align: left;
         }
-        
+
         .feature {
           display: flex;
           align-items: start;
           gap: 16px;
         }
-        
+
         .feature-icon {
           width: 48px;
           height: 48px;
@@ -101,20 +99,20 @@ router.get('/', (req: Request, res: Response) => {
           flex-shrink: 0;
           font-size: 24px;
         }
-        
+
         .feature-content h3 {
           color: #1f2937;
           font-size: 18px;
           font-weight: 600;
           margin-bottom: 4px;
         }
-        
+
         .feature-content p {
           color: #6b7280;
           font-size: 15px;
           line-height: 1.5;
         }
-        
+
         .slack-button {
           display: inline-flex;
           align-items: center;
@@ -129,31 +127,31 @@ router.get('/', (req: Request, res: Response) => {
           transition: all 0.3s ease;
           box-shadow: 0 4px 12px rgba(74, 21, 75, 0.3);
         }
-        
+
         .slack-button:hover {
           background: #611f69;
           transform: translateY(-2px);
           box-shadow: 0 6px 20px rgba(74, 21, 75, 0.4);
         }
-        
+
         .slack-button svg {
           width: 24px;
           height: 24px;
         }
-        
+
         .divider {
           height: 1px;
           background: #e5e7eb;
           margin: 48px 0;
         }
-        
+
         .info {
           background: #f9fafb;
           border-radius: 12px;
           padding: 20px;
           margin-top: 32px;
         }
-        
+
         .info-title {
           color: #1f2937;
           font-size: 14px;
@@ -161,14 +159,14 @@ router.get('/', (req: Request, res: Response) => {
           margin-bottom: 8px;
           text-align: left;
         }
-        
+
         .info-text {
           color: #6b7280;
           font-size: 14px;
           line-height: 1.5;
           text-align: left;
         }
-        
+
         .footer {
           margin-top: 48px;
           padding-top: 24px;
@@ -176,12 +174,12 @@ router.get('/', (req: Request, res: Response) => {
           color: #9ca3af;
           font-size: 14px;
         }
-        
+
         .footer a {
           color: #7c3aed;
           text-decoration: none;
         }
-        
+
         .footer a:hover {
           text-decoration: underline;
         }
@@ -190,10 +188,10 @@ router.get('/', (req: Request, res: Response) => {
     <body>
       <div class="container">
         <div class="logo">🔐</div>
-        
+
         <h1>Slack OAuth Integration</h1>
         <p class="subtitle">Securely generate and receive your Slack access token via direct message</p>
-        
+
         <div class="features">
           <div class="feature">
             <div class="feature-icon">🛡️</div>
@@ -202,7 +200,7 @@ router.get('/', (req: Request, res: Response) => {
               <p>OAuth 2.0 flow with state validation for maximum security</p>
             </div>
           </div>
-          
+
           <div class="feature">
             <div class="feature-icon">📨</div>
             <div class="feature-content">
@@ -210,7 +208,7 @@ router.get('/', (req: Request, res: Response) => {
               <p>Receive your access token privately via Slack DM</p>
             </div>
           </div>
-          
+
           <div class="feature">
             <div class="feature-icon">📚</div>
             <div class="feature-content">
@@ -219,22 +217,22 @@ router.get('/', (req: Request, res: Response) => {
             </div>
           </div>
         </div>
-        
+
         <a href="${slackAuthUrl}" class="slack-button">
           <svg viewBox="0 0 24 24" fill="currentColor">
             <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/>
           </svg>
           Add to Slack
         </a>
-        
+
         <div class="info">
           <div class="info-title">What happens next?</div>
           <div class="info-text">
-            After authorizing, you'll receive your access token via Slack direct message. 
+            After authorizing, you'll receive your access token via Slack direct message.
             The token can be used to integrate with Slack's APIs according to the permissions you grant.
           </div>
         </div>
-        
+
         <div class="footer">
           Need help? Check our <a href="${config.notionDocUrl}" target="_blank">documentation</a>
         </div>
@@ -315,7 +313,7 @@ router.get('/health', async (req: Request, res: Response) => {
  * Metrics endpoint (Prometheus-compatible format)
  * GET /metrics
  */
-router.get('/metrics', async (req: Request, res: Response) => {
+router.get('/metrics', async (_req: Request, res: Response) => {
   const uptime = process.uptime();
   const memoryUsage = process.memoryUsage();
 
@@ -355,12 +353,5 @@ router.get('/metrics', async (req: Request, res: Response) => {
 
   res.type('text/plain').send(metrics);
 });
-
-/**
- * Generate a random state parameter
- */
-function generateState(): string {
-  return `state_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
-}
 
 export default router;
