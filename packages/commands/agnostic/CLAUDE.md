@@ -119,6 +119,7 @@ Invoke **agent-name** with parameters
 - **plan**: Create comprehensive implementation plans with hierarchical task decomposition
 - **execute-plan**: Execute implementation plans using intelligent agent orchestration (standalone, no spec-workflow required)
 - **implement-spec**: Orchestrate spec-workflow task implementation with parallel agent coordination
+- **auto-spec**: Fully autonomous spec-driven development with multi-agent consensus building
 - **research**: Combine web search with codebase analysis
 
 ### Infrastructure & Operations Commands
@@ -205,7 +206,16 @@ Example workflow:
 
 ## Recent Changes
 
-### Latest Updates (2025-09-05)
+### Latest Updates (2025-09-06)
+
+- **auto-spec**: New command for fully autonomous spec-driven development
+  - Creates and implements complete spec workflows with multi-agent collaboration
+  - Bypasses manual review steps through intelligent consensus-building
+  - Orchestrates requirements, design, tasks, and implementation phases
+  - Includes comprehensive error handling and quality validation
+  - Perfect for autonomous feature development with minimal supervision
+
+### Previous Updates (2025-09-05)
 
 - **execute-plan**: New standalone command for executing implementation plans
   - Works with any markdown plan file or inline task descriptions

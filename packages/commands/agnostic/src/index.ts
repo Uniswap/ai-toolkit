@@ -3,6 +3,7 @@
 // To regenerate, run: bunx nx run @ai-toolkit/commands-agnostic:generate-index
 
 type CommandName =
+  | 'auto-spec'
   | 'create-pr'
   | 'deploy'
   | 'execute-plan'
@@ -28,6 +29,11 @@ export type Commands = {
 };
 
 export const commands: Commands = {
+  'auto-spec': {
+    description:
+      'Autonomously create and implement a complete spec workflow with multi-agent collaboration, bypassing manual review steps through intelligent consensus-building',
+    filePath: './auto-spec.md',
+  },
   'create-pr': {
     description:
       'Create or update a Graphite PR with auto-generated conventional commit messages and comprehensive descriptions based on code diffs.',
