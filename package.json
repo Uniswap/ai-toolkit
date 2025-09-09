@@ -2,6 +2,7 @@
   "name": "@ai-toolkit/source",
   "version": "0.0.0",
   "license": "MIT",
+  "private": true,
   "type": "module",
   "scripts": {
     "install-all": "nx generate @uniswap/ai-toolkit-nx-claude:init && nx generate @uniswap/ai-toolkit-nx-claude:hooks",
