@@ -83,10 +83,8 @@ bun install # or npm install if you're not using bun
 ### Option A: Install Everything (Recommended)
 
 ```bash
-# One-shot installer - installs Claude Code at ~/.claude and sets up all agents + commands
-bun run install-all
-
-# Install Claude code hooks, which are custom scripts that hook into Claude Code's lifecycle (such as emitting sound notifications when Claude Code needs your input)
+# Run the CLI to show you everything you can install. Start with the 'init' and then 'hooks' to get started
+bun run start
 ```
 
 ### Option B: Selective Installation

@@ -4,7 +4,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "install-all": "nx generate @uniswap/ai-toolkit-nx-claude:init && nx generate @uniswap/ai-toolkit-nx-claude:hooks",
+    "start": "nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec",
     "build": "nx run-many --target=build --all",
     "lint": "nx run-many --target=lint --all",
     "format": "nx format:write",
