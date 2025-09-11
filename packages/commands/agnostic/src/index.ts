@@ -3,6 +3,7 @@
 // To regenerate, run: bunx nx run @ai-toolkit/commands-agnostic:generate-index
 
 type CommandName =
+  | 'address-pr-issues'
   | 'auto-spec'
   | 'create-pr'
   | 'deploy'
@@ -29,6 +30,10 @@ export type Commands = {
 };
 
 export const commands: Commands = {
+  'address-pr-issues': {
+    description: 'Reviews a GitHub PR, addresses comments, and fixes CI issues',
+    filePath: './address-pr-issues.md',
+  },
   'auto-spec': {
     description:
       'Autonomously create and implement a complete spec workflow with multi-agent collaboration, bypassing manual review steps through intelligent consensus-building',
