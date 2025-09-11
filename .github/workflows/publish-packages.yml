@@ -26,6 +26,14 @@ jobs:
       issues: write
 
     steps:
+      - name: Load Secrets
+        uses: 1password/load-secrets-action@581a835fb51b8e7ec56b71cf2ffddd7e68bb25e0
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          NPM_TOKEN: op://npm-deploy/npm-runner-token/secret
+
       - name: Checkout repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
         with:
@@ -97,15 +105,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish affected packages
+      - name: Publish affected packages to GitHub Packages
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
         run: |
-          echo "Publishing affected packages with tag: ${{ steps.npm-tag.outputs.tag }}"
+          echo "Publishing affected packages with tag: ${{ steps.npm-tag.outputs.tag }} to GitHub Packages"
           # Use npm for publishing to ensure compatibility with GitHub Packages
           npx nx release publish --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://npm.pkg.github.com
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+
+      - name: Publish affected packages to NPM
+        # only publish to NPM on main branch, not on next branch
+        if: github.ref_name == 'main' && github.event.inputs.dryRun != 'true' && github.event_name == 'push'
+        run: |
+          echo "Publishing affected packages with tag: ${{ steps.npm-tag.outputs.tag }} to NPM"
+          bunx nx release publish --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org
+        env:
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
       - name: Push version commits and tags
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
