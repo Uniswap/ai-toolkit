@@ -117,7 +117,7 @@ jobs:
 
       - name: Publish affected packages to NPM
         # only publish to NPM on main branch, not on next branch
-        if: github.ref_name == 'main' && github.event.inputs.dryRun != 'true' && github.event_name == 'push'
+        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
         run: |
           echo "Publishing affected packages with tag: ${{ steps.npm-tag.outputs.tag }} to NPM"
           bunx nx release publish --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org
