@@ -26,6 +26,8 @@ jobs:
       packages: write
       pull-requests: write
       issues: write
+    # Skip the workflow if the commit was made by the service account to prevent loops
+    if: github.actor != 'hello-happy-puppy'
 
     steps:
       - name: Load Secrets
