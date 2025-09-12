@@ -120,7 +120,7 @@ jobs:
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
         run: |
           echo "Publishing affected packages with tag: ${{ steps.npm-tag.outputs.tag }} to NPM"
-          bunx nx release publish --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org
+          bunx nx release publish --first-release --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org
         env:
           NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
