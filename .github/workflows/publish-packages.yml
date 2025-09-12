@@ -18,8 +18,10 @@ on:
 
 jobs:
   publish:
-    runs-on: ubuntu-24.04
+    runs-on:
+      group: npm-deploy
     permissions:
+      id-token: write
       contents: write
       packages: write
       pull-requests: write
@@ -85,10 +87,10 @@ jobs:
             echo "Using standard versioning for main branch"
             bunx nx release version --specifier=patch --dry-run
           fi
-          npx nx release publish --dry-run --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org
+          npx nx release publish --dry-run --tag=${{ steps.npm-tag.outputs.tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ env.NODE_AUTH_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
       - name: Version affected packages
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
@@ -115,49 +117,55 @@ jobs:
           # Check if we can access the @uniswap organization
           npm org ls @uniswap --registry=https://registry.npmjs.org || echo "Note: Organization check may fail for new orgs"
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
       - name: Publish affected packages to NPM
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
         run: |
           echo "Publishing affected packages with tag: ${{ steps.npm-tag.outputs.tag }} to NPM"
 
-          # Before we can publish, we need to check if the packages we'll be publishing exist in the npm registry
-          # If they don't, we need to use the --first-release flag in 'bunx nx release publish'
+          # Check if any packages have been released before by looking for Git tags
+          # If no tags exist for any package, we need to use the --first-release flag
 
-          # only include packages scoped to @uniswap, so that we don't check for internal packages
-          # such as @ai-toolkit/utils
-          PACKAGES=$(jq -r '.release.projects[] | select(startswith("@uniswap/"))' nx.json)
+          # Get all packages from nx.json
+          PACKAGES=$(jq -r '.release.projects[]' nx.json)
 
-          # Set a boolean flag to track if any package needs --first-release flag
-          NEEDS_FIRST_RELEASE=false
+          # Set a boolean flag to track if this is a first release
+          IS_FIRST_RELEASE=true
 
+          # Check if any Git tags exist for the packages
           while IFS= read -r package; do
             if [ -n "$package" ]; then
-              echo "Checking if $package exists in npm registry..."
+              # Extract the package name without scope for tag checking
+              PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
               
-              if bun pm view "$package" --registry=https://registry.npmjs.org > /dev/null 2>&1; then
-                echo "✓ Package $package exists in registry"
-              else
-                echo "✗ Package $package not found in registry, will use --first-release"
-                NEEDS_FIRST_RELEASE=true
+              echo "Checking for Git tags for package: $package"
+              
+              # Check if any tags exist for this package
+              # Nx typically creates tags in the format: package-name@version
+              if git tag -l | grep -q "^${PACKAGE_NAME}@" || git tag -l | grep -q "^${package}@"; then
+                echo "✓ Found existing tags for $package"
+                IS_FIRST_RELEASE=false
                 break
+              else
+                echo "✗ No tags found for $package"
               fi
             fi
           done <<< "$PACKAGES"
 
-          # Now at last we publish the packages
+          # Now publish the packages
           # Use npx (not bunx) for nx release publish to avoid potential bun publish issues
           # Nx will handle the actual npm/yarn/pnpm publish command internally
-          if [ "$NEEDS_FIRST_RELEASE" = true ]; then
-            echo "Publishing with --first-release flag"
+
+          if [ "$IS_FIRST_RELEASE" = true ]; then
+            echo "No tags found for any packages - publishing with --first-release flag"
             npx nx release publish --first-release --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org
           else
-            echo "Publishing without --first-release flag"
+            echo "Found existing tags - publishing without --first-release flag"
             npx nx release publish --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org
           fi
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
       - name: Push version commits and tags
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
