@@ -105,15 +105,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish affected packages to GitHub Packages
-        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
-        run: |
-          echo "Publishing affected packages with tag: ${{ steps.npm-tag.outputs.tag }} to GitHub Packages"
-          # Use npm for publishing to ensure compatibility with GitHub Packages
-          npx nx release publish --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://npm.pkg.github.com
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+      # - name: Publish affected packages to GitHub Packages
+      #   if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
+      #   run: |
+      #     echo "Publishing affected packages with tag: ${{ steps.npm-tag.outputs.tag }} to GitHub Packages"
+      #     # Use npm for publishing to ensure compatibility with GitHub Packages
+      #     npx nx release publish --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://npm.pkg.github.com
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
       - name: Publish affected packages to NPM
         # only publish to NPM on main branch, not on next branch
