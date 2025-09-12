@@ -120,14 +120,50 @@ jobs:
           NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
       - name: Publish affected packages to NPM
-        # only publish to NPM on main branch, not on next branch
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
         run: |
           echo "Publishing affected packages with tag: ${{ steps.npm-tag.outputs.tag }} to NPM"
 
+          # Check if any packages have been released before by looking for Git tags
+          # If no tags exist for any package, we need to use the --first-release flag
+
+          # Get all packages from nx.json
+          PACKAGES=$(jq -r '.release.projects[]' nx.json)
+
+          # Set a boolean flag to track if this is a first release
+          IS_FIRST_RELEASE=true
+
+          # Check if any Git tags exist for the packages
+          while IFS= read -r package; do
+            if [ -n "$package" ]; then
+              # Extract the package name without scope for tag checking
+              PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
+              
+              echo "Checking for Git tags for package: $package"
+              
+              # Check if any tags exist for this package
+              # Nx typically creates tags in the format: package-name@version
+              if git tag -l | grep -q "^${PACKAGE_NAME}@" || git tag -l | grep -q "^${package}@"; then
+                echo "✓ Found existing tags for $package"
+                IS_FIRST_RELEASE=false
+                break
+              else
+                echo "✗ No tags found for $package"
+              fi
+            fi
+          done <<< "$PACKAGES"
+
+          # Now publish the packages
           # Use npx (not bunx) for nx release publish to avoid potential bun publish issues
           # Nx will handle the actual npm/yarn/pnpm publish command internally
-          npx nx release publish --tag=${{ steps.npm-tag.outputs.tag }}
+
+          if [ "$IS_FIRST_RELEASE" = true ]; then
+            echo "No tags found for any packages - publishing with --first-release flag"
+            npx nx release publish --first-release --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org
+          else
+            echo "Found existing tags - publishing without --first-release flag"
+            npx nx release publish --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
