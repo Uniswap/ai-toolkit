@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.WORKFLOW_PAT }}
 
       - name: Setup Node.js
         uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b
@@ -138,9 +138,9 @@ jobs:
             if [ -n "$package" ]; then
               # Extract the package name without scope for tag checking
               PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
-              
+
               echo "Checking for Git tags for package: $package"
-              
+
               # Check if any tags exist for this package
               # Nx typically creates tags in the format: package-name@version
               if git tag -l | grep -q "^${PACKAGE_NAME}@" || git tag -l | grep -q "^${package}@"; then
@@ -173,7 +173,7 @@ jobs:
           # Push commits and tags created by Nx
           git push origin ${{ github.ref_name }} --follow-tags
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
 
       - name: Create GitHub releases
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
@@ -181,7 +181,7 @@ jobs:
           # Nx Release will create GitHub releases based on changelog configuration
           echo "GitHub releases will be created by Nx Release based on the changelog configuration"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
 
   sync-next:
     name: Sync next branch with main
@@ -197,7 +197,7 @@ jobs:
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.WORKFLOW_PAT }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76
@@ -219,7 +219,7 @@ jobs:
 
       - name: Sync next branch with main
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
         run: |
           echo "Starting sync of next branch with main..."
 
