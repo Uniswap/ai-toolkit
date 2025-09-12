@@ -44,13 +44,13 @@ jobs:
         uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b
         with:
           node-version: '22.13.1'
-          registry-url: 'https://npm.pkg.github.com'
-          scope: '@ai-toolkit'
+          registry-url: 'https://registry.npmjs.org'
+          scope: '@uniswap'
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76
         with:
-          bun-version: latest
+          bun-version: 1.2.21
 
       - name: Install dependencies
         run: bun install
@@ -88,7 +88,7 @@ jobs:
           npx nx release publish --dry-run --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ env.NODE_AUTH_TOKEN }}
 
       - name: Version affected packages
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
@@ -105,24 +105,29 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Publish affected packages to GitHub Packages
-      #   if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
-      #   run: |
-      #     echo "Publishing affected packages with tag: ${{ steps.npm-tag.outputs.tag }} to GitHub Packages"
-      #     # Use npm for publishing to ensure compatibility with GitHub Packages
-      #     npx nx release publish --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://npm.pkg.github.com
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+      - name: Verify NPM authentication and organization
+        if: github.event.inputs.dryRun == 'true' || github.event_name == 'push'
+        run: |
+          echo "Verifying NPM authentication..."
+          npm whoami --registry=https://registry.npmjs.org
+
+          echo "Checking organization membership..."
+          # Check if we can access the @uniswap organization
+          npm org ls @uniswap --registry=https://registry.npmjs.org || echo "Note: Organization check may fail for new orgs"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
       - name: Publish affected packages to NPM
         # only publish to NPM on main branch, not on next branch
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
         run: |
           echo "Publishing affected packages with tag: ${{ steps.npm-tag.outputs.tag }} to NPM"
-          bunx nx release publish --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org
+
+          # Use npx (not bunx) for nx release publish to avoid potential bun publish issues
+          # Nx will handle the actual npm/yarn/pnpm publish command internally
+          npx nx release publish --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org
         env:
-          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
       - name: Push version commits and tags
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
