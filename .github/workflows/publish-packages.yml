@@ -18,8 +18,10 @@ on:
 
 jobs:
   publish:
-    runs-on: ubuntu-24.04
+    runs-on:
+      group: npm-deploy
     permissions:
+      id-token: write
       contents: write
       packages: write
       pull-requests: write
@@ -85,10 +87,10 @@ jobs:
             echo "Using standard versioning for main branch"
             bunx nx release version --specifier=patch --dry-run
           fi
-          npx nx release publish --dry-run --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org
+          npx nx release publish --dry-run --tag=${{ steps.npm-tag.outputs.tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ env.NODE_AUTH_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
       - name: Version affected packages
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
@@ -115,7 +117,7 @@ jobs:
           # Check if we can access the @uniswap organization
           npm org ls @uniswap --registry=https://registry.npmjs.org || echo "Note: Organization check may fail for new orgs"
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
       - name: Publish affected packages to NPM
         # only publish to NPM on main branch, not on next branch
@@ -125,9 +127,9 @@ jobs:
 
           # Use npx (not bunx) for nx release publish to avoid potential bun publish issues
           # Nx will handle the actual npm/yarn/pnpm publish command internally
-          npx nx release publish --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org
+          npx nx release publish --tag=${{ steps.npm-tag.outputs.tag }}
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
       - name: Push version commits and tags
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
