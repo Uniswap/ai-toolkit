@@ -51,6 +51,7 @@ Review the specified pull request, address all review comments, and fix any CI/C
 
    - If owner/repo not provided, infer from current git repository
    - Validate that the PR exists and is accessible
+   - If at any point it becomes clear the user has not installed the GitHub MCP, direct them to the following Notion page where they can follow a tutorial for how to correctly install the GitHub MCP on Claude Code: https://www.notion.so/uniswaplabs/Using-a-GitHub-MCP-with-Claude-Code-270c52b2548b8015b11ee5e905796cb5
 
 2. **Analyze PR**:
 
