@@ -4,7 +4,7 @@
 
 ## Overview
 
-The **AI Toolkit** is a standardized collection of AI agents and commands designed for Claude Code workflows. Its goal is to allow anyone at Uniswap to install and configure Claude Code to be maximally useful, all in a single command (`bunx install-all`)
+The **AI Toolkit** is a standardized collection of AI agents and commands designed for Claude Code workflows. Its goal is to allow anyone at Uniswap to install and configure Claude Code to be maximally useful, all in a single command (`bun run start`)
 
 **What it provides:**
 
@@ -17,68 +17,43 @@ The **AI Toolkit** is a standardized collection of AI agents and commands design
 
 Instead of each person at Uniswap manually configuring AI assistant behaviors for each project, the AI Toolkit provides curated, tested configurations that can be installed instantly. This makes AI-assisted development more consistent, efficient, and accessible to Uni teams.
 
-## Prerequisites
+## Getting Started
 
 Before working with this repository, ensure you have the following tools installed:
 
-- **[Bun](https://bun.sh)** (recommended) or **Node.js 22+** with npm
+- **[Bun 1.2.21+](https://bun.sh)** (recommended) or **Node.js 22+** with npm
 
-### Setting up GitHub Packages Access
+### NPM Registry Installation
 
-The `@uniswap/ai-toolkit-nx-claude` package is published to GitHub Packages with restricted access for Uniswap organization members.
+We publish the`ai-toolkit` to a private npm package registry, so you’ll need to setup a read-only auth token to be able to fetch the package from npmjs.
 
-#### For Uniswap Organization Members
-
-1. **Create a GitHub Personal Access Token (PAT)**:
-
-   - Go to GitHub Settings → Developer settings → Personal access tokens
-   - Create a token with `read:packages` scope
-   - Save the token securely
-
-2. **Configure npm authentication for GitHub Packages**:
+1. The read only token is stored in 1password in the general Engineering vault under “[**read-only npm-token**](https://start.1password.com/open/i?a=DXU26BR6HNGVFCPLPXN7OGHSYM&v=a35mtzmo445emckvxmae47kbba&i=mseb2ygsl6gi3uxxhvmn5nfime&h=uniswaplabs.1password.com)”. If you have trouble finding it, please reach out to [\*\*#team-security](https://uniswapteam.enterprise.slack.com/archives/C015DE5T719).\*\*
+2. Create/Update your `~/.npmrc` with the necessary auth config by running the command below, substituting `${NODE_AUTH_TOKEN}` with the 1password npm token from step 1:
 
    ```bash
-   # Add to your ~/.npmrc
-   //npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN
+   cat <<EOF >> ~/.npmrc
+   @uniswap:registry=https://registry.npmjs.org
+   registry=https://registry.npmjs.org/
+   always-auth=true
+   //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}
+   EOF
    ```
 
-   Or use environment variable:
+3. Create a new terminal/shell and then run: `npx @uniswap/ai-toolkit-nx-claude@latest` at which point you'll see the output from [from below](#option-a-install-everything-recommended)
 
-   ```bash
-   export NODE_AUTH_TOKEN=YOUR_GITHUB_TOKEN
-
-   # Then add to ~/.npmrc:
-   //npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
-   ```
-
-   **Note**: We don't set the entire `@uniswap` scope to GitHub Packages to avoid conflicts with public npm packages.
-
-#### Standalone Package Usage (Uniswap Members Only)
-
-Once authenticated, you can run the ai-toolkit-nx-claude init generator directly:
-
-````bash
-# Install and run with npx (specify GitHub registry)
-npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest
-
-Then choose `init`.
-
-This will install Claude Code configurations to your global `~/.claude` directory or local `./.claude` directory.
-
-## Getting Started
-
-### 1. Install Dependencies
+### Local Installation
 
 ```bash
+
 # Clone the repository
 git clone https://github.com/Uniswap/ai-toolkit
 cd ai-toolkit
 
 # Install all dependencies (also sets up git hooks automatically)
 bun install # or npm install if you're not using bun
-````
+```
 
-### 2. Setup Claude Code Integration
+### Setup Claude Code Integration
 
 ### Option A: Install Everything (Recommended)
 
@@ -86,6 +61,10 @@ bun install # or npm install if you're not using bun
 # Run the CLI to show you everything you can install. Start with the 'init' and then 'hooks' to get started
 bun run start
 ```
+
+and you should see the CLI options below
+
+![ai toolkit's CLI](ai-toolkit-nx-claude.png)
 
 ### Option B: Selective Installation
 
@@ -120,7 +99,7 @@ We welcome contributions from all developers! This project uses a **trunk-based 
 - **Branch strategy** (`main` for stable, `next` for active development
 - **Development workflow** and best practices
 - **Code quality standards** and testing requirements
-- **Automated publishing** to GitHub Packages
+- **Automated publishing** to private `@uniswap/ai-toolkit-nx-claude` NPM registry
 
 ### Quick Start for Contributors
 
@@ -167,10 +146,10 @@ Our packages are available in two release channels:
 
 ```bash
 # Install stable version (from main branch)
-npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest
+npx @uniswap/ai-toolkit-nx-claude@latest
 
 # Install prerelease version (from next branch)
-npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@next
+npx @uniswap/ai-toolkit-nx-claude@next
 ```
 
 ### Automated Features
@@ -179,14 +158,6 @@ npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude
 - **Version Management**: Conventional commits automatically determine version bumps
 - **Branch Synchronization**: `next` is automatically rebased onto `main` after stable releases
 - **Code Quality**: Pre-commit hooks ensure consistent formatting and linting
-
-````sh
-
-### Generate a publishable library
-
-```sh
-npx nx g @nx/js:lib packages/pkg1 --publishable --importPath=@my-org/pkg1
-````
 
 ### Run tasks
 
@@ -231,33 +202,6 @@ npx nx sync:check
 ```
 
 [Learn more about nx sync](https://nx.dev/reference/nx-commands#sync)
-
-### Set up CI
-
-#### Step 1
-
-To connect to Nx Cloud, run the following command:
-
-```sh
-npx nx connect
-```
-
-Connecting to Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
-
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-#### Step 2
-
-Use the following command to configure a CI workflow for your workspace:
-
-```sh
-npx nx g ci-workflow
-```
-
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 
 ### Automated Package Publishing
 
@@ -304,7 +248,7 @@ Nx Console is an editor extension that enriches your developer experience. It le
 
 [Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 
-### Useful links
+### Useful Nx links
 
 Learn more:
 
