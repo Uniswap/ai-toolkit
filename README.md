@@ -242,6 +242,12 @@ Our automated workflow (`.github/workflows/publish-packages.yml`) handles:
 
 For technical details, see [DEVELOPMENT.md](./docs/readmes/DEVELOPMENT.md).
 
+### Install Nx Console
+
+Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
+
+[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+
 ### Useful Nx links
 
 Learn more:
