@@ -32,10 +32,22 @@ Analyze a SINGLE directory (not subdirectories) and create or update its CLAUDE.
 **FIRST STEP**: Analyze what changed and why:
 - Review the `changes` list to understand what was modified
 - Consider the `changeContext` to understand the intent behind changes
-- Determine if changes are significant enough to warrant CLAUDE.md update:
-  - **Significant**: New components, API changes, architecture updates, new patterns
-  - **Not significant**: Minor bug fixes, typos, small refactors, internal tweaks
-- If no significant changes for this directory, return `skipped` with explanation
+- Evaluate change significance and scope:
+  - **Significance score** (0-10):
+    - API breaking changes: 8-10 → Update at THIS level and possibly parent
+    - New public API/exports: 6-8 → Update at THIS level
+    - Internal refactoring: 2-4 → Update only if affects usage patterns
+    - Bug fixes: 0-2 → Skip unless changes usage
+  - **Scope assessment**:
+    - Single component/file → Update closest CLAUDE.md only
+    - Multiple related files → Update at module level
+    - Cross-module changes → Consider parent level update
+    - Architecture changes → Bubble up to package/root
+- Apply **Documentation Proximity Principle**:
+  - Is THIS directory the right level to document these changes?
+  - Would a developer working at THIS level need to know about these changes?
+  - Should documentation bubble up to parent level?
+- If changes aren't relevant at THIS level, return `skipped` with explanation
 
 ### 2. Analyze Target Directory (Single Level Only)
 
@@ -66,6 +78,24 @@ Focus ONLY on the specified directory level:
 ### 3. Content Determination
 
 Auto-detect whether to init or update based on CLAUDE.md existence.
+
+#### When to Create New CLAUDE.md Files:
+
+**Create a NEW CLAUDE.md when**:
+- Adding a new complex component (100+ lines, 3+ public methods/props)
+- Creating a new module/feature directory with multiple files
+- Establishing a new package or app directory
+- Adding a directory that represents a domain boundary (auth, payments, etc.)
+- Creating a directory with significant public API exports
+
+**DON'T create CLAUDE.md for**:
+- Simple single-file components
+- Utility/helper directories with just functions
+- Test directories (unless complex test infrastructure)
+- Config directories
+- Directories with < 3 source files
+- Pure type definition directories
+- Asset/static file directories
 
 #### If Root (`isRoot: true`):
 Include:
@@ -112,27 +142,40 @@ When `isRoot: true`, include these essential rules:
 
 After making any changes to files in this repository, Claude Code MUST:
 
-1. **Identify the affected package or app**: Look at the directories where changes were made and find the closest parent package or app directory (typically containing a `package.json` or `project.json`).
+1. **Apply the Documentation Proximity Principle**: 
+   - Find the CLOSEST CLAUDE.md file in the directory hierarchy that would benefit from documenting this change
+   - Start from the immediate parent directory of changed files and work upward
+   - Update the closest relevant CLAUDE.md rather than always going to package/app level
+   - Only bubble up to parent CLAUDE.md files if the change affects that level's public API or architecture
 
-2. **Check for existing CLAUDE.md**:
-   - If a CLAUDE.md file exists in that package/app directory, update it to reflect the changes made and the resulting state of the code
-   - If no CLAUDE.md file exists, create one with content relevant to that specific package/app and its code
+2. **Identify the appropriate CLAUDE.md level**:
+   - **Component/Feature level**: For changes to a specific component or feature with its own CLAUDE.md
+   - **Module level**: For changes affecting multiple components within a module
+   - **Package level**: For changes to package exports, dependencies, or architecture
+   - **Root level**: Only for repository-wide architectural changes
+   
+   **Fallback for repos without package.json/project.json**:
+   - Look for other project markers: BUILD files (Bazel), go.mod (Go), Cargo.toml (Rust), setup.py/pyproject.toml (Python), pom.xml (Maven), build.gradle (Gradle)
+   - If no markers found, use directory structure heuristics (src/ boundaries, directories with README files, directories with 10+ files)
+   - Default to the deepest common ancestor directory of all changes
 
-3. **Content scope**: The CLAUDE.md content should be scoped to the specific package or app, including:
-   - Package-specific guidelines and patterns
-   - Architecture decisions for that package
-   - API documentation and usage examples
-   - Dependencies and integrations specific to that package
-   - Any special considerations or gotchas
+3. **Check for existing CLAUDE.md**:
+   - If a CLAUDE.md file exists at the identified level, update it to reflect the changes
+   - If no CLAUDE.md exists but changes are significant enough, consider if one should be created at this level
+   - Skip creating CLAUDE.md for trivial directories (single files, pure config, test-only directories)
 
-4. **Continuous updates**: Always update the relevant CLAUDE.md file whenever files in that directory or its subdirectories are modified by Claude Code.
+4. **Content scope based on proximity**:
+   - **Closest level**: Detailed implementation changes, API updates, usage examples
+   - **Parent level**: Only if public API changed or architectural impact
+   - **Root level**: Only if repository-wide patterns or architecture affected
 
-5. **Format**: Each package-level CLAUDE.md should follow a consistent format:
-   - Package overview and purpose
-   - Key components and their roles
-   - Usage patterns and examples
-   - Development guidelines specific to that package
-   - Recent changes and their rationale
+5. **Continuous updates**: Update the most appropriate CLAUDE.md file(s) based on change significance and scope.
+
+6. **Format**: Each CLAUDE.md should match its scope:
+   - **Component**: API, props/methods, usage examples, gotchas
+   - **Module**: Module architecture, component list, internal patterns
+   - **Package**: Package overview, exports, dependencies, patterns
+   - **Root**: Repository architecture, cross-package concerns, workflows
 ```
 
 ## Output
@@ -149,6 +192,13 @@ changes:
   - "Documented 5 new components from changes"
 skipReason: # Only if operation: "skipped"
   "No significant changes detected - only minor bug fixes"
+  # OR: "Changes are too localized for package-level documentation"
+  # OR: "This directory is not the right level for these changes"
+bubbleUp: # Suggest parent CLAUDE.md updates if needed
+  - path: "/absolute/path/to/parent/CLAUDE.md"
+    reason: "Public API changed - Button component props breaking change"
+  - path: "/workspace/CLAUDE.md"
+    reason: "New architectural pattern introduced affecting multiple packages"
 subdirectoriesToProcess: # Only important directories that need their own CLAUDE.md
   - path: "/absolute/path/to/packages/ui"
     reason: "Package boundary - contains package.json"
@@ -161,6 +211,9 @@ subdirectoriesToProcess: # Only important directories that need their own CLAUDE
   # - /tests (test directory)
   # - /src/components/Button (too granular)
   # - /config (configuration files)
+recommendNewClaude: # Suggest where NEW CLAUDE.md files should be created
+  - path: "/absolute/path/to/new/complex/component"
+    reason: "New complex component added with 200+ lines and public API"
 content_summary: |
   Brief description of what was written to the file
 error: # Only if success: false
@@ -295,11 +348,23 @@ Document testing setup if detected:
 - Configuration files at that level
 - Immediate subdirectory names and purposes (but not their contents)
 
+**DOCUMENTATION PROXIMITY PRINCIPLE**: While processing a single directory, the agent must:
+- Determine if THIS is the right level to document the changes
+- Suggest parent updates via `bubbleUp` if changes affect parent's public API
+- Recommend new CLAUDE.md files via `recommendNewClaude` for new complex components
+- Skip updates if changes are too localized for this level's documentation
+
 **SCOPE ENFORCEMENT**: Only update based on:
 - Changes explicitly provided in the `changes` parameter
 - Files that exist at the target directory level
 - Patterns observable from the provided changes and context
+- Significance of changes relative to THIS documentation level
 
 **SUBDIRECTORY DELEGATION**: Instead of recursing, return `subdirectoriesToProcess` for directories that need separate CLAUDE.md files. The orchestrating command will invoke this agent again for those directories.
 
-Remember: One directory, one invocation, focused updates based on actual changes.
+**HIERARCHY AWARENESS**: The agent should be aware of documentation hierarchy:
+- Component level → Module level → Package level → Root level
+- Each level has different documentation concerns and detail levels
+- Changes bubble up only when they affect the parent level's concerns
+
+Remember: One directory, one invocation, but with awareness of the documentation hierarchy and the ability to suggest updates at other levels.
