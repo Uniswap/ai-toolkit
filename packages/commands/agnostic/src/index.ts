@@ -5,8 +5,8 @@
 type CommandName =
   | 'address-pr-issues'
   | 'auto-spec'
-  | 'create-pr'
   | 'claude-docs'
+  | 'create-pr'
   | 'deploy'
   | 'execute-plan'
   | 'explain-file'
@@ -32,7 +32,8 @@ export type Commands = {
 
 export const commands: Commands = {
   'address-pr-issues': {
-    description: 'Reviews a GitHub PR, addresses comments, and fixes CI issues',
+    description:
+      'Reviews a GitHub PR, addresses comments, and fixes CI issues',
     filePath: './address-pr-issues.md',
   },
   'auto-spec': {
@@ -42,7 +43,7 @@ export const commands: Commands = {
   },
   'claude-docs': {
     description:
-      'Initialize or update CLAUDE.md documentation files throughout the repository',
+      'Initialize or update CLAUDE.md documentation files based on context and changes',
     filePath: './claude-docs.md',
   },
   'create-pr': {

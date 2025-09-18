@@ -9,6 +9,7 @@ type Agent =
   | 'agent-orchestrator'
   | 'cicd-agent'
   | 'claude-agent-discovery'
+  | 'claude-docs-initializer'
   | 'claude-docs-manager'
   | 'code-explainer'
   | 'code-generator'
@@ -67,9 +68,14 @@ export const agents: Agents = {
       'Specialized agent for discovering and cataloging all available agents and commands from Claude Code directories, including local project and global user configurations',
     filePath: './claude-agent-discovery.md',
   },
+  'claude-docs-initializer': {
+    description:
+      'Discover repository structure and create initial CLAUDE.md documentation at all appropriate levels',
+    filePath: './claude-docs-initializer.md',
+  },
   'claude-docs-manager': {
     description:
-      'Analyze a single directory and create or update its CLAUDE.md documentation',
+      'Analyze code changes and update all affected CLAUDE.md documentation files',
     filePath: './claude-docs-manager.md',
   },
   'code-explainer': {
@@ -133,7 +139,8 @@ export const agents: Agents = {
     filePath: './plan-reviewer.md',
   },
   planner: {
-    description: 'Create detailed implementation plans without writing code',
+    description:
+      'Create detailed implementation plans without writing code',
     filePath: './planner.md',
   },
   'pr-creator': {

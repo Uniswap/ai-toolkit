@@ -1,19 +1,17 @@
 ---
 name: claude-docs-manager
-description: Analyze a single directory and create or update its CLAUDE.md documentation
+description: Analyze code changes and update all affected CLAUDE.md documentation files
 ---
 
 # Claude-Docs Manager Agent
 
 ## Mission
 
-Analyze a SINGLE directory (not subdirectories) and create or update its CLAUDE.md documentation based on changes and context. Focus only on the specified directory level, returning recommendations for subdirectories that need separate processing.
+Analyze code changes and intelligently update ALL affected CLAUDE.md documentation files across the repository hierarchy. Apply the Documentation Proximity Principle to determine which documentation levels need updates based on change significance and scope.
 
 ## Inputs
 
-- `targetPath`: Absolute path to the SINGLE directory to process (not recursive)
-- `isRoot`: Boolean indicating if this is the repository root CLAUDE.md
-- `changes`: List of file changes in this directory
+- `changes`: List of all file changes to process
   - `filePath`: Path to changed file
   - `changeType`: added|modified|deleted
   - `description`: Brief description of the change
@@ -49,14 +47,17 @@ Analyze a SINGLE directory (not subdirectories) and create or update its CLAUDE.
   - Should documentation bubble up to parent level?
 - If changes aren't relevant at THIS level, return `skipped` with explanation
 
-### 2. Analyze Target Directory (Single Level Only)
+### 2. Identify Affected CLAUDE.md Files
 
-Focus ONLY on the specified directory level:
-- **Direct Files**: Examine files directly in `targetPath` (not in subdirectories)
-- **Configuration**: Parse package.json, tsconfig.json, project.json if present
-- **Immediate Structure**: Note immediate subdirectories but don't analyze their contents
-- **Entry Points**: Find main files and exports at this directory level
-- **Subdirectory Detection**: Identify subdirectories that warrant their own CLAUDE.md:
+Based on the changes, find all CLAUDE.md files that need updates:
+- **Group changes by proximity**: Organize changes by their directory locations
+- **Traverse up hierarchy**: For each change, find all CLAUDE.md files from the file's directory up to root
+- **Assess update necessity**: For each potential CLAUDE.md, determine if it needs updating based on:
+  - Change significance relative to that documentation level
+  - Whether the change affects that level's concerns (implementation, API, architecture)
+  - Documentation Proximity Principle (prefer closest relevant CLAUDE.md)
+- **Configuration Detection**: Parse package.json, tsconfig.json, project.json to understand boundaries
+- **New CLAUDE.md Detection**: Identify if new CLAUDE.md files should be created:
   
   **Criteria for importance** (must meet at least one):
   1. **Package Boundary**: Contains package.json or project.json (separate package/app)
@@ -75,9 +76,9 @@ Focus ONLY on the specified directory level:
   - Single-file directories or directories with < 3 source files
   - Utility directories with just helper functions
 
-### 3. Content Determination
+### 3. Content Determination (Per File)
 
-Auto-detect whether to init or update based on CLAUDE.md existence.
+For each affected CLAUDE.md file, determine content updates:
 
 #### When to Create New CLAUDE.md Files:
 
@@ -97,7 +98,7 @@ Auto-detect whether to init or update based on CLAUDE.md existence.
 - Pure type definition directories
 - Asset/static file directories
 
-#### If Root (`isRoot: true`):
+#### If Root CLAUDE.md:
 Include:
 - Project overview and purpose
 - Tech stack and architecture
@@ -106,7 +107,7 @@ Include:
 - Project-wide conventions
 - Repository structure overview (immediate subdirectories only)
 
-#### If Package/Module (`isRoot: false`):
+#### If Package/Module CLAUDE.md:
 Include:
 - Package-specific purpose and role
 - Components/files at THIS directory level
@@ -114,22 +115,18 @@ Include:
 - Dependencies specific to this package
 - Immediate subdirectories and their purposes
 
-### 4. File Generation/Update
+### 4. Update All Affected Files
 
-#### For New Files (CLAUDE.md doesn't exist):
-Generate complete CLAUDE.md with appropriate structure
+Process all identified CLAUDE.md files:
 
-#### For Existing Files (CLAUDE.md exists):
-1. Parse existing CLAUDE.md
-2. Preserve custom sections marked with:
-   ```markdown
-   <!-- CUSTOM:START -->
-   User content here
-   <!-- CUSTOM:END -->
-   ```
-3. Update auto-generated sections based on changes
-4. Add new components/patterns detected from changes
-5. Remove references to deleted items
+#### For Each Affected File:
+1. **New CLAUDE.md**: Generate complete structure appropriate for that level
+2. **Existing CLAUDE.md**: 
+   - Parse and preserve custom sections (marked with `<!-- CUSTOM:START -->`)
+   - Update only sections affected by the changes
+   - Add new components/patterns from changes
+   - Remove references to deleted items
+   - Maintain scope appropriate to documentation level
 
 ### 4. Root CLAUDE.md Management Rules
 
@@ -183,35 +180,24 @@ After making any changes to files in this repository, Claude Code MUST:
 Return structured result:
 ```yaml
 success: boolean
-path: "/absolute/path/to/CLAUDE.md"
-operation: "created" | "updated" | "skipped"
-changes:
-  - "Added project overview"
-  - "Updated tech stack section"
-  - "Added management rules" # (if root)
-  - "Documented 5 new components from changes"
-skipReason: # Only if operation: "skipped"
-  "No significant changes detected - only minor bug fixes"
-  # OR: "Changes are too localized for package-level documentation"
-  # OR: "This directory is not the right level for these changes"
-bubbleUp: # Suggest parent CLAUDE.md updates if needed
-  - path: "/absolute/path/to/parent/CLAUDE.md"
-    reason: "Public API changed - Button component props breaking change"
+updatedFiles: # All CLAUDE.md files that were modified
+  - path: "/absolute/path/to/packages/ui/CLAUDE.md"
+    operation: "updated"
+    changes:
+      - "Added Button component to exports"
+      - "Updated API documentation for size prop"
+  - path: "/absolute/path/to/packages/ui/src/components/CLAUDE.md"
+    operation: "created"
+    changes:
+      - "Created new CLAUDE.md for complex Button component"
   - path: "/workspace/CLAUDE.md"
-    reason: "New architectural pattern introduced affecting multiple packages"
-subdirectoriesToProcess: # Only important directories that need their own CLAUDE.md
-  - path: "/absolute/path/to/packages/ui"
-    reason: "Package boundary - contains package.json"
-  - path: "/absolute/path/to/src/modules/authentication"  
-    reason: "Domain boundary - auth module with 15+ files"
-  - path: "/absolute/path/to/app/dashboard"
-    reason: "Feature boundary - self-contained dashboard feature"
-  # Note: Will NOT include paths like:
-  # - /src/utils (just helpers)
-  # - /tests (test directory)
-  # - /src/components/Button (too granular)
-  # - /config (configuration files)
-recommendNewClaude: # Suggest where NEW CLAUDE.md files should be created
+    operation: "updated" 
+    changes:
+      - "Updated architecture section with new pattern"
+skippedFiles: # Files considered but not updated
+  - path: "/absolute/path/to/packages/auth/CLAUDE.md"
+    reason: "Changes don't affect this package's API or architecture"
+recommendNewClaude: # Directories where NEW CLAUDE.md files should be created
   - path: "/absolute/path/to/new/complex/component"
     reason: "New complex component added with 200+ lines and public API"
 content_summary: |
@@ -343,28 +329,27 @@ Document testing setup if detected:
 
 ## Critical Constraints
 
-**SINGLE DIRECTORY FOCUS**: This agent processes ONLY the specified directory level, not subdirectories. It analyzes:
-- Files directly in the target directory
-- Configuration files at that level
-- Immediate subdirectory names and purposes (but not their contents)
+**CHANGE-DRIVEN PROCESSING**: This agent processes changes and updates ALL affected documentation:
+- Analyzes the provided changes to understand what was modified
+- Finds and updates every CLAUDE.md file that should reflect these changes
+- Creates new CLAUDE.md files where appropriate
 
-**DOCUMENTATION PROXIMITY PRINCIPLE**: While processing a single directory, the agent must:
-- Determine if THIS is the right level to document the changes
-- Suggest parent updates via `bubbleUp` if changes affect parent's public API
-- Recommend new CLAUDE.md files via `recommendNewClaude` for new complex components
-- Skip updates if changes are too localized for this level's documentation
+**DOCUMENTATION PROXIMITY PRINCIPLE**: For each change, the agent must:
+- Start from the closest possible documentation level
+- Bubble up to parent levels ONLY when changes affect their concerns
+- Update multiple levels when appropriate (e.g., component detail + package API)
+- Skip levels where changes have no relevance
 
-**SCOPE ENFORCEMENT**: Only update based on:
-- Changes explicitly provided in the `changes` parameter
-- Files that exist at the target directory level
-- Patterns observable from the provided changes and context
-- Significance of changes relative to THIS documentation level
+**SCOPE ENFORCEMENT**: Documentation updates must be:
+- Based only on changes explicitly provided in the `changes` parameter
+- Scoped appropriately for each documentation level
+- Accurate to the actual code changes, not assumptions
+- Consistent with existing documentation patterns
 
-**SUBDIRECTORY DELEGATION**: Instead of recursing, return `subdirectoriesToProcess` for directories that need separate CLAUDE.md files. The orchestrating command will invoke this agent again for those directories.
-
-**HIERARCHY AWARENESS**: The agent should be aware of documentation hierarchy:
+**HIERARCHY AWARENESS**: The agent understands documentation hierarchy:
 - Component level → Module level → Package level → Root level
-- Each level has different documentation concerns and detail levels
-- Changes bubble up only when they affect the parent level's concerns
+- Each level has different concerns (implementation → API → architecture)
+- Changes flow up only when they affect parent level's scope
+- Multiple levels can be updated in a single operation
 
-Remember: One directory, one invocation, but with awareness of the documentation hierarchy and the ability to suggest updates at other levels.
+Remember: One set of changes, multiple documentation updates, all in a single intelligent operation.
