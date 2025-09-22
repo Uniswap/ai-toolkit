@@ -136,7 +136,7 @@ export async function executeInstallScript(
  * @param verbose Show detailed output
  * @returns true if successful
  */
-export function fixHookPaths(verbose = false): boolean {
+function fixHookPaths(verbose = false): boolean {
   const settingsPath = path.join(ROOT_CLAUDE_DIR, 'settings.json');
 
   if (!fs.existsSync(settingsPath)) {
