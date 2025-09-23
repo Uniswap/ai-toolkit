@@ -238,8 +238,8 @@ error: # Only if success: false
 ## Architecture
 [High-level architecture, design patterns, key decisions]
 
-## Documentation Management
-[CLAUDE.md management rules - ALWAYS INCLUDE]
+## Key Modules
+[List of major modules/packages with brief descriptions]
 
 ## Development Workflow
 [Commands, scripts, testing, deployment processes]
@@ -249,6 +249,9 @@ error: # Only if success: false
 
 ## Conventions and Patterns
 [Coding standards, naming conventions, project-wide patterns]
+
+## Documentation Management
+[CLAUDE.md management rules - ALWAYS INCLUDE]
 
 <!-- CUSTOM:START -->
 <!-- User additions preserved during updates -->

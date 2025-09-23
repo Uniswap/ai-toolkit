@@ -69,6 +69,7 @@ Determine which directories deserve CLAUDE.md files based on:
 - Single-file directories
 - Pure utility/helper directories with < 3 files
 - Type definition directories
+- Any directories specified in the .gitignore
 
 ### 3. Deep Content Analysis (Per Target Directory)
 
@@ -116,17 +117,24 @@ Generate CLAUDE.md content based on analysis depth and directory level:
 ## Architecture
 [High-level architecture based on analysis]
 
-## Documentation Management
-[CLAUDE.md management rules - ALWAYS INCLUDE]
+## Key Modules
+[List of major modules/packages with brief descriptions]
 
 ## Development Workflow
 [Detected scripts, commands, workflows]
 
+## Code Quality
+[Linting, formatting, testing setup and requirements]
+
 ## Conventions and Patterns
 [Discovered from code analysis]
 
-## Key Modules
-[List of major modules with brief descriptions]
+## Documentation Management
+[CLAUDE.md management rules - ALWAYS INCLUDE]
+
+<!-- CUSTOM:START -->
+<!-- User additions preserved during updates -->
+<!-- CUSTOM:END -->
 ```
 
 #### For Package/Module CLAUDE.md:
@@ -148,11 +156,15 @@ Generate CLAUDE.md content based on analysis depth and directory level:
 ## Dependencies
 [Both internal and external]
 
-## Patterns and Conventions
-[Package-specific patterns detected]
+## Usage Patterns
+[Common patterns, examples, best practices]
 
-## Usage
-[How this package is used based on imports]
+## Development Guidelines
+[Package-specific conventions, testing approach, contribution notes]
+
+<!-- CUSTOM:START -->
+<!-- User additions preserved during updates -->
+<!-- CUSTOM:END -->
 ```
 
 #### For Feature/Component CLAUDE.md:
@@ -163,16 +175,23 @@ Generate CLAUDE.md content based on analysis depth and directory level:
 [Inferred from code structure and naming]
 
 ## Components
-[List of components with descriptions]
-
-## Implementation Details
-[Key implementation patterns found]
+[List of sub-components with descriptions]
 
 ## API
-[Props, methods, exports]
+[Props, methods, exports, interfaces]
+
+## Implementation Details
+[Key implementation decisions, patterns used]
 
 ## Integration Points
-[How it connects with rest of system]
+[How it connects with other parts of the system]
+
+## Usage Examples
+[Code examples showing common use cases]
+
+<!-- CUSTOM:START -->
+<!-- User additions preserved during updates -->
+<!-- CUSTOM:END -->
 ```
 
 ### 5. Multi-Level File Creation
