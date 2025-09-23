@@ -205,7 +205,7 @@ summary: |
   Packages found: N
   Total directories analyzed: X
   CLAUDE.md files created: Y
-  
+
 createdFiles:
   - path: "/workspace/CLAUDE.md"
     level: "root"
@@ -214,7 +214,7 @@ createdFiles:
       - "Nx monorepo with 5 packages"
       - "React + TypeScript frontend"
       - "Strict ESLint configuration"
-  
+
   - path: "/workspace/packages/ui/CLAUDE.md"
     level: "package"
     content_summary: "Created UI package documentation with component inventory"
@@ -222,7 +222,7 @@ createdFiles:
       - "Component library with 23 components"
       - "Uses CSS modules for styling"
       - "Exports through barrel file"
-      
+
   - path: "/workspace/packages/auth/src/modules/oauth/CLAUDE.md"
     level: "module"
     content_summary: "Created OAuth module documentation"

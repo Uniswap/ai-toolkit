@@ -106,6 +106,7 @@ Include:
 - Development workflow and commands
 - Project-wide conventions
 - Repository structure overview (immediate subdirectories only)
+- Code quality standards and setup
 
 #### If Package/Module CLAUDE.md:
 Include:
@@ -114,6 +115,17 @@ Include:
 - API documentation for THIS level
 - Dependencies specific to this package
 - Immediate subdirectories and their purposes
+- Usage patterns and examples
+- Package-specific guidelines
+
+#### If Feature/Component CLAUDE.md:
+Include:
+- Component/feature purpose and role
+- Sub-components and their interactions
+- API surface (props, methods, exports)
+- Implementation details and patterns
+- Integration with other system parts
+- Usage examples and best practices
 
 ### 4. Update All Affected Files
 
@@ -215,61 +227,62 @@ error: # Only if success: false
 # CLAUDE.md - [Project Name]
 
 ## Project Overview
-[Auto-generated description based on package.json and structure]
+[Purpose, description, and key goals]
 
 ## Tech Stack
-- **Languages**: [Detected languages]
-- **Frameworks**: [Detected frameworks]
-- **Tools**: [Build tools, linters, etc.]
+[Languages, frameworks, tools, package manager]
 
 ## Repository Structure
-[Tree view of major directories]
+[Tree view of major directories with brief descriptions]
+
+## Architecture
+[High-level architecture, design patterns, key decisions]
 
 ## Documentation Management
 [CLAUDE.md management rules - ALWAYS INCLUDE]
 
 ## Development Workflow
-[Commands, scripts, and processes detected]
+[Commands, scripts, testing, deployment processes]
 
 ## Code Quality
-[Linting, formatting, testing setup]
+[Linting, formatting, testing setup and requirements]
 
 ## Conventions and Patterns
-[Detected from codebase analysis]
+[Coding standards, naming conventions, project-wide patterns]
 
 <!-- CUSTOM:START -->
-<!-- User additions go here and are preserved during updates -->
+<!-- User additions preserved during updates -->
 <!-- CUSTOM:END -->
 ```
 
 ### For Package/Module CLAUDE.md
 
 ```markdown
-# CLAUDE.md - [Package Name]
+# CLAUDE.md - [Package/Module Name]
 
 ## Overview
 [Purpose and role within the larger project]
 
-## Key Components
-[Major files, classes, or modules with descriptions]
-
 ## Architecture
-[How this package is structured internally]
+[Internal structure, design patterns, organization]
+
+## Key Components
+[Major files, classes, modules with descriptions]
 
 ## API/Exports
-[What this package exposes to other packages]
+[Public API, exported functions/classes/types]
 
 ## Dependencies
-[Key dependencies and why they're needed]
+[External and internal dependencies with purpose]
 
 ## Usage Patterns
-[Common patterns and examples]
+[Common patterns, examples, best practices]
 
 ## Development Guidelines
-[Package-specific conventions]
+[Package-specific conventions, testing approach, contribution notes]
 
 <!-- CUSTOM:START -->
-<!-- User additions go here and are preserved during updates -->
+<!-- User additions preserved during updates -->
 <!-- CUSTOM:END -->
 ```
 
@@ -281,6 +294,34 @@ error: # Only if success: false
 4. **Completeness**: Include all relevant information for AI assistance
 5. **Maintenance**: Keep management rules prominent in root CLAUDE.md
 6. **Selectivity**: Only create CLAUDE.md for truly important directories
+
+### For Feature/Component CLAUDE.md
+
+```markdown
+# CLAUDE.md - [Feature/Component Name]
+
+## Purpose
+[What this feature/component does and why it exists]
+
+## Components
+[List of sub-components with descriptions]
+
+## API
+[Props, methods, exports, interfaces]
+
+## Implementation Details
+[Key implementation decisions, patterns used]
+
+## Integration Points
+[How it connects with other parts of the system]
+
+## Usage Examples
+[Code examples showing common use cases]
+
+<!-- CUSTOM:START -->
+<!-- User additions preserved during updates -->
+<!-- CUSTOM:END -->
+```
 
 ## Directory Importance Examples
 

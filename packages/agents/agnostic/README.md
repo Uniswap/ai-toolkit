@@ -43,8 +43,9 @@ Agents are invoked by commands, not directly by users. They inherit tool permiss
 ## Development
 
 To add a new agent:
-1. Create a markdown file in `src/` following the agent template
-2. Run `bunx nx run @ai-toolkit/agents-agnostic:generate-index` to update the index
+1. Run `bun start` and choose `add-agent`, then follow the steps to create a template prompt file for your new agent
+2. Choose the sonnet model if you expect a large amount of source code output from the tool, and choose opus (the more powerful & expensive model) if your agent will have complex reasoning tasks
+3. Look at the other markdown agent files for inspiration and fill in the TODOs in the generated template file
 
 ## License
 
