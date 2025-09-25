@@ -80,7 +80,7 @@ Invoke **claude-docs-initializer** with:
   - `type`: Project type (monorepo, library, app, etc.)
   - `techStack`: Initially detected technologies
   - `packageManager`: npm, yarn, bun, pnpm, etc.
-- `maxDepth`: Optional depth limit (default: 5)
+- `maxDepth`: Optional depth limit from root directory (default: 5)
 
 The agent will:
 - Perform deep repository analysis

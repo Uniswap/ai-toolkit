@@ -26,17 +26,37 @@ Perform deep repository analysis to understand structure, patterns, and architec
 
 ### 1. Repository Discovery & Analysis
 
-**Comprehensive Scan**:
-- Start from `rootPath` and discover entire directory structure
-- Identify repository type (monorepo, single package, multi-package)
-- Detect package manager and configuration files
-- Find all package boundaries (package.json, project.json, go.mod, Cargo.toml, etc.)
-- Map out dependency relationships between packages
-- Identify framework-specific structures (Next.js, Angular, Vue, etc.)
+**Two-Phase Discovery Approach**:
+
+**Phase 1: Git-Based Discovery (Primary Method)**:
+If the repository is a git repository (check for .git directory):
+- Use `git ls-files` to get all tracked files (automatically excludes node_modules, dist, etc.)
+- Find package boundaries: `git ls-files | grep 'package\.json$'` for Node.js projects
+- Find other project files: `git ls-files | grep -E '(project\.json|go\.mod|Cargo\.toml|pyproject\.toml|pom\.xml)$'`
+- Analyze directory structure: `git ls-files | sed 's|/[^/]*$||' | sort -u` to get unique directories
+- Sample files for pattern detection: `git ls-files | grep -E '\.(ts|tsx|js|jsx|py|go|rs|java)$' | head -1000`
+
+**Phase 2: Fallback Manual Discovery (Only if not a git repo)**:
+Use Glob/Grep with explicit exclusions:
+- **MUST exclude these patterns**:
+  - `**/node_modules/**`
+  - `**/dist/**`
+  - `**/build/**`
+  - `**/.next/**`
+  - `**/.nuxt/**`
+  - `**/coverage/**`
+  - `**/.git/**`
+  - `**/vendor/**`
+  - `**/.cache/**`
+  - `**/tmp/**`
+  - `**/.turbo/**`
+  - `**/out/**`
+- Search for package boundaries with exclusions
+- Respect the `maxDepth` parameter strictly
 
 **Technology Detection**:
-- Programming languages used (analyze file extensions)
-- Frameworks and libraries (from dependencies and imports)
+- Programming languages used (analyze file extensions from git ls-files output)
+- Frameworks and libraries (from dependencies in package.json files)
 - Build tools and bundlers
 - Testing frameworks
 - CI/CD configuration
@@ -61,23 +81,26 @@ Determine which directories deserve CLAUDE.md files based on:
 5. **Domain boundaries** - Auth, payments, user management, etc.
 
 **NEVER create CLAUDE.md for**:
+- node_modules directories (any level)
+- Build output directories (dist, build, out, .next, .nuxt, .turbo)
+- Dependency/vendor directories
+- Cache directories (.cache, tmp)
 - Test-only directories (unless complex test infrastructure)
-- Build/dist directories
-- node_modules, vendor directories
 - Asset directories (images, fonts, static files)
 - Config-only directories
 - Single-file directories
 - Pure utility/helper directories with < 3 files
 - Type definition directories
-- Any directories specified in the .gitignore
+- Any directories not tracked by git (when git is available)
 
 ### 3. Deep Content Analysis (Per Target Directory)
 
 For each directory that will get a CLAUDE.md:
 
-**Code Analysis**:
-- Parse main entry points (index files, main files)
-- Identify exported APIs and interfaces
+**Code Analysis** (using git-tracked files only):
+- Find entry points in directory: `git ls-files <directory> | grep -E '(index|main)\.(ts|js|tsx|jsx|py|go|rs|java)$'`
+- List all source files: `git ls-files <directory> | grep -E '\.(ts|tsx|js|jsx|py|go|rs|java)$'`
+- Parse main entry points and identify exported APIs
 - Detect architectural patterns (MVC, layered, hexagonal)
 - Analyze component/class structures
 - Map internal dependencies
@@ -275,6 +298,43 @@ error: # Only if success: false
   details: "Additional context"
 ```
 
+## Implementation Commands
+
+### Essential Discovery Commands
+
+**Check if git repository**:
+```bash
+test -d .git && echo "Git repo" || echo "Not a git repo"
+```
+
+**Find all package.json files (git repos)**:
+```bash
+git ls-files | grep 'package\.json$' | grep -v node_modules
+```
+
+**Find all package.json files (non-git fallback)**:
+```bash
+find . -name "package.json" -not -path "*/node_modules/*" -not -path "*/dist/*" -not -path "*/.next/*" -not -path "*/build/*" -maxdepth 5
+```
+
+**List all directories with source code**:
+```bash
+git ls-files | grep -E '\.(ts|tsx|js|jsx)$' | xargs dirname | sort -u
+```
+
+**Count files per directory**:
+```bash
+git ls-files | xargs dirname | sort | uniq -c | sort -rn
+```
+
+**Find complex directories (10+ source files)**:
+```bash
+for dir in $(git ls-files | xargs dirname | sort -u); do
+  count=$(git ls-files "$dir" | grep -E '\.(ts|tsx|js|jsx)$' | wc -l)
+  [ $count -ge 10 ] && echo "$dir: $count files"
+done
+```
+
 ## Implementation Priorities
 
 1. **Thorough Discovery**: Analyze entire codebase without missing important patterns
@@ -304,10 +364,11 @@ Recognize and document framework patterns:
 
 ### Large Repository Handling
 For repositories with 1000+ files:
-- Use sampling strategies for pattern detection
-- Focus on entry points and exports
+- **Always use git ls-files** for file discovery (much faster than find/glob)
+- Sample files for pattern detection: `git ls-files | shuf -n 1000` for random sampling
+- Focus on entry points and exports: `git ls-files | grep -E '(index|main)\.'`
 - Prioritize package boundaries over deep diving
-- Set reasonable depth limits
+- Set reasonable depth limits for non-git fallback only
 
 ### Performance Optimization
 - Parallel analysis where possible
