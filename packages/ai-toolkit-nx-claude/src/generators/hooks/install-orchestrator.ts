@@ -132,6 +132,81 @@ export async function executeInstallScript(
 }
 
 /**
+ * Fix hook paths in settings.json to use ~ expansion for Docker compatibility
+ * @param verbose Show detailed output
+ * @returns true if successful
+ */
+function fixHookPaths(verbose = false): boolean {
+  const settingsPath = path.join(ROOT_CLAUDE_DIR, 'settings.json');
+
+  if (!fs.existsSync(settingsPath)) {
+    if (verbose) {
+      logger.warn('⚠️  settings.json not found - cannot fix paths');
+    }
+    return false;
+  }
+
+  try {
+    const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+
+    if (!settings.hooks) {
+      if (verbose) {
+        logger.warn('⚠️  No hooks configuration found in settings.json');
+      }
+      return false;
+    }
+
+    // Fix paths in all hook configurations to use ~ expansion
+    const homeDir = os.homedir();
+    let modified = false;
+
+    const fixPathInHooks = (hookArray: any[]) => {
+      for (const hookConfig of hookArray) {
+        if (hookConfig.hooks && Array.isArray(hookConfig.hooks)) {
+          for (const hook of hookConfig.hooks) {
+            if (hook.command && typeof hook.command === 'string') {
+              // Replace absolute paths with ~ expansion
+              if (hook.command.includes(homeDir)) {
+                hook.command = hook.command.replace(homeDir, '~');
+                modified = true;
+              }
+              // Also handle any hardcoded /Users/* or /home/* paths
+              const pathMatch = hook.command.match(/\/(Users|home)\/[^/]+\/\.claude\/hooks\//);
+              if (pathMatch) {
+                hook.command = hook.command.replace(pathMatch[0], '~/.claude/hooks/');
+                modified = true;
+              }
+            }
+          }
+        }
+      }
+    };
+
+    // Process all hook types
+    const hookTypes = ['Notification', 'Stop', 'SubagentStop', 'PreToolUse', 'PostToolUse'];
+    for (const hookType of hookTypes) {
+      if (settings.hooks[hookType] && Array.isArray(settings.hooks[hookType])) {
+        fixPathInHooks(settings.hooks[hookType]);
+      }
+    }
+
+    if (modified) {
+      // Write the updated settings back
+      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+      if (verbose) {
+        logger.info('✅ Fixed hook paths to use ~ expansion for Docker compatibility');
+      }
+      return true;
+    }
+
+    return true;
+  } catch (error) {
+    logger.error(`❌ Failed to fix hook paths: ${error}`);
+    return false;
+  }
+}
+
+/**
  * Verify the installation was successful
  * @returns Array of installed files or null if verification fails
  */
@@ -224,6 +299,9 @@ export async function runInstallation(
     if (!installedFiles) {
       throw new Error('Installation verification failed');
     }
+
+    // Fix hook paths to use ~ expansion for Docker compatibility
+    fixHookPaths(options.verbose);
 
     result.success = true;
     result.installedFiles = installedFiles;
