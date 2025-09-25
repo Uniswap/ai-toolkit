@@ -8,87 +8,51 @@ allowed-tools: Read(*), Write(*.md), Edit(*.md), MultiEdit(*.md), Glob(*), Grep(
 
 Intelligently manages CLAUDE.md documentation files across your repository. Supports both initialization of new documentation and updates based on changes.
 
-## Inputs
+## Common Input Processing
 
 Accept natural language input and extract intent:
 
 - **Input text**: Parse the user's request to understand intent
   - **"init" keywords**: "init", "initialize", "setup", "create", "bootstrap", "start"
     - Triggers: "init docs", "initialize documentation", "setup CLAUDE.md files"
-    - Routes to: **claude-docs-initializer** agent
+    - Routes to: **INIT Path** (claude-docs-initializer agent)
   - **"update" keywords**: "update", "refresh", "sync", "maintain" (or no init keywords)
     - Triggers: "update docs", "sync documentation", "refresh based on changes"
-    - Routes to: **claude-docs-manager** agent
-  - **"git" keywords**: "git changes", "uncommitted", "staged", "diff"
-  - Path references: "in packages/ui", "for the UI package", specific paths mentioned
+    - Routes to: **UPDATE Path** (claude-docs-manager agent)
+  - **Additional keywords**:
+    - **"git" keywords**: "git changes", "uncommitted", "staged", "diff"
+    - Path references: "in packages/ui", "for the UI package", specific paths mentioned
 
-- **Derived parameters**:
-  - `mode`: Explicitly check for init keywords first, otherwise assume update
-  - `scope`: For updates - default to `session`, unless git keywords detected
-  - `targetPath`: Extracted from path references if mentioned
+- **Mode determination**:
+  1. Explicitly check for init keywords first → Use **INIT Path**
+  2. Otherwise → Use **UPDATE Path** (default)
+  3. Extract any file limit specification (e.g., "init with max 50 files per agent")
+  4. For init: Check if CLAUDE.md files already exist (warn if they do)
 
 - **Clarification**: If intent is unclear:
   - For existing repos: "Would you like to initialize new documentation or update existing?"
   - For updates: "Should I update based on current session changes or git diff?"
 
-## Task
+## UPDATE Path (Default)
 
-Orchestrate intelligent CLAUDE.md file management:
+### Inputs for Update
 
-1. **Parse Intent & Determine Mode**:
-   - Check for initialization keywords → Use **init** mode
-   - Otherwise → Use **update** mode
-   - For updates: Determine scope (session/git/path)
-   - For init: Check if CLAUDE.md files already exist (warn if they do)
+- **Derived parameters**:
+  - `scope`: Default to `session`, unless git keywords detected
+  - `targetPath`: Extracted from path references if mentioned
+  - `changeContext`: Why these changes were made (from session/git context)
 
-2. **Analyze Change Significance**:
-   Determine which changes warrant CLAUDE.md updates:
-   - **Significant changes** (trigger updates):
-     - New files/components added
-     - Major refactoring or architectural changes
-     - API changes or new exports
-     - New dependencies added
-     - Configuration changes (package.json, tsconfig, etc.)
-     - Pattern/convention changes
-   - **Insignificant changes** (skip updates):
-     - Minor bug fixes
-     - Typo corrections
-     - Small formatting changes
-     - Internal implementation details that don't affect architecture
-     - Test file updates (unless testing approach changes)
-   
-3. **Prepare Change List**:
-   - Find repository root (where .git exists)
-   - Collect all significant changes with their full paths
-   - Include change context explaining why modifications were made
-   - Filter out insignificant changes (typos, formatting, minor bug fixes)
+### Task for Update
 
-4. **Single Agent Invocation**:
-   - Call claude-docs-manager ONCE with ALL changes
-   - Agent will identify all affected CLAUDE.md files
-   - Agent will update each file at the appropriate scope
-   - Agent handles the Documentation Proximity Principle internally
+1. **Analyze Change Significance**:
+   - Identify significant vs insignificant changes
+   - Filter out minor fixes, typos, formatting
 
-## Delegation
+2. **Single Agent Invocation**:
+   - Call claude-docs-manager with all changes
+   - Agent handles Documentation Proximity Principle
 
-### For Initialization Mode:
-
-Invoke **claude-docs-initializer** with:
-- `rootPath`: Repository root path (where .git exists)
-- `projectInfo`: Basic project metadata (if detected)
-  - `name`: Project name from package.json
-  - `type`: Project type (monorepo, library, app, etc.)
-  - `techStack`: Initially detected technologies
-  - `packageManager`: npm, yarn, bun, pnpm, etc.
-- `maxDepth`: Optional depth limit from root directory (default: 5)
-
-The agent will:
-- Perform deep repository analysis
-- Identify all directories needing documentation
-- Create CLAUDE.md files at appropriate levels
-- Return comprehensive initialization results
-
-### For Update Mode:
+### Delegation for Update
 
 Invoke **claude-docs-manager** with:
 - `changes`: Complete list of all significant file changes
@@ -109,32 +73,7 @@ The agent will:
 - Create new CLAUDE.md files where needed
 - Return all updated files in a single response
 
-## Output
-
-### For Initialization:
-
-Return results from claude-docs-initializer:
-```yaml
-summary: |
-  Repository type: [monorepo|single-package|library]
-  Successfully created N CLAUDE.md files
-  Analyzed X directories
-  
-createdFiles:
-  - path: /path/to/CLAUDE.md
-    level: root|package|module|component
-    keyFindings: [what was discovered]
-
-discoveredPatterns:
-  architecture: [detected architecture]
-  conventions: [coding conventions found]
-  
-errors:
-  - path: /path/to/failed/CLAUDE.md
-    error: [error message]
-```
-
-### For Updates:
+### Output for Update
 
 Return results from claude-docs-manager:
 ```yaml
@@ -143,7 +82,7 @@ summary: |
   Created: X files
   Updated: Y files
   Skipped: Z files (changes not relevant at those levels)
-  
+
 updatedFiles:
   - path: /path/to/CLAUDE.md
     operation: created|updated
@@ -159,16 +98,9 @@ errors:
     error: [error message]
 ```
 
-## Examples
+### Examples for Update
 
 ```bash
-# Initialize new documentation (first time setup)
-/claude-docs init
-/claude-docs initialize documentation
-/claude-docs setup CLAUDE.md files
-/claude-docs "create initial documentation for this repo"
-/claude-docs "bootstrap the CLAUDE.md files"
-
 # Update based on current session changes (default)
 /claude-docs update
 /claude-docs update the docs
@@ -184,19 +116,255 @@ errors:
 
 # Natural language requests
 /claude-docs "I just refactored the API layer, update the relevant docs"
-/claude-docs "initialize CLAUDE.md files for this monorepo"
 /claude-docs "sync the documentation with what I've changed today"
 ```
+
+## INIT Path
+
+### Inputs for Init
+
+- **Derived parameters**:
+  - `fileLimit`: Default 100 files per agent (or user-specified)
+  - `targetPath`: Extracted from path references if mentioned
+
+### Task for Init
+
+1. **Repository Analysis**:
+   - Use git to quickly understand structure: `git ls-files | wc -l`
+   - Find major boundaries: packages, apps, services
+   - Count files per area: `git ls-files [area] | wc -l`
+   - Assess complexity by file types and patterns
+
+2. **Intelligent Area Splitting**:
+   - Default: 100 files at most per agent (or user-specified limit)
+   - Split areas exceeding limits into logical sub-areas
+   - Identify natural boundaries (pages vs components, routes vs services)
+
+3. **Build Hierarchical Execution Plan**:
+   - Level 1: Parallel leaf agents for split areas
+   - Level 2: Area root agents (wait for their leaves)
+   - Level 3: Repository root agent (waits for all areas)
+   - Track dependencies between levels
+
+Example execution plan for large monorepo:
+```
+Level 1 (Parallel leaf documentation):
+  - Agent A: "Document user-facing frontend pages in /frontend/pages/user (50 files)"
+  - Agent B: "Document admin frontend pages in /frontend/pages/admin (45 files)"
+  - Agent C: "Document shared UI components in /frontend/components (80 files)"
+  - Agent D: "Document backend API routes in /backend/routes (60 files)"
+  - Agent E: "Document backend services in /backend/services (40 files)"
+
+Level 2 (Area roots - wait for their leaves):
+  - Agent F: "Create frontend root CLAUDE.md" (waits for A,B,C)
+  - Agent G: "Create backend root CLAUDE.md" (waits for D,E)
+
+Level 3 (Repository root - wait for all areas):
+  - Agent H: "Create repository root CLAUDE.md" (waits for F,G)
+```
+
+4. **Execute Plan with Task Tool**:
+   - Run Level 1 agents in parallel
+   - Collect coordinationContext from each
+   - Run Level 2 with context from their leaves
+   - Run Level 3 with all area contexts
+   - Aggregate all results
+
+### Delegation for Init
+
+Execute hierarchical parallelized documentation creation:
+
+#### Phase 1: Repository Analysis
+
+**⚠️ CRITICAL: ALWAYS prefer git commands over find/glob for discovery!**
+- Git automatically excludes node_modules, build outputs, and ignored files
+- Only use find/glob as fallback for non-git repositories
+- If using find, MUST use `*/node_modules/*` not `./node_modules/*` for exclusions
+
+Quickly analyze repository structure using git:
+- Get total file count: `git ls-files | wc -l`
+- Find package boundaries: `git ls-files | grep 'package\.json$'`
+- Identify tech stacks used and major directories and their sizes
+- Determine complexity based on file patterns and structure
+
+#### Phase 2: Create Execution Plan
+
+Based on analysis, determine splitting strategy
+
+#### Phase 3: Execute Level 1 - Parallel Leaf Documentation
+
+Invoke multiple **claude-docs-initializer** agents in PARALLEL:
+
+For each Level 1 agent:
+- `target`: "Document [specific area description] in [path]"
+- `siblingContext`: "Other agents are documenting: [list of other Level 1 areas]"
+
+Agents work simultaneously on different areas.
+
+#### Phase 4: Execute Level 2 - Area Root Documentation
+
+After Level 1 agents complete for an area, invoke **claude-docs-initializer**:
+
+- `target`: "Create root CLAUDE.md for the [area] summarizing its architecture"
+- `siblingContext`: "Other root agents are creating: [list of other area roots]"
+- `completedContext`: [Concatenated coordinationContext from relevant Level 1 agents]
+
+#### Phase 5: Execute Level 3 - Repository Root
+
+After all Level 2 agents complete, invoke **claude-docs-initializer**:
+
+- `target`: "Create repository root CLAUDE.md providing system overview"
+- `siblingContext`: "Final consolidation phase"
+- `completedContext`: [Concatenated coordinationContext from all Level 2 agents]
+
+### Output for Init
+
+Return aggregated results from all claude-docs-initializer agents:
+```yaml
+summary: |
+  Repository analysis: [monorepo with X packages | single app | library]
+  Execution: [N agents in parallel across M levels]
+  Successfully created [total] CLAUDE.md files
+  Total files analyzed: [sum across all agents]
+
+executionPlan:
+  level1Agents: 5 # Parallel leaf documentation
+  level2Agents: 2 # Area roots
+  level3Agents: 1 # Repository root
+  totalExecutionTime: "2m 34s"
+
+createdFilesByLevel:
+  leafDocumentation:
+    - agent: "frontend-user-pages"
+      files: 3
+      paths: ["/frontend/pages/user/CLAUDE.md", ...]
+    - agent: "frontend-admin-pages"
+      files: 2
+      paths: ["/frontend/pages/admin/CLAUDE.md", ...]
+
+  areaRoots:
+    - path: "/frontend/CLAUDE.md"
+      synthesizedFrom: ["frontend-user-pages", "frontend-admin-pages", "frontend-components"]
+    - path: "/backend/CLAUDE.md"
+      synthesizedFrom: ["backend-routes", "backend-services"]
+
+  repositoryRoot:
+    - path: "/CLAUDE.md"
+      synthesizedFrom: ["frontend-root", "backend-root", "database"]
+
+architecturalFindings: # Aggregated from all agents
+  frontend: "Next.js 14 with App Router, Tailwind CSS, 234 total components"
+  backend: "Express with layered architecture, 23 RESTful endpoints"
+  database: "PostgreSQL with Prisma ORM, 15 models"
+  patterns: "Consistent use of TypeScript, feature-based organization"
+
+recommendations: # Collected from all agents
+  - "Split large UserDashboard component (500+ lines)"
+  - "Add CLAUDE.md for growing analytics module"
+  - "Consider documenting complex auth flow separately"
+
+errors: # Any failures across all agents
+  - agent: "frontend-utils"
+    error: "Failed to analyze due to circular dependencies"
+```
+
+### Examples for Init
+
+```bash
+# Initialize new documentation (first time setup)
+/claude-docs init
+/claude-docs initialize documentation
+/claude-docs setup CLAUDE.md files
+
+# Initialize with custom file limit per agent
+/claude-docs init with max 50 files per agent
+/claude-docs initialize docs limiting each agent to 100 files
+
+# Initialize for large repository (automatic splitting)
+/claude-docs "create initial documentation for this large monorepo"
+# → Analyzes repo, finds 3000+ files
+# → Splits into 8 parallel agents across 3 levels
+# → Creates comprehensive hierarchical documentation
+
+# Natural language requests
+/claude-docs "initialize CLAUDE.md files for this monorepo"
+```
+
+## Example Workflow
+
+### Large Next.js + Supabase Monorepo - Init Path
+
+When user runs: `/claude-docs init`
+
+1. **Quick Analysis** determines:
+   ```
+   Total files: 2500
+   Frontend: /app (1800 files)
+   Backend: /api (500 files)
+   Database: /supabase (200 files)
+   ```
+
+2. **Intelligent Splitting** creates plan:
+   ```
+   Frontend needs splitting (1800 > 100):
+   - /app/(user) → 450 files (complex pages) → split to 150x3
+   - /app/(admin) → 350 files (complex) → split to 175x2
+   - /app/components → 600 files (simple UI) → split to 300x2
+   - /app/lib → 400 files (utilities) → split to 200x2
+
+   Backend needs splitting (500 > 100):
+   - /api/routes → 300 files → split to 150x2
+   - /api/services → 200 files → split to 100x2
+
+   Database ok as single (200 files, moderate complexity)
+   ```
+
+3. **Hierarchical Execution**:
+   ```
+   Level 1 (14 agents in parallel):
+   ├── frontend-user-1 (150 files)
+   ├── frontend-user-2 (150 files)
+   ├── frontend-user-3 (150 files)
+   ├── frontend-admin-1 (175 files)
+   ├── frontend-admin-2 (175 files)
+   ├── frontend-components-1 (300 files)
+   ├── frontend-components-2 (300 files)
+   ├── frontend-lib-1 (200 files)
+   ├── frontend-lib-2 (200 files)
+   ├── backend-routes-1 (150 files)
+   ├── backend-routes-2 (150 files)
+   ├── backend-services-1 (100 files)
+   ├── backend-services-2 (100 files)
+   └── database (200 files)
+
+   Level 2 (2 agents, wait for their leaves):
+   ├── frontend-root (waits for 9 frontend agents)
+   └── backend-root (waits for 4 backend agents)
+
+   Level 3 (1 agent, waits for all):
+   └── repository-root (waits for frontend-root, backend-root, database)
+   ```
+
+4. **Result**: 17 agents total, 14 run in parallel initially, creating comprehensive documentation in ~2-3 minutes instead of 15+ minutes sequentially.
 
 ## Implementation Notes
 
 1. **Mode Detection**: Check for init keywords first, default to update mode
-2. **Agent Selection**: Route to appropriate agent based on mode
-   - Initialization → claude-docs-initializer (discovery-driven)
-   - Updates → claude-docs-manager (change-driven)
-3. **Significance Detection**: For updates, only pass meaningful changes
-4. **Session-First Default**: For updates, prioritize session changes unless specified
-5. **Comprehensive Init**: Initializer analyzes entire codebase for complete context
-6. **Single Invocation**: Each agent processes everything in one call
-7. **Preserve Custom Content**: Both agents respect user-added content
-8. **Documentation Hierarchy**: Both agents understand and respect level-appropriate content
+2. **Agent Orchestration**:
+   - **INIT Path**: Parallel multi-agent hierarchical execution
+     - Level 1: Multiple agents work on different areas simultaneously
+     - Level 2: Area roots synthesize findings from their leaves
+     - Level 3: Repository root consolidates all area summaries
+   - **UPDATE Path**: Single claude-docs-manager agent (change-driven)
+3. **Intelligent Splitting** (INIT Path only):
+   - Default 100 files per agent (configurable)
+   - Complexity scoring adjusts effective limits
+   - Natural boundary detection (pages/components, routes/services)
+4. **Context Flow** (INIT Path):
+   - Leaf agents generate coordinationContext
+   - Area roots receive and synthesize leaf contexts
+   - Repository root receives all area contexts
+5. **Parallel Execution**: Use Task tool to spawn multiple agents simultaneously
+6. **Session-First Default**: For updates, prioritize session changes unless specified
+7. **Preserve Custom Content**: Both agents respect user-added content sections
+8. **Documentation Hierarchy**: Agents create docs only at their assigned level

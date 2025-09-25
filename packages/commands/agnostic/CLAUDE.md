@@ -223,6 +223,9 @@ Example workflow:
   - Delegates to specialized documentation agents
   - Supports both repository initialization and incremental updates
   - Integration with Documentation Proximity Principle
+  - **Restructured documentation**: Separated UPDATE and INIT paths into distinct sections for clarity
+    - UPDATE Path (default): Single-agent change-driven updates
+    - INIT Path: Multi-agent hierarchical documentation creation
 
 ### Previous Updates (2025-09-06)
 

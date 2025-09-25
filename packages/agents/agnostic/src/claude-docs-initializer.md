@@ -11,20 +11,55 @@ Perform deep repository analysis to understand structure, patterns, and architec
 
 ## Inputs
 
-- `rootPath`: Absolute path to repository root
-- `projectInfo`: (Optional) Basic project information if already known
-  - `name`: Project name
-  - `type`: Project type (monorepo, library, app, etc.)
-  - `techStack`: Detected technologies
-  - `packageManager`: npm, yarn, bun, pnpm, etc.
-- `maxDepth`: (Optional) Maximum directory depth to analyze (default: 5)
-- `includePatterns`: (Optional) Additional glob patterns to include
-- `excludePatterns`: (Optional) Additional glob patterns to exclude beyond defaults
-- `forceRefresh`: (Optional) Boolean to regenerate existing CLAUDE.md files (default: false)
+- `target`: Natural language description of what to document
+  - Example: "the Next.js frontend application located in /app/frontend, focusing on user-facing pages and components"
+  - Example: "the authentication system across the entire codebase"
+  - Example: "the Express backend API in /backend, including all routes and middleware"
+  - Example: "create the repository root CLAUDE.md summarizing the entire project architecture"
+  - Example: "document the shared UI components library in /packages/ui with focus on the design system"
+
+- `siblingContext`: Natural language description of what other agents are documenting
+  - Example: "Other agents are documenting: the admin dashboard components, the backend API documentation, and the database schema documentation"
+  - Example: "Another agent is documenting the user-facing frontend pages while you focus on admin pages"
+  - Example: "No other agents are running" (for single-agent mode)
+  - Example: "Level 1 agents are documenting: frontend user pages, frontend admin pages, backend services"
+
+- `completedContext`: (Optional) Natural language findings from completed sibling agents - ONLY provided for area root or repository root documentation
+  - Example: "The frontend user pages use React Query for data fetching, follows atomic design patterns, has 47 components. The admin section uses Redux for state management with 23 components."
+  - Example: "The backend API has 23 RESTful endpoints, uses JWT authentication with refresh tokens, implements rate limiting with Redis, follows a layered architecture pattern."
+  - Example: "Frontend findings: Uses Next.js App Router with RSC, Tailwind for styling, custom hooks for business logic. Backend findings: Express with TypeScript, PostgreSQL with Prisma ORM, organized in controllers/services/repositories pattern."
 
 ## Process
 
-### 1. Repository Discovery & Analysis
+### 1. Parse Target Scope
+
+Interpret the natural language target to understand:
+- **Extract paths**: Identify any specific directories mentioned (e.g., "/frontend", "/app/pages")
+- **Understand scope**: Parse descriptors like "user-facing", "admin", "API routes", "shared components"
+- **Determine level**: Identify if this is for:
+  - Leaf documentation (specific module/feature within an area)
+  - Area root documentation (e.g., "frontend root", "backend root")
+  - Repository root documentation (entire project overview)
+- **Set boundaries**: Based on description, determine which directories to analyze and document
+
+### 2. Respect Sibling Boundaries
+
+From siblingContext, understand coordination requirements:
+- **Parse sibling work**: Identify what other agents are handling
+- **Prevent overlap**: Ensure no duplicate CLAUDE.md creation
+- **Stay in bounds**: Only create documentation within assigned target
+- **Coordination awareness**: If creating leaf docs, be aware of which area root will consolidate your findings
+
+### 3. Incorporate Completed Context (Area/Repository Root Only)
+
+If completedContext is provided (only for consolidation phases):
+- **Parse findings**: Extract key discoveries from completed agents
+- **Identify patterns**: Look for common patterns across different areas
+- **Build narrative**: Create cohesive story incorporating all findings
+- **Cross-reference**: Connect related concepts across different areas
+- **Synthesize**: Don't just list findings, create unified architectural understanding
+
+### 4. Repository Discovery & Analysis
 
 **Two-Phase Discovery Approach**:
 
@@ -37,67 +72,79 @@ If the repository is a git repository (check for .git directory):
 - Sample files for pattern detection: `git ls-files | grep -E '\.(ts|tsx|js|jsx|py|go|rs|java)$' | head -1000`
 
 **Phase 2: Fallback Manual Discovery (Only if not a git repo)**:
+
+**⚠️ CRITICAL: NEVER use find commands without proper exclusions!**
+- **WRONG**: `-not -path "./node_modules/*"` (only excludes top-level)
+- **CORRECT**: `-not -path "*/node_modules/*"` (excludes ALL nested node_modules)
+
 Use Glob/Grep with explicit exclusions:
 - **MUST exclude these patterns**:
-  - `**/node_modules/**`
-  - `**/dist/**`
-  - `**/build/**`
-  - `**/.next/**`
-  - `**/.nuxt/**`
-  - `**/coverage/**`
-  - `**/.git/**`
-  - `**/vendor/**`
-  - `**/.cache/**`
-  - `**/tmp/**`
-  - `**/.turbo/**`
-  - `**/out/**`
+  - `**/node_modules/**` (for Glob)
+  - `*/node_modules/*` (for find command)
+  - `**/dist/**` or `*/dist/*`
+  - `**/build/**` or `*/build/*`
+  - `**/.next/**` or `*/.next/*`
+  - `**/.nuxt/**` or `*/.nuxt/*`
+  - `**/coverage/**` or `*/coverage/*`
+  - `**/.git/**` or `*/.git/*`
+  - `**/vendor/**` or `*/vendor/*`
+  - `**/.cache/**` or `*/.cache/*`
+  - `**/tmp/**` or `*/tmp/*`
+  - `**/.turbo/**` or `*/.turbo/*`
+  - `**/out/**` or `*/out/*`
 - Search for package boundaries with exclusions
-- Respect the `maxDepth` parameter strictly
+- Limit search depth to avoid excessive exploration
 
 **Technology Detection**:
-- Programming languages used (analyze file extensions from git ls-files output)
-- Frameworks and libraries (from dependencies in package.json files)
+- Programming languages used
+- Frameworks and libraries
 - Build tools and bundlers
 - Testing frameworks
 - CI/CD configuration
 - Development tools (linters, formatters)
 
-### 2. Identify Documentation Targets
+### 5. Identify Documentation Targets
 
-**Automatic Level Detection**:
-Determine which directories deserve CLAUDE.md files based on:
+Based on parsed target scope, determine documentation strategy:
 
-**MUST have CLAUDE.md**:
-1. **Repository root** - Always create root CLAUDE.md
-2. **Package boundaries** - Any directory with package.json/project.json
-3. **Application roots** - Standalone applications within the repo
-4. **Major modules** - Directories with 10+ source files representing domains
+**For Leaf-Level Documentation** (e.g., "document the user-facing frontend pages"):
+- Create CLAUDE.md files at multiple levels within target area
+- Include package, module, and feature-level documentation
+- Document based on these criteria:
+  - **Package boundaries**: Any directory with package.json/project.json
+  - **Major modules**: Directories with 5+ source files representing domains
+  - **Feature directories**: Self-contained features with 3+ files
+  - **Complex components**: Component groups with significant logic
+  - **Service layers**: Backend service modules with business logic
+  - **Domain boundaries**: Auth, payments, user management, etc.
 
-**SHOULD have CLAUDE.md** (if they meet criteria):
-1. **Feature directories** - Self-contained features with 5+ files
-2. **API layers** - Directories exposing public APIs/exports
-3. **Complex components** - Component directories with 3+ components or 500+ lines
-4. **Service layers** - Backend service modules
-5. **Domain boundaries** - Auth, payments, user management, etc.
+**For Area Root Documentation** (e.g., "create frontend root CLAUDE.md"):
+- Create SINGLE CLAUDE.md at the area root directory only
+- Synthesize findings from completedContext
+- Do NOT create subdirectory documentation
+- Focus on architectural overview of the entire area
+
+**For Repository Root Documentation** (e.g., "create repository root CLAUDE.md"):
+- Create SINGLE CLAUDE.md at repository root only
+- Synthesize all area findings from completedContext
+- Provide high-level system architecture
+- Connect patterns across different areas
 
 **NEVER create CLAUDE.md for**:
+- Directories outside your target scope
 - node_modules directories (any level)
 - Build output directories (dist, build, out, .next, .nuxt, .turbo)
-- Dependency/vendor directories
-- Cache directories (.cache, tmp)
+- Cache/temporary directories (.cache, tmp, .turbo)
 - Test-only directories (unless complex test infrastructure)
 - Asset directories (images, fonts, static files)
-- Config-only directories
 - Single-file directories
 - Pure utility/helper directories with < 3 files
-- Type definition directories
-- Any directories not tracked by git (when git is available)
 
 ### 3. Deep Content Analysis (Per Target Directory)
 
 For each directory that will get a CLAUDE.md:
 
-**Code Analysis** (using git-tracked files only):
+**Code Analysis** (using git-tracked files only if a git repository):
 - Find entry points in directory: `git ls-files <directory> | grep -E '(index|main)\.(ts|js|tsx|jsx|py|go|rs|java)$'`
 - List all source files: `git ls-files <directory> | grep -E '\.(ts|tsx|js|jsx|py|go|rs|java)$'`
 - Parse main entry points and identify exported APIs
@@ -217,19 +264,25 @@ Generate CLAUDE.md content based on analysis depth and directory level:
 <!-- CUSTOM:END -->
 ```
 
-### 5. Multi-Level File Creation
+### 6. Documentation File Creation
 
-**Execution Strategy**:
-1. Check for existing CLAUDE.md files at each level
-2. If `forceRefresh: false` (default):
-   - Skip existing CLAUDE.md files
-   - Create only missing CLAUDE.md files
-   - Report which files were skipped
-3. If `forceRefresh: true`:
-   - Regenerate all CLAUDE.md files based on fresh analysis
-   - Preserve custom sections (marked with `<!-- CUSTOM:START -->`)
-4. Create files in hierarchical order (root → packages → modules → features)
-5. Ensure each level has appropriate scope and doesn't duplicate parent content
+**Execution Strategy Based on Target Level**:
+
+**For Leaf Documentation**:
+1. Create multiple CLAUDE.md files within target area where necessary and appropriate
+2. Follow hierarchical order (packages → modules → features)
+3. Each level has appropriate scope without duplication
+4. Skip existing CLAUDE.md files (report in output)
+
+**For Area Root Documentation**:
+1. Create single CLAUDE.md at area root only
+2. Synthesize completedContext from leaf agents
+3. Focus on area-wide architecture and patterns
+
+**For Repository Root Documentation**:
+1. Create single CLAUDE.md at repository root only
+2. Synthesize completedContext from all area agents
+3. Provide system-wide architectural overview
 
 **Cross-Reference Management**:
 - Root mentions packages but doesn't detail them
@@ -243,55 +296,46 @@ Return comprehensive initialization results:
 ```yaml
 success: boolean
 summary: |
-  Repository type: monorepo|single-package|library
-  Packages found: N
-  Total directories analyzed: X
-  CLAUDE.md files created: Y
+  Natural language summary of what was accomplished
+  Example: "Successfully documented the user-facing frontend pages including 47 components across 12 modules"
+
+targetAnalysis:
+  description: "What was analyzed (e.g., 'Next.js frontend user pages with 150 files')"
+  filesAnalyzed: 150
+  directoriesDocumented: 12
+  complexity: "low|medium|high" # Based on code patterns and business logic
+  keyFindings:
+    - "Uses Next.js App Router with RSC patterns"
+    - "Implements atomic design system with 47 components"
+    - "Heavy use of custom hooks for business logic"
+    - "Follows feature-based folder structure"
 
 createdFiles:
-  - path: "/workspace/CLAUDE.md"
-    level: "root"
-    content_summary: "Created root documentation with project overview, tech stack, and management rules"
-    keyFindings:
-      - "Nx monorepo with 5 packages"
-      - "React + TypeScript frontend"
-      - "Strict ESLint configuration"
+  - path: "/app/frontend/CLAUDE.md"
+    level: "package|module|feature|root"
+    summary: "Created frontend package documentation with component inventory and architectural patterns"
 
-  - path: "/workspace/packages/ui/CLAUDE.md"
-    level: "package"
-    content_summary: "Created UI package documentation with component inventory"
-    keyFindings:
-      - "Component library with 23 components"
-      - "Uses CSS modules for styling"
-      - "Exports through barrel file"
-
-  - path: "/workspace/packages/auth/src/modules/oauth/CLAUDE.md"
+  - path: "/app/frontend/components/CLAUDE.md"
     level: "module"
-    content_summary: "Created OAuth module documentation"
-    keyFindings:
-      - "Implements OAuth 2.0 flow"
-      - "Supports Google and GitHub providers"
+    summary: "Created component library documentation with design system overview"
 
-existingFiles: # Files that already had CLAUDE.md
-  - path: "/workspace/packages/api/CLAUDE.md"
-    action: "skipped" # or "refreshed" if forceRefresh: true
-    reason: "Existing documentation found, use forceRefresh to regenerate"
+coordinationContext: |
+  Natural language string with important findings for sibling agents.
+  Example for leaf agent: "The frontend user pages use a custom authentication hook at /hooks/useAuth that wraps Supabase auth. All API calls go through /lib/api-client with automatic retry logic. The design system is in /components/ui using Tailwind with custom design tokens. Found 47 components following atomic design (atoms, molecules, organisms). State management uses Zustand stores in /stores directory."
 
-skippedDirectories:
-  - path: "/workspace/packages/ui/tests"
-    reason: "Test-only directory"
-  - path: "/workspace/scripts"
-    reason: "Build scripts directory with < 3 files"
+  Example for area root: "Frontend architecture: Next.js 14 App Router, TypeScript, Tailwind CSS. Total 234 components split between user pages (47), admin pages (23), and shared UI library (164). Uses React Query for server state, Zustand for client state. All data fetching happens through custom hooks wrapping API client. Follows atomic design and feature-based organization."
 
-discoveredPatterns:
-  architecture: "Layered architecture with clear separation"
-  naming: "PascalCase for components, camelCase for utilities"
-  testing: "Jest + React Testing Library"
-  stateManagement: "Context API with custom hooks"
+  Example for repository root: "Monorepo with clear frontend/backend separation. Frontend uses Next.js with modern patterns. Backend is Express with layered architecture. Database is PostgreSQL with Prisma. Authentication via Supabase. Clear API boundaries with TypeScript types shared via packages."
+
+skippedAreas: # Areas intentionally not documented (respecting siblingContext)
+  - path: "/app/frontend/admin"
+    reason: "Another agent is documenting admin pages"
+  - path: "/backend"
+    reason: "Backend documentation assigned to different agent"
 
 recommendations:
-  - "Consider adding CLAUDE.md for the new /packages/analytics module when it has more components"
-  - "The /shared/utils directory might benefit from documentation if it grows beyond current 2 files"
+  - "The /lib/analytics module is growing complex (8 files) and should get its own CLAUDE.md"
+  - "Consider splitting the large UserDashboard component (500+ lines) into smaller pieces"
 
 error: # Only if success: false
   message: "Error description"
@@ -299,6 +343,10 @@ error: # Only if success: false
 ```
 
 ## Implementation Commands
+
+### ⚠️ IMPORTANT: Prefer Git Commands Over Find/Glob
+
+**ALWAYS use git ls-files when in a git repository** - it automatically excludes node_modules, build outputs, and other ignored files. Only use find/glob as a last resort for non-git repositories.
 
 ### Essential Discovery Commands
 
@@ -314,6 +362,7 @@ git ls-files | grep 'package\.json$' | grep -v node_modules
 
 **Find all package.json files (non-git fallback)**:
 ```bash
+# IMPORTANT: Use "*/node_modules/*" to exclude ALL nested node_modules directories
 find . -name "package.json" -not -path "*/node_modules/*" -not -path "*/dist/*" -not -path "*/.next/*" -not -path "*/build/*" -maxdepth 5
 ```
 
@@ -378,11 +427,12 @@ For repositories with 1000+ files:
 
 ## Critical Constraints
 
-**INITIALIZATION FOCUS**: This agent is optimized for creating new CLAUDE.md files. For existing files:
-- **Skip by default**: Don't overwrite existing CLAUDE.md files unless critical
-- **Report existing**: Note which directories already have documentation
-- **Fill gaps**: Focus on creating CLAUDE.md where missing
-- **Optional refresh**: Could add a `forceRefresh` parameter to regenerate if explicitly requested
+**HIERARCHICAL AWARENESS**: This agent operates at different levels based on target:
+- **Leaf Level**: Document specific areas with multiple CLAUDE.md files
+- **Area Root Level**: Create single area overview from leaf findings
+- **Repository Root Level**: Create single system overview from all findings
+- **Boundary Respect**: Never create documentation outside assigned scope
+- **Context Flow**: Leaf agents provide findings for roots to synthesize
 
 **DISCOVERY-DRIVEN**: Unlike the change-driven update agent, this analyzes the existing codebase comprehensively to understand its current state.
 
