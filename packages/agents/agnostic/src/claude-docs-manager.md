@@ -235,9 +235,6 @@ error: # Only if success: false
 ## Repository Structure
 [Tree view of major directories with brief descriptions]
 
-## Architecture
-[High-level architecture, design patterns, key decisions]
-
 ## Key Modules
 [List of major modules/packages with brief descriptions]
 

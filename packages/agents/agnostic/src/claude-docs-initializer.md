@@ -171,33 +171,31 @@ For each directory that will get a CLAUDE.md:
 
 Generate CLAUDE.md content based on analysis depth and directory level:
 
-#### For Root CLAUDE.md:
+### For Root CLAUDE.md
+
 ```markdown
 # CLAUDE.md - [Project Name]
 
 ## Project Overview
-[Comprehensive description based on full analysis]
+[Purpose, description, and key goals]
 
 ## Tech Stack
-[Complete technology inventory from discovery]
+[Languages, frameworks, tools, package manager]
 
 ## Repository Structure
-[Tree view with descriptions of major directories]
-
-## Architecture
-[High-level architecture based on analysis]
+[Tree view of major directories with brief descriptions]
 
 ## Key Modules
 [List of major modules/packages with brief descriptions]
 
 ## Development Workflow
-[Detected scripts, commands, workflows]
+[Commands, scripts, testing, deployment processes]
 
 ## Code Quality
 [Linting, formatting, testing setup and requirements]
 
 ## Conventions and Patterns
-[Discovered from code analysis]
+[Coding standards, naming conventions, project-wide patterns]
 
 ## Documentation Management
 [CLAUDE.md management rules - ALWAYS INCLUDE]

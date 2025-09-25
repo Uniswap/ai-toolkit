@@ -160,7 +160,7 @@ Level 2 (Area roots - wait for their leaves):
   - Agent G: "Create backend root CLAUDE.md" (waits for D,E)
 
 Level 3 (Repository root - wait for all areas):
-  - Agent H: "Create repository root CLAUDE.md" (waits for F,G)
+  - Agent H: "Create repository root CLAUDE.md with documentation management rules" (waits for F,G) - uses claude-docs-manager
 ```
 
 4. **Execute Plan with Task Tool**:
@@ -211,15 +211,20 @@ After Level 1 agents complete for an area, invoke **claude-docs-initializer**:
 
 #### Phase 5: Execute Level 3 - Repository Root
 
-After all Level 2 agents complete, invoke **claude-docs-initializer**:
+After all Level 2 agents complete, invoke **claude-docs-manager**:
 
-- `target`: "Create repository root CLAUDE.md providing system overview"
-- `siblingContext`: "Final consolidation phase"
+- `changes`: Empty list (no specific file changes for init)
+- `changeContext`: "Initial repository documentation setup"
+- `projectInfo`: [Gathered project metadata from analysis]
+- `rootGuidelines`: null (creating for first time)
+- `isRoot`: true (triggers inclusion of Documentation Management rules)
 - `completedContext`: [Concatenated coordinationContext from all Level 2 agents]
+
+**Note**: We use claude-docs-manager here specifically to ensure the Documentation Management rules are properly included in the root CLAUDE.md.
 
 ### Output for Init
 
-Return aggregated results from all claude-docs-initializer agents:
+Return aggregated results from all agents (claude-docs-initializer for all levels except repository root, claude-docs-manager for repository root only):
 ```yaml
 summary: |
   Repository analysis: [monorepo with X packages | single app | library]
@@ -342,7 +347,7 @@ When user runs: `/claude-docs init`
    └── backend-root (waits for 4 backend agents)
 
    Level 3 (1 agent, waits for all):
-   └── repository-root (waits for frontend-root, backend-root, database)
+   └── repository-root (waits for frontend-root, backend-root, database) - claude-docs-manager
    ```
 
 4. **Result**: 17 agents total, 14 run in parallel initially, creating comprehensive documentation in ~2-3 minutes instead of 15+ minutes sequentially.
