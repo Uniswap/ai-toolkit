@@ -20,6 +20,7 @@ The `init` generator is the primary entry point for setting up Claude Code confi
 10. **Manifest Generation**: Creates a `manifest.json` file tracking installed components, version, and installation metadata
 11. **Collision Detection**: Checks for existing installations and prompts for overwrite confirmation (unless forced)
 12. **Installation Verification**: Verifies successful installation using `claude doctor` or `which claude`
+13. **Auto-Update Checker Installation**: Installs background update checker to shell configuration (bash/zsh/fish)
 
 ### Claude CLI Installation
 
@@ -51,6 +52,53 @@ The generator automatically handles Claude CLI installation with intelligent fal
    - Shows curl and npm commands for manual execution
    - Links to official documentation
    - Suggests troubleshooting with `claude doctor`
+
+### Auto-Update Checker
+
+After successful installation, the generator automatically installs an update checker to your shell configuration:
+
+**Installation Process**:
+
+1. **Shell Detection**: Detects your shell type (bash, zsh, or fish)
+2. **Version Extraction**: Reads current package version from package.json
+3. **Config Backup**: Creates timestamped backup of shell config (e.g., `~/.zshrc.backup-1234567890`)
+4. **Script Injection**: Adds update check script between `AI_TOOLKIT_UPDATE_CHECK` markers
+5. **Self-Updating**: Re-running init updates the script version in your shell config
+
+**Update Check Script Features**:
+
+- **Daily Frequency**: Checks once per 24 hours using cache file `~/.claude/.last-update-check`
+- **Background Execution**: Runs in background to avoid blocking shell startup (<5ms overhead)
+- **Version Tracking**: Stores current version in script comment for self-maintenance
+- **npm Registry Query**: Queries npm for `@uniswap/ai-toolkit-nx-claude` latest version
+- **User Notification**: Displays message when update available with upgrade instructions
+- **Disable Option**: Respects `AI_TOOLKIT_SKIP_UPDATE_CHECK=1` environment variable
+
+**User Experience**:
+
+When an update is available, users see this on shell startup (once per day):
+
+```
+📦 AI Toolkit update available: 0.5.7 → 0.6.0
+   Run: npx @uniswap/ai-toolkit-nx-claude@latest init
+   Disable these checks: export AI_TOOLKIT_SKIP_UPDATE_CHECK=1
+```
+
+**Disabling Updates**:
+
+```bash
+# Temporary (one session)
+export AI_TOOLKIT_SKIP_UPDATE_CHECK=1
+
+# Permanent (add to shell config)
+echo "export AI_TOOLKIT_SKIP_UPDATE_CHECK=1" >> ~/.zshrc
+```
+
+**Error Handling**:
+
+- If update checker installation fails, a warning is shown but installation continues
+- Failure is treated as non-critical (user can still use installed commands/agents)
+- Users are advised to report issues to #pod-dev-ai Slack channel
 
 ### Installation Modes
 
@@ -123,6 +171,7 @@ In dry-run mode, if Claude CLI is not installed, the generator will show:
 
 - The installation methods that would be attempted (curl → npm → manual)
 - The files that would be installed
+- The auto-update checker setup plan (shell detection, config update, frequency)
 - No actual changes will be made to the system
 
 ### Selective Installation
@@ -151,7 +200,8 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:init --installation-type=global -
 │   ├── debug-assistant.md
 │   ├── refactorer.md
 │   └── style-enforcer.md
-└── manifest.json
+├── manifest.json
+└── .last-update-check  # Cache file for auto-update checker (timestamp)
 ```
 
 ### Local Installation (./.claude/)
@@ -173,7 +223,50 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:init --installation-type=global -
 │   ├── refactorer.md
 │   └── style-enforcer.md
 └── manifest.json
+
+Note: The .last-update-check cache file is stored in ~/.claude/ (global location) regardless of installation type, since auto-update checker is installed globally to shell config.
 ```
+
+## Shell Configuration Modifications
+
+The init generator modifies your shell configuration file to add the auto-update checker:
+
+### Bash (~/.bashrc)
+
+```bash
+# AUTOMATED BY AI_TOOLKIT_UPDATE_CHECK v0.5.7
+_ai_toolkit_check_updates() {
+  [ -n "$AI_TOOLKIT_SKIP_UPDATE_CHECK" ] && return
+  # ... update check logic ...
+}
+_ai_toolkit_check_updates
+# END AI_TOOLKIT_UPDATE_CHECK
+```
+
+### Zsh (~/.zshrc)
+
+Same format as bash (uses POSIX-compatible syntax).
+
+### Fish (~/.config/fish/config.fish)
+
+```fish
+# AUTOMATED BY AI_TOOLKIT_UPDATE_CHECK v0.5.7
+function _ai_toolkit_check_updates
+  if set -q AI_TOOLKIT_SKIP_UPDATE_CHECK
+    return
+  end
+  # ... update check logic ...
+end
+_ai_toolkit_check_updates
+# END AI_TOOLKIT_UPDATE_CHECK
+```
+
+**Important Notes**:
+
+- The script is self-contained between marker comments for easy removal
+- Running init again will update the version in the script
+- Backup files are created before any modifications (e.g., `~/.zshrc.backup-1234567890`)
+- The script only runs if the markers aren't already present (idempotent)
 
 ## Manifest File Structure
 
@@ -199,20 +292,28 @@ The generated `manifest.json` contains:
    - Validates local installation path
    - Detects existing files in both locations
    - Orchestrates file copying and manifest creation
+   - Installs auto-update checker after successful setup
 2. **Claude CLI Installation Functions**:
    - **installClaude**: Main orchestrator for installation with fallback logic
    - **installViaCurl**: Primary installation method using official curl script
    - **installViaNpm**: Fallback installation method using npm
    - **verifyInstallation**: Verifies CLI installation success
    - **provideManualInstructions**: Displays manual installation steps when auto-install fails
-3. **prompt-utils.ts**: Schema-driven prompt generation module
+3. **Auto-Update Functions** (from `auto-update-utils.ts`):
+   - **detectShell**: Detects shell type from environment (bash/zsh/fish)
+   - **getCurrentToolkitVersion**: Reads version from package.json
+   - **installUpdateChecker**: Main function that installs update checker to shell config
+   - **generateAutoUpdateSnippet**: Generates bash/zsh update check script
+   - **generateFishAutoUpdateSnippet**: Generates fish-specific update check script
+   - **getShellConfigPath**: Returns shell config file path for detected shell
+4. **prompt-utils.ts**: Schema-driven prompt generation module
    - **promptForMissingOptions**: Reads schema.json and generates prompts for missing options
    - **promptForProperty**: Handles different property types (boolean, string, array, enum)
    - **promptMultiSelectWithAll**: Enhanced multi-select with file existence indicators
-4. **checkExistingFiles**: Detects which files already exist in target locations
-5. **promptOverwrite**: Manages collision detection and user confirmation
-6. **checkClaudeInstalled**: Checks if Claude CLI is already installed
-7. **promptInstallClaude**: Prompts user for consent to install Claude CLI
+5. **checkExistingFiles**: Detects which files already exist in target locations
+6. **promptOverwrite**: Manages collision detection and user confirmation
+7. **checkClaudeInstalled**: Checks if Claude CLI is already installed
+8. **promptInstallClaude**: Prompts user for consent to install Claude CLI
 
 ### Schema-Driven Prompting
 

@@ -51,6 +51,11 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:init
   - Primary: curl installation method
   - Fallback: npm installation if curl fails
   - Manual: Instructions provided if both fail
+- **Auto-update notifications**: Checks for new versions once per day
+  - Background execution (non-blocking, <5ms startup overhead)
+  - Self-updating script with version tracking
+  - Can be disabled via `AI_TOOLKIT_SKIP_UPDATE_CHECK` environment variable
+  - Supports bash, zsh, and fish shells
 - Global (~/.claude) or local (./.claude) installation
 - Detects existing files and offers overwrite options
 - Creates manifest.json for tracking installations
@@ -273,6 +278,39 @@ Standard approaches for file management:
 5. Preserve user customizations
 
 ## Shared Utilities
+
+### auto-update-utils.ts
+
+Located at `src/utils/auto-update-utils.ts`, this utility provides auto-update functionality for the init generator:
+
+**Core Functions**:
+
+- **getCurrentToolkitVersion()**: Extracts current version from package.json
+- **detectShell()**: Detects user's shell (bash, zsh, or fish)
+- **getShellConfigPath()**: Returns the config file path for detected shell
+- **generateAutoUpdateSnippet()**: Generates bash/zsh update check script with version
+- **generateFishAutoUpdateSnippet()**: Generates fish-specific update check script
+- **installUpdateChecker()**: Installs update checker into shell configuration
+
+**Key Features**:
+
+- **Daily checking**: Runs once per 24 hours using cached timestamp in `~/.claude/.last-update-check`
+- **Background execution**: Spawns background process to avoid blocking shell startup
+- **Self-maintaining**: Stores version in script comment for automatic updates on re-run
+- **User control**: Respects `AI_TOOLKIT_SKIP_UPDATE_CHECK` environment variable
+- **Minimal overhead**: <5ms when cached, ~3ms when spawning background check
+- **Shell support**: Generates appropriate syntax for bash/zsh (POSIX) and fish shells
+
+**Update Check Behavior**:
+
+1. Checks if `AI_TOOLKIT_SKIP_UPDATE_CHECK` is set (exits if true)
+2. Reads cache timestamp from `~/.claude/.last-update-check`
+3. Skips if checked within last 24 hours
+4. Spawns background process that:
+   - Extracts current version from shell config comment
+   - Queries npm registry for latest version
+   - Displays notification if update available
+   - Updates cache timestamp
 
 ### prompt-utils.ts
 
@@ -508,3 +546,4 @@ If the `next` branch version gets out of sync with `latest`:
 - **1.2.0**: Added automatic fallback mechanism for Claude CLI installation (curl → npm)
 - **1.3.0**: Added standalone package publishing and direct npx/bunx execution
 - Future versions will be documented here
+````

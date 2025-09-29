@@ -13,6 +13,11 @@ import {
   isNxDryRunProvided,
 } from '../hooks/cli-parser';
 import setupRegistryProxyGenerator from '../setup-registry-proxy/generator';
+import {
+  detectShell,
+  getCurrentToolkitVersion,
+  installUpdateChecker,
+} from '../../utils/auto-update-utils';
 
 // Import available commands and agents from content packages
 import { commands as agnosticCommands } from '@ai-toolkit/commands-agnostic';
@@ -416,6 +421,16 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
       logger.info('  - Backup existing shell configuration before changes');
     }
 
+    // Show auto-update checker setup plan
+    logger.info('\n🔄 Would also set up auto-update checker:');
+    logger.info('  - Auto-detect your shell (bash, zsh, or fish)');
+    logger.info('  - Add update check script to your shell configuration');
+    logger.info('  - Checks once per day for new versions');
+    logger.info('  - Runs in background (non-blocking)');
+    logger.info(
+      '  - Can be disabled with: export AI_TOOLKIT_SKIP_UPDATE_CHECK=1'
+    );
+
     // Show GitHub Packages auth setup plan if selected
     if (normalizedOptions.setupGithubPackagesAuth) {
       logger.info(
@@ -475,6 +490,19 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
           'bun x nx generate @ai-toolkit/ai-toolkit-nx-claude:setup-registry-proxy'
         );
       }
+    }
+
+    // Install update checker
+    try {
+      logger.info('\n🔄 Installing auto-update checker...');
+      const shell = detectShell();
+      const version = getCurrentToolkitVersion();
+      installUpdateChecker(shell, version);
+    } catch (error) {
+      logger.warn(`⚠️  Failed to install update checker: ${error}`);
+      logger.info(
+        'This is a bug in ai-toolkit, please report it to the #pod-dev-ai Slack channel'
+      );
     }
 
     // Run GitHub Packages auth setup if user opted in

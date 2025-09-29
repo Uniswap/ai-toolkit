@@ -31,7 +31,8 @@ export type Commands = {
 
 export const commands: Commands = {
   'address-pr-issues': {
-    description: 'Reviews a GitHub PR, addresses comments, and fixes CI issues',
+    description:
+      'Reviews a GitHub PR, addresses comments, and fixes CI issues',
     filePath: './address-pr-issues.md',
   },
   'auto-spec': {
