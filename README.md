@@ -216,7 +216,7 @@ Our automated workflow (`.github/workflows/publish-packages.yml`) handles:
   - `next` → prerelease versions (`@next` tag)
 - **Intelligent versioning**: Conventional commits drive automatic version bumps
 - **Independent packages**: Each package versions independently based on changes
-- **GitHub Packages registry**: Organization-scoped publishing with access control
+- **NPMJS registry**: GitHub Actions CI publishes packages to a private npmjs registry
 
 #### How It Works
 

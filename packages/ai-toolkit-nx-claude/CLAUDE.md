@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `@uniswap/ai-toolkit-nx-claude` package (published as `@uniswap/ai-toolkit-nx-claude` to GitHub Packages) provides Nx generators for setting up and managing Claude Code configurations, commands, agents, and notification hooks. This package is the primary tooling interface for the AI Toolkit, offering both one-shot installers and incremental configuration management.
+The `@uniswap/ai-toolkit-nx-claude` package (published as `@uniswap/ai-toolkit-nx-claude` to private npmjs registry) provides Nx generators for setting up and managing Claude Code configurations, commands, agents, and notification hooks. This package is the primary tooling interface for the AI Toolkit, offering both one-shot installers and incremental configuration management.
 
 ### Standalone Package Usage
 
@@ -10,9 +10,9 @@ This package can be run directly via npx/bunx without cloning the repository:
 
 ```bash
 # For Uniswap organization members only
-npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest
+npx @uniswap/ai-toolkit-nx-claude@latest
 
-Authentication to GitHub Packages is required (see README for setup instructions OR use the `init` generator from `ai-toolkit-nx-claude`).
+Authentication to private npmjs registry is required (see README for setup instructions).
 
 ## Package Structure
 
@@ -23,7 +23,6 @@ packages/ai-toolkit-nx-claude/
 │ ├── generators/
 │ │ ├── init/ # One-shot installer for commands/agents
 │ │ ├── hooks/ # Notification hooks installer
-│ │ ├── setup-registry-proxy/ # Shell proxy for GitHub registry routing
 │ │ ├── add-command/ # Add individual commands
 │ │ └── add-agent/ # Add individual agents
 │ └── index.ts # Package exports
@@ -84,28 +83,7 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks
 
 **Documentation**: [src/generators/hooks/CLAUDE.md](src/generators/hooks/CLAUDE.md)
 
-### 3. setup-registry-proxy - GitHub Registry Router
-
-**Purpose**: Configures shell proxy to automatically route @uniswap/ai-toolkit\* packages to GitHub registry
-
-**Usage**:
-
-```bash
-bunx nx generate @uniswap/ai-toolkit-nx-claude:setup-registry-proxy
-```
-
-**Key Features**:
-
-- Automatic shell detection (bash, zsh, fish)
-- Creates proxy functions for npm/npx/yarn/bun/pnpm commands
-- Selectively adds `--registry` flag only for matching packages
-- Preserves normal registry for all other packages
-- Automatic shell configuration updates
-- Backup and restore capabilities
-
-**Documentation**: [src/generators/setup-registry-proxy/README.md](src/generators/setup-registry-proxy/README.md)
-
-### 4. add-command - Add Individual Commands
+### 3. add-command - Add Individual Commands
 
 **Purpose**: Add a single command to an existing Claude configuration
 
@@ -117,7 +95,7 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:add-command
 
 **Status**: Placeholder implementation - needs completion
 
-### 5. add-agent - Add Individual Agents
+### 4. add-agent - Add Individual Agents
 
 **Purpose**: Add a single agent to an existing Claude configuration
 
@@ -294,7 +272,7 @@ Located at `src/utils/auto-update-utils.ts`, this utility provides auto-update f
 
 **Key Features**:
 
-- **Daily checking**: Runs once per week using cached timestamp in `~/.uniswap-ai-toolkit/.last-update-check`
+- **Weekly checking**: Runs once per week using cached timestamp in `~/.uniswap-ai-toolkit/.last-update-check`
 - **Background execution**: Spawns background process to avoid blocking shell startup
 - **Self-maintaining**: Stores version in script comment for automatic updates on re-run
 - **User control**: Respects `AI_TOOLKIT_SKIP_UPDATE_CHECK` environment variable
@@ -488,16 +466,6 @@ If the `init` generator fails to install Claude CLI:
 The generator provides automatic fallback from curl to npm installation, ensuring Claude CLI can be installed on most systems.
 
 ## Publishing and Distribution
-
-### Package Publishing Configuration
-
-The package is configured for standalone publishing to GitHub Packages:
-
-- **Package Scope**: `@uniswap/ai-toolkit-nx-claude`
-- **Registry**: GitHub Packages (`https://npm.pkg.github.com`)
-- **Access**: Restricted to Uniswap organization members
-- **CLI Entry**: `dist/cli.js` for direct execution via npx/bunx
-- **Assets Bundling**: Content from agent/command packages bundled at build time
 
 ### Automated Publishing
 

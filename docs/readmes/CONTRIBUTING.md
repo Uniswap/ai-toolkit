@@ -48,7 +48,6 @@ graph LR
 ### Prerequisites
 
 - **[Bun](https://bun.sh)** (recommended) or **Node.js 22+** with npm
-- **GitHub account** with Uniswap organization membership (for package access)
 - **Git** configured with your GitHub credentials
 
 ### Initial Setup
@@ -75,14 +74,6 @@ graph LR
 
    # Install MCP server for AI assistance
    claude mcp add nx-mcp npx nx-mcp@latest --scope user
-   ```
-
-4. **Configure GitHub Packages access** (for Uniswap members):
-
-   ```bash
-   # Create a GitHub PAT with read:packages scope
-   # Add to ~/.npmrc:
-   echo "//npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN" >> ~/.npmrc
    ```
 
 ## Branch Strategy
@@ -290,7 +281,7 @@ Publishing happens automatically through GitHub Actions:
 1. **Trigger**: Push (via PR) to `main` or `next` branch
 2. **Version bump**: Based on conventional commits
 3. **Build**: All packages are built
-4. **Publish**: Packages published to GitHub Packages
+4. **Publish**: Packages published to npmjs
 5. **Git tags**: Version tags created and pushed
 
 ### Version Management
@@ -299,18 +290,6 @@ Publishing happens automatically through GitHub Actions:
 | ------ | ---------------------- | -------------- |
 | `main` | Standard semver        | `1.2.3`        |
 | `next` | Prerelease with suffix | `1.2.3-next.0` |
-
-### Manual Publishing (Maintainers Only)
-
-```bash
-# For main branch (latest)
-bunx nx release version --projects=package-name
-bunx nx release publish --projects=package-name --tag=latest
-
-# For next branch (prerelease)
-bunx nx release version --projects=package-name --preid=next --prerelease
-bunx nx release publish --projects=package-name --tag=next
-```
 
 ## Creating New Components
 
@@ -462,7 +441,7 @@ bunx nx run-many --target=build
 
 ### Common Issues
 
-1. **Package access denied**: Ensure GitHub PAT is configured correctly
+1. **Package access denied**: Ensure ~/.npmrc auth is configured correctly
 2. **Build failures**: Check Node/Bun version requirements
 3. **Test failures**: Run `bunx nx reset` and try again
 4. **Merge conflicts**: Rebase your branch on latest `next`

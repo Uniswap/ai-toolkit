@@ -67,7 +67,7 @@ After successful installation, the generator automatically installs an update ch
 
 **Update Check Script Features**:
 
-- **Daily Frequency**: Checks once per week using cache file `~/.uniswap-ai-toolkit/.last-update-check`
+- **Weekly Frequency**: Checks once per week using cache file `~/.uniswap-ai-toolkit/.last-update-check`
 - **Background Execution**: Runs in background to avoid blocking shell startup (<5ms overhead)
 - **Version Tracking**: Stores current version in script comment for self-maintenance
 - **npm Registry Query**: Queries npm for `@uniswap/ai-toolkit-nx-claude` latest version
