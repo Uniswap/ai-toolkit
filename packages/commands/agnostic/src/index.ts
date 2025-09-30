@@ -92,7 +92,7 @@ export const commands: Commands = {
   },
   plan: {
     description:
-      'Create a comprehensive implementation plan with hierarchical task decomposition, agent orchestration, and risk assessment for any task, feature, refactor, or architectural change',
+      'Create clear, actionable implementation plans for any task, feature, refactor, or architectural change',
     filePath: './plan.md',
   },
   refactor: {
