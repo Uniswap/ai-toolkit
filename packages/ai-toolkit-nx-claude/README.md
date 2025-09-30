@@ -57,6 +57,6 @@ bun nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec --list
 
 Run `bun nx build ai-toolkit-nx-claude` to build the library.
 
-```
+## Testing
 
-```
+Run `bunx nx test ai-toolkit-nx-claude` to test this library

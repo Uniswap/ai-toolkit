@@ -151,6 +151,16 @@
         "dependsOn": [
           "build"
         ]
+      },
+      "test": {
+        "executor": "@nx/jest:jest",
+        "outputs": [
+          "{workspaceRoot}/test-output/jest/packages/ai-toolkit-nx-claude"
+        ],
+        "options": {
+          "jestConfig": "packages/ai-toolkit-nx-claude/jest.config.ts",
+          "passWithNoTests": false
+        }
       }
     }
   },
