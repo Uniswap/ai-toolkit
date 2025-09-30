@@ -22,24 +22,40 @@ Instead of each person at Uniswap manually configuring AI assistant behaviors fo
 Before working with this repository, ensure you have the following tools installed:
 
 - **[Bun 1.2.21+](https://bun.sh)** (recommended) or **Node.js 22+** with npm
+- **[The Latest 1Password CLI](https://developer.1password.com/docs/cli/get-started/)** which you can install with `brew install 1password-cli`
 
 ### NPM Registry Installation
 
-We publish the`ai-toolkit` to a private npm package registry, so you’ll need to setup a read-only auth token to be able to fetch the package from npmjs.
+We publish the`ai-toolkit` to a private npm package registry, so we’ll need to setup a a `~/.npmrc` with the necessary authentication to fetch the private npm package.
 
-1. The read only token is stored in 1password in the general Engineering vault under “[**read-only npm-token**](https://start.1password.com/open/i?a=DXU26BR6HNGVFCPLPXN7OGHSYM&v=a35mtzmo445emckvxmae47kbba&i=mseb2ygsl6gi3uxxhvmn5nfime&h=uniswaplabs.1password.com)”. If you have trouble finding it, please reach out to [\*\*#team-security](https://uniswapteam.enterprise.slack.com/archives/C015DE5T719).\*\*
-2. Create/Update your `~/.npmrc` with the necessary auth config by running the command below, substituting `${NODE_AUTH_TOKEN}` with the 1password npm token from step 1:
+Copy & execute the bash script below to setup the `~/.npmrc` file correctly.
 
-   ```bash
-   cat <<EOF >> ~/.npmrc
-   @uniswap:registry=https://registry.npmjs.org
-   registry=https://registry.npmjs.org/
-   always-auth=true
-   //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}
-   EOF
-   ```
+```bash
+# sign into 1password and fetch the read-only npm token
+eval $(op signin)
+NPM_TOKEN=$(op read "op://Engineering/read-only npm-token - npmrc/token")
 
-3. Create a new terminal/shell and then run: `npx @uniswap/ai-toolkit-nx-claude@latest` at which point you'll see the output from [from below](#option-a-install-everything-recommended)
+NPM_AUTH_LINE="export NODE_AUTH_TOKEN=$NPM_TOKEN"
+
+# add to the bash shell so this env var is always exported
+echo "$NPM_AUTH_LINE" >> ~/.bashrc
+
+# if the user uses zsh, update .zshrc as well
+if [ -f ~/.zshrc ]; then
+    echo "$NPM_AUTH_LINE" >> ~/.zshrc
+fi
+
+# finally, update the ~/.npmrc file to use the correct
+# NODE_AUTH_TOKEN when authenticating with npmjs
+cat <<EOF >> ~/.npmrc
+@uniswap:registry=https://registry.npmjs.org
+registry=https://registry.npmjs.org/
+always-auth=true
+//registry.npmjs.org/:_authToken=\${NODE_AUTH_TOKEN}
+EOF
+```
+
+Finally, create a new terminal/shell and then run: `npx @uniswap/ai-toolkit-nx-claude@latest` at which point you'll see the output from [from below](#option-a-install-everything-recommended)
 
 ### Local Installation
 
