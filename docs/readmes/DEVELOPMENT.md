@@ -174,7 +174,7 @@ Jobs:
     - Determine npm tag (latest/next)
     - Build all packages
     - Version affected packages
-    - Publish to GitHub Packages
+    - Publish to npmjs Packages
     - Push tags and commits
     - Create GitHub releases
 
@@ -228,7 +228,7 @@ graph LR
     end
 
     subgraph "Registry"
-        NPM --> GHPKG[GitHub Packages]
+        NPM --> NPMJS[NPM Packages]
         TAG --> GITHUB[GitHub Releases]
     end
 ```
@@ -236,9 +236,9 @@ graph LR
 ### Environment Variables
 
 ```bash
-# Required for publishing
+# Required for reading from npmjs
 GITHUB_TOKEN        # GitHub authentication
-NODE_AUTH_TOKEN     # NPM authentication for GitHub Packages
+NODE_AUTH_TOKEN     # NPM authentication for private NPMJS registry
 
 # Optional for configuration
 NX_CLOUD_AUTH_TOKEN # Nx Cloud distributed caching
@@ -447,14 +447,10 @@ bunx nx build package-name --verbose
 
 ```bash
 # Check authentication
-npm whoami --registry=https://npm.pkg.github.com
+npm whoami
 
 # Test publishing with dry-run
 npx nx release publish --dry-run
-
-# Manual publish (emergency)
-cd dist/packages/package-name
-npm publish --registry=https://npm.pkg.github.com
 ```
 
 #### 3. Version Conflicts

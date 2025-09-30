@@ -12,12 +12,6 @@ import {
   validateAddonRequirements,
 } from './addon-registry';
 import {
-  checkGitHubAuth,
-  setupGitHubAuth,
-  validatePackageAccess,
-  getAuthInstructions,
-} from './github-auth';
-import {
   installMcpServer,
   verifyMcpInstallation,
   updateMcpServer,
@@ -122,61 +116,6 @@ export default async function generator(
       );
     }
     console.log('\n⚠️  Continuing with --force flag...');
-  }
-
-  // Handle authentication for private packages (skip in dry-run mode)
-  if (addon.requiresAuth) {
-    if (options.dryRun) {
-      console.log('\n🔐 [DRY-RUN] Skipping GitHub authentication check');
-    } else {
-      console.log('\n🔐 Checking GitHub authentication...');
-      const authStatus = await checkGitHubAuth();
-
-      if (!authStatus.authenticated || !authStatus.valid) {
-        console.log(
-          '\n📝 GitHub authentication required for private @uniswap packages'
-        );
-        console.log(getAuthInstructions());
-
-        // Prompt for token if not in CI
-        if (!process.env.CI && !options.githubToken) {
-          const { token } = await require('enquirer').prompt({
-            type: 'password',
-            name: 'token',
-            message: 'GitHub Personal Access Token:',
-            validate: (value: string) => value.length > 0,
-          });
-          options.githubToken = token;
-        }
-
-        if (options.githubToken) {
-          console.log('\n🔧 Setting up GitHub authentication...');
-          const setupResult = await setupGitHubAuth(options.githubToken);
-
-          if (!setupResult.valid) {
-            throw new Error(
-              setupResult.error || 'Failed to setup GitHub authentication'
-            );
-          }
-          console.log('✅ Authentication configured successfully');
-        } else {
-          throw new Error(
-            'GitHub authentication required. Please provide a token.'
-          );
-        }
-      } else {
-        console.log('✅ GitHub authentication found');
-      }
-
-      // Validate package access
-      console.log(`\n🔍 Validating access to ${addon.packageName}...`);
-      const accessResult = await validatePackageAccess(addon.packageName);
-
-      if (!accessResult.accessible) {
-        throw new Error(accessResult.error || 'Cannot access package');
-      }
-      console.log(`✅ Package accessible (version: ${accessResult.version})`);
-    }
   }
 
   // Install the addon based on type
@@ -409,7 +348,7 @@ function showUsageInstructions(
       );
     } else {
       console.log(
-        '3. Start the dashboard manually with: npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/spec-workflow-mcp@latest --dashboard'
+        '3. Start the dashboard manually with: npx @uniswap/spec-workflow-mcp@latest --dashboard'
       );
     }
 

@@ -31,7 +31,7 @@ echo "Base version components: $MAJOR.$MINOR.$PATCH"
 
 # Determine the next version based on what's on main/latest
 echo "Checking latest published version on npm..."
-LATEST_VERSION=$(npm view $PACKAGE_NAME@latest version --registry=https://npm.pkg.github.com 2>/dev/null || echo "0.0.0")
+LATEST_VERSION=$(npm view $PACKAGE_NAME@latest version 2>/dev/null || echo "0.0.0")
 echo "Latest published version: $LATEST_VERSION"
 
 # Parse latest version
@@ -52,7 +52,7 @@ fi
 
 # Check existing prerelease versions
 echo "Checking existing prerelease versions..."
-EXISTING_PRERELEASES=$(npm view $PACKAGE_NAME@next version --registry=https://npm.pkg.github.com 2>/dev/null || echo "")
+EXISTING_PRERELEASES=$(npm view $PACKAGE_NAME@next version 2>/dev/null || echo "")
 
 if [[ -n "$EXISTING_PRERELEASES" ]]; then
     echo "Found existing next version: $EXISTING_PRERELEASES"

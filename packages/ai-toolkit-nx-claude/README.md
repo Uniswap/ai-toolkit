@@ -25,9 +25,6 @@ bun nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec init
 # Install notification hooks
 bun nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec hooks
 
-# Setup shell proxy for GitHub registry routing
-bun nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec setup-registry-proxy
-
 # Install and configure Claude Code addons
 bun nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec addons
 
@@ -48,7 +45,6 @@ bun nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec --list
 
 - **init** - One-shot installer for Claude Code configs
 - **hooks** - Install Claude Code notification hooks
-- **setup-registry-proxy** - Setup shell proxy for routing @uniswap/ai-toolkit\* packages to GitHub registry
 - **addons** - Install and configure Claude Code addons including MCP servers
 - **add-command** - Add a new Claude Code command to existing or new packages
 - **add-agent** - Add a new Claude Code agent to existing or new packages
