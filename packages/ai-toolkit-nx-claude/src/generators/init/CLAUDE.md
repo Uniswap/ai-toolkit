@@ -67,7 +67,7 @@ After successful installation, the generator automatically installs an update ch
 
 **Update Check Script Features**:
 
-- **Daily Frequency**: Checks once per 24 hours using cache file `~/.claude/.last-update-check`
+- **Daily Frequency**: Checks once per week using cache file `~/.uniswap-ai-toolkit/.last-update-check`
 - **Background Execution**: Runs in background to avoid blocking shell startup (<5ms overhead)
 - **Version Tracking**: Stores current version in script comment for self-maintenance
 - **npm Registry Query**: Queries npm for `@uniswap/ai-toolkit-nx-claude` latest version
@@ -76,7 +76,7 @@ After successful installation, the generator automatically installs an update ch
 
 **User Experience**:
 
-When an update is available, users see this on shell startup (once per day):
+When an update is available, users see this on shell startup (once per week):
 
 ```
 📦 AI Toolkit update available: 0.5.7 → 0.6.0
@@ -224,7 +224,7 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:init --installation-type=global -
 │   └── style-enforcer.md
 └── manifest.json
 
-Note: The .last-update-check cache file is stored in ~/.claude/ (global location) regardless of installation type, since auto-update checker is installed globally to shell config.
+Note: The .last-update-check cache file is stored in ~/.uniswap-ai-toolkit/ (global location) regardless of installation type, since auto-update checker is installed globally to shell config.
 ```
 
 ## Shell Configuration Modifications

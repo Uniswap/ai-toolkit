@@ -425,7 +425,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     logger.info('\n🔄 Would also set up auto-update checker:');
     logger.info('  - Auto-detect your shell (bash, zsh, or fish)');
     logger.info('  - Add update check script to your shell configuration');
-    logger.info('  - Checks once per day for new versions');
+    logger.info('  - Checks once per week for new versions');
     logger.info('  - Runs in background (non-blocking)');
     logger.info(
       '  - Can be disabled with: export AI_TOOLKIT_SKIP_UPDATE_CHECK=1'

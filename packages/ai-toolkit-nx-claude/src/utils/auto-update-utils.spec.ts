@@ -9,6 +9,8 @@ import {
   installUpdateChecker,
 } from './auto-update-utils';
 
+import { jest, beforeEach, describe, it, expect } from '@jest/globals';
+
 // Mock modules
 jest.mock('fs');
 jest.mock('os');
@@ -142,10 +144,19 @@ describe('auto-update-utils', () => {
       expect(snippet).toContain('# END AI_TOOLKIT_UPDATE_CHECK');
     });
 
-    it('should include 24-hour cache check (86400 seconds)', () => {
+    it('should include 1 week cache check (604800 seconds)', () => {
       const snippet = generateAutoUpdateSnippet('1.2.3');
 
-      expect(snippet).toContain('86400');
+      expect(snippet).toContain('604800');
+    });
+
+    it('should include directory creation for cache', () => {
+      const snippet = generateAutoUpdateSnippet('1.2.3');
+
+      expect(snippet).toContain('cache_dir="${HOME}/.uniswap-ai-toolkit"');
+      expect(snippet).toContain(
+        '[ ! -d "$cache_dir" ] && mkdir -p "$cache_dir"'
+      );
     });
   });
 
@@ -170,6 +181,14 @@ describe('auto-update-utils', () => {
 
       expect(snippet).toContain('set -x AI_TOOLKIT_SKIP_UPDATE_CHECK 1');
     });
+
+    it('should include directory creation for cache', () => {
+      const snippet = generateFishAutoUpdateSnippet('1.2.3');
+
+      expect(snippet).toContain('set -l cache_dir "$HOME/.uniswap-ai-toolkit"');
+      expect(snippet).toContain('if not test -d "$cache_dir"');
+      expect(snippet).toContain('mkdir -p "$cache_dir"');
+    });
   });
 
   describe('installUpdateChecker', () => {
@@ -180,16 +199,6 @@ describe('auto-update-utils', () => {
       mockFs.copyFileSync.mockImplementation(() => undefined);
       mockFs.writeFileSync.mockImplementation(() => undefined);
       mockFs.mkdirSync.mockImplementation(() => undefined);
-    });
-
-    it('should create ~/.claude directory if it does not exist', () => {
-      mockFs.existsSync.mockReturnValue(false);
-
-      installUpdateChecker('bash', '1.2.3');
-
-      expect(mockFs.mkdirSync).toHaveBeenCalledWith('/home/testuser/.claude', {
-        recursive: true,
-      });
     });
 
     it('should backup existing config file', () => {

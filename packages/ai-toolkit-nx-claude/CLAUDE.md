@@ -51,7 +51,7 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:init
   - Primary: curl installation method
   - Fallback: npm installation if curl fails
   - Manual: Instructions provided if both fail
-- **Auto-update notifications**: Checks for new versions once per day
+- **Auto-update notifications**: Checks for new versions once per week
   - Background execution (non-blocking, <5ms startup overhead)
   - Self-updating script with version tracking
   - Can be disabled via `AI_TOOLKIT_SKIP_UPDATE_CHECK` environment variable
@@ -294,7 +294,7 @@ Located at `src/utils/auto-update-utils.ts`, this utility provides auto-update f
 
 **Key Features**:
 
-- **Daily checking**: Runs once per 24 hours using cached timestamp in `~/.claude/.last-update-check`
+- **Daily checking**: Runs once per week using cached timestamp in `~/.uniswap-ai-toolkit/.last-update-check`
 - **Background execution**: Spawns background process to avoid blocking shell startup
 - **Self-maintaining**: Stores version in script comment for automatic updates on re-run
 - **User control**: Respects `AI_TOOLKIT_SKIP_UPDATE_CHECK` environment variable
@@ -304,8 +304,8 @@ Located at `src/utils/auto-update-utils.ts`, this utility provides auto-update f
 **Update Check Behavior**:
 
 1. Checks if `AI_TOOLKIT_SKIP_UPDATE_CHECK` is set (exits if true)
-2. Reads cache timestamp from `~/.claude/.last-update-check`
-3. Skips if checked within last 24 hours
+2. Reads cache timestamp from `~/.uniswap-ai-toolkit/.last-update-check`
+3. Skips if checked within last week
 4. Spawns background process that:
    - Extracts current version from shell config comment
    - Queries npm registry for latest version

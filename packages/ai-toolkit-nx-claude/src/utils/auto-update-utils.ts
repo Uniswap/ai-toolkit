@@ -50,7 +50,11 @@ export function generateAutoUpdateSnippet(version: string): string {
 _ai_toolkit_check_updates() {
   [ -n "$AI_TOOLKIT_SKIP_UPDATE_CHECK" ] && return
 
-  local cache="\${HOME}/.claude/.last-update-check"
+  local cache="\${HOME}/.uniswap-ai-toolkit/.last-update-check"
+  local cache_dir="\${HOME}/.uniswap-ai-toolkit"
+
+  # Create cache directory if it doesn't exist
+  [ ! -d "$cache_dir" ] && mkdir -p "$cache_dir"
 
   # Check once per week
   if [ -f "$cache" ]; then
@@ -99,7 +103,13 @@ function _ai_toolkit_check_updates
     return
   end
 
-  set -l cache "$HOME/.claude/.last-update-check"
+  set -l cache "$HOME/.uniswap-ai-toolkit/.last-update-check"
+  set -l cache_dir "$HOME/.uniswap-ai-toolkit"
+
+  # Create cache directory if it doesn't exist
+  if not test -d "$cache_dir"
+    mkdir -p "$cache_dir"
+  end
 
   # Check once per week
   if test -f "$cache"
@@ -146,13 +156,7 @@ _ai_toolkit_check_updates
 export function installUpdateChecker(shell: ShellType, version: string): void {
   const configPath = getShellConfigPath(shell);
 
-  // 1. Create ~/.claude directory if it doesn't exist
-  const claudeDir = path.join(os.homedir(), '.claude');
-  if (!fs.existsSync(claudeDir)) {
-    fs.mkdirSync(claudeDir, { recursive: true });
-  }
-
-  // 2. Backup existing config if it exists
+  // 1. Backup existing config if it exists
   if (fs.existsSync(configPath)) {
     const backupPath = `${configPath}.backup-${Date.now()}`;
     fs.copyFileSync(configPath, backupPath);
@@ -163,7 +167,7 @@ export function installUpdateChecker(shell: ShellType, version: string): void {
     logger.info(`📝 Created ${configPath}`);
   }
 
-  // 3. Remove existing auto-update block if present
+  // 2. Remove existing auto-update block if present
   let configContent = fs.readFileSync(configPath, 'utf-8');
 
   // Use regex to remove the block between markers
@@ -175,7 +179,7 @@ export function installUpdateChecker(shell: ShellType, version: string): void {
   );
   configContent = configContent.replace(blockRegex, '');
 
-  // 4. Append new auto-update block
+  // 3. Append new auto-update block
   const snippet =
     shell === 'fish'
       ? generateFishAutoUpdateSnippet(version)
@@ -189,6 +193,6 @@ export function installUpdateChecker(shell: ShellType, version: string): void {
 
   logger.info(`✅ Update checker installed to ${configPath}`);
   logger.info(
-    `   Checks once per day, disable with: export AI_TOOLKIT_SKIP_UPDATE_CHECK=1`
+    `   Checks once per week, disable with: export AI_TOOLKIT_SKIP_UPDATE_CHECK=1`
   );
 }
