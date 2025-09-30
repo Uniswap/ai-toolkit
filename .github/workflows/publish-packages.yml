@@ -50,11 +50,21 @@ jobs:
           node-version: '22.13.1'
           registry-url: 'https://registry.npmjs.org'
           scope: '@uniswap'
+          always-auth: true
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76
         with:
           bun-version: 1.2.21
+
+      - name: Configure npm authentication
+        run: |
+          echo "@uniswap:registry=https://registry.npmjs.org" >> .npmrc
+          echo "registry=https://registry.npmjs.org/" >> .npmrc
+          echo "always-auth=true" >> .npmrc
+          echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" >> .npmrc
+        env:
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
       - name: Install dependencies
         run: bun install
