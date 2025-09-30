@@ -26,7 +26,7 @@ The agent infrastructure implements a sophisticated hierarchical model:
 - **code-generator**: Comprehensive code generation specialist with tests and best practices
 - **debug-assistant**: Advanced debugging with root cause analysis and fix validation
 - **doc-writer**: Advanced documentation specialist for API docs, architecture documentation, and README generation
-- **planner**: Create detailed implementation plans (no code writing)
+- **planner**: Create clear, actionable implementation plans (no code writing)
 - **plan-reviewer**: Validate and improve existing plans
 - **refactorer**: Advanced refactoring with architectural analysis and safe incremental strategies
 - **researcher**: Comprehensive research including architectural patterns and technology comparison
@@ -129,12 +129,12 @@ The **planner** agent leverages **context-loader's** enhanced capabilities:
    - Historical context from checkpoints
    - Risk assessments and gotchas with severity ratings
 
-2. **Planner** uses enriched context to create superior plans:
-   - Leverages relevance scores to prioritize work
-   - Uses compressed summaries for efficient processing
-   - References checkpoint history for evolution context
-   - Accounts for severity-rated risks and gotchas
-   - Aligns with importance-scored patterns
+2. **Planner** uses enriched context to create concise, actionable plans:
+   - Leverages context to understand existing patterns
+   - Uses compressed summaries for efficient analysis
+   - Accounts for gotchas and edge cases from context
+   - Creates clear implementation steps (typically 5-7 for medium tasks)
+   - Focuses on strategic direction, not exhaustive documentation
 
 ### Inter-Agent Context Flow
 
@@ -165,7 +165,7 @@ This sophisticated context management ensures all agents work with consistent, o
 2. **No Code in Analysis Agents**: Reconnaissance agents don't write code
 3. **Structured Data Exchange**: Clear input/output contracts
 4. **Tool Permission Inheritance**: Agents don't define their own tools
-5. **Ultrathink When Needed**: Some agents (like planner) require maximum thinking
+5. **Deep Thinking, Concise Output**: Agents like planner think thoroughly but communicate concisely
 
 ## Guidelines for Agents
 
@@ -183,10 +183,11 @@ This sophisticated context management ensures all agents work with consistent, o
 
 ### Planning Agents (planner)
 
-- Maximum thinking budget (ultrathink)
+- Think deeply, communicate concisely
 - No unnecessary features or extras
 - Context-aware when findings provided
-- Detailed but readable output
+- Focus on strategic direction (not exhaustive documentation)
+- Target: 200-400 lines for medium tasks
 
 ## Context Template System
 
@@ -338,9 +339,19 @@ The enhanced style-enforcer supports various usage patterns:
 - **Documentation**: Created orchestration workflow examples and comprehensive agent development guide
 - **All Agents Verified**: Ensured all 30+ agents are properly implemented with complete capabilities
 
+### Planner Agent Simplification (2025-09-30)
+
+- **Refocused on concise, actionable planning**: Changed from "comprehensive" to "clear, actionable"
+- **Removed testing from planning**: Testing now handled separately during execution
+- **Length guidance added**: Explicit targets (100-200, 200-400, 400-600 lines by complexity)
+- **Template simplified**: Removed exhaustive sections (success criteria, risk matrices, dependency graphs, agent assignments)
+- **Core sections retained**: Overview, Scope, Current State, API Design (optional), Steps, Files, Critical Challenges (optional)
+- **Changed philosophy**: From "ultrathink with maximum output" to "think deeply, communicate concisely"
+- **Separation of concerns**: Planning for strategic direction, execution handles orchestration and testing
+
 ### Previous Updates
 
-- Added **planner** agent with ultrathink requirement
+- Added **planner** agent with deep thinking requirement
 - Added **prompt-engineer** agent for AI prompt optimization
 - Enhanced context integration between context-loader and planner
 - Implemented strict "no extras" policy for planning
