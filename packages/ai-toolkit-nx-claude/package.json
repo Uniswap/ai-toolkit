@@ -1,6 +1,6 @@
 {
   "name": "@uniswap/ai-toolkit-nx-claude",
-  "version": "0.5.7-next.19",
+  "version": "0.5.7-next.21",
   "private": false,
   "main": "./dist/index.cjs",
   "module": "./dist/index.cjs",
@@ -49,8 +49,7 @@
             "packages/ai-toolkit-nx-claude/src/generators/add-command/generator.ts",
             "packages/ai-toolkit-nx-claude/src/generators/addons/generator.ts",
             "packages/ai-toolkit-nx-claude/src/generators/hooks/generator.ts",
-            "packages/ai-toolkit-nx-claude/src/generators/init/generator.ts",
-            "packages/ai-toolkit-nx-claude/src/generators/setup-registry-proxy/generator.ts"
+            "packages/ai-toolkit-nx-claude/src/generators/init/generator.ts"
           ],
           "tsConfig": "packages/ai-toolkit-nx-claude/tsconfig.lib.json",
           "bundle": true,
@@ -151,6 +150,16 @@
         "dependsOn": [
           "build"
         ]
+      },
+      "test": {
+        "executor": "@nx/jest:jest",
+        "outputs": [
+          "{workspaceRoot}/test-output/jest/packages/ai-toolkit-nx-claude"
+        ],
+        "options": {
+          "jestConfig": "packages/ai-toolkit-nx-claude/jest.config.ts",
+          "passWithNoTests": false
+        }
       }
     }
   },

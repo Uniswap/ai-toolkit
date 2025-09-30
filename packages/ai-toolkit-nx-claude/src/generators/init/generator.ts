@@ -12,7 +12,11 @@ import {
   isNxNoInteractiveProvided,
   isNxDryRunProvided,
 } from '../hooks/cli-parser';
-import setupRegistryProxyGenerator from '../setup-registry-proxy/generator';
+import {
+  detectShell,
+  getCurrentToolkitVersion,
+  installUpdateChecker,
+} from '../../utils/auto-update-utils';
 
 // Import available commands and agents from content packages
 import { commands as agnosticCommands } from '@ai-toolkit/commands-agnostic';
@@ -403,36 +407,15 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
       logger.info(`  - ${file}`);
     });
 
-    // Show registry proxy setup plan if selected
-    if (normalizedOptions.setupRegistryProxy) {
-      logger.info('\n🔧 Would also set up registry proxy:');
-      logger.info('  - Auto-detect your shell (bash, zsh, or fish)');
-      logger.info(
-        '  - Create proxy functions for npm/npx/yarn/bun/pnpm commands'
-      );
-      logger.info(
-        '  - Update shell configuration to route @uniswap packages to GitHub registry'
-      );
-      logger.info('  - Backup existing shell configuration before changes');
-    }
-
-    // Show GitHub Packages auth setup plan if selected
-    if (normalizedOptions.setupGithubPackagesAuth) {
-      logger.info(
-        '\n🔐 Would also set up GitHub Package Registry authentication:'
-      );
-      logger.info('  - Check if gh CLI is installed (install if missing)');
-      logger.info('  - Verify GitHub authentication has read:packages scope');
-      logger.info('  - Get GitHub token via gh auth token');
-      logger.info('  - Detect your shell (bash, zsh, etc.)');
-      logger.info(
-        '  - Add NODE_AUTH_TOKEN export to your shell config (~/.zshrc or ~/.bashrc)'
-      );
-      logger.info(
-        '  - Configure ~/.npmrc to use ${NODE_AUTH_TOKEN} for GitHub Packages'
-      );
-      logger.info('  - This allows seamless installation of @uniswap packages');
-    }
+    // Show auto-update checker setup plan
+    logger.info('\n🔄 Would also set up auto-update checker:');
+    logger.info('  - Auto-detect your shell (bash, zsh, or fish)');
+    logger.info('  - Add update check script to your shell configuration');
+    logger.info('  - Checks once per week for new versions');
+    logger.info('  - Runs in background (non-blocking)');
+    logger.info(
+      '  - Can be disabled with: export AI_TOOLKIT_SKIP_UPDATE_CHECK=1'
+    );
 
     return;
   }
@@ -457,39 +440,17 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     logger.info(`📁 Location: ${targetDir}`);
     logger.info(`📝 Use these in Claude Code immediately`);
 
-    // Run setup-registry-proxy generator if user opted in
-    if (normalizedOptions.setupRegistryProxy) {
-      logger.info('\n🔧 Setting up registry proxy...');
-      try {
-        await setupRegistryProxyGenerator(tree, {
-          shellConfig: undefined, // Will auto-detect
-          force: normalizedOptions.force,
-          backup: true, // Always backup when called from init
-          test: false, // Don't test during init flow
-        });
-        logger.info('✅ Registry proxy setup complete!');
-      } catch (error) {
-        logger.warn(`⚠️  Registry proxy setup failed: ${error}`);
-        logger.info('You can run it manually later with:');
-        logger.info(
-          'bun x nx generate @ai-toolkit/ai-toolkit-nx-claude:setup-registry-proxy'
-        );
-      }
-    }
-
-    // Run GitHub Packages auth setup if user opted in
-    if (normalizedOptions.setupGithubPackagesAuth) {
-      logger.info('\n🔐 Setting up GitHub Package Registry authentication...');
-      try {
-        await runGithubPackagesAuthSetup();
-        logger.info(
-          '✅ GitHub Package Registry authentication setup complete!'
-        );
-      } catch (error) {
-        logger.warn(`⚠️  GitHub Packages auth setup failed: ${error}`);
-        logger.info('You can run the setup script manually later:');
-        logger.info(`${path.join(__dirname, 'setup-github-packages.sh')}`);
-      }
+    // Install update checker
+    try {
+      logger.info('\n🔄 Installing auto-update checker...');
+      const shell = detectShell();
+      const version = getCurrentToolkitVersion();
+      installUpdateChecker(shell, version);
+    } catch (error) {
+      logger.warn(`⚠️  Failed to install update checker: ${error}`);
+      logger.info(
+        'This is a bug in ai-toolkit, please report it to the #pod-dev-ai Slack channel'
+      );
     }
   }
 }
@@ -647,39 +608,6 @@ function provideManualInstructions(): void {
   logger.info(
     '\nFor troubleshooting, run "claude doctor" after manual installation'
   );
-}
-
-/**
- * Runs the GitHub Packages authentication setup script
- */
-async function runGithubPackagesAuthSetup(): Promise<void> {
-  // Find the script path relative to the built output (same directory as generator.js)
-  const scriptPath = path.join(__dirname, 'setup-github-packages.sh');
-
-  // Check if script exists
-  if (!fs.existsSync(scriptPath)) {
-    throw new Error(`Setup script not found at: ${scriptPath}`);
-  }
-
-  // Make script executable
-  try {
-    execSync(`chmod +x "${scriptPath}"`, { stdio: 'ignore' });
-  } catch (error) {
-    logger.debug(`Failed to make script executable: ${error}`);
-  }
-
-  // Run the script
-  try {
-    execSync(`"${scriptPath}"`, {
-      stdio: 'inherit',
-      timeout: 300000, // 5 minute timeout
-    });
-  } catch (error: any) {
-    if (error.code === 127) {
-      throw new Error('Script execution failed - command not found');
-    }
-    throw error;
-  }
 }
 
 export default initGenerator;
