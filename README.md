@@ -26,11 +26,13 @@ Before working with this repository, ensure you have the following tools install
 
 ### NPM Registry Installation
 
-We publish the`ai-toolkit` to a private npm package registry, so we’ll need to setup a a `~/.npmrc` with the necessary authentication to fetch the private npm package.
+We publish the`ai-toolkit` to a private npm package registry, so we’ll need to setup a `~/.npmrc` with the necessary authentication to fetch the private npm package.
 
 Copy & execute the bash script below to setup the `~/.npmrc` file correctly.
 
 ```bash
+#!/usr/bin/env bash
+
 # sign into 1password and fetch the read-only npm token
 eval $(op signin)
 NPM_TOKEN=$(op read "op://Engineering/read-only npm-token - npmrc/token")
