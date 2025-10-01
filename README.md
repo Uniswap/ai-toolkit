@@ -26,38 +26,13 @@ Before working with this repository, ensure you have the following tools install
 
 ### NPM Registry Installation
 
-We publish the`ai-toolkit` to a private npm package registry, so we’ll need to setup a `~/.npmrc` with the necessary authentication to fetch the private npm package.
+We publish the`ai-toolkit` to a private npm package registry, so we’ll need to setup a `~/.npmrc` with the necessary authentication to fetch the private npm package. Follow the steps below to setup authentications
 
-Copy & execute the bash script below to setup the `~/.npmrc` file correctly.
+1. Execute `./scripts/setup_npmjs_auth.sh`
 
-```bash
-#!/usr/bin/env bash
+2. Open a new shell/terminal
 
-# sign into 1password and fetch the read-only npm token
-eval $(op signin)
-NPM_TOKEN=$(op read "op://Engineering/read-only npm-token - npmrc/token")
-
-NPM_AUTH_LINE="export NODE_AUTH_TOKEN=$NPM_TOKEN"
-
-# add to the bash shell so this env var is always exported
-echo "$NPM_AUTH_LINE" >> ~/.bashrc
-
-# if the user uses zsh, update .zshrc as well
-if [ -f ~/.zshrc ]; then
-    echo "$NPM_AUTH_LINE" >> ~/.zshrc
-fi
-
-# finally, update the ~/.npmrc file to use the correct
-# NODE_AUTH_TOKEN when authenticating with npmjs
-cat <<EOF >> ~/.npmrc
-@uniswap:registry=https://registry.npmjs.org
-registry=https://registry.npmjs.org/
-always-auth=true
-//registry.npmjs.org/:_authToken=\${NODE_AUTH_TOKEN}
-EOF
-```
-
-Finally, create a new terminal/shell and then run: `npx @uniswap/ai-toolkit-nx-claude@latest` at which point you'll see the output from [from below](#option-a-install-everything-recommended)
+3. Execute `npx @uniswap/ai-toolkit-nx-claude@latest` at which point you'll see the output from [from below](#option-a-install-everything-recommended)
 
 ### Local Installation
 

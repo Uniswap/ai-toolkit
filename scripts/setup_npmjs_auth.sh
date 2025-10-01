@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# Force tracing/verbose off even if caller enabled them
+# this way the script won't needlessly print individual
+# lines of bash to stdout
+{ set +x +v; } 2>/dev/null
+
 # sign into 1password and fetch the read-only npm token
 eval $(op signin)
 NPM_TOKEN=$(op read "op://Engineering/read-only npm-token - npmrc/token")
