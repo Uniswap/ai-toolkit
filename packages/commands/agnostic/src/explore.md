@@ -50,7 +50,7 @@ Return the structured analysis from context-loader:
 - `implementation-notes`: Key considerations for new work
 - `testing-approach`: How this area is tested
 
-## Workflow Integration
+## Workflow Integration (Optional)
 
 This command is **Step 1** of the implementation workflow:
 
