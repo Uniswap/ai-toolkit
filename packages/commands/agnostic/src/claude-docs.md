@@ -121,6 +121,24 @@ errors:
 
 ## INIT Path
 
+### ⏱️ CRITICAL: User Communication FIRST
+
+**Before invoking any agents, ALWAYS display this performance notice to the user:**
+
+```
+⏱️  **Performance Notice**: CLAUDE.md initialization will take 10-15+ minutes for medium-sized repositories.
+
+The process will:
+- Analyze your entire repository structure
+- Read and parse hundreds of files
+- Generate comprehensive documentation at multiple levels
+- Create 3-10+ CLAUDE.md files depending on repository size
+
+Please be patient - the process is working even during apparent pauses.
+```
+
+**Only after displaying this message should you proceed with repository analysis.**
+
 ### Inputs for Init
 
 - **Derived parameters**:

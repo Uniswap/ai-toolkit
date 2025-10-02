@@ -6,14 +6,14 @@ This package contains agnostic command definitions for Claude Code. Commands are
 
 ### Recent Updates
 
-**Enhanced /plan Command (Consolidated)**: The `/plan` command now includes all planning capabilities in a single unified command:
+**Simplified /plan Command (2025-09-30)**: The `/plan` command now creates concise, actionable implementation plans:
 
-- Hierarchical task decomposition (epic/story/subtask levels)
-- Intelligent agent assignment suggestions for each task
-- Comprehensive risk assessment matrix with mitigation strategies
-- Team composition recommendations for parallel execution
-- Automatic complexity detection and adaptive planning
+- Clear implementation breakdown (typically 5-7 steps for medium tasks)
+- Focused on strategic direction (what needs to happen, not how to code it)
+- Length-guided output (100-200, 200-400, 400-600 lines by complexity)
 - Full integration with `/explore` for context-aware planning
+- Optional API design and critical challenges sections
+- Testing handled separately during execution (not part of planning)
 - Supports all scenarios: simple bug fixes, features, refactors, and complex architectural changes
 
 ## Recommended Workflows
@@ -31,8 +31,8 @@ For optimal results, follow this four-step linear workflow:
 2. **Plan**: `/plan <task description>`
 
    - Uses exploration context automatically
-   - Creates hierarchical implementation plan
-   - Generates detailed markdown plan file
+   - Creates clear, actionable implementation plan
+   - Generates concise markdown plan file (200-400 lines for medium tasks)
 
 3. **Review**: `/review-plan <plan-file>`
 
@@ -124,7 +124,7 @@ Invoke **agent-name** with parameters
 
 ### Planning & Implementation Commands
 
-- **plan**: Create comprehensive implementation plans with hierarchical task decomposition
+- **plan**: Create clear, actionable implementation plans with step-by-step breakdown
 - **execute-plan**: Execute implementation plans using intelligent agent orchestration (standalone, no spec-workflow required)
 - **implement-spec**: Orchestrate spec-workflow task implementation with parallel agent coordination
 - **auto-spec**: Fully autonomous spec-driven development with multi-agent consensus building
@@ -157,12 +157,12 @@ Rather than having a single "implement everything" command, we maintain the prin
 
 ### Workflow for Implementation
 
-1. **Planning Phase**: Use `/plan` to create detailed implementation plans
+1. **Planning Phase**: Use `/plan` to create clear implementation plans
 
-   - Hierarchical task decomposition (epic/story/subtask)
-   - Agent assignment suggestions for each task
-   - Risk assessment and mitigation strategies
-   - Dependency analysis and execution order
+   - Step-by-step implementation breakdown (typically 5-7 steps for medium tasks)
+   - API design and data structures when needed
+   - Critical challenges and mitigation strategies
+   - Files to modify and create
 
 2. **Execution Phase**: Use `/execute-plan` to orchestrate implementation
 
@@ -195,20 +195,17 @@ Example workflow:
 # Step 1: Understand the codebase area
 /explore authentication system
 
-# Step 2: Create a comprehensive plan
+# Step 2: Create a clear implementation plan
 /plan add OAuth2 integration with Google and GitHub
 
 # Step 3: Execute the plan using intelligent orchestration
 /execute-plan oauth-plan.md
 
 # The execute-plan command will:
-# - Parse the plan structure and dependencies
-# - Coordinate appropriate agents:
-#   - code-generator for new OAuth modules
-#   - test-writer for authentication tests
-#   - security-analyzer for vulnerability checks
-#   - documentation-agent for API docs
-# - Handle parallel execution where possible
+# - Read the plan file and parse implementation steps
+# - Automatically assign specialized agents to tasks
+# - Coordinate execution (parallel where possible)
+# - Handle testing during execution (not in the plan)
 # - Apply quality gates between phases
 ```
 
@@ -277,11 +274,19 @@ All commands now leverage sophisticated multi-agent orchestration:
   - Integrated test maintenance recommendations
   - Enhanced orchestration for complex test generation
 
+### /plan Command Simplification (2025-09-30)
+
+- **Simplified planning output**: Removed hierarchical task decomposition, agent assignments, and risk matrices
+- **Focus on strategic direction**: Plans now focus on WHAT needs to happen, not HOW to code it
+- **Length guidance**: Added explicit targets (100-200, 200-400, 400-600 lines by complexity)
+- **Testing separation**: Testing now handled during execution, not in planning phase
+- **Clearer scope**: Plan structure simplified to 7 core sections (Overview, Scope, Current State, API Design, Steps, Files, Challenges)
+- **Better separation of concerns**: Planning for strategy, execution for orchestration
+
 ### Previous Changes
 
 - **Consolidated Planning**: Merged `/plan-feature` into `/plan` for unified planning
 - **Removed /implement**: Orchestration is properly handled by agent-orchestrator, not commands
 - **Added /monitor**: New command for comprehensive observability setup
-- **Enhanced /plan**: Now includes hierarchical decomposition, agent assignments, and risk assessment
 - **Enhanced /fix-bug**: Added root cause analysis and prevention recommendations
 - **Philosophy Clarification**: Commands are specialists; orchestration belongs to the orchestrator

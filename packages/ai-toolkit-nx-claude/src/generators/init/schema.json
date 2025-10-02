@@ -58,24 +58,6 @@
       "type": "boolean",
       "description": "Overwrite existing files",
       "default": false
-    },
-    "setupRegistryProxy": {
-      "type": "boolean",
-      "description": "Setup registry proxy for npm commands",
-      "default": false,
-      "x-prompt": {
-        "message": "🔧 Would you like to set up a registry proxy to automatically route @uniswap packages to GitHub registry?\nThis makes it easier to use AI Toolkit packages without specifying --registry flags.",
-        "type": "confirm"
-      }
-    },
-    "setupGithubPackagesAuth": {
-      "type": "boolean",
-      "description": "Setup GitHub Package Registry authentication",
-      "default": false,
-      "x-prompt": {
-        "message": "🔐 Would you like to automatically set up GitHub Package Registry authentication?\nThis will configure NODE_AUTH_TOKEN in your shell and update ~/.npmrc to use GitHub Packages.",
-        "type": "confirm"
-      }
     }
   },
   "required": []

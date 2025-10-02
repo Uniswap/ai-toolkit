@@ -19,8 +19,6 @@ export interface AddonMetadata {
   packageName: string;
   /** Registry URL (optional, defaults to npm) */
   registry?: string;
-  /** Required authentication for installation */
-  requiresAuth?: boolean;
   /** MCP-specific configuration */
   mcp?: {
     /** Server name for Claude MCP registration */
@@ -51,8 +49,6 @@ export interface AddonMetadata {
     configSourcePath: string;
     /** Directory name to create in project */
     targetDirectory: string;
-    /** Whether repo needs authentication */
-    requiresAuth: boolean;
   };
 }
 
@@ -67,8 +63,6 @@ const ADDON_REGISTRY: AddonMetadata[] = [
       'MCP server for spec-driven development workflow with dashboard support',
     type: 'mcp-server',
     packageName: '@uniswap/spec-workflow-mcp',
-    registry: '--@uniswap:registry=https://npm.pkg.github.com',
-    requiresAuth: true,
     mcp: {
       serverName: 'spec-workflow',
       command: 'npx',
@@ -80,7 +74,6 @@ const ADDON_REGISTRY: AddonMetadata[] = [
       repositoryUrl: 'https://github.com/Uniswap/spec-workflow-mcp.git',
       configSourcePath: 'configs',
       targetDirectory: '.spec-workflow',
-      requiresAuth: false,
     },
     requirements: {
       node: '>=22.0.0',

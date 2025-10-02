@@ -105,7 +105,7 @@ Once merged to `next`:
 
 ```bash
 # Install and test the prerelease
-npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@next
+npx @uniswap/ai-toolkit-nx-claude@next
 
 # Verify functionality
 # Report any issues found

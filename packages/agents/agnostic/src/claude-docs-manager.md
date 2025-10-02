@@ -25,6 +25,22 @@ Analyze code changes and intelligently update ALL affected CLAUDE.md documentati
 
 ## Process
 
+### 0. Timestamp Management
+
+**CRITICAL: Every CLAUDE.md file operation MUST handle timestamps:**
+
+When updating any CLAUDE.md file:
+1. **Check for existing timestamp**: Look for `> **Last Updated:** YYYY-MM-DD` at the top of the file
+2. **If timestamp exists**: Update it to the current date (e.g., 2025-10-02)
+3. **If timestamp is missing**: Add `> **Last Updated:** YYYY-MM-DD` as the very first line
+4. **Always place timestamp first**: It must be the first line before any other content including headers
+
+When creating new CLAUDE.md files:
+- **Always start with timestamp**: First line must be `> **Last Updated:** YYYY-MM-DD`
+- Use current date in ISO format (YYYY-MM-DD)
+
+This ensures users can immediately see documentation freshness when opening any CLAUDE.md file.
+
 ### 1. Understand Changes and Context
 
 **FIRST STEP**: Analyze what changed and why:

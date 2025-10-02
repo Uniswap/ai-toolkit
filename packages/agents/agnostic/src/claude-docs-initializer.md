@@ -171,9 +171,24 @@ For each directory that will get a CLAUDE.md:
 
 Generate CLAUDE.md content based on analysis depth and directory level:
 
+**⚠️ CRITICAL: Timestamp Header**
+
+Every CLAUDE.md file MUST start with a timestamp header as the very first line:
+
+```markdown
+> **Last Updated:** YYYY-MM-DD
+```
+
+- Use current date in ISO format (e.g., 2025-10-02)
+- Place immediately at the top, before any other content
+- Update this timestamp whenever the file is modified
+- This ensures users can immediately see documentation freshness
+
 ### For Root CLAUDE.md
 
 ```markdown
+> **Last Updated:** YYYY-MM-DD
+
 # CLAUDE.md - [Project Name]
 
 ## Project Overview
@@ -207,6 +222,8 @@ Generate CLAUDE.md content based on analysis depth and directory level:
 
 #### For Package/Module CLAUDE.md:
 ```markdown
+> **Last Updated:** YYYY-MM-DD
+
 # CLAUDE.md - [Package/Module Name]
 
 ## Overview
