@@ -22,17 +22,6 @@ Instead of each person at Uniswap manually configuring AI assistant behaviors fo
 Before working with this repository, ensure you have the following tools installed:
 
 - **[Bun 1.2.21+](https://bun.sh)** (recommended) or **Node.js 22+** with npm
-- **[The Latest 1Password CLI](https://developer.1password.com/docs/cli/get-started/)** which you can install with `brew install 1password-cli`
-
-### NPM Registry Installation
-
-We publish the`ai-toolkit` to a private npm package registry, so we’ll need to setup a `~/.npmrc` with the necessary authentication to fetch the private npm package. Follow the steps below to setup authentications
-
-1. Execute `./scripts/setup_npmjs_auth.sh`
-
-2. Open a new shell/terminal
-
-3. Execute `npx @uniswap/ai-toolkit-nx-claude@latest` at which point you'll see the output from [from below](#option-a-install-everything-recommended)
 
 ### Local Installation
 

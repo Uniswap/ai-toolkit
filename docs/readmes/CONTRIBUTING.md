@@ -441,7 +441,6 @@ bunx nx run-many --target=build
 
 ### Common Issues
 
-1. **Package access denied**: Ensure ~/.npmrc auth is configured correctly
 2. **Build failures**: Check Node/Bun version requirements
 3. **Test failures**: Run `bunx nx reset` and try again
 4. **Merge conflicts**: Rebase your branch on latest `next`
