@@ -37,9 +37,8 @@ function isInAiToolkitRepo(): boolean {
 
 // Available generators (only show user-facing ones in interactive mode)
 const GENERATORS = {
-  init: 'One-shot installer for Claude Code configs',
-  hooks: 'Install Claude Code notification hooks',
-  addons: 'Install and configure Claude Code addons including MCP servers',
+  'default-install': 'Recommended setup with pre-selected components',
+  'custom-install': 'Choose exactly what to install',
 };
 
 // All generators including internal ones (for validation)
@@ -117,8 +116,8 @@ async function main() {
     console.log('\nUsage:');
     console.log('  npx @uniswap/ai-toolkit-nx-claude@latest [generator]');
     console.log('\nExamples:');
-    console.log('  npx @uniswap/ai-toolkit-nx-claude@latest init');
-    console.log('  npx @uniswap/ai-toolkit-nx-claude@latest hooks');
+    console.log('  npx @uniswap/ai-toolkit-nx-claude@latest default-install');
+    console.log('  npx @uniswap/ai-toolkit-nx-claude@latest custom-install');
     process.exit(0);
   }
 
@@ -161,7 +160,20 @@ async function main() {
     process.exit(1);
   }
 
-  await handleNxExecution(generatorName, processedArgs);
+  // Route default-install and custom-install to init generator with appropriate mode
+  if (generatorName === 'default-install') {
+    await handleNxExecution('init', [
+      ...processedArgs,
+      '--install-mode=default',
+    ]);
+  } else if (generatorName === 'custom-install') {
+    await handleNxExecution('init', [
+      ...processedArgs,
+      '--install-mode=custom',
+    ]);
+  } else {
+    await handleNxExecution(generatorName, processedArgs);
+  }
 }
 
 main().catch(console.error);
