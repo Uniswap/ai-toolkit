@@ -19,13 +19,18 @@ The agent infrastructure implements a sophisticated hierarchical model:
 
 ## Available Agents
 
+### Documentation & Context Management
+
+- **claude-docs-initializer**: Discover repository structure and create initial CLAUDE.md documentation at all appropriate levels
+- **claude-docs-manager**: Analyze code changes and update all affected CLAUDE.md documentation files
+- **context-loader**: Advanced context management with summarization, checkpointing, and cross-agent sharing
+- **doc-writer**: Advanced documentation specialist for API docs, architecture documentation, and README generation
+
 ### Core Specialist Agents
 
-- **context-loader**: Advanced context management with summarization, checkpointing, and cross-agent sharing
 - **code-explainer**: Analyze and explain complex code with pattern recognition and security analysis
 - **code-generator**: Comprehensive code generation specialist with tests and best practices
 - **debug-assistant**: Advanced debugging with root cause analysis and fix validation
-- **doc-writer**: Advanced documentation specialist for API docs, architecture documentation, and README generation
 - **planner**: Create clear, actionable implementation plans (no code writing)
 - **plan-reviewer**: Validate and improve existing plans
 - **refactorer**: Advanced refactoring with architectural analysis and safe incremental strategies
@@ -283,7 +288,23 @@ The enhanced style-enforcer supports various usage patterns:
 
 ## Recent Changes
 
-### Architecture Documentation (Latest)
+### Claude-Docs System Implementation (Latest)
+
+- **New claude-docs-initializer agent**: Comprehensive repository analysis and CLAUDE.md initialization
+  - Deep repository discovery and analysis
+  - Technology and pattern detection
+  - Hierarchical documentation generation
+  - Multi-level file creation with cross-reference management
+  - Intelligent filtering for documentation targets
+
+- **New claude-docs-manager agent**: Intelligent CLAUDE.md update management
+  - Change-driven documentation updates
+  - Documentation Proximity Principle implementation
+  - Multi-level update propagation
+  - Content scope enforcement based on hierarchy
+  - Automatic detection of new CLAUDE.md requirements
+
+### Architecture Documentation
 
 - **Comprehensive documentation**: Added ARCHITECTURE.md with complete system documentation
 - **Hierarchical model explained**: Four-tier agent organization from orchestration to meta-learning

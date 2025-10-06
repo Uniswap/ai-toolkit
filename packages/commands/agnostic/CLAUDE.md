@@ -100,6 +100,14 @@ Invoke **agent-name** with parameters
 
 ## Available Commands
 
+### Documentation Commands
+
+- **claude-docs**: Initialize or update CLAUDE.md documentation files based on context and changes
+  - Supports both initialization (new repos) and updates (existing repos)
+  - Automatically detects mode based on keywords or defaults to update
+  - Leverages claude-docs-initializer for discovery-driven initialization
+  - Leverages claude-docs-manager for change-driven updates
+
 ### Core Development Commands
 
 - **explain-file**: Analyze and explain code structure
@@ -203,7 +211,20 @@ Example workflow:
 
 ## Recent Changes
 
-### Latest Updates (2025-09-06)
+### Claude-Docs Command Integration (Latest)
+
+- **claude-docs**: New command for comprehensive CLAUDE.md management
+  - Natural language interface for documentation operations
+  - Intelligent intent detection (init vs update modes)
+  - Automatic scope determination (session/git/path)
+  - Delegates to specialized documentation agents
+  - Supports both repository initialization and incremental updates
+  - Integration with Documentation Proximity Principle
+  - **Restructured documentation**: Separated UPDATE and INIT paths into distinct sections for clarity
+    - UPDATE Path (default): Single-agent change-driven updates
+    - INIT Path: Multi-agent hierarchical documentation creation
+
+### Previous Updates (2025-09-06)
 
 - **auto-spec**: New command for fully autonomous spec-driven development
   - Creates and implements complete spec workflows with multi-agent collaboration
