@@ -41,9 +41,10 @@ For optimal results, follow this four-step linear workflow:
    - Identifies risks and improvements
 
 4. **Execute**: `/execute-plan <plan-file>`
-   - Orchestrates multi-agent implementation
-   - Handles parallel execution and dependencies
-   - Applies quality gates between phases
+   - Reads the plan and implements each step directly
+   - Makes code changes using Edit/Write tools
+   - Commits at logical completion points
+   - Offers optional test/doc generation after completion
 
 ### Example Workflow
 
@@ -58,17 +59,9 @@ For optimal results, follow this four-step linear workflow:
 /review-plan auth-2fa-plan.md
 
 # Step 4: Execute the approved plan
-/execute-plan auth-2fa-plan.md --parallel
+/execute-plan auth-2fa-plan.md
 ```
 
-### Quick Execution
-
-For simple tasks, you can skip to execution directly:
-
-```bash
-/execute-plan "fix the login validation bug"
-# Creates and executes a quick plan inline
-```
 
 **Note for Claude Code**: When context-loader findings exist from a previous `/explore` command, automatically pass them to the planner agent as `context_findings`. The workflow is designed to be seamless with context flowing automatically between commands.
 
@@ -125,7 +118,7 @@ Invoke **agent-name** with parameters
 ### Planning & Implementation Commands
 
 - **plan**: Create clear, actionable implementation plans with step-by-step breakdown
-- **execute-plan**: Execute implementation plans using intelligent agent orchestration (standalone, no spec-workflow required)
+- **execute-plan**: Execute implementation plans step-by-step with direct code changes
 - **implement-spec**: Orchestrate spec-workflow task implementation with parallel agent coordination
 - **auto-spec**: Fully autonomous spec-driven development with multi-agent consensus building
 - **research**: Combine web search with codebase analysis
@@ -164,13 +157,13 @@ Rather than having a single "implement everything" command, we maintain the prin
    - Critical challenges and mitigation strategies
    - Files to modify and create
 
-2. **Execution Phase**: Use `/execute-plan` to orchestrate implementation
+2. **Execution Phase**: Use `/execute-plan` to implement the plan
 
-   - Reads plans created by `/plan` command or any markdown plan
-   - Accepts inline task descriptions for quick execution
-   - Coordinates multiple specialized agents
-   - Manages parallel vs sequential execution
-   - Handles task dependencies and quality gates
+   - Reads plan file and executes each step sequentially
+   - Makes code changes directly using Edit/Write tools
+   - Runs tests and validates changes as needed
+   - Commits code at logical completion points
+   - Offers optional test/doc generation after core implementation
 
 3. **Specialized Execution**: Individual commands handle specific tasks
    - `/fix-bug` for debugging and fixes
@@ -183,11 +176,10 @@ Rather than having a single "implement everything" command, we maintain the prin
 Each command is a specialist that excels at one thing. An "implement everything" command would:
 
 - Violate the principle of specialization
-- Duplicate the orchestrator's coordination role
 - Create unnecessary complexity
 - Reduce clarity about what's actually happening
 
-Instead, the **agent-orchestrator** serves as the conductor, coordinating specialized agents based on plans, while each command maintains its focused expertise.
+Instead, `/execute-plan` follows the plan step-by-step, implementing changes directly while maintaining focus.
 
 Example workflow:
 
@@ -198,15 +190,15 @@ Example workflow:
 # Step 2: Create a clear implementation plan
 /plan add OAuth2 integration with Google and GitHub
 
-# Step 3: Execute the plan using intelligent orchestration
+# Step 3: Execute the plan
 /execute-plan oauth-plan.md
 
 # The execute-plan command will:
 # - Read the plan file and parse implementation steps
-# - Automatically assign specialized agents to tasks
-# - Coordinate execution (parallel where possible)
-# - Handle testing during execution (not in the plan)
-# - Apply quality gates between phases
+# - Implement each step using Edit/Write tools
+# - Run tests and validate changes
+# - Commit code at logical points
+# - Offer optional test/doc generation when done
 ```
 
 ## Recent Changes
@@ -233,13 +225,13 @@ Example workflow:
   - Includes comprehensive error handling and quality validation
   - Perfect for autonomous feature development with minimal supervision
 
-### Previous Updates (2025-09-05)
+### /execute-plan Command Simplification (2025-10-01)
 
-- **execute-plan**: New standalone command for executing implementation plans
-  - Works with any markdown plan file or inline task descriptions
-  - No spec-workflow dependencies required
-  - Supports parallel execution, quality gates, and meta-agent optimization
-  - Perfect companion to the `/plan` command for complete planning-to-execution workflow
+- **Simplified execution**: Removed orchestration layers, parallel execution, and quality gates
+- **Direct implementation**: Claude Code executes steps directly using Edit/Write tools
+- **Sequential execution**: Steps are implemented in order, following the plan
+- **Optional follow-ups**: Test and documentation generation offered after core implementation
+- **Better alignment**: Matches the simplified planner philosophy (strategic plan → direct execution)
 
 ### Previous Updates (2025-08-30)
 

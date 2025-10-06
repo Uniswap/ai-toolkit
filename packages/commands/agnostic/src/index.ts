@@ -58,7 +58,7 @@ export const commands: Commands = {
   },
   'execute-plan': {
     description:
-      'Execute implementation plans using intelligent agent coordination, parallel execution, and quality gates.',
+      'Execute implementation plans step-by-step',
     filePath: './execute-plan.md',
   },
   'explain-file': {
