@@ -527,8 +527,29 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
       }
     }
 
-    // Install addons if requested (custom mode only)
-    if (normalizedOptions.installAddons) {
+    // Prompt for and install addons in custom mode, after hooks
+    let addonsInstalled = false;
+    let shouldInstallAddons = normalizedOptions.installAddons === true;
+    const installAddonsExplicit =
+      explicitlyProvided.has('installAddons') ||
+      explicitlyProvided.has('install-addons');
+
+    if (
+      normalizedOptions.installMode === 'custom' &&
+      !installAddonsExplicit &&
+      !nxNoInteractiveProvided &&
+      !normalizedOptions.nonInteractive
+    ) {
+      const { value } = await prompt<{ value: boolean }>({
+        type: 'confirm',
+        name: 'value',
+        message: '🔌 Install addons (spec-mcp-workflow)?',
+        initial: false,
+      });
+      shouldInstallAddons = value;
+    }
+
+    if (shouldInstallAddons) {
       try {
         logger.info('\n🔌 Installing addons...');
         if (!addonsGenerator) {
@@ -539,6 +560,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
           force: normalizedOptions.force || false,
         });
         logger.info('✅ Addons installed successfully');
+        addonsInstalled = true;
       } catch (error: any) {
         logger.error('❌ Failed to install addons');
         logger.error(error.message);
@@ -558,7 +580,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     if (normalizedOptions.installHooks) {
       logger.info('   Hooks: ✅ Installed');
     }
-    if (normalizedOptions.installAddons) {
+    if (addonsInstalled) {
       logger.info('   Addons: ✅ Installed');
     }
   } else {
@@ -568,7 +590,19 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
         '\n🔍 DRY RUN: Would install notification hooks (sound mode)'
       );
     }
-    if (normalizedOptions.installAddons) {
+    // In custom mode, the addons prompt occurs after hooks
+    const installAddonsExplicit =
+      explicitlyProvided.has('installAddons') ||
+      explicitlyProvided.has('install-addons');
+    if (
+      normalizedOptions.installMode === 'custom' &&
+      !installAddonsExplicit &&
+      !normalizedOptions.nonInteractive
+    ) {
+      logger.info(
+        '\n🔍 DRY RUN: Would prompt to install spec-mcp-workflow addon after hooks'
+      );
+    } else if (normalizedOptions.installAddons) {
       logger.info('\n🔍 DRY RUN: Would install spec-mcp-workflow addon');
     }
   }

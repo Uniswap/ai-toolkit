@@ -86,9 +86,7 @@
       "type": "boolean",
       "description": "Install addons like spec-mcp-workflow",
       "default": false,
-      "prompt-when": "installMode === 'custom'",
-      "prompt-message": "🔌 Install addons (spec-mcp-workflow)?",
-      "prompt-type": "confirm"
+      "x-skip-prompt": true
     },
     "dry": {
       "type": "boolean",
