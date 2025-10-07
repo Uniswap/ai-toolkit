@@ -78,7 +78,7 @@ Note: The addons prompt appears after notification hooks have been installed in 
 14. **Content Deployment**: Copies selected commands and agents from content packages to the target directory
 15. **Manifest Generation**: Creates a `manifest.json` file tracking installed components, version, and installation metadata
 16. **Collision Detection**: Checks for existing installations and prompts for overwrite confirmation (unless forced)
-17. **Installation Verification**: Verifies successful installation using `claude doctor` or `which claude`
+17. **Installation Verification**: Verifies successful installation using `which claude` (optional: `claude --version`)
 18. **Auto-Update Checker Installation**: Installs background update checker to shell configuration (bash/zsh/fish)
 19. **Installation Summary**: Shows comprehensive summary of what was installed
 
@@ -104,8 +104,8 @@ The generator automatically handles Claude CLI installation with intelligent fal
 
 3. **Verification**: After successful installation (either method)
 
-   - Primary check: Runs `claude doctor` to verify setup
-   - Fallback check: Uses `which claude` if doctor command unavailable
+   - Primary check: Uses `which claude` to confirm availability on PATH
+   - Optional: Run `claude --version` or `claude doctor` manually for deeper checks
    - PATH warnings: Alerts if CLI installed but not in PATH
 
 4. **Manual Instructions**: Provided if both methods fail

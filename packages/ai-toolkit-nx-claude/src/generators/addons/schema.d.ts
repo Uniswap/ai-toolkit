@@ -5,8 +5,6 @@ export interface AddonsGeneratorSchema {
   dashboardMode?: 'always' | 'manual';
   /** Dashboard port (default: auto) */
   port?: number;
-  /** GitHub personal access token for private packages */
-  githubToken?: string;
   /** Force installation even if already exists */
   force?: boolean;
   /** Skip installation verification */

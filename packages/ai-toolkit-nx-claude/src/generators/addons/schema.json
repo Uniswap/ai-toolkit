@@ -30,11 +30,6 @@
       "default": 0,
       "prompt-message": "🔌 Dashboard port (0 for auto)"
     },
-    "githubToken": {
-      "type": "string",
-      "description": "GitHub personal access token for private packages",
-      "prompt-message": "🔑 GitHub personal access token (for private @uniswap packages)"
-    },
     "force": {
       "type": "boolean",
       "description": "Force installation even if already exists",

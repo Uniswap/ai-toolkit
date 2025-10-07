@@ -727,23 +727,15 @@ async function installViaNpm(): Promise<boolean> {
  */
 async function verifyInstallation(method: 'curl' | 'npm'): Promise<void> {
   try {
-    // First try claude doctor
-    execSync('claude doctor', { stdio: 'ignore' });
-    logger.info(
-      `✅ Claude CLI verified successfully (installed via ${method})`
-    );
+    // Check that the claude binary is available on PATH
+    execSync('which claude', { stdio: 'ignore' });
+    logger.info(`✅ Claude CLI found (installed via ${method})`);
+    logger.info('You can also run "claude --version" to verify');
   } catch {
-    // Fallback to basic which check
-    try {
-      execSync('which claude', { stdio: 'ignore' });
-      logger.info(`✅ Claude CLI found (installed via ${method})`);
-      logger.info('Run "claude doctor" to verify your setup');
-    } catch {
-      logger.warn('⚠️  Claude CLI installed but not found in PATH');
-      logger.info(
-        'You may need to restart your terminal or add Claude to your PATH'
-      );
-    }
+    logger.warn('⚠️  Claude CLI not found in PATH');
+    logger.info(
+      'You may need to restart your terminal or add Claude to your PATH'
+    );
   }
 }
 
