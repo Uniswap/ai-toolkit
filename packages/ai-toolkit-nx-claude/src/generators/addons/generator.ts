@@ -227,10 +227,6 @@ async function installMcpAddon(
   }
 
   // For other MCP servers, different args could be added based on their needs
-  // Example:
-  // if (addon.id === 'github-mcp' && options.githubToken) {
-  //   additionalArgs.push(`--token=${options.githubToken}`);
-  // }
 
   const installResult = await installMcpServer({
     addon,

@@ -37,15 +37,29 @@ packages/ai-toolkit-nx-claude/
 
 **Purpose**: Primary entry point for setting up Claude Code configurations
 
-**Usage**:
+**Recommended Usage** (via CLI menu):
 
 ```bash
-bunx nx generate @uniswap/ai-toolkit-nx-claude:init
+npx @uniswap/ai-toolkit-nx-claude@latest
+# Presents menu with two options:
+# - default-install: Recommended setup with pre-selected components
+# - custom-install: Choose exactly what to install
+```
+
+**Direct Usage**:
+
+```bash
+bunx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=default
+# or
+bunx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=custom
 ```
 
 **Key Features**:
 
-- Interactive installation wizard
+- **Two installation modes**:
+  - **Default**: Pre-configured with 6 essential commands and 6 essential agents, global installation, minimal prompts
+  - **Custom**: Full control with granular prompts for location, components, hooks, addons, and dry-run
+- **Interactive installation wizard** with conditional prompting based on mode
 - **Automatic Claude CLI installation with fallback mechanism**:
   - Primary: curl installation method
   - Fallback: npm installation if curl fails
@@ -55,11 +69,14 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:init
   - Self-updating script with version tracking
   - Can be disabled via `AI_TOOLKIT_SKIP_UPDATE_CHECK` environment variable
   - Supports bash, zsh, and fish shells
+- **Integrated hooks installation**: Can install notification hooks as part of init flow
+- **Integrated addons installation**: Can install addons like spec-mcp-workflow (custom mode only)
 - Global (~/.claude) or local (./.claude) installation
 - Detects existing files and offers overwrite options
 - Creates manifest.json for tracking installations
 - Sources content from @ai-toolkit content packages
 - Cross-platform support (macOS, Linux, Windows)
+- **Installation summary**: Shows comprehensive summary of what was installed
 
 **Documentation**: [src/generators/init/CLAUDE.md](src/generators/init/CLAUDE.md)
 

@@ -21,6 +21,26 @@ import {
 // Import available commands and agents from content packages
 import { commands as agnosticCommands } from '@ai-toolkit/commands-agnostic';
 import { agents as agnosticAgents } from '@ai-toolkit/agents-agnostic';
+import { addonsGenerator, hooksGenerator } from '../../index';
+
+// Recommended default commands for most users
+const DEFAULT_COMMANDS = [
+  'explore',
+  'plan',
+  'review-plan',
+  'execute-plan',
+  'address-pr-issues',
+];
+
+// Recommended default agents for most users
+const DEFAULT_AGENTS = [
+  'context-loader',
+  'planner',
+  'plan-reviewer',
+  'test-writer',
+  'doc-writer',
+  'pr-reviewer',
+];
 
 interface Manifest {
   version: string;
@@ -87,6 +107,30 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
       '  2. npm install -g @anthropic-ai/claude-code (if curl fails)'
     );
     logger.info('  3. Manual instructions (if both fail)');
+  }
+
+  // Determine install mode (default or custom)
+  const installMode = options.installMode || 'custom';
+
+  // Apply defaults for "default" mode
+  if (installMode === 'default') {
+    logger.info('📦 Default Installation Mode');
+    logger.info(
+      '   Installing recommended setup with pre-selected components\n'
+    );
+
+    options.installationType = 'global';
+    options.commands = DEFAULT_COMMANDS;
+    options.agents = DEFAULT_AGENTS;
+    options.installCommands = true;
+    options.installAgents = true;
+    // installHooks will still be prompted
+    options.installAddons = false;
+    options.dry = false; // Default mode never runs in dry-run
+
+    logger.info('📍 Location: Global (~/.claude)');
+    logger.info(`📝 Commands: ${DEFAULT_COMMANDS.length} pre-selected`);
+    logger.info(`🤖 Agents: ${DEFAULT_AGENTS.length} pre-selected\n`);
   }
 
   // Handle interactive mode with schema-driven prompts
@@ -171,6 +215,14 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   // Handle dry-run mode
   if (isDryRun) {
     logger.info('🔍 DRY RUN MODE - No files will be modified');
+  }
+
+  // Skip command/agent arrays if install flags are false
+  if (normalizedOptions.installCommands === false) {
+    normalizedOptions.commands = [];
+  }
+  if (normalizedOptions.installAgents === false) {
+    normalizedOptions.agents = [];
   }
 
   // Determine target directory based on installation type
@@ -452,6 +504,107 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
         'This is a bug in ai-toolkit, please report it to the #pod-dev-ai Slack channel'
       );
     }
+
+    // Install hooks if requested
+    if (normalizedOptions.installHooks) {
+      try {
+        logger.info('\n🔔 Installing notification hooks...');
+        if (!hooksGenerator) {
+          throw new Error('hooksGenerator export not found');
+        }
+        await hooksGenerator(tree, {
+          force: normalizedOptions.force || false,
+          dry: false,
+          backup: true,
+          verbose: false,
+        });
+        logger.info('✅ Notification hooks installed successfully');
+      } catch (error: any) {
+        logger.error('❌ Failed to install notification hooks');
+        logger.error(error.message);
+        logger.info('   Continuing with installation...');
+        // Continue anyway - hooks are optional
+      }
+    }
+
+    // Prompt for and install addons in custom mode, after hooks
+    let addonsInstalled = false;
+    let shouldInstallAddons = normalizedOptions.installAddons === true;
+    const installAddonsExplicit =
+      explicitlyProvided.has('installAddons') ||
+      explicitlyProvided.has('install-addons');
+
+    if (
+      normalizedOptions.installMode === 'custom' &&
+      !installAddonsExplicit &&
+      !nxNoInteractiveProvided &&
+      !normalizedOptions.nonInteractive
+    ) {
+      const { value } = await prompt<{ value: boolean }>({
+        type: 'confirm',
+        name: 'value',
+        message: '🔌 Install addons (spec-mcp-workflow)?',
+        initial: false,
+      });
+      shouldInstallAddons = value;
+    }
+
+    if (shouldInstallAddons) {
+      try {
+        logger.info('\n🔌 Installing addons...');
+        if (!addonsGenerator) {
+          throw new Error('addonsGenerator export not found');
+        }
+        await addonsGenerator(tree, {
+          addon: 'spec-workflow-mcp',
+          force: normalizedOptions.force || false,
+        });
+        logger.info('✅ Addons installed successfully');
+        addonsInstalled = true;
+      } catch (error: any) {
+        logger.error('❌ Failed to install addons');
+        logger.error(error.message);
+        logger.info('   Continuing with installation...');
+        // Continue anyway - addons are optional
+      }
+    }
+
+    // Final summary
+    logger.info('\n✨ Installation complete!');
+    if (installedCommands.length > 0) {
+      logger.info(`   Commands: ${installedCommands.join(', ')}`);
+    }
+    if (installedAgents.length > 0) {
+      logger.info(`   Agents: ${installedAgents.join(', ')}`);
+    }
+    if (normalizedOptions.installHooks) {
+      logger.info('   Hooks: ✅ Installed');
+    }
+    if (addonsInstalled) {
+      logger.info('   Addons: ✅ Installed');
+    }
+  } else {
+    // Dry-run mode - show what would be installed for hooks/addons
+    if (normalizedOptions.installHooks) {
+      logger.info(
+        '\n🔍 DRY RUN: Would install notification hooks (sound mode)'
+      );
+    }
+    // In custom mode, the addons prompt occurs after hooks
+    const installAddonsExplicit =
+      explicitlyProvided.has('installAddons') ||
+      explicitlyProvided.has('install-addons');
+    if (
+      normalizedOptions.installMode === 'custom' &&
+      !installAddonsExplicit &&
+      !normalizedOptions.nonInteractive
+    ) {
+      logger.info(
+        '\n🔍 DRY RUN: Would prompt to install spec-mcp-workflow addon after hooks'
+      );
+    } else if (normalizedOptions.installAddons) {
+      logger.info('\n🔍 DRY RUN: Would install spec-mcp-workflow addon');
+    }
   }
 }
 
@@ -574,23 +727,15 @@ async function installViaNpm(): Promise<boolean> {
  */
 async function verifyInstallation(method: 'curl' | 'npm'): Promise<void> {
   try {
-    // First try claude doctor
-    execSync('claude doctor', { stdio: 'ignore' });
-    logger.info(
-      `✅ Claude CLI verified successfully (installed via ${method})`
-    );
+    // Check that the claude binary is available on PATH
+    execSync('which claude', { stdio: 'ignore' });
+    logger.info(`✅ Claude CLI found (installed via ${method})`);
+    logger.info('You can also run "claude --version" to verify');
   } catch {
-    // Fallback to basic which check
-    try {
-      execSync('which claude', { stdio: 'ignore' });
-      logger.info(`✅ Claude CLI found (installed via ${method})`);
-      logger.info('Run "claude doctor" to verify your setup');
-    } catch {
-      logger.warn('⚠️  Claude CLI installed but not found in PATH');
-      logger.info(
-        'You may need to restart your terminal or add Claude to your PATH'
-      );
-    }
+    logger.warn('⚠️  Claude CLI not found in PATH');
+    logger.info(
+      'You may need to restart your terminal or add Claude to your PATH'
+    );
   }
 }
 
