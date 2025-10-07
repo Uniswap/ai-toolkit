@@ -15,6 +15,7 @@ The generator provides two distinct paths:
 **Purpose**: Get started quickly with recommended components for most users.
 
 **Characteristics**:
+
 - Pre-selects 6 essential commands (explore, plan, review-plan, execute-plan, address-pr-issues)
 - Pre-selects 6 essential agents (context-loader, planner, plan-reviewer, test-writer, doc-writer, pr-reviewer)
 - Installs globally by default (~/.claude)
@@ -23,6 +24,7 @@ The generator provides two distinct paths:
 - Shows summary of pre-selected components before installation
 
 **User Experience**:
+
 ```
 📦 Default Installation Mode
    Installing recommended setup with pre-selected components
@@ -39,6 +41,7 @@ The generator provides two distinct paths:
 **Purpose**: Full control for power users who want to choose exactly what to install.
 
 **Characteristics**:
+
 - Prompts for installation location (global/local)
 - Prompts whether to install commands (yes/no)
 - If installing commands → multi-select which ones
@@ -49,6 +52,7 @@ The generator provides two distinct paths:
 - Prompts for dry-run mode (yes/no)
 
 **User Experience**:
+
 ```
 📍 Would you like to install globally or locally?
 📝 Install slash commands? (y/n)
@@ -215,12 +219,14 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=default
 ```
 
 **Flow**:
+
 1. Check if Claude CLI is installed (offer to install if missing)
 2. Show pre-selected components (6 commands, 6 agents, global installation)
 3. Prompt for notification hooks installation
 4. Install everything and show summary
 
 **Output**:
+
 ```
 📦 Default Installation Mode
    Installing recommended setup with pre-selected components
@@ -248,6 +254,7 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=custom
 ```
 
 **Flow**:
+
 1. Check if Claude CLI is installed (offer to install if missing)
 2. Ask for installation type (global or local)
 3. For local installations: Confirm you're at project root (exits if not)

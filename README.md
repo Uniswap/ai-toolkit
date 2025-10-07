@@ -55,7 +55,7 @@ bun install # or npm install if you're not using bun
 bun run start
 ```
 
-and you should see the CLI options below
+and you should see the CLI options below:
 
 ![ai toolkit's CLI](ai-toolkit-nx-claude.png)
 
