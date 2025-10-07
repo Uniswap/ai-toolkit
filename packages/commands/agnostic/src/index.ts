@@ -5,6 +5,7 @@
 type CommandName =
   | 'address-pr-issues'
   | 'auto-spec'
+  | 'claude-docs'
   | 'create-pr'
   | 'deploy'
   | 'execute-plan'
@@ -40,6 +41,11 @@ export const commands: Commands = {
       'Autonomously create and implement a complete spec workflow with multi-agent collaboration, bypassing manual review steps through intelligent consensus-building',
     filePath: './auto-spec.md',
   },
+  'claude-docs': {
+    description:
+      'Initialize or update CLAUDE.md documentation files based on context and changes',
+    filePath: './claude-docs.md',
+  },
   'create-pr': {
     description:
       'Create or update a Graphite PR with auto-generated conventional commit messages and comprehensive descriptions based on code diffs.',
@@ -52,7 +58,7 @@ export const commands: Commands = {
   },
   'execute-plan': {
     description:
-      'Execute implementation plans using intelligent agent coordination, parallel execution, and quality gates.',
+      'Execute implementation plans step-by-step',
     filePath: './execute-plan.md',
   },
   'explain-file': {
