@@ -26,7 +26,6 @@ Before working with this repository, ensure you have the following tools install
 ### Local Installation
 
 ```bash
-
 # Clone the repository
 git clone https://github.com/Uniswap/ai-toolkit
 cd ai-toolkit
