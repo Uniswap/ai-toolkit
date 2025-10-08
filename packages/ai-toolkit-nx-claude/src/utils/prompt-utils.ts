@@ -137,9 +137,11 @@ export async function promptForMissingOptions<T extends Record<string, any>>(
 
     // Check for conditional prompting (prompt-when)
     if (property['prompt-when']) {
-      // Simple evaluation of condition (only supports === for now)
-      const [field, operator, value] = property['prompt-when'].split(' ');
-      if (operator === '===' && result[field] !== value.replace(/['"]/g, '')) {
+      const shouldShow = evaluatePromptCondition(
+        property['prompt-when'],
+        result
+      );
+      if (!shouldShow) {
         continue;
       }
     }
@@ -446,5 +448,72 @@ function getPromptMessage(key: string, property: SchemaProperty): string {
       return 'Overwrite existing installation?';
     default:
       return description || `Enter value for ${key}:`;
+  }
+}
+
+/**
+ * Evaluates a prompt-when condition string
+ * Supports simple conditions like "field === 'value'" and compound conditions with &&
+ *
+ * Examples:
+ * - "installMode === 'custom'"
+ * - "installCommands === true"
+ * - "installMode === 'custom' && installationType === 'local'"
+ */
+function evaluatePromptCondition(condition: string, context: any): boolean {
+  // Handle compound conditions with &&
+  if (condition.includes(' && ')) {
+    const parts = condition.split(' && ');
+    return parts.every((part) => evaluateSingleCondition(part.trim(), context));
+  }
+
+  // Handle compound conditions with ||
+  if (condition.includes(' || ')) {
+    const parts = condition.split(' || ');
+    return parts.some((part) => evaluateSingleCondition(part.trim(), context));
+  }
+
+  // Single condition
+  return evaluateSingleCondition(condition, context);
+}
+
+/**
+ * Evaluates a single condition like "field === 'value'"
+ */
+function evaluateSingleCondition(condition: string, context: any): boolean {
+  const parts = condition.split(' ');
+  if (parts.length < 3) {
+    return false;
+  }
+
+  const field = parts[0];
+  const operator = parts[1];
+  const value = parts.slice(2).join(' ').replace(/['"]/g, '');
+
+  const fieldValue = context[field];
+
+  switch (operator) {
+    case '===':
+      // Handle boolean values
+      if (value === 'true') {
+        return fieldValue === true;
+      }
+      if (value === 'false') {
+        return fieldValue === false;
+      }
+      // Handle string comparison
+      return String(fieldValue) === value;
+
+    case '!==':
+      if (value === 'true') {
+        return fieldValue !== true;
+      }
+      if (value === 'false') {
+        return fieldValue !== false;
+      }
+      return String(fieldValue) !== value;
+
+    default:
+      return false;
   }
 }

@@ -4,10 +4,17 @@
   "title": "Initialize Claude Code configuration",
   "type": "object",
   "properties": {
+    "installMode": {
+      "type": "string",
+      "description": "Installation mode (default=recommended, custom=choose components)",
+      "enum": ["default", "custom"],
+      "x-skip-prompt": true
+    },
     "installationType": {
       "type": "string",
       "description": "Installation type (global or local)",
       "enum": ["global", "local"],
+      "prompt-when": "installMode === 'custom'",
       "x-prompt": {
         "message": "📍 Installation Location Options:\n  • Global: Available to Claude Code in ALL projects on this machine\n  • Local: Available only when Claude Code is run from this specific project\n\nWould you like to install agents and commands globally or locally?",
         "type": "list",
@@ -25,26 +32,67 @@
     },
     "confirmLocalPath": {
       "type": "boolean",
-      "description": "Confirm local installation path"
+      "description": "Confirm local installation path",
+      "prompt-when": "installMode === 'custom' && installationType === 'local'"
+    },
+    "installCommands": {
+      "type": "boolean",
+      "description": "Whether to install commands",
+      "default": true,
+      "prompt-when": "installMode === 'custom'",
+      "prompt-message": "📝 Install slash commands?",
+      "prompt-type": "confirm"
+    },
+    "installAgents": {
+      "type": "boolean",
+      "description": "Whether to install agents",
+      "default": true,
+      "prompt-when": "installMode === 'custom'",
+      "prompt-message": "🤖 Install AI agents?",
+      "prompt-type": "confirm"
     },
     "commands": {
       "type": "array",
       "description": "Specific commands to install",
       "items": {
         "type": "string"
-      }
+      },
+      "prompt-when": "installMode === 'custom' && installCommands === true"
     },
     "agents": {
       "type": "array",
       "description": "Specific agents to install",
       "items": {
         "type": "string"
-      }
+      },
+      "prompt-when": "installMode === 'custom' && installAgents === true"
+    },
+    "installHooks": {
+      "type": "boolean",
+      "description": "Install notification hooks (plays sound when Claude needs input)",
+      "default": true,
+      "always-prompt": true,
+      "prompt-message": "🔔 Install notification hooks? (recommended - plays sound when Claude needs input)",
+      "prompt-type": "confirm"
+    },
+    "hooksMode": {
+      "type": "string",
+      "description": "Notification mode for hooks",
+      "enum": ["sound", "speech", "both"],
+      "default": "sound",
+      "x-skip-prompt": true
+    },
+    "installAddons": {
+      "type": "boolean",
+      "description": "Install addons like spec-mcp-workflow",
+      "default": false,
+      "x-skip-prompt": true
     },
     "dry": {
       "type": "boolean",
       "description": "Preview installation without making changes",
       "default": false,
+      "prompt-when": "installMode === 'custom'",
       "always-prompt": true,
       "prompt-message": "👁️ Run in dry-run mode (preview only)?",
       "prompt-type": "confirm"
@@ -58,24 +106,6 @@
       "type": "boolean",
       "description": "Overwrite existing files",
       "default": false
-    },
-    "setupRegistryProxy": {
-      "type": "boolean",
-      "description": "Setup registry proxy for npm commands",
-      "default": false,
-      "x-prompt": {
-        "message": "🔧 Would you like to set up a registry proxy to automatically route @uniswap packages to GitHub registry?\nThis makes it easier to use AI Toolkit packages without specifying --registry flags.",
-        "type": "confirm"
-      }
-    },
-    "setupGithubPackagesAuth": {
-      "type": "boolean",
-      "description": "Setup GitHub Package Registry authentication",
-      "default": false,
-      "x-prompt": {
-        "message": "🔐 Would you like to automatically set up GitHub Package Registry authentication?\nThis will configure NODE_AUTH_TOKEN in your shell and update ~/.npmrc to use GitHub Packages.",
-        "type": "confirm"
-      }
     }
   },
   "required": []

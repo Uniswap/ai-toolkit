@@ -12,11 +12,35 @@ import {
   isNxNoInteractiveProvided,
   isNxDryRunProvided,
 } from '../hooks/cli-parser';
-import setupRegistryProxyGenerator from '../setup-registry-proxy/generator';
+import {
+  detectShell,
+  getCurrentToolkitVersion,
+  installUpdateChecker,
+} from '../../utils/auto-update-utils';
 
 // Import available commands and agents from content packages
 import { commands as agnosticCommands } from '@ai-toolkit/commands-agnostic';
 import { agents as agnosticAgents } from '@ai-toolkit/agents-agnostic';
+import { addonsGenerator, hooksGenerator } from '../../index';
+
+// Recommended default commands for most users
+const DEFAULT_COMMANDS = [
+  'explore',
+  'plan',
+  'review-plan',
+  'execute-plan',
+  'address-pr-issues',
+];
+
+// Recommended default agents for most users
+const DEFAULT_AGENTS = [
+  'context-loader',
+  'planner',
+  'plan-reviewer',
+  'test-writer',
+  'doc-writer',
+  'pr-reviewer',
+];
 
 interface Manifest {
   version: string;
@@ -83,6 +107,30 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
       '  2. npm install -g @anthropic-ai/claude-code (if curl fails)'
     );
     logger.info('  3. Manual instructions (if both fail)');
+  }
+
+  // Determine install mode (default or custom)
+  const installMode = options.installMode || 'custom';
+
+  // Apply defaults for "default" mode
+  if (installMode === 'default') {
+    logger.info('📦 Default Installation Mode');
+    logger.info(
+      '   Installing recommended setup with pre-selected components\n'
+    );
+
+    options.installationType = 'global';
+    options.commands = DEFAULT_COMMANDS;
+    options.agents = DEFAULT_AGENTS;
+    options.installCommands = true;
+    options.installAgents = true;
+    // installHooks will still be prompted
+    options.installAddons = false;
+    options.dry = false; // Default mode never runs in dry-run
+
+    logger.info('📍 Location: Global (~/.claude)');
+    logger.info(`📝 Commands: ${DEFAULT_COMMANDS.length} pre-selected`);
+    logger.info(`🤖 Agents: ${DEFAULT_AGENTS.length} pre-selected\n`);
   }
 
   // Handle interactive mode with schema-driven prompts
@@ -167,6 +215,14 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   // Handle dry-run mode
   if (isDryRun) {
     logger.info('🔍 DRY RUN MODE - No files will be modified');
+  }
+
+  // Skip command/agent arrays if install flags are false
+  if (normalizedOptions.installCommands === false) {
+    normalizedOptions.commands = [];
+  }
+  if (normalizedOptions.installAgents === false) {
+    normalizedOptions.agents = [];
   }
 
   // Determine target directory based on installation type
@@ -403,36 +459,15 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
       logger.info(`  - ${file}`);
     });
 
-    // Show registry proxy setup plan if selected
-    if (normalizedOptions.setupRegistryProxy) {
-      logger.info('\n🔧 Would also set up registry proxy:');
-      logger.info('  - Auto-detect your shell (bash, zsh, or fish)');
-      logger.info(
-        '  - Create proxy functions for npm/npx/yarn/bun/pnpm commands'
-      );
-      logger.info(
-        '  - Update shell configuration to route @uniswap packages to GitHub registry'
-      );
-      logger.info('  - Backup existing shell configuration before changes');
-    }
-
-    // Show GitHub Packages auth setup plan if selected
-    if (normalizedOptions.setupGithubPackagesAuth) {
-      logger.info(
-        '\n🔐 Would also set up GitHub Package Registry authentication:'
-      );
-      logger.info('  - Check if gh CLI is installed (install if missing)');
-      logger.info('  - Verify GitHub authentication has read:packages scope');
-      logger.info('  - Get GitHub token via gh auth token');
-      logger.info('  - Detect your shell (bash, zsh, etc.)');
-      logger.info(
-        '  - Add NODE_AUTH_TOKEN export to your shell config (~/.zshrc or ~/.bashrc)'
-      );
-      logger.info(
-        '  - Configure ~/.npmrc to use ${NODE_AUTH_TOKEN} for GitHub Packages'
-      );
-      logger.info('  - This allows seamless installation of @uniswap packages');
-    }
+    // Show auto-update checker setup plan
+    logger.info('\n🔄 Would also set up auto-update checker:');
+    logger.info('  - Auto-detect your shell (bash, zsh, or fish)');
+    logger.info('  - Add update check script to your shell configuration');
+    logger.info('  - Checks once per week for new versions');
+    logger.info('  - Runs in background (non-blocking)');
+    logger.info(
+      '  - Can be disabled with: export AI_TOOLKIT_SKIP_UPDATE_CHECK=1'
+    );
 
     return;
   }
@@ -457,39 +492,118 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     logger.info(`📁 Location: ${targetDir}`);
     logger.info(`📝 Use these in Claude Code immediately`);
 
-    // Run setup-registry-proxy generator if user opted in
-    if (normalizedOptions.setupRegistryProxy) {
-      logger.info('\n🔧 Setting up registry proxy...');
+    // Install update checker
+    try {
+      logger.info('\n🔄 Installing auto-update checker...');
+      const shell = detectShell();
+      const version = getCurrentToolkitVersion();
+      installUpdateChecker(shell, version);
+    } catch (error) {
+      logger.warn(`⚠️  Failed to install update checker: ${error}`);
+      logger.info(
+        'This is a bug in ai-toolkit, please report it to the #pod-dev-ai Slack channel'
+      );
+    }
+
+    // Install hooks if requested
+    if (normalizedOptions.installHooks) {
       try {
-        await setupRegistryProxyGenerator(tree, {
-          shellConfig: undefined, // Will auto-detect
-          force: normalizedOptions.force,
-          backup: true, // Always backup when called from init
-          test: false, // Don't test during init flow
+        logger.info('\n🔔 Installing notification hooks...');
+        if (!hooksGenerator) {
+          throw new Error('hooksGenerator export not found');
+        }
+        await hooksGenerator(tree, {
+          force: normalizedOptions.force || false,
+          dry: false,
+          backup: true,
+          verbose: false,
         });
-        logger.info('✅ Registry proxy setup complete!');
-      } catch (error) {
-        logger.warn(`⚠️  Registry proxy setup failed: ${error}`);
-        logger.info('You can run it manually later with:');
-        logger.info(
-          'bun x nx generate @ai-toolkit/ai-toolkit-nx-claude:setup-registry-proxy'
-        );
+        logger.info('✅ Notification hooks installed successfully');
+      } catch (error: any) {
+        logger.error('❌ Failed to install notification hooks');
+        logger.error(error.message);
+        logger.info('   Continuing with installation...');
+        // Continue anyway - hooks are optional
       }
     }
 
-    // Run GitHub Packages auth setup if user opted in
-    if (normalizedOptions.setupGithubPackagesAuth) {
-      logger.info('\n🔐 Setting up GitHub Package Registry authentication...');
+    // Prompt for and install addons in custom mode, after hooks
+    let addonsInstalled = false;
+    let shouldInstallAddons = normalizedOptions.installAddons === true;
+    const installAddonsExplicit =
+      explicitlyProvided.has('installAddons') ||
+      explicitlyProvided.has('install-addons');
+
+    if (
+      normalizedOptions.installMode === 'custom' &&
+      !installAddonsExplicit &&
+      !nxNoInteractiveProvided &&
+      !normalizedOptions.nonInteractive
+    ) {
+      const { value } = await prompt<{ value: boolean }>({
+        type: 'confirm',
+        name: 'value',
+        message: '🔌 Install addons (spec-mcp-workflow)?',
+        initial: false,
+      });
+      shouldInstallAddons = value;
+    }
+
+    if (shouldInstallAddons) {
       try {
-        await runGithubPackagesAuthSetup();
-        logger.info(
-          '✅ GitHub Package Registry authentication setup complete!'
-        );
-      } catch (error) {
-        logger.warn(`⚠️  GitHub Packages auth setup failed: ${error}`);
-        logger.info('You can run the setup script manually later:');
-        logger.info(`${path.join(__dirname, 'setup-github-packages.sh')}`);
+        logger.info('\n🔌 Installing addons...');
+        if (!addonsGenerator) {
+          throw new Error('addonsGenerator export not found');
+        }
+        await addonsGenerator(tree, {
+          addon: 'spec-workflow-mcp',
+          force: normalizedOptions.force || false,
+        });
+        logger.info('✅ Addons installed successfully');
+        addonsInstalled = true;
+      } catch (error: any) {
+        logger.error('❌ Failed to install addons');
+        logger.error(error.message);
+        logger.info('   Continuing with installation...');
+        // Continue anyway - addons are optional
       }
+    }
+
+    // Final summary
+    logger.info('\n✨ Installation complete!');
+    if (installedCommands.length > 0) {
+      logger.info(`   Commands: ${installedCommands.join(', ')}`);
+    }
+    if (installedAgents.length > 0) {
+      logger.info(`   Agents: ${installedAgents.join(', ')}`);
+    }
+    if (normalizedOptions.installHooks) {
+      logger.info('   Hooks: ✅ Installed');
+    }
+    if (addonsInstalled) {
+      logger.info('   Addons: ✅ Installed');
+    }
+  } else {
+    // Dry-run mode - show what would be installed for hooks/addons
+    if (normalizedOptions.installHooks) {
+      logger.info(
+        '\n🔍 DRY RUN: Would install notification hooks (sound mode)'
+      );
+    }
+    // In custom mode, the addons prompt occurs after hooks
+    const installAddonsExplicit =
+      explicitlyProvided.has('installAddons') ||
+      explicitlyProvided.has('install-addons');
+    if (
+      normalizedOptions.installMode === 'custom' &&
+      !installAddonsExplicit &&
+      !normalizedOptions.nonInteractive
+    ) {
+      logger.info(
+        '\n🔍 DRY RUN: Would prompt to install spec-mcp-workflow addon after hooks'
+      );
+    } else if (normalizedOptions.installAddons) {
+      logger.info('\n🔍 DRY RUN: Would install spec-mcp-workflow addon');
     }
   }
 }
@@ -613,23 +727,15 @@ async function installViaNpm(): Promise<boolean> {
  */
 async function verifyInstallation(method: 'curl' | 'npm'): Promise<void> {
   try {
-    // First try claude doctor
-    execSync('claude doctor', { stdio: 'ignore' });
-    logger.info(
-      `✅ Claude CLI verified successfully (installed via ${method})`
-    );
+    // Check that the claude binary is available on PATH
+    execSync('which claude', { stdio: 'ignore' });
+    logger.info(`✅ Claude CLI found (installed via ${method})`);
+    logger.info('You can also run "claude --version" to verify');
   } catch {
-    // Fallback to basic which check
-    try {
-      execSync('which claude', { stdio: 'ignore' });
-      logger.info(`✅ Claude CLI found (installed via ${method})`);
-      logger.info('Run "claude doctor" to verify your setup');
-    } catch {
-      logger.warn('⚠️  Claude CLI installed but not found in PATH');
-      logger.info(
-        'You may need to restart your terminal or add Claude to your PATH'
-      );
-    }
+    logger.warn('⚠️  Claude CLI not found in PATH');
+    logger.info(
+      'You may need to restart your terminal or add Claude to your PATH'
+    );
   }
 }
 
@@ -647,39 +753,6 @@ function provideManualInstructions(): void {
   logger.info(
     '\nFor troubleshooting, run "claude doctor" after manual installation'
   );
-}
-
-/**
- * Runs the GitHub Packages authentication setup script
- */
-async function runGithubPackagesAuthSetup(): Promise<void> {
-  // Find the script path relative to the built output (same directory as generator.js)
-  const scriptPath = path.join(__dirname, 'setup-github-packages.sh');
-
-  // Check if script exists
-  if (!fs.existsSync(scriptPath)) {
-    throw new Error(`Setup script not found at: ${scriptPath}`);
-  }
-
-  // Make script executable
-  try {
-    execSync(`chmod +x "${scriptPath}"`, { stdio: 'ignore' });
-  } catch (error) {
-    logger.debug(`Failed to make script executable: ${error}`);
-  }
-
-  // Run the script
-  try {
-    execSync(`"${scriptPath}"`, {
-      stdio: 'inherit',
-      timeout: 300000, // 5 minute timeout
-    });
-  } catch (error: any) {
-    if (error.code === 127) {
-      throw new Error('Script execution failed - command not found');
-    }
-    throw error;
-  }
 }
 
 export default initGenerator;

@@ -9,6 +9,8 @@ type Agent =
   | 'agent-orchestrator'
   | 'cicd-agent'
   | 'claude-agent-discovery'
+  | 'claude-docs-initializer'
+  | 'claude-docs-manager'
   | 'code-explainer'
   | 'code-generator'
   | 'commit-message-generator'
@@ -23,6 +25,7 @@ type Agent =
   | 'plan-reviewer'
   | 'planner'
   | 'pr-creator'
+  | 'pr-reviewer'
   | 'prompt-engineer'
   | 'refactorer'
   | 'researcher'
@@ -64,6 +67,16 @@ export const agents: Agents = {
     description:
       'Specialized agent for discovering and cataloging all available agents and commands from Claude Code directories, including local project and global user configurations',
     filePath: './claude-agent-discovery.md',
+  },
+  'claude-docs-initializer': {
+    description:
+      'Discover repository structure and create initial CLAUDE.md documentation at all appropriate levels',
+    filePath: './claude-docs-initializer.md',
+  },
+  'claude-docs-manager': {
+    description:
+      'Analyze code changes and update all affected CLAUDE.md documentation files',
+    filePath: './claude-docs-manager.md',
   },
   'code-explainer': {
     description:
@@ -127,13 +140,18 @@ export const agents: Agents = {
   },
   planner: {
     description:
-      'Create detailed implementation plans without writing code',
+      'Create clear, actionable implementation plans without writing code',
     filePath: './planner.md',
   },
   'pr-creator': {
     description:
       'Creates or updates Graphite PRs with auto-generated conventional commit messages and comprehensive PR descriptions based on diffs',
     filePath: './pr-creator.md',
+  },
+  'pr-reviewer': {
+    description:
+      'Reviews PRs, addresses comments with plans or code changes, and fixes CI pipeline issues',
+    filePath: './pr-reviewer.md',
   },
   'prompt-engineer': {
     description:

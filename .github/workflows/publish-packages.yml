@@ -18,31 +18,43 @@ on:
 
 jobs:
   publish:
-    runs-on: ubuntu-24.04
+    runs-on:
+      group: npm-deploy
     permissions:
+      id-token: write
       contents: write
       packages: write
       pull-requests: write
       issues: write
+    # Skip the workflow if the commit was made by the service account to prevent loops
+    if: github.actor != 'hello-happy-puppy'
 
     steps:
+      - name: Load Secrets
+        uses: 1password/load-secrets-action@581a835fb51b8e7ec56b71cf2ffddd7e68bb25e0
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          NPM_TOKEN: op://npm-deploy/npm-runner-token/secret
+
       - name: Checkout repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.WORKFLOW_PAT }}
 
       - name: Setup Node.js
         uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b
         with:
           node-version: '22.13.1'
-          registry-url: 'https://npm.pkg.github.com'
-          scope: '@ai-toolkit'
+          registry-url: 'https://registry.npmjs.org'
+          scope: '@uniswap'
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76
         with:
-          bun-version: latest
+          bun-version: 1.2.21
 
       - name: Install dependencies
         run: bun install
@@ -77,10 +89,10 @@ jobs:
             echo "Using standard versioning for main branch"
             bunx nx release version --specifier=patch --dry-run
           fi
-          npx nx release publish --dry-run --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://npm.pkg.github.com
+          npx nx release publish --dry-run --tag=${{ steps.npm-tag.outputs.tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
       - name: Version affected packages
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
@@ -97,15 +109,65 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish affected packages
+      - name: Verify NPM authentication and organization
+        if: github.event.inputs.dryRun == 'true' || github.event_name == 'push'
+        run: |
+          echo "Verifying NPM authentication..."
+          npm whoami --registry=https://registry.npmjs.org
+
+          echo "Checking organization membership..."
+          # Check if we can access the @uniswap organization
+          npm org ls @uniswap --registry=https://registry.npmjs.org || echo "Note: Organization check may fail for new orgs"
+        env:
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
+
+      - name: Publish affected packages to NPM
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
         run: |
-          echo "Publishing affected packages with tag: ${{ steps.npm-tag.outputs.tag }}"
-          # Use npm for publishing to ensure compatibility with GitHub Packages
-          npx nx release publish --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://npm.pkg.github.com
+          echo "Publishing affected packages with tag: ${{ steps.npm-tag.outputs.tag }} to NPM"
+
+          # Check if any packages have been released before by looking for Git tags
+          # If no tags exist for any package, we need to use the --first-release flag
+
+          # Get all packages from nx.json
+          PACKAGES=$(jq -r '.release.projects[]' nx.json)
+
+          # Set a boolean flag to track if this is a first release
+          IS_FIRST_RELEASE=true
+
+          # Check if any Git tags exist for the packages
+          while IFS= read -r package; do
+            if [ -n "$package" ]; then
+              # Extract the package name without scope for tag checking
+              PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
+
+              echo "Checking for Git tags for package: $package"
+
+              # Check if any tags exist for this package
+              # Nx typically creates tags in the format: package-name@version
+              if git tag -l | grep -q "^${PACKAGE_NAME}@" || git tag -l | grep -q "^${package}@"; then
+                echo "✓ Found existing tags for $package"
+                IS_FIRST_RELEASE=false
+                break
+              else
+                echo "✗ No tags found for $package"
+              fi
+            fi
+          done <<< "$PACKAGES"
+
+          # Now publish the packages
+          # Use npx (not bunx) for nx release publish to avoid potential bun publish issues
+          # Nx will handle the actual npm/yarn/pnpm publish command internally
+
+          if [ "$IS_FIRST_RELEASE" = true ]; then
+            echo "No tags found for any packages - publishing with --first-release flag"
+            npx nx release publish --first-release --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org
+          else
+            echo "Found existing tags - publishing without --first-release flag"
+            npx nx release publish --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org
+          fi
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
       - name: Push version commits and tags
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
@@ -113,7 +175,7 @@ jobs:
           # Push commits and tags created by Nx
           git push origin ${{ github.ref_name }} --follow-tags
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
 
       - name: Create GitHub releases
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
@@ -121,7 +183,7 @@ jobs:
           # Nx Release will create GitHub releases based on changelog configuration
           echo "GitHub releases will be created by Nx Release based on the changelog configuration"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
 
   sync-next:
     name: Sync next branch with main
@@ -137,7 +199,7 @@ jobs:
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.WORKFLOW_PAT }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76
@@ -159,7 +221,7 @@ jobs:
 
       - name: Sync next branch with main
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
         run: |
           echo "Starting sync of next branch with main..."
 

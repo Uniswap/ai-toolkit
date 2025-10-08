@@ -11,7 +11,7 @@ export async function handleNxExecution(generatorName: string, args: string[]) {
   // Show help message if requested
   if (args.includes('--help') || args.includes('-h')) {
     console.log(
-      `Usage: npx --@uniswap:registry=https://npm.pkg.github.com @uniswap/ai-toolkit-nx-claude@latest ${generatorName}`
+      `Usage: npx @uniswap/ai-toolkit-nx-claude@latest ${generatorName}`
     );
     console.log(
       `\nThis command runs the nx-claude ${generatorName} generator.`
@@ -60,18 +60,10 @@ function handleExecutionError(error: any, generatorName: string) {
     );
     console.error('You do not have permission to access this package.');
     console.error(
-      '\nThis package is restricted to members of the Uniswap GitHub organization.'
+      '\nThis package requires a read-only npm token to access the private npmjs registry.'
     );
     console.error('\nTo gain access:');
-    console.error(
-      '1. Verify you are a member of the Uniswap organization on GitHub'
-    );
-    console.error(
-      '2. Check that your npm token has the required "read:packages" scope'
-    );
-    console.error(
-      '\nFor more information, see: https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry#authenticating-to-github-packages'
-    );
+    console.error('1. See the top-level README for setup instructions.');
     console.error(
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
     );
@@ -86,11 +78,7 @@ function handleExecutionError(error: any, generatorName: string) {
     console.error('\nThis may be because:');
     console.error('1. The package has not been published yet');
     console.error(
-      '2. You are not authenticated properly (check your GitHub PAT)'
-    );
-    console.error('\nTry running:');
-    console.error(
-      '  echo "//npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN" >> ~/.npmrc'
+      '2. You are not authenticated properly (check the top-level README for NPM authenticationsetup instructions)'
     );
     console.error(
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
@@ -149,7 +137,6 @@ async function runGeneratorDirectly(generatorName: string, args: string[]) {
     const generatorFunctionMap: Record<string, string> = {
       init: 'initGenerator',
       hooks: 'hooksGenerator',
-      'setup-registry-proxy': 'setupRegistryProxyGenerator',
       addons: 'addonsGenerator',
       'add-command': 'addCommandGenerator',
       'add-agent': 'addAgentGenerator',

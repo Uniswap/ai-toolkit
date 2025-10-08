@@ -3,7 +3,9 @@
 // To regenerate, run: bunx nx run @ai-toolkit/commands-agnostic:generate-index
 
 type CommandName =
+  | 'address-pr-issues'
   | 'auto-spec'
+  | 'claude-docs'
   | 'create-pr'
   | 'deploy'
   | 'execute-plan'
@@ -29,10 +31,20 @@ export type Commands = {
 };
 
 export const commands: Commands = {
+  'address-pr-issues': {
+    description:
+      'Reviews a GitHub PR, addresses comments, and fixes CI issues',
+    filePath: './address-pr-issues.md',
+  },
   'auto-spec': {
     description:
       'Autonomously create and implement a complete spec workflow with multi-agent collaboration, bypassing manual review steps through intelligent consensus-building',
     filePath: './auto-spec.md',
+  },
+  'claude-docs': {
+    description:
+      'Initialize or update CLAUDE.md documentation files based on context and changes',
+    filePath: './claude-docs.md',
   },
   'create-pr': {
     description:
@@ -46,7 +58,7 @@ export const commands: Commands = {
   },
   'execute-plan': {
     description:
-      'Execute implementation plans using intelligent agent coordination, parallel execution, and quality gates.',
+      'Execute implementation plans step-by-step',
     filePath: './execute-plan.md',
   },
   'explain-file': {
@@ -86,7 +98,7 @@ export const commands: Commands = {
   },
   plan: {
     description:
-      'Create a comprehensive implementation plan with hierarchical task decomposition, agent orchestration, and risk assessment for any task, feature, refactor, or architectural change',
+      'Create clear, actionable implementation plans for any task, feature, refactor, or architectural change',
     filePath: './plan.md',
   },
   refactor: {

@@ -32,7 +32,7 @@ This workflow ensures the reviewer has the same context as the planner for accur
 Accept plan file path and optional focus area, then extract:
 
 - `plan_file_path`: The absolute path to the markdown plan file to review (required)
-- `review_focus`: Any specific focus area mentioned (optional, e.g., "security", "performance", "testing")
+- `review_focus`: Any specific focus area mentioned (optional, e.g., "security", "performance")
 - `context_findings`: Automatically include context-loader findings from `/explore` if available
 
 Examples:
@@ -40,18 +40,18 @@ Examples:
 - `/review-plan /tmp/plans/plan-20250821-a4b3c2.md`
 - `/review-plan /tmp/plans/plan-20250821-a4b3c2.md --focus security`
 - `/review-plan /tmp/plans/plan-20250821-a4b3c2.md --focus performance`
-- `/review-plan /tmp/plans/plan-20250821-a4b3c2.md --focus testing`
 
 ## Task
 
-Generate a comprehensive plan review that:
+Generate a focused plan review that:
 
 1. Leverages any context-loader findings if available
-2. Analyzes the plan for completeness and feasibility
+2. Analyzes the plan for completeness, conciseness, and feasibility
 3. Validates scope adherence (no extras beyond requirements)
-4. Identifies potential implementation risks
+4. Identifies critical implementation risks
 5. Assesses alignment with existing codebase patterns
-6. Provides actionable feedback for plan improvement
+6. Validates plan is appropriately concise (not over-documented)
+7. Provides actionable feedback for plan improvement
 
 ## Context Integration
 
@@ -61,7 +61,6 @@ Generate a comprehensive plan review that:
 - Existing patterns and conventions
 - Dependencies and integration points
 - Known gotchas and edge cases
-- Testing approaches in use
 
 ## Delegation
 
@@ -74,7 +73,6 @@ Invoke **plan-reviewer** with:
   - `patterns`: Conventions to follow
   - `dependencies`: External integrations
   - `gotchas`: Known issues/edge cases
-  - `testing_approach`: Current testing patterns
 
 ## Output
 
@@ -82,10 +80,10 @@ Return the structured review from plan-reviewer:
 
 - `summary`: Executive summary of plan quality and main assessment
 - `strengths`: What the plan does well
-- `concerns`: Specific issues with severity levels and suggestions
-- `gaps`: Missing elements with rationale and suggestions
+- `concerns`: Specific issues with severity levels and suggestions (will NOT flag missing testing plans, success criteria, or agent assignments)
+- `gaps`: Missing critical implementation elements with rationale and suggestions (will NOT flag intentionally omitted sections)
 - `improvements`: Areas for enhancement with specific recommendations
-- `feasibility-assessment`: Complexity, risks, and timeline estimate
+- `feasibility-assessment`: Complexity, critical risks, and timeline estimate
 - `alignment-check`: How well plan follows existing patterns
 - `scope-validation`: Whether plan adheres to exact requirements
 
@@ -107,4 +105,5 @@ Return the structured review from plan-reviewer:
 
 - `security`: Emphasize security considerations and potential vulnerabilities
 - `performance`: Focus on performance implications and optimizations
-- `testing`: Concentrate on test coverage and testing strategy completeness
+
+**Note on Testing**: Plans no longer include testing strategies by default. The reviewer will not flag missing testing plans as problems unless explicitly requested.
