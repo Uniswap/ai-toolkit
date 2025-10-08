@@ -77,7 +77,7 @@ Once installed, you'll have access to powerful Claude Code agents and commands t
 
 We welcome contributions from all developers! This project uses a **trunk-based development workflow** with automated publishing. Please read our [Contributing Guide](./docs/readmes/CONTRIBUTING.md) for detailed information about:
 
-- **Branch strategy** (`main` for stable, `next` for active development
+- **Branch strategy** (`main` for stable, `next` for active development)
 - **Development workflow** and best practices
 - **Code quality standards** and testing requirements
 - **Automated publishing** to private `@uniswap/ai-toolkit-nx-claude` NPM registry
