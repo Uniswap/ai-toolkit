@@ -26,8 +26,9 @@ jobs:
       packages: write
       pull-requests: write
       issues: write
-    # Skip the workflow if the commit was made by the service account to prevent loops
-    if: github.actor != 'hello-happy-puppy'
+    # Skip the workflow if the commit is a version bump (to prevent loops)
+    # Allow workflow to run for merge commits from update-production workflow
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
 
     steps:
       - name: Load Secrets
