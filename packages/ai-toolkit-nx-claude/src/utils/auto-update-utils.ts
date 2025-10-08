@@ -14,9 +14,26 @@ export interface ShellConfig {
  * Gets the current version of the toolkit from package.json
  */
 export function getCurrentToolkitVersion(): string {
-  const packageJsonPath = path.join(__dirname, '..', '..', 'package.json');
-  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
-  return packageJson.version;
+  try {
+    const packageJsonPath = path.join(__dirname, '..', '..', 'package.json');
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+    return packageJson.version;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (error) {
+    logger.info('checking parent directory for package.json');
+    // TODO(melvillian): this can happen when we're running via npx and the
+    // package.json is located in the parent directory. Go back and make this
+    // more robust after we do the demo
+    const packageJsonPath = path.join(
+      __dirname,
+      '..',
+      '..',
+      '..',
+      'package.json'
+    );
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+    return packageJson.version;
+  }
 }
 
 /**
@@ -81,7 +98,7 @@ _ai_toolkit_check_updates() {
 
     if [ -n "$latest" ] && [ -n "$current" ] && [ "$current" != "$latest" ]; then
       echo "📦 AI Toolkit update available: $current → $latest"
-      echo "   Run: npx @uniswap/ai-toolkit-nx-claude@latest init"
+      echo "   Run: npx @uniswap/ai-toolkit-nx-claude@latest"
       echo "   Disable these checks: export AI_TOOLKIT_SKIP_UPDATE_CHECK=1"
     fi
   fi
@@ -138,7 +155,7 @@ function _ai_toolkit_check_updates
 
     if test -n "$latest" -a -n "$current" -a "$current" != "$latest"
       echo "📦 AI Toolkit update available: $current → $latest"
-      echo "   Run: npx @uniswap/ai-toolkit-nx-claude@latest init"
+      echo "   Run: npx @uniswap/ai-toolkit-nx-claude@latest"
       echo "   Disable these checks: set -x AI_TOOLKIT_SKIP_UPDATE_CHECK 1"
     end
   end
