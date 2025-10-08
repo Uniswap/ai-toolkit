@@ -12,15 +12,6 @@ name: Update Production
 
 on:
   workflow_dispatch:
-    inputs:
-      skipChecks:
-        description: 'Skip status checks before merging (use with caution)'
-        required: false
-        default: 'false'
-        type: choice
-        options:
-          - 'true'
-          - 'false'
 
 jobs:
   create-and-merge-pr:
@@ -219,52 +210,15 @@ jobs:
             fi
           done
 
-      - name: Wait for checks (optional)
-        if: steps.create-pr.outputs.pr_created == 'true' && github.event.inputs.skipChecks == 'false'
-        env:
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
-        run: |
-          PR_NUMBER=${{ steps.create-pr.outputs.pr_number }}
-
-          echo "Waiting for PR checks to complete..."
-
-          # Wait up to 30 minutes for checks to pass
-          TIMEOUT=1800
-          ELAPSED=0
-          INTERVAL=30
-
-          while [ $ELAPSED -lt $TIMEOUT ]; do
-            # Check PR status
-            PR_STATUS=$(gh pr view $PR_NUMBER --json mergeable,mergeStateStatus --jq '.mergeStateStatus')
-
-            echo "Current merge status: $PR_STATUS"
-
-            if [ "$PR_STATUS" = "CLEAN" ] || [ "$PR_STATUS" = "HAS_HOOKS" ]; then
-              echo "✅ PR is ready to merge!"
-              exit 0
-            elif [ "$PR_STATUS" = "BLOCKED" ]; then
-              echo "⏳ Waiting for checks to pass..."
-            elif [ "$PR_STATUS" = "DIRTY" ] || [ "$PR_STATUS" = "UNKNOWN" ]; then
-              echo "⚠️  PR has conflicts or unknown status. Manual intervention may be required."
-              exit 1
-            fi
-
-            sleep $INTERVAL
-            ELAPSED=$((ELAPSED + INTERVAL))
-          done
-
-          echo "❌ Timeout waiting for checks to pass"
-          exit 1
-
-      - name: Force merge if requested
-        if: steps.create-pr.outputs.pr_created == 'true' && github.event.inputs.skipChecks == 'true'
+      - name: Force merge
+        if: steps.create-pr.outputs.pr_created == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
         run: |
           PR_NUMBER=${{ steps.create-pr.outputs.pr_number }}
           TEMP_BRANCH="${{ steps.create-pr.outputs.temp_branch }}"
 
-          echo "⚠️  Force merging PR #$PR_NUMBER (skipping checks)"
+          echo "Force merging PR #$PR_NUMBER (skipping checks)"
 
           # Force merge the PR (with automatic branch deletion)
           gh pr merge $PR_NUMBER \
@@ -301,7 +255,6 @@ jobs:
             echo "- **PR Number**: #${{ steps.create-pr.outputs.pr_number }}" >> $GITHUB_STEP_SUMMARY
             echo "- **PR URL**: ${{ steps.create-pr.outputs.pr_url }}" >> $GITHUB_STEP_SUMMARY
             echo "- **Temporary Branch**: ${{ steps.create-pr.outputs.temp_branch }}" >> $GITHUB_STEP_SUMMARY
-            echo "- **Skip Checks**: ${{ github.event.inputs.skipChecks }}" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "The \`next\` branch has been promoted to \`main\` for production deployment." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
