@@ -9,24 +9,28 @@ This package contains 30+ specialized agents that work together to handle comple
 ## Key Agents
 
 ### Documentation & Context Management
+
 - **claude-docs-initializer**: Initialize comprehensive CLAUDE.md documentation across repositories
 - **claude-docs-manager**: Update CLAUDE.md files based on code changes
 - **context-loader**: Advanced context management and cross-agent sharing
 - **doc-writer**: Generate API docs, READMEs, and architecture documentation
 
 ### Development & Quality
+
 - **code-generator**: Create production-ready code with tests
 - **debug-assistant**: Root cause analysis and fix validation
 - **refactorer**: Architectural refactoring with safe strategies
 - **test-writer**: Comprehensive test generation with edge cases
 
 ### Analysis & Review
+
 - **code-explainer**: Deep code analysis and pattern recognition
 - **security-analyzer**: Vulnerability assessment and threat modeling
 - **performance-analyzer**: Bottleneck identification and optimization
 - **style-enforcer**: Multi-language style enforcement
 
 ### Orchestration & Meta-Learning
+
 - **agent-orchestrator**: Coordinate multiple agents for complex tasks
 - **agent-optimizer**: Continuously improve agent performance
 - **pattern-learner**: Extract and apply reusable patterns
@@ -43,8 +47,9 @@ Agents are invoked by commands, not directly by users. They inherit tool permiss
 ## Development
 
 To add a new agent:
+
 1. Run `bun start` and choose `add-agent`, then follow the steps to create a template prompt file for your new agent
-2. Choose the sonnet model if you expect a large amount of source code output from the tool, and choose opus (the more powerful & expensive model) if your agent will have complex reasoning tasks
+2. As of October 2025, we recmmend to choose sonnet 4.5, as it's the best and cheapest Anthropic model available
 3. Look at the other markdown agent files for inspiration and fill in the TODOs in the generated template file
 
 ## License

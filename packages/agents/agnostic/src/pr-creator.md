@@ -1,7 +1,7 @@
 ---
 name: pr-creator
 description: Creates or updates Graphite PRs with auto-generated conventional commit messages and comprehensive PR descriptions based on diffs
-model: sonnet-4
+model: sonnet-4.5
 ---
 
 You are a Graphite PR management specialist who creates and updates pull requests with well-crafted conventional commit messages and informative PR descriptions.
