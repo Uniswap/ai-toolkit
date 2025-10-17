@@ -41,25 +41,34 @@ export async function installMcpServer(options: MCPInstallOptions): Promise<{
   // Build the Claude MCP add command
   // The server name should come from the addon ID or a specific field
   const serverName = addon.mcp?.serverName || addon.id;
-  let command = `claude mcp add ${serverName} --scope user --`;
+  let command = `claude mcp add ${serverName} --scope user`;
+
+  // Add environment variables if specified
+  if (addon.mcp?.env && Object.keys(addon.mcp.env).length > 0) {
+    for (const [key, value] of Object.entries(addon.mcp.env)) {
+      command += ` --env ${key}=${value}`;
+    }
+  }
+
+  // Add the -- separator before the command
+  command += ' --';
 
   // Add the MCP server command and args
   if (addon.mcp?.command) {
     command += ` ${addon.mcp.command}`;
 
-    // Add universal args based on command type
-    if (addon.mcp.command === 'npx') {
-      command += ' -y';
+    // Add all args from the addon configuration
+    if (addon.mcp.args && addon.mcp.args.length > 0) {
+      command += ` ${addon.mcp.args.join(' ')}`;
+    } else {
+      // Fallback: if no args provided, use package name with @latest
+      command += ` ${addon.packageName}@latest`;
     }
 
-    // Add registry for private packages
+    // Add registry for private packages (if specified separately)
     if (addon.registry) {
       command += ` ${addon.registry}`;
     }
-
-    // Add package name and version
-    const packageSpec = addon.mcp.args?.[0] || `${addon.packageName}@latest`;
-    command += ` ${packageSpec}`;
   }
 
   // Append any additional server-specific arguments

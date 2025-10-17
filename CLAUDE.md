@@ -9,6 +9,54 @@
 - Use Nx generators, executors, and workspace features wherever possible
 - Leverage Nx's dependency graph and caching capabilities
 
+#### Nx Generator Schema Configuration - Critical Rules
+
+When creating Nx generators with conditional prompting (showing/hiding prompts based on other values), follow these rules:
+
+**CRITICAL: Avoid `x-prompt` for conditional fields**
+
+The `x-prompt` property can interfere with conditional prompting logic. For fields that should only appear conditionally:
+
+1. ❌ **DO NOT** use `x-prompt` (even nested as `x-prompt.when`) IF the variable is not ALWAYS something we want to know from the User (i.e. it's NOT CONDITIONAL)
+2. ❌ **DO NOT** include a `default` value if the field should be optional
+3. ✅ **DO** use only `prompt-when` at the property level
+4. ✅ **DO** rely on the prompt-utils to generate prompts from property metadata
+
+**Example - Conditional Prompt Implementation:**
+
+```json
+{
+  "properties": {
+    "installMode": {
+      "type": "string",
+      "enum": ["all", "specific"],
+      "default": "all",
+      "x-prompt": {
+        "message": "What would you like to install?",
+        "type": "list",
+        "items": [...]
+      }
+    },
+    "addon": {
+      "type": "string",
+      "enum": ["option1", "option2", "option3"],
+      // ❌ NO x-prompt here - it would always trigger
+      // ❌ NO default value - would prevent prompt from showing when needed
+      "prompt-when": "installMode === 'specific'"  // ✅ ONLY this
+    }
+  }
+}
+```
+
+**Why this matters:**
+
+- `x-prompt` presence can cause prompts to appear regardless of conditions
+- `default` values can interfere with the `shouldPrompt` logic in prompt-utils
+- The prompt-utils checks for `prompt-when` AFTER checking if prompting is needed
+- Only properties without `x-prompt` and without defaults will properly respect `prompt-when`
+
+**Reference:** See packages/ai-toolkit-nx-claude/src/generators/addons/schema.json for a working example of conditional prompting with `installMode` controlling `addon` visibility.
+
 ### Package Structure
 
 - All packages must be properly configured Nx libraries or applications

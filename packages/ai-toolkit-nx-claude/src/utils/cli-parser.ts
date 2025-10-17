@@ -3,7 +3,9 @@
  * Returns a Map with option names as keys and their values
  * This helps distinguish between user-provided values and Nx-applied defaults
  */
-export function getExplicitlyProvidedOptions(): Map<string, any> {
+export function getExplicitlyProvidedOptions(
+  options?: Record<string, any>
+): Map<string, any> {
   const providedOptions = new Map<string, any>();
   const args = process.argv;
 
@@ -77,6 +79,12 @@ export function getExplicitlyProvidedOptions(): Map<string, any> {
         providedOptions.set(longFlag, true);
         providedOptions.set(camelCaseName, true);
       }
+    }
+  }
+
+  if (options) {
+    for (const [key, value] of Object.entries(options)) {
+      providedOptions.set(key, value);
     }
   }
 

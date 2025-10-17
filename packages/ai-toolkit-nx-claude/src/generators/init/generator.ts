@@ -110,7 +110,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   }
 
   // Determine install mode (default or custom)
-  const installMode = options.installMode || 'custom';
+  const installMode = options.installMode;
 
   // Apply defaults for "default" mode
   if (installMode === 'default') {
@@ -119,18 +119,35 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
       '   Installing recommended setup with pre-selected components\n'
     );
 
+    // Set all default mode options
+    options.installMode = 'default'; // Explicitly set to ensure it's in options
     options.installationType = 'global';
     options.commands = DEFAULT_COMMANDS;
     options.agents = DEFAULT_AGENTS;
     options.installCommands = true;
     options.installAgents = true;
-    // installHooks will still be prompted
-    options.installAddons = false;
+    options.installHooks = true; // Auto-install hooks in default mode
+    options.hooksMode = 'sound'; // Use sound notifications
+    options.installAddons = true; // Install all MCPs in default mode
     options.dry = false; // Default mode never runs in dry-run
 
     logger.info('📍 Location: Global (~/.claude)');
     logger.info(`📝 Commands: ${DEFAULT_COMMANDS.length} pre-selected`);
-    logger.info(`🤖 Agents: ${DEFAULT_AGENTS.length} pre-selected\n`);
+    logger.info(`🤖 Agents: ${DEFAULT_AGENTS.length} pre-selected`);
+    logger.info(`🔌 MCPs: All recommended servers will be installed\n`);
+
+    // Mark all default mode options as explicitly provided to skip prompts
+    // This includes installMode itself to ensure prompt-when conditions work correctly
+    explicitlyProvided.set('installMode', 'default');
+    explicitlyProvided.set('installationType', 'global');
+    explicitlyProvided.set('installCommands', true);
+    explicitlyProvided.set('installAgents', true);
+    explicitlyProvided.set('installHooks', true);
+    explicitlyProvided.set('hooksMode', 'sound');
+    explicitlyProvided.set('installAddons', true);
+    explicitlyProvided.set('dry', false);
+    explicitlyProvided.set('commands', DEFAULT_COMMANDS);
+    explicitlyProvided.set('agents', DEFAULT_AGENTS);
   }
 
   // Handle interactive mode with schema-driven prompts
@@ -198,6 +215,8 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
         globalExistingAgents,
         localExistingCommands,
         localExistingAgents,
+        defaultCommands: DEFAULT_COMMANDS,
+        defaultAgents: DEFAULT_AGENTS,
       },
       explicitlyProvided
     );
@@ -543,7 +562,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
       const { value } = await prompt<{ value: boolean }>({
         type: 'confirm',
         name: 'value',
-        message: '🔌 Install addons (spec-mcp-workflow)?',
+        message: '🔌 Install addons/mcps?',
         initial: false,
       });
       shouldInstallAddons = value;
@@ -555,10 +574,24 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
         if (!addonsGenerator) {
           throw new Error('addonsGenerator export not found');
         }
-        await addonsGenerator(tree, {
-          addon: 'spec-workflow-mcp',
-          force: normalizedOptions.force || false,
-        });
+
+        await addonsGenerator(
+          tree,
+          // In default mode, install all MCPs. In custom mode, let user choose
+          normalizedOptions.installMode === 'default'
+            ? {
+                dry: false, // Never run in dry-run mode in default mode
+                installMode: 'all' as const,
+                force: normalizedOptions.force || false,
+                skipVerification: false, // Don't skip verification in default mode
+                dashboardMode: 'always' as const, // Auto-start dashboard
+                port: 0, // Use default port
+              }
+            : {
+                // Custom mode - let addons generator prompt user
+                force: normalizedOptions.force || false,
+              }
+        );
         logger.info('✅ Addons installed successfully');
         addonsInstalled = true;
       } catch (error: any) {
@@ -756,4 +789,3 @@ function provideManualInstructions(): void {
 }
 
 export default initGenerator;
-// Test comment

@@ -80,7 +80,123 @@ const ADDON_REGISTRY: AddonMetadata[] = [
       commands: ['git', 'npm'],
     },
   },
-  // Future addons can be added here
+  {
+    id: 'graphite-mcp',
+    name: 'Graphite MCP',
+    description: 'MCP server for Graphite stacked pull request workflows',
+    type: 'mcp-server',
+    packageName: 'gt',
+    mcp: {
+      serverName: 'graphite',
+      command: 'gt',
+      args: ['mcp'],
+    },
+  },
+  {
+    id: 'nx-mcp',
+    name: 'Nx MCP',
+    description: 'MCP server for Nx monorepo workspace management',
+    type: 'mcp-server',
+    packageName: 'nx-mcp',
+    mcp: {
+      serverName: 'nx-mcp',
+      command: 'npx',
+      args: ['-y', 'nx-mcp@latest'],
+    },
+  },
+  {
+    id: 'slack-mcp',
+    name: 'Slack MCP',
+    description: 'MCP server for Slack workspace integration',
+    type: 'mcp-server',
+    packageName: 'slack-mcp',
+    mcp: {
+      serverName: 'zencoder-slack',
+      command: 'slack-mcp',
+      args: ['--transport', 'stdio'],
+      env: {
+        SLACK_BOT_TOKEN: 'PROMPT_TO_INSERT_SLACK_BOT_TOKEN',
+        SLACK_TEAM_ID: 'TKZBCKUJJ',
+      },
+    },
+  },
+  {
+    id: 'notion-mcp',
+    name: 'Notion MCP',
+    description: 'MCP server for Notion workspace management (HTTP)',
+    type: 'mcp-server',
+    packageName: 'notion',
+    mcp: {
+      serverName: 'notion',
+      command: 'http',
+      args: ['https://mcp.notion.com/mcp'],
+    },
+  },
+  {
+    id: 'linear-mcp',
+    name: 'Linear MCP',
+    description: 'MCP server for Linear issue tracking (SSE)',
+    type: 'mcp-server',
+    packageName: 'linear',
+    mcp: {
+      serverName: 'linear',
+      command: 'npx',
+      args: ['-y', 'mcp-remote', 'https://mcp.linear.app/sse'],
+    },
+  },
+  {
+    id: 'github-mcp',
+    name: 'GitHub MCP',
+    description: 'MCP server for GitHub repository access',
+    type: 'mcp-server',
+    packageName: '@modelcontextprotocol/server-github',
+    mcp: {
+      serverName: 'github',
+      command: 'npx',
+      args: ['-y', '@modelcontextprotocol/server-github'],
+      env: {
+        GITHUB_PERSONAL_ACCESS_TOKEN:
+          'PROMPT_TO_INSERT_GITHUB_PERSONAL_ACCESS_TOKEN',
+      },
+    },
+  },
+  {
+    id: 'figma-mcp',
+    name: 'Figma MCP',
+    description: 'MCP server for Figma design file access (SSE)',
+    type: 'mcp-server',
+    packageName: 'figma',
+    mcp: {
+      serverName: 'figma',
+      command: 'sse',
+      args: ['http://127.0.0.1:3845/mcp'],
+    },
+  },
+  {
+    id: 'chrome-devtools-mcp',
+    name: 'Chrome DevTools MCP',
+    description: 'MCP server for Chrome DevTools Protocol',
+    type: 'mcp-server',
+    packageName: 'chrome-devtools-mcp',
+    mcp: {
+      serverName: 'chrome-devtools',
+      command: 'npx',
+      args: ['chrome-devtools-mcp@latest'],
+      env: {},
+    },
+  },
+  {
+    id: 'vercel-mcp',
+    name: 'Vercel MCP',
+    description: 'MCP server for Vercel deployment management (HTTP)',
+    type: 'mcp-server',
+    packageName: 'vercel',
+    mcp: {
+      serverName: 'vercel',
+      command: 'http',
+      args: ['https://mcp.vercel.com'],
+    },
+  },
 ];
 
 /**
