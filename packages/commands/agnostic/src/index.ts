@@ -32,8 +32,7 @@ export type Commands = {
 
 export const commands: Commands = {
   'address-pr-issues': {
-    description:
-      'Reviews a GitHub PR, addresses comments, and fixes CI issues',
+    description: 'Reviews a GitHub PR, addresses comments, and fixes CI issues',
     filePath: './address-pr-issues.md',
   },
   'auto-spec': {
@@ -57,8 +56,7 @@ export const commands: Commands = {
     filePath: './deploy.md',
   },
   'execute-plan': {
-    description:
-      'Execute implementation plans step-by-step',
+    description: 'Execute implementation plans step-by-step',
     filePath: './execute-plan.md',
   },
   'explain-file': {
@@ -98,7 +96,7 @@ export const commands: Commands = {
   },
   plan: {
     description:
-      'Create clear, actionable implementation plans for any task, feature, refactor, or architectural change',
+      'Create clear, actionable implementation plans for any task, feature, refactor, or architectural change through collaborative multi-agent refinement',
     filePath: './plan.md',
   },
   refactor: {
