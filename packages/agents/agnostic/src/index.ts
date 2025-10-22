@@ -9,6 +9,7 @@ type Agent =
   | 'agent-orchestrator'
   | 'cicd-agent'
   | 'claude-agent-discovery'
+  | 'claude-docs-fact-checker'
   | 'claude-docs-initializer'
   | 'claude-docs-manager'
   | 'code-explainer'
@@ -67,6 +68,11 @@ export const agents: Agents = {
     description:
       'Specialized agent for discovering and cataloging all available agents and commands from Claude Code directories, including local project and global user configurations',
     filePath: './claude-agent-discovery.md',
+  },
+  'claude-docs-fact-checker': {
+    description:
+      'Verify CLAUDE.md documentation accuracy against actual codebase state. Use this agent proactively after claude-docs-manager or claude-docs-initializer generate documentation content to verify accuracy before files are written. This prevents hallucinations in CLAUDE.md files.',
+    filePath: './claude-docs-fact-checker.md',
   },
   'claude-docs-initializer': {
     description:
