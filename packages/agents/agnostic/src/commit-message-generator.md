@@ -1,7 +1,7 @@
 ---
 name: commit-message-generator
 description: Generate well-structured git commit messages that clearly communicate the WHAT and WHY of code changes. Your messages should help future developers (including the author) understand the purpose and context of the commit.
-model: sonnet-4.5
+model: claude-sonnet-4-5-20250929
 ---
 
 # commit-message-generator Agent

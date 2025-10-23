@@ -21,8 +21,9 @@ The agent infrastructure implements a sophisticated hierarchical model:
 
 ### Documentation & Context Management
 
-- **claude-docs-initializer**: Discover repository structure and create initial CLAUDE.md documentation at all appropriate levels
-- **claude-docs-manager**: Analyze code changes and update all affected CLAUDE.md documentation files
+- **claude-docs-initializer**: Discover repository structure and create initial CLAUDE.md documentation at all appropriate levels with batching and approval checkpoints
+- **claude-docs-manager**: Analyze code changes and update all affected CLAUDE.md documentation files with verification workflow
+- **claude-docs-fact-checker**: Verify CLAUDE.md documentation accuracy against actual codebase state to prevent hallucinations (NEW)
 - **context-loader**: Advanced context management with summarization, checkpointing, and cross-agent sharing
 - **doc-writer**: Advanced documentation specialist for API docs, architecture documentation, and README generation
 
@@ -286,11 +287,246 @@ The enhanced style-enforcer supports various usage patterns:
 - **Team Integration**: Dashboard generation, metrics tracking, and notification systems
 - **Progressive Adoption**: Gradual rule introduction with warning-to-error progression
 
+## Documentation Agents Enhancement
+
+### Fact-Checking System
+
+The **claude-docs-fact-checker** agent provides comprehensive verification of CLAUDE.md documentation to prevent hallucinations and ensure accuracy:
+
+#### Verification Capabilities
+
+1. **Filesystem Verification**:
+
+   - Verify directory structures exist as documented
+   - Validate file references point to real files
+   - Check path accuracy and naming conventions
+   - Use git ls-files for fast, accurate verification
+
+2. **Technology Stack Validation**:
+
+   - Check technology stack claims against package.json dependencies
+   - Detect references to non-existent frameworks/languages
+   - Verify version information when specified
+   - Handle monorepo structures with multiple package.json files
+
+3. **Code Pattern Verification**:
+
+   - Verify claimed architectural patterns exist (MVC, layered, etc.)
+   - Check for design pattern implementations (singleton, factory, etc.)
+   - Validate component organization patterns (atomic design, feature-based)
+   - Search codebase for pattern evidence using grep and file structure
+
+4. **Accuracy Scoring**:
+
+   - Per-section accuracy scores (0-100)
+   - Overall document accuracy with weighted scoring
+   - Severity-based scoring (critical, high, medium, low issues)
+   - Verification pass/fail status (fails at <70% accuracy or critical issues)
+
+5. **Detailed Reporting**:
+   - Specific inaccuracies with evidence and corrections
+   - Section-by-section breakdown
+   - Human-readable summary with key issues highlighted
+   - Line numbers for each inaccuracy when available
+
+### Batching and Approval Workflow
+
+**claude-docs-initializer** now creates documentation in manageable batches with approval checkpoints:
+
+#### Batching Strategy
+
+- **Batch Size**: 1-2 files per batch to enable thorough review
+- **Logical Grouping**: Related files batched together (e.g., core packages)
+- **Prioritization**: Critical documentation first (root, then packages, then modules)
+- **Progress Tracking**: Clear indication of batch number, total batches, and progress
+
+#### Approval Workflow
+
+```
+1. Discovery Phase: Analyze repository structure
+2. Batch Planning: Group documentation targets into logical batches
+3. For Each Batch:
+   a. Generate documentation content
+   b. Apply pre-generation verification
+   c. Return content with requires_verification flag
+   d. Main agent invokes fact-checker automatically
+   e. Present batch with verification results to user
+   f. User approves/rejects/skips/edits
+   g. Write files if approved
+   h. Move to next batch
+4. Completion: Summary of all batches created
+```
+
+#### Benefits
+
+- **Manageable Reviews**: Small batches prevent overwhelming PRs
+- **Quality Control**: Verification before writing ensures accuracy
+- **Flexibility**: Skip problematic batches without stopping entire process
+- **Transparency**: Clear progress and preview of upcoming work
+
+### Pre-Generation Verification
+
+Both **claude-docs-initializer** and **claude-docs-manager** now implement pre-generation verification to prevent hallucinations at the source:
+
+#### Verification Before Content Generation
+
+**For claude-docs-initializer**:
+
+1. Verify directory exists before documenting
+2. Get actual directory listing (via git ls-files or ls)
+3. Parse actual package.json if present
+4. Count actual source files
+5. Detect actual patterns in codebase
+6. Store verified facts
+7. Generate content ONLY from verified facts
+
+**For claude-docs-manager**:
+
+1. Verify all changed file paths exist
+2. Read actual file contents for accurate description
+3. Verify package boundaries with package.json
+4. Confirm technology stack from dependencies
+5. Store verified change facts
+6. Generate updates ONLY from verified facts
+
+#### Example: Preventing Hallucinations
+
+```yaml
+# WITHOUT pre-generation verification:
+# ❌ "The src/pages directory uses Next.js routing"
+# ❌ "Built with React 19 and Next.js 15"
+# ❌ "Implements microservices architecture"
+
+# WITH pre-generation verification:
+verified_facts:
+  actualFiles: ['app/layout.tsx', 'app/page.tsx']
+  dependencies: { 'react': '^18.2.0', 'next': '^14.0.0' }
+  detectedPatterns: ['app-router', 'server-components']
+# ✅ "The app directory uses Next.js 14 App Router"
+# ✅ "Built with React 18 and Next.js 14"
+# ✅ "Uses Next.js App Router with Server Components"
+```
+
+### Integration Pattern
+
+The fact-checker uses the **proactive agent pattern** where the main Claude Code agent automatically orchestrates verification:
+
+#### Workflow Orchestrated by Main Agent
+
+```
+1. User requests documentation update/creation
+2. Main Claude Code agent invokes appropriate doc agent
+   (claude-docs-manager or claude-docs-initializer)
+3. Doc agent:
+   - Applies pre-generation verification
+   - Generates content based on verified facts
+   - Returns structured output with requires_verification: true
+4. Main agent sees requires_verification flag
+5. Main agent reads fact-checker's proactive description
+6. Main agent automatically invokes fact-checker with generated content
+7. Fact-checker verifies accuracy and returns findings
+8. Main agent presents combined results:
+   - Generated documentation content
+   - Verification status and accuracy score
+   - List of inaccuracies found with severity levels
+   - Recommendation (approve/reject/edit)
+9. User reviews and approves/rejects
+10. If approved, main agent writes files
+11. If rejected, main agent may regenerate or ask for guidance
+```
+
+#### Key Features
+
+- **Automatic Invocation**: Main agent triggers fact-checker without manual request
+- **Two-Layer Verification**: Pre-generation verification + post-generation fact-checking
+- **No Direct Agent-to-Agent Calls**: Main agent coordinates all interactions
+- **Structured Output**: Clear contracts between agents and main agent
+- **User Control**: Final approval always requires human decision
+
+### Output Format Changes
+
+Both documentation agents now return enhanced output:
+
+#### New Output Fields
+
+```yaml
+requires_verification: true  # Signals main agent to invoke fact-checker
+files:
+  - path: string
+    content: string  # Full content (not written yet)
+    action: "pending_verification"  # Status indicator
+    operation: "updated" | "created"
+```
+
+#### Batching Output (claude-docs-initializer)
+
+```yaml
+phase: "planning" | "batch_execution" | "batch_completed" | "completed"
+current_batch:
+  batch_number: number
+  total_batches: number
+  files: [{path, content, type, summary}]
+progress:
+  batches_completed: number
+  batches_remaining: number
+  files_created_so_far: number
+```
+
 ## Recent Changes
 
-### Claude-Docs System Implementation (Latest)
+### Claude-Docs Hallucination Prevention System (Latest - 2025-10-22)
+
+**Major enhancement to eliminate hallucinations in CLAUDE.md documentation generation:**
+
+- **New claude-docs-fact-checker agent**: Comprehensive verification system
+
+  - Filesystem verification (directories, files, paths)
+  - Technology stack validation against package.json
+  - Code pattern verification (grep-based evidence)
+  - Accuracy scoring (0-100 per section and overall)
+  - Severity-based issue reporting (critical, high, medium, low)
+  - Detailed inaccuracy reports with evidence and corrections
+  - Proactive agent pattern for automatic invocation
+
+- **Enhanced claude-docs-initializer**: Batching with approval workflow
+
+  - Creates documentation in small batches (1-2 files per batch)
+  - Human approval checkpoints between batches
+  - Pre-generation verification before content creation
+  - Batch planning phase with prioritization
+  - Progress tracking and next batch previews
+  - Updated output format with `requires_verification` flag
+  - Three-phase operation: planning, batch execution, completion
+
+- **Enhanced claude-docs-manager**: Verification workflow integration
+
+  - Pre-generation verification of changed files
+  - Reads actual file contents to verify claims
+  - Updated output format with `requires_verification` flag
+  - Returns generated content without writing (awaits verification)
+  - Content based only on verified facts from filesystem
+
+- **Integration Pattern**: Main agent orchestration
+
+  - Doc agents generate content with `requires_verification: true`
+  - Main Claude Code agent automatically invokes fact-checker
+  - Combined results presented to user (docs + verification)
+  - User approves/rejects based on accuracy scores
+  - Files written only after approval
+  - Two-layer verification: pre-generation + post-generation
+
+- **Hallucination Prevention**:
+  - Pre-generation verification checks filesystem before writing
+  - Post-generation fact-checking verifies all claims
+  - Evidence-based reporting for all inaccuracies
+  - Content generated only from verified facts
+  - Technology stack verified against actual dependencies
+  - Patterns verified with grep and file structure analysis
+
+### Claude-Docs System Implementation (Previous - 2025-10-15)
 
 - **New claude-docs-initializer agent**: Comprehensive repository analysis and CLAUDE.md initialization
+
   - Deep repository discovery and analysis
   - Technology and pattern detection
   - Hierarchical documentation generation
