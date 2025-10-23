@@ -31,13 +31,7 @@ jobs:
     if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
 
     steps:
-      - name: Load Secrets
-        uses: 1password/load-secrets-action@581a835fb51b8e7ec56b71cf2ffddd7e68bb25e0
-        with:
-          export-env: true
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          NPM_TOKEN: op://npm-deploy/npm-runner-token/secret
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
 
       - name: Checkout repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
@@ -110,6 +104,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install npm
+        run: npm install -g npm@latest
+  
       - name: Verify NPM authentication and organization
         if: github.event.inputs.dryRun == 'true' || github.event_name == 'push'
         run: |
@@ -120,7 +117,7 @@ jobs:
           # Check if we can access the @uniswap organization
           npm org ls @uniswap --registry=https://registry.npmjs.org || echo "Note: Organization check may fail for new orgs"
         env:
-          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish affected packages to NPM
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
@@ -196,6 +193,8 @@ jobs:
       contents: write
 
     steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
       - name: Checkout repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
         with:
