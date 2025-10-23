@@ -1,6 +1,7 @@
 ---
 name: claude-docs-fact-checker
 description: Verify CLAUDE.md documentation accuracy against actual codebase state. Use this agent proactively after claude-docs-manager or claude-docs-initializer generate documentation content to verify accuracy before files are written. This prevents hallucinations in CLAUDE.md files.
+model: inherit
 ---
 
 # Claude-Docs Fact-Checker Agent
