@@ -18,7 +18,7 @@ async function main() {
     exportName: 'commands',
     typeNamePlural: 'Commands',
     regenerateCommand:
-      'bunx nx run @ai-toolkit/commands-agnostic:generate-index',
+      'npx nx run @ai-toolkit/commands-agnostic:generate-index',
   });
 }
 

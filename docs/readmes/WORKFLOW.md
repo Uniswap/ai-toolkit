@@ -42,7 +42,7 @@ git clone https://github.com/Uniswap/ai-toolkit
 cd ai-toolkit
 
 # Install dependencies
-bun install  # Installs deps + git hooks
+npm install  # Installs deps + git hooks
 
 # Ensure you're up to date
 git fetch origin
@@ -67,12 +67,12 @@ git checkout -b fix/bug-description
 # ... edit files ...
 
 # Run quality checks frequently
-bunx nx format:write --uncommitted  # Format code
-bunx nx affected --target=lint --base=next  # Lint
-bunx nx affected --target=test --base=next  # Test
+npx nx format:write --uncommitted  # Format code
+npx nx affected --target=lint --base=next  # Lint
+npx nx affected --target=test --base=next  # Test
 
 # Build affected packages
-bunx nx affected --target=build --base=next
+npx nx affected --target=build --base=next
 ```
 
 #### Step 4: Commit Your Changes
@@ -135,7 +135,7 @@ git checkout -b hotfix/critical-issue
 # ... minimal changes ...
 
 # Test thoroughly
-bunx nx affected --target=test --base=main
+npx nx affected --target=test --base=main
 ```
 
 #### Step 3: Create PR to Main
@@ -254,8 +254,8 @@ git commit -m "fix: revert problematic change"
 npm deprecate @uniswap/package@1.2.3 "Critical bug - use 1.2.4"
 
 # Publish fixed version
-bunx nx release version patch --projects=package
-bunx nx release publish --projects=package
+npx nx release version patch --projects=package
+npx nx release publish --projects=package
 ```
 
 ## CI/CD Integration Points
@@ -268,9 +268,9 @@ Managed by Lefthook, runs automatically:
 pre-commit:
   commands:
     format:
-      run: bunx nx format:write --uncommitted
+      run: npx nx format:write --uncommitted
     lint:
-      run: bunx nx affected --target=lint --base=HEAD
+      run: npx nx affected --target=lint --base=HEAD
 ```
 
 ### PR Checks

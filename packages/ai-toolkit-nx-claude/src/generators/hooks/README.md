@@ -26,7 +26,7 @@ The generator will check for these dependencies and warn if missing:
 
 ```bash
 # From any directory (installs globally to ~/.claude/hooks/)
-bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks
+npx nx generate @uniswap/ai-toolkit-nx-claude:hooks
 
 # Or with npm
 npm run nx generate @uniswap/ai-toolkit-nx-claude:hooks
@@ -44,22 +44,22 @@ When run without options, the generator will interactively prompt for:
 
 ```bash
 # Install with all defaults (using Nx's built-in flag)
-bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks --no-interactive
+npx nx generate @uniswap/ai-toolkit-nx-claude:hooks --no-interactive
 
 # Dry run to preview changes
-bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks --dry
+npx nx generate @uniswap/ai-toolkit-nx-claude:hooks --dry
 
 # Also works with --dry-run alias for Nx compatibility
-bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks --dry-run
+npx nx generate @uniswap/ai-toolkit-nx-claude:hooks --dry-run
 
 # Skip backup during installation
-bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks --backup=false --no-interactive
+npx nx generate @uniswap/ai-toolkit-nx-claude:hooks --backup=false --no-interactive
 
 # Force installation (skip dependency checks)
-bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks --force
+npx nx generate @uniswap/ai-toolkit-nx-claude:hooks --force
 
 # Verbose output for debugging
-bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks --verbose
+npx nx generate @uniswap/ai-toolkit-nx-claude:hooks --verbose
 ```
 
 ## Generator Options
@@ -112,7 +112,7 @@ After installation, you can test the hooks:
 
 ```bash
 # Run with verbose flag to get testing option
-bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks --verbose
+npx nx generate @uniswap/ai-toolkit-nx-claude:hooks --verbose
 
 # When prompted, choose to test the hooks
 # You should hear a notification sound

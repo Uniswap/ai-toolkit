@@ -32,14 +32,14 @@ When importing, configure these settings:
 The build will:
 
 1. Navigate to the monorepo root
-2. Run `bunx nx build slack-oauth-backend`
+2. Run `npx nx build slack-oauth-backend`
 3. Output files to the correct location for Vercel deployment
 
 ### 3. Set Environment Variables
 
 Add these environment variables in the Vercel dashboard:
 
-#### Required Variables:
+#### Required Variables
 
 | Variable              | Description                                              | Sensitive |
 | --------------------- | -------------------------------------------------------- | --------- |
@@ -49,7 +49,7 @@ Add these environment variables in the Vercel dashboard:
 | `SESSION_SECRET`      | 32+ character random string                              | Yes ✓     |
 | `SLACK_REDIRECT_URI`  | `https://[your-project].vercel.app/slack/oauth/callback` | No        |
 
-#### Optional Variables:
+#### Optional Variables
 
 | Variable         | Description         | Default      |
 | ---------------- | ------------------- | ------------ |
@@ -80,9 +80,11 @@ Click **"Deploy"** and wait for the build to complete. Vercel will:
 1. Copy your Vercel deployment URL (e.g., `https://slack-oauth-backend.vercel.app`)
 2. Go to [api.slack.com/apps](https://api.slack.com/apps) → Your App → **OAuth & Permissions**
 3. Update the **Redirect URL** to:
+
    ```
    https://your-deployment-url.vercel.app/slack/oauth/callback
    ```
+
 4. Save changes
 
 #### Update Environment Variable

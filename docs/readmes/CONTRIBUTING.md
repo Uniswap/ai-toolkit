@@ -47,7 +47,7 @@ graph LR
 
 ### Prerequisites
 
-- **[Bun](https://bun.sh)** (recommended) or **Node.js 22+** with npm
+- **Node.js 22+** with npm
 - **Git** configured with your GitHub credentials
 
 ### Initial Setup
@@ -62,7 +62,7 @@ graph LR
 2. **Install dependencies**:
 
    ```bash
-   bun install  # This also sets up git hooks automatically
+   npm install  # This also sets up git hooks automatically
    ```
 
 3. **Install development tools**:
@@ -150,10 +150,10 @@ After changes are merged to `main`, an automated workflow rebases `next` onto `m
 
    ```bash
    # Use Nx to explore the project structure
-   bunx nx graph
+   npx nx graph
 
    # List all projects
-   bunx nx show projects
+   npx nx show projects
    ```
 
 2. **Make focused changes**:
@@ -190,16 +190,16 @@ Before committing:
 
 ```bash
 # Format all uncommitted files
-bunx nx format:write --uncommitted
+npx nx format:write --uncommitted
 
 # Lint affected projects
-bunx nx affected --target=lint --base=HEAD~1
+npx nx affected --target=lint --base=HEAD~1
 
 # Fix auto-fixable lint issues
-bunx nx affected --target=lint --base=HEAD~1 --fix
+npx nx affected --target=lint --base=HEAD~1 --fix
 
 # Run type checking
-bunx nx affected --target=typecheck --base=HEAD~1
+npx nx affected --target=typecheck --base=HEAD~1
 ```
 
 These automatically happen via Lefthook on commit, but you can run them manually to ensure quality before committing, if you want!
@@ -220,16 +220,16 @@ LEFTHOOK=0 git commit -m "WIP: temporary commit"
 
 ```bash
 # Test affected projects
-bunx nx affected --target=test --base=HEAD~1
+npx nx affected --target=test --base=HEAD~1
 
 # Test specific package
-bunx nx test package-name
+npx nx test package-name
 
 # Test with coverage
-bunx nx test package-name --coverage
+npx nx test package-name --coverage
 
 # Run all tests
-bunx nx run-many --target=test
+npx nx run-many --target=test
 ```
 
 ### Writing Tests
@@ -297,7 +297,7 @@ Publishing happens automatically through GitHub Actions:
 
 ```bash
 # Create a new publishable library
-bunx nx g @nx/js:lib packages/ai-toolkit-my-package \
+npx nx g @nx/js:lib packages/ai-toolkit-my-package \
   --publishable \
   --importPath=@uniswap/ai-toolkit-my-package
 ```
@@ -306,7 +306,7 @@ bunx nx g @nx/js:lib packages/ai-toolkit-my-package \
 
 ```bash
 # Use the generator
-bunx nx generate @uniswap/ai-toolkit-nx-claude:add-agent
+npx nx generate @uniswap/ai-toolkit-nx-claude:add-agent
 
 # Or manually create in packages/agents/agnostic/
 # Follow the agent template format
@@ -316,7 +316,7 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:add-agent
 
 ```bash
 # Use the generator
-bunx nx generate @uniswap/ai-toolkit-nx-claude:add-command
+npx nx generate @uniswap/ai-toolkit-nx-claude:add-command
 
 # Or manually create in packages/commands/agnostic/
 # Follow the command template format
@@ -326,7 +326,7 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:add-command
 
 ```bash
 # Create generator in ai-toolkit-nx-claude package
-bunx nx generate @nx/plugin:generator my-generator \
+npx nx generate @nx/plugin:generator my-generator \
   --project=ai-toolkit-nx-claude
 ```
 
@@ -392,19 +392,19 @@ git commit -m "feat(ai-toolkit-nx-claude)!: change generator API"
 
 ```bash
 # Visualize project graph
-bunx nx graph
+npx nx graph
 
 # Show affected projects
-bunx nx affected:graph --base=main
+npx nx affected:graph --base=main
 
 # Run command for all projects
-bunx nx run-many --target=build
+npx nx run-many --target=build
 
 # Run command for affected projects
-bunx nx affected --target=test --base=main
+npx nx affected --target=test --base=main
 
 # Reset Nx cache
-bunx nx reset
+npx nx reset
 ```
 
 We recommend you using the Nx Console IDE extension!
@@ -413,22 +413,22 @@ We recommend you using the Nx Console IDE extension!
 
 ```bash
 # Walkthrough the core of what we've built (for new contributors)
-bun run install-all
+npm run install-all
 
 # Format and lint everything
-bunx nx format:write
-bunx nx run-many --target=lint --fix
+npx nx format:write
+npx nx run-many --target=lint --fix
 
 # Build all packages
-bunx nx run-many --target=build
+npx nx run-many --target=build
 ```
 
 ### Debugging
 
 1. **Verbose output**: Add `--verbose` to Nx commands
-2. **Cache issues**: Run `bunx nx reset`
-3. **Dependency issues**: Run `bun install` again
-4. **Git hook issues**: Check Lefthook with `bunx lefthook run pre-commit`
+2. **Cache issues**: Run `npx nx reset`
+3. **Dependency issues**: Run `npm install` again
+4. **Git hook issues**: Check Lefthook with `npx lefthook run pre-commit`
 
 ## Getting Help
 
@@ -441,9 +441,9 @@ bunx nx run-many --target=build
 
 ### Common Issues
 
-2. **Build failures**: Check Node/Bun version requirements
-3. **Test failures**: Run `bunx nx reset` and try again
-4. **Merge conflicts**: Rebase your branch on latest `next`
+1. **Build failures**: Check Node version requirements
+2. **Test failures**: Run `npx nx reset` and try again
+3. **Merge conflicts**: Rebase your branch on latest `next`
 
 ### Reporting Issues
 

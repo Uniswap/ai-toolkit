@@ -17,7 +17,7 @@ async function main() {
     typeName: 'Agent',
     exportName: 'agents',
     typeNamePlural: 'Agents',
-    regenerateCommand: 'bunx nx run @ai-toolkit/agents-agnostic:generate-index',
+    regenerateCommand: 'npx nx run @ai-toolkit/agents-agnostic:generate-index',
   });
 }
 

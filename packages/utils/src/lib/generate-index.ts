@@ -195,7 +195,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     outputPath,
     typeName,
     exportName,
-    regenerateCommand = 'bunx nx run <project>:generate-index',
+    regenerateCommand = 'npx nx run <project>:generate-index',
   ] = args;
 
   generateIndex({

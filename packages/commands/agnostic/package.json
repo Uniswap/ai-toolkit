@@ -18,7 +18,7 @@
       "generate-index": {
         "executor": "nx:run-commands",
         "options": {
-          "command": "bun run scripts/generate.ts",
+          "command": "npx tsx scripts/generate.ts",
           "cwd": "packages/commands/agnostic"
         },
         "dependsOn": [
@@ -56,6 +56,6 @@
     }
   },
   "dependencies": {
-    "@ai-toolkit/utils": "workspace:*"
+    "@ai-toolkit/utils": "*"
   }
 }

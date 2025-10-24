@@ -155,7 +155,7 @@ Always prioritize:
 After creating your agent, regenerate the index:
 
 ```bash
-bunx nx run @ai-toolkit/agents-agnostic:generate-index
+npx nx run @ai-toolkit/agents-agnostic:generate-index
 ```
 
 ## Prompt Engineering Best Practices

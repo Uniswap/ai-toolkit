@@ -73,15 +73,15 @@ The `x-prompt` property can interfere with conditional prompting logic. For fiel
 
 After making any code changes, Claude Code MUST:
 
-1. **Format the code**: Run `bunx nx format:write --uncommitted` to format all uncommitted files using Prettier configuration
+1. **Format the code**: Run `npx nx format:write --uncommitted` to format all uncommitted files using Prettier configuration
 
-   - For CI or when comparing against a specific base: `bunx nx format:write --affected --base=HEAD~1`
+   - For CI or when comparing against a specific base: `npx nx format:write --affected --base=HEAD~1`
    - This ensures consistent code style across the entire codebase
 
-2. **Lint the code**: Run `bunx nx affected --target=lint --base=HEAD~1` to check for linting errors
+2. **Lint the code**: Run `npx nx affected --target=lint --base=HEAD~1` to check for linting errors
 
    - This runs ESLint on all affected projects based on your changes
-   - If there are linting errors that can be auto-fixed, add the `--fix` flag: `bunx nx affected --target=lint --base=HEAD~1 --fix`
+   - If there are linting errors that can be auto-fixed, add the `--fix` flag: `npx nx affected --target=lint --base=HEAD~1 --fix`
 
 3. **Why use these commands**:
    - `--uncommitted` flag formats only files that haven't been committed yet
@@ -95,7 +95,7 @@ This is the AI Toolkit monorepo that provides standardized, one-shot setup for C
 
 - Nx for monorepo management
 - TypeScript with strict settings
-- Bun as the package manager
+- npm as the package manager
 - ESLint and Prettier for code quality
 
 ## Package Scope
@@ -159,12 +159,12 @@ These hooks leverage Nx's affected commands to only check and format files that 
 
 #### How to Use
 
-The hooks are automatically installed when you run `bun install` (via the `prepare` script in package.json). No additional setup is required.
+The hooks are automatically installed when you run `npm install` (via the `prepare` script in package.json). No additional setup is required.
 
 ##### Available npm scripts
 
-- `bun run prepare`: Installs lefthook (runs automatically after `bun install`)
-- `bun run lefthook`: Manually run lefthook commands
+- `npm run prepare`: Installs lefthook (runs automatically after `npm install`)
+- `npm run lefthook`: Manually run lefthook commands
 
 ##### Skipping hooks when needed
 

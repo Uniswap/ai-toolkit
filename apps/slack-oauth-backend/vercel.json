@@ -1,18 +1,7 @@
 {
-  "buildCommand": "bunx nx build slack-oauth-backend",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "pwd && ls -a && cd ../../ && npm install --include=dev",
+  "buildCommand": "cd ../../ && npx nx build slack-oauth-backend --prod",
   "outputDirectory": "dist",
-  "installCommand": "bun install",
-  "framework": null,
-  "ignoreCommand": "bunx nx show projects --affected --base=$VERCEL_GIT_PREVIOUS_SHA --head=$VERCEL_GIT_COMMIT_SHA | grep -q '^slack-oauth-backend$'",
-  "functions": {
-    "api/index.js": {
-      "maxDuration": 10
-    }
-  },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/api"
-    }
-  ]
+  "framework": null
 }

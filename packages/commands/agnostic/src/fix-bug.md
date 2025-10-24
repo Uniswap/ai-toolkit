@@ -1,7 +1,7 @@
 ---
 description: Comprehensively diagnose bugs with root cause analysis, systematic fixes, regression tests, and prevention strategies.
 argument-hint: <error text or pointer> [--run-tests] [--deep-analysis] [--generate-tests] [--prevention-mode]
-allowed-tools: Bash(npm test:*), Bash(pnpm test:*), Bash(bun test:*), Bash(yarn test:*), Bash(npm run lint*), Bash(pnpm lint*), Bash(bun lint*), Bash(yarn lint*)
+allowed-tools: Bash(npm test:*), Bash(pnpm test:*), Bash(npm test:*), Bash(yarn test:*), Bash(npm run lint*), Bash(pnpm lint*), Bash(npm lint*), Bash(yarn lint*)
 ---
 
 ## Inputs

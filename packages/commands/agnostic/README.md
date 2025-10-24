@@ -9,29 +9,34 @@ This package contains 19 commands that provide natural language interfaces for c
 ## Key Commands
 
 ### Documentation Management
+
 - **claude-docs**: Initialize or update CLAUDE.md documentation files
   - Auto-detects initialization vs update mode
   - Supports session, git, or path-based scope
   - Leverages specialized documentation agents
 
 ### Planning & Implementation
+
 - **plan**: Create comprehensive implementation plans with task decomposition
 - **execute-plan**: Execute plans with intelligent agent orchestration
 - **auto-spec**: Fully autonomous spec-driven development
 - **implement-spec**: Orchestrate spec-workflow task implementation
 
 ### Development & Quality
+
 - **fix-bug**: Debug with root cause analysis and prevention
 - **refactor**: Comprehensive refactoring with architectural analysis
 - **gen-tests**: Generate tests with edge cases and scenarios
 - **review-code**: Multi-agent code review for quality analysis
 
 ### Analysis & Research
+
 - **explore**: Deep dive into codebase areas
 - **explain-file**: Multi-agent code explanation
 - **research**: Combine web search with codebase analysis
 
 ### Operations & Infrastructure
+
 - **deploy**: Orchestrate deployments with CI/CD setup
 - **monitor**: Set up comprehensive application monitoring
 
@@ -54,9 +59,10 @@ Follow the 1-2-3-4 workflow for optimal results:
 ## Development
 
 To add a new command:
+
 1. Create a markdown file in `src/` following the command template
 2. Define `description`, `argument-hint`, and `allowed-tools`
-3. Run `bunx nx run @ai-toolkit/commands-agnostic:generate-index`
+3. Run `npx nx run @ai-toolkit/commands-agnostic:generate-index`
 
 ## License
 

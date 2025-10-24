@@ -225,9 +225,6 @@ graph TB
 ## Package Managers
 
 npm install package-name
-yarn add package-name
-pnpm add package-name
-bun add package-name
 
 ## CDN
 
