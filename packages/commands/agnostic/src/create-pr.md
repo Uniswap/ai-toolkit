@@ -18,7 +18,7 @@ This workflow uses the pr-creator agent to:
 1. **pr-creator**: Main orchestrator that will:
    - Analyze `git diff` between current and target branch
    - Detect the type of changes (feat, fix, refactor, etc.)
-   - Generate conventional commit message if uncommitted changes exist
+   - If uncommitted changes exist, ASK THE USER if they would like to create a conventional commit. DO NOT commit changes without User confirmation
    - Create PR title in format: `<type>(<scope>): <description>`
    - Generate detailed PR description with:
      - Summary of changes

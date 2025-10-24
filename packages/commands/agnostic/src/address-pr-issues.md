@@ -201,5 +201,5 @@ For complex architectural feedback, this will:
 - Benefits from having repository cloned locally for testing fixes
 - May coordinate with other agents for complex refactoring
 - Respects repository contribution guidelines and code style
-- Creates logical, atomic commits for different types of fixes
+- At logical completion points, ASKS THE USER if they would like to create git commits. DO NOT commit changes without User confirmation
 - Can handle both GitHub and GitHub Enterprise instances
