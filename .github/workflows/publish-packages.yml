@@ -106,18 +106,6 @@ jobs:
 
       - name: Install npm
         run: npm install -g npm@latest
-  
-      - name: Verify NPM authentication and organization
-        if: github.event.inputs.dryRun == 'true' || github.event_name == 'push'
-        run: |
-          echo "Verifying NPM authentication..."
-          npm whoami --registry=https://registry.npmjs.org
-
-          echo "Checking organization membership..."
-          # Check if we can access the @uniswap organization
-          npm org ls @uniswap --registry=https://registry.npmjs.org || echo "Note: Organization check may fail for new orgs"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish affected packages to NPM
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
