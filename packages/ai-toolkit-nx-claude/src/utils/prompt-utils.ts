@@ -42,6 +42,9 @@ export async function promptForMissingOptions<T extends Record<string, any>>(
     localExistingAgents?: Set<string>;
     // Dynamic packages support
     availablePackages?: string[];
+    // Default selections for default mode
+    defaultCommands?: string[];
+    defaultAgents?: string[];
   } = {},
   explicitlyProvidedOptions?: Map<string, any> | Set<string>
 ): Promise<T> {
@@ -156,6 +159,45 @@ export async function promptForMissingOptions<T extends Record<string, any>>(
     if (promptResult !== undefined) {
       result[key] = promptResult;
 
+      // Special case: if installMode=default was just selected, apply all default values immediately
+      // This ensures subsequent prompts see the default values and skip appropriately
+      if (key === 'installMode' && promptResult === 'default') {
+        // Apply all default mode values to result
+        result.installationType = 'global';
+        result.installCommands = true;
+        result.installAgents = true;
+        result.installHooks = true;
+        result.hooksMode = 'sound';
+        result.installAddons = true;
+        result.dry = false;
+
+        // Set default command and agent selections
+        if (context.defaultCommands) {
+          result.commands = context.defaultCommands;
+        }
+        if (context.defaultAgents) {
+          result.agents = context.defaultAgents;
+        }
+
+        // Mark these as explicitly provided so they won't be prompted for
+        if (explicitlyProvidedOptions instanceof Map) {
+          explicitlyProvidedOptions.set('installMode', 'default');
+          explicitlyProvidedOptions.set('installationType', 'global');
+          explicitlyProvidedOptions.set('installCommands', true);
+          explicitlyProvidedOptions.set('installAgents', true);
+          explicitlyProvidedOptions.set('installHooks', true);
+          explicitlyProvidedOptions.set('hooksMode', 'sound');
+          explicitlyProvidedOptions.set('installAddons', true);
+          explicitlyProvidedOptions.set('dry', false);
+          if (context.defaultCommands) {
+            explicitlyProvidedOptions.set('commands', context.defaultCommands);
+          }
+          if (context.defaultAgents) {
+            explicitlyProvidedOptions.set('agents', context.defaultAgents);
+          }
+        }
+      }
+
       // Special case: if local installation and user says they're not at project root, throw immediately
       if (
         key === 'confirmLocalPath' &&
@@ -187,6 +229,9 @@ async function promptForProperty(
     localExistingAgents?: Set<string>;
     // Dynamic packages support
     availablePackages?: string[];
+    // Default selections for default mode
+    defaultCommands?: string[];
+    defaultAgents?: string[];
   },
   currentValues?: Record<string, any>
 ): Promise<any> {

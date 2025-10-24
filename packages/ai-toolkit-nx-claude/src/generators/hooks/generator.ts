@@ -41,7 +41,7 @@ export async function hooksGenerator(
   let normalizedOptions: HooksGeneratorSchema;
 
   // Get the list of explicitly provided CLI options with their values
-  const explicitlyProvided = getExplicitlyProvidedOptions();
+  const explicitlyProvided = getExplicitlyProvidedOptions(options);
 
   // Check if Nx's dry-run flag was provided in any form
   const nxDryRunProvided = isNxDryRunProvided();
