@@ -4,6 +4,44 @@ import { join } from 'path';
 import { homedir } from 'os';
 
 /**
+ * MCP server that runs as a command
+ * for example, one you would add this `claude mcp add mastra -- npx -y @mastra/mcp-docs-server`
+ */
+export type McpCommandAddonMetadata = {
+  /** Server name for Claude MCP registration */
+  serverName: string;
+  /** Command to run the MCP server */
+  command: string;
+  /** Arguments for the command */
+  args?: string[];
+  /** Environment variables */
+  env?: Record<string, string>;
+  /** Whether the server supports dashboard mode */
+  supportsDashboard?: boolean;
+  /** Default port for dashboard (if applicable) */
+  defaultPort?: number;
+};
+
+/**
+ * MCP server that uses a remote hosted server and doesn't need a command
+ * for example, one you would add this `claude mcp add notion --transport http https://mcp.notion.com/mcp`
+ */
+export type McpRemoteHostedAddonMetadata = {
+  /** Server name for Claude MCP registration */
+  serverName: string;
+  /** Transport type */
+  transport: 'http' | 'sse';
+  /** URL of the remote hosted server */
+  url: string;
+  /** Environment variables */
+  env?: Record<string, string>;
+};
+
+export type McpAddonMetadata =
+  | McpCommandAddonMetadata
+  | McpRemoteHostedAddonMetadata;
+
+/**
  * Metadata for a Claude Code addon
  */
 export interface AddonMetadata {
@@ -20,20 +58,7 @@ export interface AddonMetadata {
   /** Registry URL (optional, defaults to npm) */
   registry?: string;
   /** MCP-specific configuration */
-  mcp?: {
-    /** Server name for Claude MCP registration */
-    serverName?: string;
-    /** Command to run the MCP server */
-    command: string;
-    /** Arguments for the command */
-    args?: string[];
-    /** Environment variables */
-    env?: Record<string, string>;
-    /** Whether the server supports dashboard mode */
-    supportsDashboard?: boolean;
-    /** Default port for dashboard (if applicable) */
-    defaultPort?: number;
-  };
+  mcp: McpAddonMetadata;
   /** Installation requirements */
   requirements?: {
     /** Required Node.js version */
@@ -128,8 +153,8 @@ const ADDON_REGISTRY: AddonMetadata[] = [
     packageName: 'notion',
     mcp: {
       serverName: 'notion',
-      command: 'http',
-      args: ['https://mcp.notion.com/mcp'],
+      transport: 'http',
+      url: 'https://mcp.notion.com/mcp',
     },
   },
   {
@@ -200,6 +225,22 @@ const ADDON_REGISTRY: AddonMetadata[] = [
 ];
 
 /**
+ * Check if the MCP server is a command-based server
+ * for example, one you would add this `claude mcp add mastra -- npx -y @mastra/mcp-docs-server`
+ */
+export function isCommandMcpServer(mcp: McpAddonMetadata): boolean {
+  return 'command' in mcp;
+}
+
+/**
+ * Check if the MCP server is a remote hosted server
+ * for example, one you would add this `claude mcp add notion --transport http https://mcp.notion.com/mcp`
+ */
+export function isRemoteHostedMcpServer(mcp: McpAddonMetadata): boolean {
+  return 'transport' in mcp;
+}
+
+/**
  * Get all available addons
  */
 export function getAvailableAddons(): AddonMetadata[] {
@@ -247,7 +288,8 @@ export async function isAddonInstalled(addonId: string): Promise<boolean> {
 
               // Check if this matches our addon
               if (
-                command === addon.mcp?.command &&
+                isCommandMcpServer(addon.mcp) &&
+                command === (addon.mcp as McpCommandAddonMetadata).command &&
                 args.some((arg: string) => arg.includes(addon.packageName))
               ) {
                 return true;
@@ -298,7 +340,8 @@ export async function getInstalledAddonConfig(
               const args = (serverConfig as any).args || [];
 
               if (
-                command === addon.mcp?.command &&
+                isCommandMcpServer(addon.mcp) &&
+                command === (addon.mcp as McpCommandAddonMetadata).command &&
                 args.some((arg: string) => arg.includes(addon.packageName))
               ) {
                 return serverConfig as Record<string, any>;

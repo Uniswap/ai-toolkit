@@ -174,7 +174,7 @@ export default async function generator(
   // Verify installation (skip in dry-run mode)
   if (!options.skipVerification && !options.dryRun) {
     console.log('\n🔍 Verifying installation...');
-    const serverName = addon.mcp?.serverName || addon.id;
+    const serverName = addon.mcp.serverName;
     const verification = await verifyMcpInstallation(serverName);
 
     if (verification.installed) {
@@ -379,7 +379,7 @@ async function updateConfiguration(
     return;
   }
 
-  const serverName = addon.mcp?.serverName || addon.id;
+  const serverName = addon.mcp.serverName;
 
   // Build updates based on addon type
   const argUpdates: { remove?: string[]; add?: string[] } = {
