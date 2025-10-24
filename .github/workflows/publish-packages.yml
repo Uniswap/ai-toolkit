@@ -87,7 +87,6 @@ jobs:
           npx nx release publish --dry-run --tag=${{ steps.npm-tag.outputs.tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
       - name: Version affected packages
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
@@ -152,8 +151,6 @@ jobs:
             echo "Found existing tags - publishing without --first-release flag"
             npx nx release publish --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org
           fi
-        env:
-          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
       - name: Push version commits and tags
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
