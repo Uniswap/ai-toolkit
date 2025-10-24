@@ -238,7 +238,6 @@ graph LR
 ```bash
 # Required for reading from npmjs
 GITHUB_TOKEN        # GitHub authentication
-NODE_AUTH_TOKEN     # NPM authentication for private NPMJS registry
 
 # Optional for configuration
 NX_CLOUD_AUTH_TOKEN # Nx Cloud distributed caching
