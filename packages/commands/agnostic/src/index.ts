@@ -7,6 +7,7 @@ type CommandName =
   | 'auto-spec'
   | 'claude-docs'
   | 'create-pr'
+  | 'daily-standup'
   | 'deploy'
   | 'execute-plan'
   | 'explain-file'
@@ -49,6 +50,11 @@ export const commands: Commands = {
     description:
       'Create or update a Graphite PR with auto-generated conventional commit messages and comprehensive descriptions based on code diffs.',
     filePath: './create-pr.md',
+  },
+  'daily-standup': {
+    description:
+      'This provides a daily standup, checking GitHub and Linear over the past day and providing a summary of what you&#39;ve been working on and what you will continue to work on.',
+    filePath: './daily-standup.md',
   },
   deploy: {
     description:
