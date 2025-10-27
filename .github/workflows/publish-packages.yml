@@ -74,7 +74,7 @@ jobs:
           fi
 
       - name: Build packages
-        run: bunx nx run-many --target=build
+        run: npx nx run-many --target=build
 
       - name: Version and publish packages (dry run)
         if: github.event.inputs.dryRun == 'true' || github.event_name == 'workflow_dispatch'
@@ -82,10 +82,10 @@ jobs:
           echo "Running dry-run for affected packages with tag: ${{ steps.npm-tag.outputs.tag }}"
           if [[ "${{ github.ref_name }}" == "next" ]]; then
             echo "Using prerelease versioning for next branch"
-            bunx nx release version prerelease --preid=next --dry-run
+            npx nx release version prerelease --preid=next --dry-run
           else
             echo "Using standard versioning for main branch"
-            bunx nx release version --specifier=patch --dry-run
+            npx nx release version --specifier=patch --dry-run
           fi
           npx nx release publish --dry-run --tag=${{ steps.npm-tag.outputs.tag }}
         env:
@@ -98,10 +98,10 @@ jobs:
           echo "Versioning affected packages"
           if [[ "${{ github.ref_name }}" == "next" ]]; then
             echo "Using prerelease versioning for next branch"
-            bunx nx release version prerelease --preid=next
+            npx nx release version prerelease --preid=next
           else
             echo "Using standard versioning for main branch"
-            bunx nx release version --specifier=patch
+            npx nx release version --specifier=patch
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

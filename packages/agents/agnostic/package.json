@@ -56,7 +56,7 @@
     }
   },
   "dependencies": {
-    "@ai-toolkit/utils": "workspace:*"
+    "@ai-toolkit/utils": "*"
   },
   "devDependencies": {}
 }

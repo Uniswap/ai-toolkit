@@ -1,5 +1,8 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "cli": {
+    "packageManager": "npm"
+  },
   "tui": {
     "enabled": false
   },
@@ -97,30 +100,29 @@
   "parallel": 5,
   "cacheDirectory": "node_modules/.cache/nx",
   "release": {
-    "projects": [
-      "@uniswap/ai-toolkit-nx-claude",
-      "@ai-toolkit/utils",
-      "@ai-toolkit/agents-agnostic",
-      "@ai-toolkit/commands-agnostic",
-      "@ai-toolkit/commands-typescript"
-    ],
-    "projectsRelationship": "independent",
     "releaseTagPattern": "{projectName}@{version}",
+    "git": {
+      "commit": true,
+      "tag": true
+    },
     "version": {
       "conventionalCommits": true,
-      "preVersionCommand": "bunx nx run-many -t build",
-      "fallbackCurrentVersionResolver": "disk",
-      "git": {
-        "commit": true,
-        "tag": true
-      }
+      "preVersionCommand": "npx nx run-many -t build"
     },
     "changelog": {
       "projectChangelogs": true,
-      "createRelease": "github",
-      "git": {
-        "commit": true,
-        "tag": true
+      "createRelease": "github"
+    },
+    "groups": {
+      "default": {
+        "projects": [
+          "@uniswap/ai-toolkit-nx-claude",
+          "@ai-toolkit/utils",
+          "@ai-toolkit/agents-agnostic",
+          "@ai-toolkit/commands-agnostic",
+          "@ai-toolkit/commands-typescript"
+        ],
+        "projectsRelationship": "independent"
       }
     }
   }
