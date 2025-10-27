@@ -3,6 +3,7 @@
   "tui": {
     "enabled": false
   },
+  "defaultBase": "origin/next",
   "namedInputs": {
     "default": ["{projectRoot}/**/*", "sharedGlobals"],
     "production": [
@@ -107,24 +108,18 @@
     "projectsRelationship": "independent",
     "releaseTagPattern": "{projectName}@{version}",
     "git": {
+      "commit": true,
+      "tag": true,
       "commitMessage": "chore(release): [skip ci] publish"
     },
     "version": {
       "conventionalCommits": true,
       "preVersionCommand": "npx nx run-many -t build",
-      "fallbackCurrentVersionResolver": "disk",
-      "git": {
-        "commit": true,
-        "tag": true
-      }
+      "fallbackCurrentVersionResolver": "disk"
     },
     "changelog": {
       "projectChangelogs": true,
-      "createRelease": "github",
-      "git": {
-        "commit": true,
-        "tag": true
-      }
+      "createRelease": "github"
     }
   }
 }
