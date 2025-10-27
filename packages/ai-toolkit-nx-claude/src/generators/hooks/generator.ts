@@ -40,41 +40,52 @@ export async function hooksGenerator(
   const schemaPath = path.join(__dirname, 'schema.json');
   let normalizedOptions: HooksGeneratorSchema;
 
-  // Get the list of explicitly provided CLI options with their values
-  const explicitlyProvided = getExplicitlyProvidedOptions(options);
+  // If installMode is 'default', skip all prompts and use defaults
+  if (options.installMode === 'default') {
+    normalizedOptions = {
+      backup: options.backup !== false, // Default to true unless explicitly false
+      dry: options.dry || false,
+      force: options.force || false,
+      verbose: options.verbose || false,
+      installMode: 'default',
+    };
+  } else {
+    // Get the list of explicitly provided CLI options with their values
+    const explicitlyProvided = getExplicitlyProvidedOptions(options);
 
-  // Check if Nx's dry-run flag was provided in any form
-  const nxDryRunProvided = isNxDryRunProvided();
+    // Check if Nx's dry-run flag was provided in any form
+    const nxDryRunProvided = isNxDryRunProvided();
 
-  // If Nx dry-run was provided, set our dry option to true
-  if (nxDryRunProvided) {
-    options.dry = true;
-    // Also mark it as explicitly provided
-    explicitlyProvided.set('dry', true);
-  }
-
-  // Check if Nx's no-interactive flag was provided
-  const nxNoInteractiveProvided = isNxNoInteractiveProvided();
-
-  // Pass the no-interactive flag to prompt-utils via options
-  const optionsWithNoInteractive = {
-    ...options,
-    'no-interactive': nxNoInteractiveProvided,
-  };
-
-  try {
-    normalizedOptions = await promptForMissingOptions(
-      optionsWithNoInteractive,
-      schemaPath,
-      {}, // context for multi-select (not used here)
-      explicitlyProvided // pass the explicitly provided options
-    );
-  } catch (error: any) {
-    if (error.message?.includes('Installation cancelled')) {
-      logger.warn(`❌ ${error.message}`);
-      return;
+    // If Nx dry-run was provided, set our dry option to true
+    if (nxDryRunProvided) {
+      options.dry = true;
+      // Also mark it as explicitly provided
+      explicitlyProvided.set('dry', true);
     }
-    throw error;
+
+    // Check if Nx's no-interactive flag was provided
+    const nxNoInteractiveProvided = isNxNoInteractiveProvided();
+
+    // Pass the no-interactive flag to prompt-utils via options
+    const optionsWithNoInteractive = {
+      ...options,
+      'no-interactive': nxNoInteractiveProvided,
+    };
+
+    try {
+      normalizedOptions = await promptForMissingOptions(
+        optionsWithNoInteractive,
+        schemaPath,
+        {}, // context for multi-select (not used here)
+        explicitlyProvided // pass the explicitly provided options
+      );
+    } catch (error: any) {
+      if (error.message?.includes('Installation cancelled')) {
+        logger.warn(`❌ ${error.message}`);
+        return;
+      }
+      throw error;
+    }
   }
 
   // Handle dry-run mode (check both dry and dry-run for compatibility)

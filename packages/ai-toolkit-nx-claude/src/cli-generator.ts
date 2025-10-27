@@ -5,8 +5,8 @@
  *
  * External Usage (npx @uniswap/ai-toolkit-nx-claude@latest):
  * - No arguments -> runs init generator (prompts for installMode)
- * - default-install -> runs init with --install-mode=default
- * - custom-install -> runs init with --install-mode=custom
+ * - default -> runs init with --install-mode=default
+ * - custom -> runs init with --install-mode=custom
  *
  * Internal Usage (from within ai-toolkit repo):
  * - No arguments -> shows interactive menu of all generators
@@ -41,8 +41,8 @@ function isInAiToolkitRepo(): boolean {
 
 // Available generators (only show user-facing ones in interactive mode)
 const GENERATORS = {
-  'default-install': 'Recommended setup with pre-selected components',
-  'custom-install': 'Choose exactly what to install',
+  default: 'Recommended setup with pre-selected components',
+  custom: 'Choose exactly what to install',
 };
 
 // All generators including internal ones (for validation)
@@ -120,8 +120,8 @@ async function main() {
     console.log('\nUsage:');
     console.log('  npx @uniswap/ai-toolkit-nx-claude@latest [generator]');
     console.log('\nExamples:');
-    console.log('  npx @uniswap/ai-toolkit-nx-claude@latest default-install');
-    console.log('  npx @uniswap/ai-toolkit-nx-claude@latest custom-install');
+    console.log('  npx @uniswap/ai-toolkit-nx-claude@latest default');
+    console.log('  npx @uniswap/ai-toolkit-nx-claude@latest custom');
     process.exit(0);
   }
 
@@ -171,13 +171,13 @@ async function main() {
     process.exit(1);
   }
 
-  // Route default-install and custom-install to init generator with appropriate mode
-  if (generatorName === 'default-install') {
+  // Route default and custom to init generator with appropriate mode
+  if (generatorName === 'default') {
     await handleNxExecution('init', [
       ...processedArgs,
       '--install-mode=default',
     ]);
-  } else if (generatorName === 'custom-install') {
+  } else if (generatorName === 'custom') {
     await handleNxExecution('init', [
       ...processedArgs,
       '--install-mode=custom',

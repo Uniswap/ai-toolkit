@@ -126,6 +126,75 @@ npx nx generate @uniswap/ai-toolkit-nx-claude:add-agent
 
 ## Generator Development Patterns
 
+### The installMode Pattern for Sub-Generators
+
+**Critical Pattern for Preventing Duplicate Prompts**
+
+When generators are called programmatically from parent generators (e.g., init calling hooks), they need a way to know whether to prompt interactively or use defaults. The **installMode pattern** solves this:
+
+**Problem**: When a parent generator calls a child generator programmatically, the child's `getExplicitlyProvidedOptions()` reads `process.argv` which contains the ORIGINAL CLI command, not the programmatic options. This causes the child to re-prompt for options that were already decided by the parent.
+
+**Solution**: Add a hidden `installMode` parameter that parent generators can pass to control child behavior:
+
+**Implementation Steps**:
+
+1. **In schema.json**: Add `installMode` property with `hidden: true`
+
+```json
+{
+  "installMode": {
+    "type": "string",
+    "description": "Installation mode from parent generator (default or custom)",
+    "enum": ["default", "custom"],
+    "hidden": true
+  }
+}
+```
+
+2. **In schema.d.ts**: Add to TypeScript interface
+
+```typescript
+interface MyGeneratorSchema {
+  installMode?: 'default' | 'custom';
+  // ... other properties
+}
+```
+
+3. **In generator.ts**: Check installMode before prompting
+
+```typescript
+if (options.installMode === 'default') {
+  // Skip prompts, use defaults
+  normalizedOptions = {
+    option1: options.option1 !== false,
+    option2: options.option2 || false,
+    installMode: 'default',
+  };
+} else {
+  // Normal prompting flow
+  normalizedOptions = await promptForMissingOptions(...);
+}
+```
+
+4. **In parent generator**: Pass installMode when calling child
+
+```typescript
+await childGenerator(tree, {
+  installMode: normalizedOptions.installMode,
+  // ... other options
+});
+```
+
+**Benefits**:
+
+
+- Eliminates duplicate prompts
+- Maintains backward compatibility (works standalone)
+- Hidden property doesn't clutter CLI help
+- Clear control flow between parent and child generators
+
+**Generators Using This Pattern**: hooks, addons
+
 ### Schema-Driven Prompting
 
 All generators use a sophisticated schema-driven approach for user interaction that extends standard JSON Schema with custom prompt properties:

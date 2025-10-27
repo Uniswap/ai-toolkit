@@ -536,6 +536,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
           dry: false,
           backup: true,
           verbose: false,
+          installMode: normalizedOptions.installMode,
         });
         logger.info('✅ Notification hooks installed successfully');
       } catch (error: any) {
@@ -588,7 +589,8 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
                 port: 0, // Use default port
               }
             : {
-                // Custom mode - let addons generator prompt user
+                // Custom mode - let addons generator prompt user for specific addon
+                installMode: 'specific' as const,
                 force: normalizedOptions.force || false,
               }
         );
