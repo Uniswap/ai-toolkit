@@ -113,7 +113,8 @@
       "fallbackCurrentVersionResolver": "disk",
       "git": {
         "commit": true,
-        "tag": true
+        "tag": true,
+        "commitMessage": "chore(release): [skip ci] publish"
       }
     },
     "changelog": {
