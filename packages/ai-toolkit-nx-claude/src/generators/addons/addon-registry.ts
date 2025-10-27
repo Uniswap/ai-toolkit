@@ -193,8 +193,8 @@ const ADDON_REGISTRY: AddonMetadata[] = [
     packageName: 'figma',
     mcp: {
       serverName: 'figma',
-      command: 'sse',
-      args: ['http://127.0.0.1:3845/mcp'],
+      transport: 'sse',
+      url: 'http://127.0.0.1:3845/mcp',
     },
   },
   {
@@ -218,8 +218,8 @@ const ADDON_REGISTRY: AddonMetadata[] = [
     packageName: 'vercel',
     mcp: {
       serverName: 'vercel',
-      command: 'http',
-      args: ['https://mcp.vercel.com'],
+      transport: 'http',
+      url: 'https://mcp.vercel.com',
     },
   },
 ];
