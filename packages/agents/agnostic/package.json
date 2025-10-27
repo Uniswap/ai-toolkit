@@ -1,6 +1,6 @@
 {
   "name": "@ai-toolkit/agents-agnostic",
-  "version": "0.2.10-next.4",
+  "version": "0.2.10-next.5",
   "private": true,
   "type": "module",
   "main": "./dist/src/index.js",
@@ -56,7 +56,7 @@
     }
   },
   "dependencies": {
-    "@ai-toolkit/utils": "0.2.10-next.4"
+    "@ai-toolkit/utils": "0.2.10-next.5"
   },
   "devDependencies": {}
 }
