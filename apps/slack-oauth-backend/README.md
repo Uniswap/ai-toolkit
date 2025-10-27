@@ -19,7 +19,7 @@ This service automates the Slack OAuth 2.0 flow, enabling users to easily obtain
 
 ## 📋 Prerequisites
 
-- Node.js 18+ or Bun 1.0+
+- Node.js 22.13.1
 - A Slack App configured with OAuth
 - Access to Slack workspace with admin privileges
 - Domain with HTTPS for production deployment (optional for local development)
@@ -74,7 +74,7 @@ cd ai-toolkit-slack-oauth-backend
 cp apps/slack-oauth-backend/.env.example apps/slack-oauth-backend/.env
 
 # Or use the Nx command
-bunx nx env-setup slack-oauth-backend
+npx nx env-setup slack-oauth-backend
 ```
 
 Edit `.env` with your credentials:
@@ -100,11 +100,7 @@ NOTION_DOC_URL=https://your-docs-url.com/setup
 
 ```bash
 # From monorepo root
-bun install
-
-# Or with npm/yarn
 npm install
-yarn install
 ```
 
 ### 4. Run the Application
@@ -113,20 +109,20 @@ yarn install
 
 ```bash
 # Using Nx (recommended)
-bunx nx serve slack-oauth-backend
+npx nx serve slack-oauth-backend
 
 # With debugging
-bunx nx serve slack-oauth-backend --configuration=development
+npx nx serve slack-oauth-backend --configuration=development
 
 # Direct run
-bun run apps/slack-oauth-backend/src/main.ts
+npm run apps/slack-oauth-backend/src/main.ts
 ```
 
 #### Production Build
 
 ```bash
 # Build the application
-bunx nx build slack-oauth-backend --configuration=production
+npx nx build slack-oauth-backend --configuration=production
 
 # Run the built application
 node apps/slack-oauth-backend/dist/main.js
@@ -193,16 +189,16 @@ pm2 start apps/slack-oauth-backend/dist/main.js --name slack-oauth
 
 ```bash
 # Run all tests
-bunx nx test slack-oauth-backend
+npx nx test slack-oauth-backend
 
 # Run with coverage
-bunx nx test slack-oauth-backend --configuration=ci
+npx nx test slack-oauth-backend --configuration=ci
 
 # Watch mode for development
-bunx nx test slack-oauth-backend --configuration=watch
+npx nx test slack-oauth-backend --configuration=watch
 
 # Run specific test file
-bunx jest apps/slack-oauth-backend/src/oauth/handler.spec.ts
+npx jest apps/slack-oauth-backend/src/oauth/handler.spec.ts
 ```
 
 ### Test Coverage
@@ -220,7 +216,7 @@ Current test coverage includes:
 
    ```bash
    # Start the server
-   bunx nx serve slack-oauth-backend
+   npx nx serve slack-oauth-backend
 
    # Visit http://localhost:3000
    # Click "Add to Slack" and complete the flow
@@ -238,12 +234,12 @@ Current test coverage includes:
 
 ```dockerfile
 # Dockerfile (create in apps/slack-oauth-backend/)
-FROM node:18-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
 
-FROM node:18-alpine
+FROM node:22-alpine
 WORKDIR /app
 COPY --from=builder /app/node_modules ./node_modules
 COPY apps/slack-oauth-backend/dist ./
@@ -255,7 +251,7 @@ Build and run:
 
 ```bash
 # Build Docker image
-bunx nx docker-build slack-oauth-backend
+npx nx docker-build slack-oauth-backend
 
 # Run container
 docker run -p 3000:3000 --env-file .env slack-oauth-backend:latest
@@ -263,37 +259,85 @@ docker run -p 3000:3000 --env-file .env slack-oauth-backend:latest
 
 ### Vercel Deployment
 
-1. **Install Vercel CLI**:
+The service is configured for Vercel deployment from an Nx monorepo. The configuration leverages Vercel's build system with Nx integration.
 
-   ```bash
-   npm i -g vercel
-   ```
+1. **Configure Vercel Dashboard**:
 
-2. **Configure `vercel.json`**:
+   - Set **Root Directory** to `.` (monorepo root)
+   - Vercel will use the `vercel.json` configuration automatically
+
+2. **Configure `vercel.json`** (already configured):
 
    ```json
    {
-     "builds": [
-       {
-         "src": "apps/slack-oauth-backend/dist/main.js",
-         "use": "@vercel/node"
+     "$schema": "https://openapi.vercel.sh/vercel.json",
+     "buildCommand": "nx build slack-oauth-backend",
+     "outputDirectory": "apps/slack-oauth-backend/dist",
+     "installCommand": "npm install",
+     "framework": null,
+     "ignoreCommand": "nx show projects --affected --base=$VERCEL_GIT_PREVIOUS_SHA --head=$VERCEL_GIT_COMMIT_SHA | grep -q '^slack-oauth-backend$'",
+     "functions": {
+       "apps/slack-oauth-backend/dist/main.js": {
+         "maxDuration": 10
        }
-     ],
-     "routes": [
+     },
+     "rewrites": [
        {
-         "src": "/(.*)",
-         "dest": "apps/slack-oauth-backend/dist/main.js"
+         "source": "/(.*)",
+         "destination": "/apps/slack-oauth-backend/dist/main.js"
        }
      ]
    }
    ```
 
-3. **Deploy**:
+   **Important Configuration Notes**:
+
+   - `buildCommand`: Runs Nx build for the slack-oauth-backend project
+   - `outputDirectory`: Points to the compiled output in the dist folder
+   - `installCommand`: Installs dependencies from monorepo root using npm
+   - `ignoreCommand`: Uses Nx's affected detection to skip builds when this app isn't affected
+   - `functions`: Configures the serverless function with a 10-second timeout
+   - `rewrites`: Routes all requests to the Express server
+
+3. **Package Configuration** (already configured):
+
+   The `package.json` must include a `start` script for Vercel to run the Node.js server:
+
+   ```json
+   {
+     "scripts": {
+       "start": "node main.js"
+     }
+   }
+   ```
+
+4. **Environment Variables**:
+
+   Set in Vercel Dashboard → Settings → Environment Variables:
+
+   - `SLACK_CLIENT_ID`
+   - `SLACK_CLIENT_SECRET`
+   - `SLACK_BOT_TOKEN`
+   - `SLACK_REDIRECT_URI` (use your Vercel deployment URL)
+   - `SESSION_SECRET`
+
+5. **Deploy**:
 
    ```bash
-   bunx nx build slack-oauth-backend --configuration=production
+   # Deploy automatically via Git
+   git push origin main
+
+   # Or deploy manually with Vercel CLI
+   npm i -g vercel
    vercel --prod
    ```
+
+**Monorepo Deployment Notes**:
+
+- The build runs from the monorepo root, installing all dependencies
+- Only the `slack-oauth-backend` project is built via the `buildCommand`
+- The `ignoreCommand` prevents unnecessary deployments when other apps change
+- All workspace dependencies are resolved during the build
 
 ### Heroku Deployment
 
@@ -352,7 +396,7 @@ docker run -p 3000:3000 --env-file .env slack-oauth-backend:latest
 3. **Deploy**:
 
    ```bash
-   bunx nx build slack-oauth-backend --configuration=production
+   npx nx build slack-oauth-backend --configuration=production
    serverless deploy
    ```
 
@@ -382,7 +426,7 @@ gcloud run deploy slack-oauth-backend \
        github:
          repo: your-username/your-repo
          branch: main
-       build_command: bunx nx build slack-oauth-backend --configuration=production
+       build_command: npx nx build slack-oauth-backend --configuration=production
        run_command: node apps/slack-oauth-backend/dist/main.js
        environment_slug: node-js
        http_port: 3000
@@ -504,7 +548,7 @@ curl -I http://localhost:3000/slack/oauth/authorize | grep "X-RateLimit"
 grep "SECURITY" app.log | tail -50
 
 # Check for exposed secrets
-bunx nx serve slack-oauth-backend --log-level=debug | grep -E "xox[bpra]-"
+npx nx serve slack-oauth-backend --log-level=debug | grep -E "xox[bpra]-"
 ```
 
 #### Compliance Considerations
@@ -528,7 +572,7 @@ printenv | grep SLACK
 cat apps/slack-oauth-backend/.env
 
 # Validate configuration on startup
-bunx nx serve slack-oauth-backend --log-level=debug
+npx nx serve slack-oauth-backend --log-level=debug
 ```
 
 #### "Invalid client_id or client_secret"
@@ -610,13 +654,13 @@ Enable detailed logging:
 
 ```bash
 # Set debug log level
-LOG_LEVEL=debug bunx nx serve slack-oauth-backend
+LOG_LEVEL=debug npx nx serve slack-oauth-backend
 
 # With additional Node.js debugging
-DEBUG=* bunx nx serve slack-oauth-backend
+DEBUG=* npx nx serve slack-oauth-backend
 
 # Inspect mode for breakpoints
-bunx nx serve slack-oauth-backend --inspect
+npx nx serve slack-oauth-backend --inspect
 ```
 
 ### Monitoring and Logs
@@ -625,7 +669,7 @@ bunx nx serve slack-oauth-backend --inspect
 
 ```bash
 # View application logs with different log levels
-LOG_LEVEL=debug bunx nx serve slack-oauth-backend 2>&1 | tee app.log
+LOG_LEVEL=debug npx nx serve slack-oauth-backend 2>&1 | tee app.log
 
 # Monitor in production with PM2
 pm2 start apps/slack-oauth-backend/dist/main.js --name slack-oauth
@@ -633,7 +677,7 @@ pm2 logs slack-oauth --lines 100
 pm2 monit
 
 # View structured logs (production)
-bunx nx serve slack-oauth-backend --configuration=production | jq '.'
+npx nx serve slack-oauth-backend --configuration=production | jq '.'
 ```
 
 #### Health Monitoring
@@ -755,7 +799,7 @@ For distributed deployments, replace in-memory cache with Redis:
 
 ```bash
 # Install Redis adapter
-bun add redis ioredis
+npm add redis ioredis
 
 # Configure Redis URL
 REDIS_URL=redis://localhost:6379
@@ -835,7 +879,7 @@ upstream slack_oauth {
 
 ```bash
 # CPU and memory profiling
-bunx nx serve slack-oauth-backend --inspect
+npx nx serve slack-oauth-backend --inspect
 # Connect Chrome DevTools to chrome://inspect
 
 # Load testing with k6
@@ -868,10 +912,10 @@ npm install event-loop-stats
 
 This project is part of the AI Toolkit monorepo. Please follow these guidelines:
 
-1. **Code Style**: Run `bunx nx format:write` before committing
-2. **Testing**: Ensure all tests pass with `bunx nx test slack-oauth-backend`
-3. **Type Safety**: Run `bunx nx typecheck slack-oauth-backend`
-4. **Linting**: Fix all lint issues with `bunx nx lint slack-oauth-backend --fix`
+1. **Code Style**: Run `npx nx format:write` before committing
+2. **Testing**: Ensure all tests pass with `npx nx test slack-oauth-backend`
+3. **Type Safety**: Run `npx nx typecheck slack-oauth-backend`
+4. **Linting**: Fix all lint issues with `npx nx lint slack-oauth-backend --fix`
 5. **Documentation**: Update README for new features
 
 ### Development Workflow
@@ -881,11 +925,11 @@ This project is part of the AI Toolkit monorepo. Please follow these guidelines:
 git checkout -b feature/your-feature
 
 # Make changes and test
-bunx nx test slack-oauth-backend
-bunx nx lint slack-oauth-backend
+npx nx test slack-oauth-backend
+npx nx lint slack-oauth-backend
 
 # Format code
-bunx nx format:write
+npx nx format:write
 
 # Commit with conventional commits
 git commit -m "feat: add new feature"

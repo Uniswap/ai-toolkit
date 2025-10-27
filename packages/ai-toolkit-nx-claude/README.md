@@ -11,7 +11,7 @@ This package is published to a private npmjs package registry and requires authe
 ### Run Default Generator
 
 ```bash
-bun nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec
+npx nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec
 ```
 
 ### Run Specific Generators
@@ -20,25 +20,25 @@ Each generator can be run directly desired generator's subcommand:
 
 ```bash
 # One-shot installer for Claude Code configs
-bun nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec init
+npx nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec init
 
 # Install notification hooks
-bun nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec hooks
+npx nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec hooks
 
 # Install and configure Claude Code addons
-bun nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec addons
+npx nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec addons
 
 # Add a new command to packages
-bun nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec add-command
+npx nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec add-command
 
 # Add a new agent to packages
-bun nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec add-agent
+npx nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec add-agent
 ```
 
 ### List Available Generators
 
 ```bash
-bun nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec --list
+npx nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec --list
 ```
 
 ## Available Generators
@@ -51,8 +51,8 @@ bun nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec --list
 
 ## Building
 
-Run `bun nx build ai-toolkit-nx-claude` to build the library.
+Run `npm nx build ai-toolkit-nx-claude` to build the library.
 
 ## Testing
 
-Run `bunx nx test ai-toolkit-nx-claude` to test this library
+Run `npx nx test ai-toolkit-nx-claude` to test this library

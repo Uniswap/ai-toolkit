@@ -48,7 +48,7 @@ Agents are invoked by commands, not directly by users. They inherit tool permiss
 
 To add a new agent:
 
-1. Run `bun start` and choose `add-agent`, then follow the steps to create a template prompt file for your new agent
+1. Run `npm start` and choose `add-agent`, then follow the steps to create a template prompt file for your new agent
 2. As of October 2025, we recmmend to choose sonnet 4.5, as it's the best and cheapest Anthropic model available
 3. Look at the other markdown agent files for inspiration and fill in the TODOs in the generated template file
 

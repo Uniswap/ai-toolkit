@@ -5,7 +5,7 @@
       "type": "node",
       "request": "launch",
       "name": "Debug @ai-toolkit/slack-oauth-backend with Nx",
-      "runtimeExecutable": "bun",
+      "runtimeExecutable": "npm",
       "runtimeArgs": ["nx", "serve", "@ai-toolkit/slack-oauth-backend"],
       "env": {
         "NODE_OPTIONS": "--inspect=9229"

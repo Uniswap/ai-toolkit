@@ -6,7 +6,7 @@ The `@uniswap/ai-toolkit-nx-claude` package (published as `@uniswap/ai-toolkit-n
 
 ### Standalone Package Usage
 
-This package can be run directly via npx/bunx without cloning the repository:
+This package can be run directly via npx without cloning the repository:
 
 ```bash
 # For Uniswap organization members only
@@ -49,9 +49,9 @@ npx @uniswap/ai-toolkit-nx-claude@latest
 **Direct Usage**:
 
 ```bash
-bunx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=default
+npx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=default
 # or
-bunx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=custom
+npx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=custom
 ```
 
 **Key Features**:
@@ -87,7 +87,7 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=custom
 **Usage**:
 
 ```bash
-bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks
+npx nx generate @uniswap/ai-toolkit-nx-claude:hooks
 ```
 
 **Key Features**:
@@ -107,7 +107,7 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks
 **Usage**:
 
 ```bash
-bunx nx generate @uniswap/ai-toolkit-nx-claude:add-command
+npx nx generate @uniswap/ai-toolkit-nx-claude:add-command
 ```
 
 **Status**: Placeholder implementation - needs completion
@@ -119,7 +119,7 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:add-command
 **Usage**:
 
 ```bash
-bunx nx generate @uniswap/ai-toolkit-nx-claude:add-agent
+npx nx generate @uniswap/ai-toolkit-nx-claude:add-agent
 ```
 
 **Status**: Placeholder implementation - needs completion
@@ -363,14 +363,14 @@ All generators are registered in `generators.json`:
 
 ```bash
 # Build the package
-bunx nx build ai-toolkit-nx-claude
+npx nx build ai-toolkit-nx-claude
 
 # Run tests
-bunx nx test ai-toolkit-nx-claude
+npx nx test ai-toolkit-nx-claude
 
 # Test generators locally
-bunx nx generate @uniswap/ai-toolkit-nx-claude:init --dry
-bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks --dry
+npx nx generate @uniswap/ai-toolkit-nx-claude:init --dry
+npx nx generate @uniswap/ai-toolkit-nx-claude:hooks --dry
 ```
 
 ### Nx Workspace Integration
@@ -504,15 +504,15 @@ For manual publishing (maintainers only):
 
 ```bash
 # Build the package
-bunx nx build ai-toolkit-nx-claude
+npx nx build ai-toolkit-nx-claude
 
 # For main branch (latest):
-bunx nx release version --projects=@uniswap/ai-toolkit-nx-claude
-bunx nx release publish --projects=@uniswap/ai-toolkit-nx-claude --tag=latest
+npx nx release version --projects=@uniswap/ai-toolkit-nx-claude
+npx nx release publish --projects=@uniswap/ai-toolkit-nx-claude --tag=latest
 
 # For next branch (prerelease):
-bunx nx release version --projects=@uniswap/ai-toolkit-nx-claude --preid=next --prerelease
-bunx nx release publish --projects=@uniswap/ai-toolkit-nx-claude --tag=next
+npx nx release version --projects=@uniswap/ai-toolkit-nx-claude --preid=next --prerelease
+npx nx release publish --projects=@uniswap/ai-toolkit-nx-claude --tag=next
 ```
 
 ### Fixing Version Misalignment
@@ -529,6 +529,6 @@ If the `next` branch version gets out of sync with `latest`:
 - **1.0.0**: Initial release with init generator
 - **1.1.0**: Added hooks generator for notifications
 - **1.2.0**: Added automatic fallback mechanism for Claude CLI installation (curl → npm)
-- **1.3.0**: Added standalone package publishing and direct npx/bunx execution
+- **1.3.0**: Added standalone package publishing and direct npx/npx execution
 - Future versions will be documented here
 ````

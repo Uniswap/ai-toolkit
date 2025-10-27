@@ -1,7 +1,7 @@
 ---
 description: Deep dive into a codebase area to build comprehensive understanding before creating and implementing a plan.
 argument-hint: <natural language description of what you want to understand>
-allowed-tools: Bash(git ls-files:*), Bash(find:*), Fetch(*), Bash(git log:*), Bash(git show:*), Bash(bunx nx graph:*)
+allowed-tools: Bash(git ls-files:*), Bash(find:*), Fetch(*), Bash(git log:*), Bash(git show:*), Bash(npx nx graph:*)
 ---
 
 ## Inputs

@@ -5,16 +5,7 @@ pre-commit:
   parallel: false # Changed to false to ensure format runs before lint
   commands:
     format:
-      run: |
-        # Get list of staged files as comma-separated
-        STAGED_FILES=$(git diff --cached --name-only | paste -sd "," -)
-        # Only format if there are staged files
-        if [ -n "$STAGED_FILES" ]; then
-          # Format only the staged files using Nx --files flag
-          bunx nx format:write --files="$STAGED_FILES"
-          # Re-stage the formatted files
-          git diff --cached --name-only | xargs git add
-        fi
+      run: sh scripts/lefthook/format-files.sh
       tags: format
       skip:
         - merge
@@ -22,13 +13,7 @@ pre-commit:
       fail_text: 'Formatting failed. Please review the changes.'
 
     lint:
-      run: |
-        # Get list of staged files (only .ts, .tsx, .js, .jsx files that can be linted)
-        STAGED_LINTABLE=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|jsx)$' || true)
-        # Only lint if there are staged lintable files
-        if [ -n "$STAGED_LINTABLE" ]; then
-          bunx nx affected --target=lint --base=HEAD~1 --fix
-        fi
+      run: sh scripts/lefthook/lint.sh
       tags: lint
       skip:
         - merge
@@ -36,14 +21,9 @@ pre-commit:
       fail_text: 'Linting failed. Please fix the issues before committing.'
 
     typecheck:
-      run: bunx nx affected --target=typecheck --base=HEAD~1
+      run: npx nx affected --target=typecheck --base=HEAD~1
       tags: typecheck
       skip:
         - merge
         - rebase
       fail_text: 'Typechecking failed. Please fix the issues before committing.'
-
-# Skip hooks if in CI or if LEFTHOOK=0 is set
-skip_output:
-  - meta
-  - success

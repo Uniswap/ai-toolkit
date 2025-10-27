@@ -135,7 +135,7 @@ This package contains agent configurations specific to ${targetPackage}.
 Install this package to access ${targetPackage}-specific agents in Claude Code:
 
 \`\`\`bash
-bunx nx generate @uniswap/ai-toolkit-nx-claude:init
+npx nx generate @uniswap/ai-toolkit-nx-claude:init
 \`\`\`
 
 Then select the agents from this package during the installation process.
@@ -151,13 +151,13 @@ Then select the agents from this package during the installation process.
 To add new agents to this package:
 
 \`\`\`bash
-bunx nx generate @uniswap/ai-toolkit-nx-claude:add-agent
+npx nx generate @uniswap/ai-toolkit-nx-claude:add-agent
 \`\`\`
 
 After adding or modifying agents, regenerate the index:
 
 \`\`\`bash
-bunx nx run @ai-toolkit/agents-${targetPackage}:generate-index
+npx nx run @ai-toolkit/agents-${targetPackage}:generate-index
 \`\`\``;
 
     tree.write(
@@ -217,7 +217,7 @@ bunx nx run @ai-toolkit/agents-${targetPackage}:generate-index
       console.log(`\n🔄 Updating package index...`);
       return new Promise<void>((resolve) => {
         const child = spawn(
-          'bunx',
+          'npx',
           ['nx', 'run', `@ai-toolkit/agents-${targetPackage}:generate-index`],
           {
             stdio: 'inherit',
@@ -235,7 +235,7 @@ bunx nx run @ai-toolkit/agents-${targetPackage}:generate-index
               `⚠️  Failed to update package index. You may need to run manually:`
             );
             console.warn(
-              `   bunx nx run @ai-toolkit/agents-${targetPackage}:generate-index`
+              `   npx nx run @ai-toolkit/agents-${targetPackage}:generate-index`
             );
             // Don't reject - let the generator complete successfully
             resolve();
@@ -245,7 +245,7 @@ bunx nx run @ai-toolkit/agents-${targetPackage}:generate-index
         child.on('error', (error) => {
           console.warn(`⚠️  Failed to update package index: ${error.message}`);
           console.warn(
-            `   Run manually: bunx nx run @ai-toolkit/agents-${targetPackage}:generate-index`
+            `   Run manually: npx nx run @ai-toolkit/agents-${targetPackage}:generate-index`
           );
           // Don't reject - let the generator complete successfully
           resolve();
