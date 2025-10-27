@@ -163,80 +163,48 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
 
-      - name: Send Slack notification for next branch publish
+      - name: Get package list for Slack notification
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && github.ref_name == 'next'
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        id: package-list
         run: |
-          echo "Sending Slack notification for next branch publish..."
-
           # Get the list of packages that were published
           PACKAGES=$(jq -r '.release.projects[]' nx.json | tr '\n' ', ' | sed 's/,$//')
+          echo "packages=$PACKAGES" >> $GITHUB_OUTPUT
 
-          # Get the commit SHA
-          COMMIT_SHA="${{ github.sha }}"
-          SHORT_SHA="${COMMIT_SHA:0:7}"
-
-          # Build the workflow run URL
-          WORKFLOW_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-
-          # Send notification to Slack
-          curl -X POST "$SLACK_WEBHOOK_URL" \
-            -H 'Content-Type: application/json' \
-            -d "{
-              \"text\": \"📦 *Next Branch Packages Published*\",
-              \"blocks\": [
-                {
-                  \"type\": \"section\",
-                  \"text\": {
-                    \"type\": \"mrkdwn\",
-                    \"text\": \"📦 *Next Branch Packages Published*\\n\\nPackages from the \\\`next\\\` branch have been published to npm with the \\\`next\\\` tag.\"
-                  }
-                },
-                {
-                  \"type\": \"section\",
-                  \"fields\": [
-                    {
-                      \"type\": \"mrkdwn\",
-                      \"text\": \"*Branch:*\\n\`next\`\"
-                    },
-                    {
-                      \"type\": \"mrkdwn\",
-                      \"text\": \"*npm Tag:*\\n\`next\`\"
-                    }
-                  ]
-                },
-                {
-                  \"type\": \"section\",
-                  \"fields\": [
-                    {
-                      \"type\": \"mrkdwn\",
-                      \"text\": \"*Commit:*\\n\`${SHORT_SHA}\`\"
-                    },
-                    {
-                      \"type\": \"mrkdwn\",
-                      \"text\": \"*Packages:*\\n${PACKAGES}\"
-                    }
-                  ]
-                },
-                {
-                  \"type\": \"actions\",
-                  \"elements\": [
-                    {
-                      \"type\": \"button\",
-                      \"text\": {
-                        \"type\": \"plain_text\",
-                        \"text\": \"View Workflow Run\"
-                      },
-                      \"url\": \"${WORKFLOW_URL}\",
-                      \"style\": \"primary\"
-                    }
-                  ]
-                }
-              ]
-            }"
-
-          echo "✅ Slack notification sent to #ai-internal"
+      - name: Send Slack notification for next branch publish
+        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && github.ref_name == 'next'
+        continue-on-error: true
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            text: "📦 *Next Branch Packages Published*"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "📦 *Next Branch Packages Published*\n\nPackages from the `next` branch have been published to npm with the `next` tag."
+              - type: "section"
+                fields:
+                  - type: "mrkdwn"
+                    text: "*Branch:*\n`next`"
+                  - type: "mrkdwn"
+                    text: "*npm Tag:*\n`next`"
+              - type: "section"
+                fields:
+                  - type: "mrkdwn"
+                    text: "*Commit:*\n`${{ github.sha }}`"
+                  - type: "mrkdwn"
+                    text: "*Packages:*\n${{ steps.package-list.outputs.packages }}"
+              - type: "actions"
+                elements:
+                  - type: "button"
+                    text:
+                      type: "plain_text"
+                      text: "View Workflow Run"
+                    url: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    style: "primary"
 
   sync-next:
     name: Sync next branch with main

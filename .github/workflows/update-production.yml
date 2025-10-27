@@ -296,134 +296,78 @@ jobs:
             echo "has_conflicts=unknown" >> $GITHUB_OUTPUT
           fi
 
+      - name: Get commit count for Slack notification
+        if: steps.create-pr.outputs.pr_created == 'true' && steps.check-mergeable.outputs.has_conflicts != 'true'
+        id: commit-count
+        run: |
+          COMMIT_COUNT=$(git rev-list --count origin/main..origin/next)
+          echo "count=$COMMIT_COUNT" >> $GITHUB_OUTPUT
+
       - name: Send Slack notification (Success)
         if: steps.create-pr.outputs.pr_created == 'true' && steps.check-mergeable.outputs.has_conflicts != 'true'
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: |
-          PR_NUMBER=${{ steps.create-pr.outputs.pr_number }}
-          PR_URL=${{ steps.create-pr.outputs.pr_url }}
-
-          # Get commit count
-          COMMIT_COUNT=$(git rev-list --count origin/main..origin/next)
-
-          echo "Sending Slack notification..."
-
-          # Send notification to Slack
-          curl -X POST "$SLACK_WEBHOOK_URL" \
-            -H 'Content-Type: application/json' \
-            -d "{
-              \"text\": \"📦 *Production Release PR Ready for Review*\",
-              \"blocks\": [
-                {
-                  \"type\": \"section\",
-                  \"text\": {
-                    \"type\": \"mrkdwn\",
-                    \"text\": \"📦 *Production Release PR Ready for Review*\n\nA new production release PR has been automatically created and is ready for review.\"
-                  }
-                },
-                {
-                  \"type\": \"section\",
-                  \"fields\": [
-                    {
-                      \"type\": \"mrkdwn\",
-                      \"text\": \"*PR Number:*\n#${PR_NUMBER}\"
-                    },
-                    {
-                      \"type\": \"mrkdwn\",
-                      \"text\": \"*Commits:*\n${COMMIT_COUNT} changes\"
-                    }
-                  ]
-                },
-                {
-                  \"type\": \"section\",
-                  \"fields\": [
-                    {
-                      \"type\": \"mrkdwn\",
-                      \"text\": \"*Reviewers:*\n@wkoutre @Melvillian\"
-                    }
-                  ]
-                },
-                {
-                  \"type\": \"actions\",
-                  \"elements\": [
-                    {
-                      \"type\": \"button\",
-                      \"text\": {
-                        \"type\": \"plain_text\",
-                        \"text\": \"Review PR\"
-                      },
-                      \"url\": \"${PR_URL}\",
-                      \"style\": \"primary\"
-                    }
-                  ]
-                }
-              ]
-            }"
-
-          echo "✅ Slack notification sent to #ai-internal"
+        continue-on-error: true
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            text: "📦 *Production Release PR Ready for Review*"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "📦 *Production Release PR Ready for Review*\n\nA new production release PR has been automatically created and is ready for review."
+              - type: "section"
+                fields:
+                  - type: "mrkdwn"
+                    text: "*PR Number:*\n#${{ steps.create-pr.outputs.pr_number }}"
+                  - type: "mrkdwn"
+                    text: "*Commits:*\n${{ steps.commit-count.outputs.count }} changes"
+              - type: "section"
+                fields:
+                  - type: "mrkdwn"
+                    text: "*Reviewers:*\n@wkoutre @Melvillian"
+              - type: "actions"
+                elements:
+                  - type: "button"
+                    text:
+                      type: "plain_text"
+                      text: "Review PR"
+                    url: "${{ steps.create-pr.outputs.pr_url }}"
+                    style: "primary"
 
       - name: Send Slack notification (Merge Conflicts)
         if: always() && steps.create-pr.outputs.pr_created == 'true' && steps.check-mergeable.outputs.has_conflicts == 'true'
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: |
-          PR_NUMBER=${{ steps.create-pr.outputs.pr_number }}
-          PR_URL=${{ steps.create-pr.outputs.pr_url }}
-
-          echo "Sending merge conflict notification to Slack..."
-
-          # Send conflict notification to Slack
-          curl -X POST "$SLACK_WEBHOOK_URL" \
-            -H 'Content-Type: application/json' \
-            -d "{
-              \"text\": \"⚠️ *Production Release PR Has Merge Conflicts* <!subteam^S07V1686BBE>\",
-              \"blocks\": [
-                {
-                  \"type\": \"section\",
-                  \"text\": {
-                    \"type\": \"mrkdwn\",
-                    \"text\": \"⚠️ *Production Release PR Has Merge Conflicts*\n\n<!subteam^S07V1686BBE> The production release PR has merge conflicts and requires manual intervention.\"
-                  }
-                },
-                {
-                  \"type\": \"section\",
-                  \"fields\": [
-                    {
-                      \"type\": \"mrkdwn\",
-                      \"text\": \"*PR Number:*\n#${PR_NUMBER}\"
-                    },
-                    {
-                      \"type\": \"mrkdwn\",
-                      \"text\": \"*Status:*\nMerge Conflicts\"
-                    }
-                  ]
-                },
-                {
-                  \"type\": \"section\",
-                  \"text\": {
-                    \"type\": \"mrkdwn\",
-                    \"text\": \"*Action Required:*\nPlease resolve the merge conflicts manually and complete the merge to production.\"
-                  }
-                },
-                {
-                  \"type\": \"actions\",
-                  \"elements\": [
-                    {
-                      \"type\": \"button\",
-                      \"text\": {
-                        \"type\": \"plain_text\",
-                        \"text\": \"View PR & Resolve Conflicts\"
-                      },
-                      \"url\": \"${PR_URL}\",
-                      \"style\": \"danger\"
-                    }
-                  ]
-                }
-              ]
-            }"
-
-          echo "✅ Merge conflict notification sent to #ai-internal"
+        continue-on-error: true
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            text: "⚠️ *Production Release PR Has Merge Conflicts* <!subteam^S07V1686BBE>"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "⚠️ *Production Release PR Has Merge Conflicts*\n\n<!subteam^S07V1686BBE> The production release PR has merge conflicts and requires manual intervention."
+              - type: "section"
+                fields:
+                  - type: "mrkdwn"
+                    text: "*PR Number:*\n#${{ steps.create-pr.outputs.pr_number }}"
+                  - type: "mrkdwn"
+                    text: "*Status:*\nMerge Conflicts"
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "*Action Required:*\nPlease resolve the merge conflicts manually and complete the merge to production."
+              - type: "actions"
+                elements:
+                  - type: "button"
+                    text:
+                      type: "plain_text"
+                      text: "View PR & Resolve Conflicts"
+                    url: "${{ steps.create-pr.outputs.pr_url }}"
+                    style: "danger"
 
       - name: Cleanup temporary branch on failure
         if: failure() && steps.create-pr.outputs.temp_branch != '' && steps.check-mergeable.outputs.has_conflicts != 'true'
