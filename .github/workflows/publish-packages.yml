@@ -208,14 +208,28 @@ jobs:
         continue-on-error: true
         run: |
           # Prepare the prompt for Claude
-          PROMPT="You are a changelog generator. Based on the following git changes, create a concise, human-readable changelog summary.
+          PROMPT="You are a changelog generator. Based on the following git changes, create a concise, human-readable changelog summary for Slack.
 
           Focus on:
           - What features were added
           - What bugs were fixed
           - What was changed or improved
 
-          Format the output as a brief bulleted list (3-7 items max). Be concise and clear. Do not include the commit hashes.
+          Format requirements (Slack mrkdwn syntax):
+          - Use bullet points (• or -) for each item
+          - Use *asterisks* for bold (NOT **double asterisks**)
+          - Use _underscores_ for italic if needed
+          - Keep it to 3-7 items max
+          - Be concise and clear
+          - Do NOT use # headers
+          - Do NOT include commit hashes
+          - Do NOT include a 'Changelog' or 'What's Changed' header
+          - Just return the bullet points directly
+
+          Example format:
+          • *Added* new feature for user authentication
+          • *Fixed* critical bug in payment processing
+          • *Improved* performance of data loading
 
           ${{ steps.git-diff.outputs.context }}"
 

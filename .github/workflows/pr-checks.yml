@@ -21,8 +21,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version: "22.13.1"
-          cache: "npm"
+          node-version: '22.13.1'
+          cache: 'npm'
 
       - name: Verify package-lock.json
         run: |
@@ -41,11 +41,11 @@ jobs:
           npm ci
           echo "✅ npm ci completed successfully"
 
-      - name: Build all packages
+      - name: Build changed packages
         run: |
-          echo "Building all packages..."
+          echo "Building changed packages..."
           npx nx affected --target=build
-          echo "✅ Build completed successfully"
+          echo "✅ Build(s) completed successfully"
 
       - name: Run linting
         run: |
