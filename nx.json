@@ -108,6 +108,8 @@
     "projectsRelationship": "independent",
     "releaseTagPattern": "{projectName}@{version}",
     "git": {
+      "commit": true,
+      "tag": true,
       "commitMessage": "chore(release): [skip ci] publish"
     },
     "version": {
@@ -122,11 +124,7 @@
     },
     "changelog": {
       "projectChangelogs": true,
-      "createRelease": "github",
-      "git": {
-        "commit": true,
-        "tag": true
-      }
+      "createRelease": "github"
     }
   }
 }
