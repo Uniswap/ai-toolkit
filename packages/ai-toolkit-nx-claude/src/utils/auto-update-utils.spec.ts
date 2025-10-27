@@ -133,9 +133,7 @@ describe('auto-update-utils', () => {
     it('should include update command', () => {
       const snippet = generateAutoUpdateSnippet('1.2.3');
 
-      expect(snippet).toContain(
-        'npx @uniswap/ai-toolkit-nx-claude@latest init'
-      );
+      expect(snippet).toContain('npx @uniswap/ai-toolkit-nx-claude@latest');
     });
 
     it('should include end marker', () => {

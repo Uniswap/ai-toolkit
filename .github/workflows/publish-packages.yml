@@ -20,6 +20,7 @@ jobs:
   publish:
     runs-on:
       group: npm-deploy
+    environment: ${{ github.event_name == 'push' && 'Production' || null }}
     permissions:
       id-token: write
       contents: write
