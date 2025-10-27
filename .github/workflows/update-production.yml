@@ -23,7 +23,7 @@ on:
   schedule:
     # Runs every Monday at 5pm UTC (1pm EDT during daylight saving time)
     # Note: During EST (Nov-Mar), this will run at 12pm EST
-    - cron: '0 17 * * 1'
+    - cron: "0 17 * * 1"
   workflow_dispatch:
 
 jobs:
@@ -83,7 +83,7 @@ jobs:
             # Generate timestamp for unique branch name
             TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
             TEMP_BRANCH="release/next-to-main-$TIMESTAMP"
-            
+
             # Create and push temporary branch from next
             echo "Creating temporary branch: $TEMP_BRANCH"
             git checkout -b "$TEMP_BRANCH" origin/next
@@ -91,7 +91,7 @@ jobs:
 
             # Generate PR title with date
             DATE=$(date +'%Y-%m-%d')
-            PR_TITLE="chore: promote next to production ($DATE)"
+            PR_TITLE="chore: [skip ci] promote next to production ($DATE)"
 
             # Generate PR body with commit list
             PR_BODY="## Production Deployment
@@ -117,17 +117,17 @@ jobs:
 
             if [ -n "$EXISTING_PR" ]; then
               echo "PR #$EXISTING_PR already exists for a release branch"
-              
+
               # Get the existing PR's branch name
               OLD_BRANCH=$(gh pr view $EXISTING_PR --json headRefName --jq '.headRefName')
               echo "Existing PR branch: $OLD_BRANCH"
-              
+
               # Close the existing PR
               gh pr close $EXISTING_PR --comment "Closing in favor of new release branch: $TEMP_BRANCH"
-              
+
               # Delete the old branch
               git push origin --delete "$OLD_BRANCH" || echo "Could not delete old branch $OLD_BRANCH"
-              
+
               # Create new PR
               PR_URL=$(gh pr create \
                 --base main \

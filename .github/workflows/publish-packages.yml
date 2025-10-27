@@ -171,68 +171,103 @@ jobs:
           PACKAGES=$(jq -r '.release.projects[]' nx.json | tr '\n' ', ' | sed 's/,$//')
           echo "packages=$PACKAGES" >> $GITHUB_OUTPUT
 
-      - name: Find previous tag for changelog comparison
+      - name: Get git diff for changelog
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && github.ref_name == 'next'
-        id: previous-tag
+        id: git-diff
         run: |
-          # Get all tags and sort them by version
-          # We need to find the most recent tag before HEAD, which could be:
-          # 1. The previous -next.X tag (e.g., 0.2.0-next.0 -> 0.2.0-next.1)
-          # 2. The latest production tag (e.g., 0.2.0 -> 0.2.1-next.0)
+          # Get the commit range for this push
+          BEFORE_SHA="${{ github.event.before }}"
+          AFTER_SHA="${{ github.sha }}"
 
-          # Get the current tag (just created by the version step)
-          CURRENT_TAG=$(git describe --tags --exact-match HEAD 2>/dev/null || echo "")
+          echo "Comparing commits: $BEFORE_SHA...$AFTER_SHA"
 
-          if [ -z "$CURRENT_TAG" ]; then
-            echo "Warning: No tag found on HEAD, using the latest tag"
-            CURRENT_TAG=$(git tag --sort=-version:refname | head -n 1)
-          fi
+          # Get the diff with file changes and commit messages
+          DIFF_OUTPUT=$(git diff --stat "$BEFORE_SHA...$AFTER_SHA")
+          COMMIT_MESSAGES=$(git log --pretty=format:"- %s (%h)" "$BEFORE_SHA..$AFTER_SHA")
 
-          echo "Current tag: $CURRENT_TAG"
+          # Combine into a single output for the AI
+          FULL_CONTEXT="## Commits in this push:
+          $COMMIT_MESSAGES
 
-          # Find the previous tag:
-          # - Get all tags sorted by version (newest first)
-          # - Exclude the current tag
-          # - Take the first one (most recent before current)
-          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -v "^${CURRENT_TAG}$" | head -n 1)
+          ## Files changed:
+          $DIFF_OUTPUT"
 
-          if [ -z "$PREVIOUS_TAG" ]; then
-            echo "Warning: No previous tag found, using current tag as base"
-            PREVIOUS_TAG="$CURRENT_TAG"
-          fi
+          # Save to output using heredoc
+          {
+            echo 'context<<EOF'
+            echo "$FULL_CONTEXT"
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
 
-          echo "Previous tag: $PREVIOUS_TAG"
-          echo "tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
-          echo "current_tag=$CURRENT_TAG" >> $GITHUB_OUTPUT
+          echo "before_sha=$BEFORE_SHA" >> $GITHUB_OUTPUT
+          echo "after_sha=$AFTER_SHA" >> $GITHUB_OUTPUT
 
       - name: Generate AI-powered changelog
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && github.ref_name == 'next'
         id: ai-changelog
         continue-on-error: true
-        uses: mistricky/ccc@c4fe0f9196a783d8e000c1c08dc6e1f6833e34e3 # v0.2.3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          from_tag: ${{ steps.previous-tag.outputs.tag }}
-          to_ref: HEAD
-          model: claude-haiku-4-5
+        run: |
+          # Prepare the prompt for Claude
+          PROMPT="You are a changelog generator. Based on the following git changes, create a concise, human-readable changelog summary.
+
+          Focus on:
+          - What features were added
+          - What bugs were fixed
+          - What was changed or improved
+
+          Format the output as a brief bulleted list (3-7 items max). Be concise and clear. Do not include the commit hashes.
+
+          ${{ steps.git-diff.outputs.context }}"
+
+          # Call Anthropic API
+          RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: ${{ secrets.ANTHROPIC_API_KEY }}" \
+            -H "anthropic-version: 2023-06-01" \
+            -d @- <<EOF
+          {
+            "model": "claude-haiku-4-5",
+            "max_tokens": 1024,
+            "messages": [{
+              "role": "user",
+              "content": $(echo "$PROMPT" | jq -Rs .)
+            }]
+          }
+          EOF
+          )
+
+          # Extract the changelog from the response
+          CHANGELOG=$(echo "$RESPONSE" | jq -r '.content[0].text // empty')
+
+          if [ -z "$CHANGELOG" ]; then
+            echo "Error: Failed to generate changelog from API response"
+            echo "Response: $RESPONSE"
+            exit 1
+          fi
+
+          # Save to output
+          {
+            echo 'changelog<<EOF'
+            echo "$CHANGELOG"
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
 
       - name: Generate fallback changelog from commits
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && github.ref_name == 'next' && steps.ai-changelog.outcome == 'failure'
         id: fallback-changelog
         run: |
           # Generate a simple commit list as fallback
-          PREVIOUS_TAG="${{ steps.previous-tag.outputs.tag }}"
+          BEFORE_SHA="${{ steps.git-diff.outputs.before_sha }}"
+          AFTER_SHA="${{ steps.git-diff.outputs.after_sha }}"
 
-          # Get commits between previous tag and HEAD
-          COMMITS=$(git log --pretty=format:"• %s (%h)" "${PREVIOUS_TAG}..HEAD" | head -n 20)
+          # Get commits between the two SHAs
+          COMMITS=$(git log --pretty=format:"• %s (%h)" "$BEFORE_SHA..$AFTER_SHA" | head -n 20)
 
           if [ -z "$COMMITS" ]; then
-            COMMITS="No commits found between tags"
+            COMMITS="• No commits found in this push"
           fi
 
-          # Escape for JSON and save to output
-          # Using a heredoc to handle multiline content properly
+          # Save to output
           {
             echo 'changelog<<EOF'
             echo "$COMMITS"
@@ -260,13 +295,13 @@ jobs:
                   - type: "mrkdwn"
                     text: "*npm Tag:*\n`next`"
                   - type: "mrkdwn"
-                    text: "*Version Range:*\n`${{ steps.previous-tag.outputs.tag }}` → `${{ steps.previous-tag.outputs.current_tag }}`"
+                    text: "*Commits:*\n`${{ steps.git-diff.outputs.before_sha }}` → `${{ steps.git-diff.outputs.after_sha }}`"
                   - type: "mrkdwn"
-                    text: "*Commit:*\n`${{ github.sha }}`"
+                    text: "*Packages:*\n${{ steps.package-list.outputs.packages }}"
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "*What's Changed:*\n${{ steps.ai-changelog.outputs.result || steps.fallback-changelog.outputs.changelog || 'No changes detected' }}"
+                  text: "*What's Changed:*\n${{ steps.ai-changelog.outputs.changelog || steps.fallback-changelog.outputs.changelog || 'No changes detected' }}"
               - type: "actions"
                 elements:
                   - type: "button"
