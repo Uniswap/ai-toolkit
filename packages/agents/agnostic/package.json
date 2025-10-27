@@ -57,6 +57,5 @@
   },
   "dependencies": {
     "@ai-toolkit/utils": "0.2.10-next.4"
-  },
-  "devDependencies": {}
+  }
 }

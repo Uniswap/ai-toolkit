@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      NX_BASE: origin/${{ github.base_ref }}
 
     steps:
       - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
@@ -44,27 +46,23 @@ jobs:
       - name: Build all packages
         run: |
           echo "Building all packages..."
-          npm run build
+          npx nx affected --target=build
           echo "✅ Build completed successfully"
 
       - name: Run linting
         run: |
           echo "Running linters..."
-          npm run lint
+          npx nx affected --target=lint
           echo "✅ Linting passed"
 
       - name: Check formatting
         run: |
           echo "Checking code formatting..."
-          npm run format:check
+          npx nx affected --target=format
           echo "✅ Formatting check passed"
-        env:
-          NX_BASE: origin/${{ github.base_ref }}
 
       - name: Run tests
         run: |
           echo "Running tests..."
-          npx nx run-many --target=test --all --parallel=3 --coverage
+          npx nx affected --target=test run-many --parallel=3 --coverage
           echo "✅ Tests passed"
-        env:
-          NX_BASE: origin/${{ github.base_ref }}
