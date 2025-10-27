@@ -119,7 +119,7 @@ jobs:
 
             # Generate PR title with date
             DATE=$(date +'%Y-%m-%d')
-            PR_TITLE="chore: promote next to production ($DATE)"
+            PR_TITLE="chore: [skip ci] promote next to production ($DATE)"
 
             # Capture git log output first to avoid bash parsing issues with special characters
             COMMIT_LIST=$(git log origin/main..HEAD --oneline)
