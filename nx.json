@@ -107,11 +107,6 @@
     ],
     "projectsRelationship": "independent",
     "releaseTagPattern": "{projectName}@{version}",
-    "git": {
-      "commit": true,
-      "tag": true,
-      "commitMessage": "chore(release): [skip ci] publish"
-    },
     "version": {
       "conventionalCommits": true,
       "preVersionCommand": "npx nx affected -t build",
@@ -124,7 +119,11 @@
     },
     "changelog": {
       "projectChangelogs": true,
-      "createRelease": "github"
+      "createRelease": "github",
+      "git": {
+        "commit": true,
+        "tag": true
+      }
     }
   }
 }
