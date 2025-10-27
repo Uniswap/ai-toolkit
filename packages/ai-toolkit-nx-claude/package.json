@@ -1,6 +1,6 @@
 {
   "name": "@uniswap/ai-toolkit-nx-claude",
-  "version": "0.5.10-next.8",
+  "version": "0.5.10-next.9",
   "private": false,
   "main": "./dist/index.cjs",
   "module": "./dist/index.cjs",
@@ -169,7 +169,7 @@
     "enquirer": "*"
   },
   "devDependencies": {
-    "@ai-toolkit/commands-agnostic": "0.1.14-next.8",
-    "@ai-toolkit/agents-agnostic": "0.2.10-next.8"
+    "@ai-toolkit/commands-agnostic": "0.1.14-next.9",
+    "@ai-toolkit/agents-agnostic": "0.2.10-next.9"
   }
 }
