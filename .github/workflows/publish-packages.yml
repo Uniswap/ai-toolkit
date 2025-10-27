@@ -171,6 +171,74 @@ jobs:
           PACKAGES=$(jq -r '.release.projects[]' nx.json | tr '\n' ', ' | sed 's/,$//')
           echo "packages=$PACKAGES" >> $GITHUB_OUTPUT
 
+      - name: Find previous tag for changelog comparison
+        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && github.ref_name == 'next'
+        id: previous-tag
+        run: |
+          # Get all tags and sort them by version
+          # We need to find the most recent tag before HEAD, which could be:
+          # 1. The previous -next.X tag (e.g., 0.2.0-next.0 -> 0.2.0-next.1)
+          # 2. The latest production tag (e.g., 0.2.0 -> 0.2.1-next.0)
+
+          # Get the current tag (just created by the version step)
+          CURRENT_TAG=$(git describe --tags --exact-match HEAD 2>/dev/null || echo "")
+
+          if [ -z "$CURRENT_TAG" ]; then
+            echo "Warning: No tag found on HEAD, using the latest tag"
+            CURRENT_TAG=$(git tag --sort=-version:refname | head -n 1)
+          fi
+
+          echo "Current tag: $CURRENT_TAG"
+
+          # Find the previous tag:
+          # - Get all tags sorted by version (newest first)
+          # - Exclude the current tag
+          # - Take the first one (most recent before current)
+          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -v "^${CURRENT_TAG}$" | head -n 1)
+
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "Warning: No previous tag found, using current tag as base"
+            PREVIOUS_TAG="$CURRENT_TAG"
+          fi
+
+          echo "Previous tag: $PREVIOUS_TAG"
+          echo "tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+          echo "current_tag=$CURRENT_TAG" >> $GITHUB_OUTPUT
+
+      - name: Generate AI-powered changelog
+        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && github.ref_name == 'next'
+        id: ai-changelog
+        continue-on-error: true
+        uses: mistricky/ccc@c4fe0f9196a783d8e000c1c08dc6e1f6833e34e3 # v0.2.3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          from_tag: ${{ steps.previous-tag.outputs.tag }}
+          to_ref: HEAD
+          model: claude-haiku-4-5
+
+      - name: Generate fallback changelog from commits
+        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && github.ref_name == 'next' && steps.ai-changelog.outcome == 'failure'
+        id: fallback-changelog
+        run: |
+          # Generate a simple commit list as fallback
+          PREVIOUS_TAG="${{ steps.previous-tag.outputs.tag }}"
+
+          # Get commits between previous tag and HEAD
+          COMMITS=$(git log --pretty=format:"• %s (%h)" "${PREVIOUS_TAG}..HEAD" | head -n 20)
+
+          if [ -z "$COMMITS" ]; then
+            COMMITS="No commits found between tags"
+          fi
+
+          # Escape for JSON and save to output
+          # Using a heredoc to handle multiline content properly
+          {
+            echo 'changelog<<EOF'
+            echo "$COMMITS"
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
       - name: Send Slack notification for next branch publish
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && github.ref_name == 'next'
         continue-on-error: true
@@ -191,12 +259,14 @@ jobs:
                     text: "*Branch:*\n`next`"
                   - type: "mrkdwn"
                     text: "*npm Tag:*\n`next`"
-              - type: "section"
-                fields:
+                  - type: "mrkdwn"
+                    text: "*Version Range:*\n`${{ steps.previous-tag.outputs.tag }}` → `${{ steps.previous-tag.outputs.current_tag }}`"
                   - type: "mrkdwn"
                     text: "*Commit:*\n`${{ github.sha }}`"
-                  - type: "mrkdwn"
-                    text: "*Packages:*\n${{ steps.package-list.outputs.packages }}"
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "*What's Changed:*\n${{ steps.ai-changelog.outputs.result || steps.fallback-changelog.outputs.changelog || 'No changes detected' }}"
               - type: "actions"
                 elements:
                   - type: "button"
