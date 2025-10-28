@@ -203,7 +203,7 @@ jobs:
     name: Generate AI-powered changelog
     needs: publish
     if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
-    uses: ./.github/workflows/reusable/_generate-changelog.yml
+    uses: ./.github/workflows/_generate-changelog.yml
     with:
       before_sha: ${{ github.event.before }}
       after_sha: ${{ github.sha }}
@@ -215,7 +215,7 @@ jobs:
     name: Notify release via Slack
     needs: [publish, generate-changelog]
     if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
-    uses: ./.github/workflows/reusable/_notify-release.yml
+    uses: ./.github/workflows/_notify-release.yml
     with:
       branch: ${{ github.ref_name }}
       npm_tag: ${{ github.ref_name == 'next' && 'next' || 'latest' }}
