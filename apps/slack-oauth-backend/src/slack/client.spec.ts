@@ -1,5 +1,10 @@
 import { WebClient } from '@slack/web-api';
-import { SlackClient, SlackApiError, createSlackClient } from './client';
+import {
+  SlackClient,
+  SlackApiError,
+  createSlackClient,
+  clearSlackCaches,
+} from './client';
 
 // Mock the Slack WebClient
 jest.mock('@slack/web-api');
@@ -24,6 +29,9 @@ describe('SlackClient', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Clear Slack caches to prevent test interference
+    clearSlackCaches();
 
     // Setup mock implementations
     mockOAuthV2Access = jest.fn();
@@ -98,7 +106,18 @@ describe('SlackClient', () => {
       const customToken = 'xoxp-user-token';
       new SlackClient(customToken);
 
-      expect(WebClient).toHaveBeenCalledWith(customToken, expect.any(Object));
+      // beforeEach creates a client (calls 1-2), then this test creates another (calls 3-4)
+      // Check that calls 3-4 used the custom token and bot token
+      expect(WebClient).toHaveBeenNthCalledWith(
+        3,
+        customToken,
+        expect.any(Object)
+      );
+      expect(WebClient).toHaveBeenNthCalledWith(
+        4,
+        'xoxb-test-bot-token',
+        expect.any(Object)
+      );
     });
   });
 
@@ -461,8 +480,15 @@ describe('SlackClient', () => {
       const client = createSlackClient('xoxp-user-token');
 
       expect(client).toBeInstanceOf(SlackClient);
-      expect(WebClient).toHaveBeenCalledWith(
+      // beforeEach creates a client (calls 1-2), then this test creates another (calls 3-4)
+      expect(WebClient).toHaveBeenNthCalledWith(
+        3,
         'xoxp-user-token',
+        expect.any(Object)
+      );
+      expect(WebClient).toHaveBeenNthCalledWith(
+        4,
+        'xoxb-test-bot-token',
         expect.any(Object)
       );
     });
