@@ -221,7 +221,7 @@ jobs:
 
       - name: Update PR with AI-generated changelog
         env:
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PR_NUMBER=${{ needs.create-pr.outputs.pr_number }}
 
@@ -278,7 +278,7 @@ jobs:
 
       - name: Add reviewers
         env:
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PR_NUMBER=${{ needs.create-pr.outputs.pr_number }}
 
@@ -293,7 +293,7 @@ jobs:
         id: check-mergeable
         continue-on-error: true
         env:
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PR_NUMBER=${{ needs.create-pr.outputs.pr_number }}
 
@@ -394,7 +394,7 @@ jobs:
       - name: Cleanup temporary branch on failure
         if: failure() && needs.create-pr.outputs.temp_branch != '' && steps.check-mergeable.outputs.has_conflicts != 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TEMP_BRANCH="${{ needs.create-pr.outputs.temp_branch }}"
           PR_NUMBER="${{ needs.create-pr.outputs.pr_number }}"
