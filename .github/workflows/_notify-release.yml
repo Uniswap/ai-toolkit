@@ -12,28 +12,28 @@ on:
   workflow_call:
     inputs:
       branch:
-        description: 'Branch name that was released'
+        description: "Branch name that was released"
         required: true
         type: string
       npm_tag:
-        description: 'NPM tag used for publishing (next or latest)'
+        description: "NPM tag used for publishing (next or latest)"
         required: true
         type: string
       before_sha:
-        description: 'Commit SHA before the push'
+        description: "Commit SHA before the push"
         required: true
         type: string
       after_sha:
-        description: 'Commit SHA after the push'
+        description: "Commit SHA after the push"
         required: true
         type: string
       changelog:
-        description: 'Pre-generated changelog text (from generate-changelog workflow)'
+        description: "Pre-generated changelog text (from generate-changelog workflow)"
         required: true
         type: string
     secrets:
       SLACK_WEBHOOK_URL:
-        description: 'Slack webhook URL for notifications'
+        description: "Slack webhook URL for notifications"
         required: true
 
 jobs:

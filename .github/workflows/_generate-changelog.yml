@@ -8,36 +8,36 @@ on:
   workflow_call:
     inputs:
       before_sha:
-        description: 'Starting commit SHA for the changelog range'
+        description: "Starting commit SHA for the changelog range"
         required: true
         type: string
       after_sha:
-        description: 'Ending commit SHA for the changelog range'
+        description: "Ending commit SHA for the changelog range"
         required: true
         type: string
       custom_prompt_file:
-        description: 'Path to custom prompt markdown file (relative to repo root, e.g., .github/prompts/my-prompt.md)'
+        description: "Path to custom prompt markdown file (relative to repo root, e.g., .github/prompts/my-prompt.md)"
         required: false
         type: string
       custom_prompt_text:
-        description: 'Inline custom prompt text (overrides custom_prompt_file if both provided)'
+        description: "Inline custom prompt text (overrides custom_prompt_file if both provided)"
         required: false
         type: string
       max_tokens:
-        description: 'Maximum tokens for AI response'
+        description: "Maximum tokens for AI response"
         required: false
         type: number
         default: 1024
     outputs:
       changelog:
-        description: 'Generated changelog text'
+        description: "Generated changelog text"
         value: ${{ jobs.generate.outputs.changelog }}
       generation_method:
-        description: 'Method used to generate changelog (ai or fallback)'
+        description: "Method used to generate changelog (ai or fallback)"
         value: ${{ jobs.generate.outputs.method }}
     secrets:
       ANTHROPIC_API_KEY:
-        description: 'Anthropic API key for AI changelog generation'
+        description: "Anthropic API key for AI changelog generation"
         required: true
 
 jobs:
