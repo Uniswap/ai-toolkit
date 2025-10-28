@@ -70,6 +70,16 @@ jobs:
             echo "description=Packages from the \`main\` branch have been published to npm with the \`latest\` tag." >> $GITHUB_OUTPUT
           fi
 
+      - name: Prepare changelog for Slack
+        id: slack-changelog
+        run: |
+          # Convert real newlines to \n for Slack's mrkdwn format
+          # Slack Block Kit requires explicit \n strings, not actual newline characters
+          CHANGELOG=$(echo "${{ inputs.changelog }}" | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
+
+          # Save to output
+          echo "changelog=$CHANGELOG" >> $GITHUB_OUTPUT
+
       - name: Send Slack notification
         continue-on-error: true
         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
@@ -96,7 +106,7 @@ jobs:
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "*What's Changed:*\n${{ inputs.changelog }}"
+                  text: "*What's Changed:*\n${{ steps.slack-changelog.outputs.changelog }}"
               - type: "actions"
                 elements:
                   - type: "button"

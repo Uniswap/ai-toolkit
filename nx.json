@@ -109,7 +109,7 @@
     "releaseTagPattern": "{projectName}@{version}",
     "version": {
       "conventionalCommits": true,
-      "preVersionCommand": "npx nx run-many -t build",
+      "preVersionCommand": "npx nx affected -t build",
       "fallbackCurrentVersionResolver": "disk",
       "git": {
         "commit": true,

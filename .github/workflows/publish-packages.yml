@@ -105,8 +105,45 @@ jobs:
             echo "Using 'latest' tag for npm publish"
           fi
 
-      - name: Build packages
-        run: npx nx run-many --target=build
+      - name: Determine base SHA for affected detection
+        id: base-sha
+        run: |
+          # Get the latest release tag to use as base for affected detection
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No previous release tags found - this appears to be a first release"
+            echo "base=HEAD~1" >> $GITHUB_OUTPUT
+          else
+            echo "Latest release tag: $LATEST_TAG"
+            echo "base=$LATEST_TAG" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Determine affected packages
+        id: affected
+        run: |
+          # Get affected projects using Nx
+          AFFECTED_JSON=$(npx nx show projects --affected --base=${{ steps.base-sha.outputs.base }} --head=HEAD --type=lib --json || echo "[]")
+
+          # Extract just the project names from the JSON array and join with commas
+          AFFECTED_PROJECTS=$(echo "$AFFECTED_JSON" | jq -r 'join(",")')
+
+          echo "Affected projects: $AFFECTED_PROJECTS"
+          echo "projects=$AFFECTED_PROJECTS" >> $GITHUB_OUTPUT
+
+          # Set a flag indicating if any packages are affected
+          if [ -z "$AFFECTED_PROJECTS" ] || [ "$AFFECTED_PROJECTS" = "null" ]; then
+            echo "has_affected=false" >> $GITHUB_OUTPUT
+            echo "No affected packages found - skipping release"
+          else
+            echo "has_affected=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build affected packages
+        if: steps.affected.outputs.has_affected == 'true'
+        run: |
+          echo "Building affected packages: ${{ steps.affected.outputs.projects }}"
+          npx nx affected --target=build --base=${{ steps.base-sha.outputs.base }} --head=HEAD
 
       - name: Version and publish packages (dry run)
         if: github.event.inputs.dryRun == 'true' || github.event_name == 'workflow_dispatch'
@@ -124,36 +161,37 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Version affected packages
-        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
+        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.affected.outputs.has_affected == 'true'
         id: version
         run: |
-          echo "Versioning affected packages"
+          AFFECTED_PROJECTS="${{ steps.affected.outputs.projects }}"
+          echo "Versioning affected packages: $AFFECTED_PROJECTS"
+
           if [[ "${{ github.ref_name }}" == "next" ]]; then
             echo "Using prerelease versioning for next branch"
-            npx nx release version prerelease --preid=next
+            npx nx release version prerelease --preid=next --projects="$AFFECTED_PROJECTS"
           else
             echo "Using standard versioning for main branch"
-            npx nx release version --specifier=patch
+            npx nx release version --specifier=patch --projects="$AFFECTED_PROJECTS"
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish affected packages to NPM
-        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
+        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.affected.outputs.has_affected == 'true'
         run: |
+          AFFECTED_PROJECTS="${{ steps.affected.outputs.projects }}"
           echo "Publishing affected packages with tag: ${{ steps.npm-tag.outputs.tag }} to NPM"
+          echo "Affected packages: $AFFECTED_PROJECTS"
 
-          # Check if any packages have been released before by looking for Git tags
-          # If no tags exist for any package, we need to use the --first-release flag
-
-          # Get all packages from nx.json
-          PACKAGES=$(jq -r '.release.projects[]' nx.json)
-
-          # Set a boolean flag to track if this is a first release
+          # Check if any of the affected packages have been released before
+          # If no tags exist for any affected package, use --first-release flag
           IS_FIRST_RELEASE=true
 
-          # Check if any Git tags exist for the packages
-          while IFS= read -r package; do
+          # Convert comma-separated list to array
+          IFS=',' read -ra PACKAGES <<< "$AFFECTED_PROJECTS"
+
+          for package in "${PACKAGES[@]}"; do
             if [ -n "$package" ]; then
               # Extract the package name without scope for tag checking
               PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
@@ -170,13 +208,12 @@ jobs:
                 echo "✗ No tags found for $package"
               fi
             fi
-          done <<< "$PACKAGES"
+          done
 
-          # Now publish the packages
-          # Nx will handle the actual npm/yarn/pnpm publish command internally
-
+          # Publish the packages
+          # Nx release publish will only publish packages that were versioned in the previous step
           if [ "$IS_FIRST_RELEASE" = true ]; then
-            echo "No tags found for any packages - publishing with --first-release flag"
+            echo "No tags found for any affected packages - publishing with --first-release flag"
             npx nx release publish --first-release --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org
           else
             echo "Found existing tags - publishing without --first-release flag"
@@ -184,7 +221,7 @@ jobs:
           fi
 
       - name: Push version commits and tags
-        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
+        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.affected.outputs.has_affected == 'true'
         run: |
           # Push commits and tags created by Nx
           git push origin ${{ github.ref_name }} --follow-tags
@@ -192,7 +229,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
 
       - name: Create GitHub releases
-        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
+        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.affected.outputs.has_affected == 'true'
         run: |
           # Nx Release will create GitHub releases based on changelog configuration
           echo "GitHub releases will be created by Nx Release based on the changelog configuration"
