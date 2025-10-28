@@ -1,5 +1,41 @@
 name: Publish Packages
 
+# This workflow handles versioning, building, and publishing packages to NPM for both
+# production (main branch) and pre-release (next branch) deployments.
+#
+# REQUIRED SECRETS:
+# 1. WORKFLOW_PAT: Personal Access Token with 'repo' and 'workflow' scopes
+#    - Required to push version commits and tags back to the repository
+#    - Create at: GitHub Settings > Developer settings > Personal access tokens
+# 2. ANTHROPIC_API_KEY: API key for AI-powered changelog generation
+#    - Required to generate intelligent release changelogs
+#    - Create at: https://console.anthropic.com/settings/keys
+# 3. SLACK_WEBHOOK_URL: Incoming webhook URL for release notifications
+#    - Required to send notifications to #ai-internal Slack channel
+#    - Create at: https://api.slack.com/apps > Incoming Webhooks
+# 4. NODE_AUTH_TOKEN: NPM authentication token
+#    - Required to publish packages to NPM registry
+#    - Create at: https://www.npmjs.com/settings/your-username/tokens
+#
+# WORKFLOW BEHAVIOR:
+# - Triggered on push to 'main' or 'next' branches
+# - Can be manually triggered with optional dry-run mode
+# - Versions packages based on conventional commits
+# - Publishes to NPM with appropriate tags (latest for main, next for next branch)
+# - Generates AI-powered changelog for release notes
+# - Sends Slack notification with changelog
+# - Syncs 'next' branch with 'main' after production releases
+#
+# ARCHITECTURE:
+# This workflow uses a multi-job orchestration pattern:
+# 1. publish: Builds, versions, and publishes packages to NPM
+# 2. generate-changelog: Generates AI-powered changelog using reusable workflow
+# 3. notify-release: Sends Slack notification with changelog using reusable workflow
+# 4. sync-next: Syncs 'next' branch with 'main' after production releases
+#
+# The changelog generation and notification are separated into reusable workflows
+# for better maintainability and reusability across different workflows.
+
 on:
   push:
     branches:
@@ -163,18 +199,30 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
 
-  notify-release:
-    name: Notify release via Slack
+  generate-changelog:
+    name: Generate AI-powered changelog
     needs: publish
     if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
-    uses: ./.github/workflows/notify-release.yml
+    uses: ./.github/workflows/reusable/_generate-changelog.yml
+    with:
+      before_sha: ${{ github.event.before }}
+      after_sha: ${{ github.sha }}
+      max_tokens: 1024
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  notify-release:
+    name: Notify release via Slack
+    needs: [publish, generate-changelog]
+    if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
+    uses: ./.github/workflows/reusable/_notify-release.yml
     with:
       branch: ${{ github.ref_name }}
       npm_tag: ${{ github.ref_name == 'next' && 'next' || 'latest' }}
       before_sha: ${{ github.event.before }}
       after_sha: ${{ github.sha }}
+      changelog: ${{ needs.generate-changelog.outputs.changelog }}
     secrets:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
   sync-next:

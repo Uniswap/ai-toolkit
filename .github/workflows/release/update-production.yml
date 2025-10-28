@@ -7,27 +7,36 @@ name: Update Production
 # 1. WORKFLOW_PAT: Personal Access Token with 'repo' and 'workflow' scopes
 #    - Required to trigger the publish-packages workflow after PR merge
 #    - Create at: GitHub Settings > Developer settings > Personal access tokens
-# 2. SLACK_WEBHOOK_URL: Incoming webhook URL for #ai-internal Slack channel
+# 2. ANTHROPIC_API_KEY: API key for AI-powered changelog generation
+#    - Required to generate intelligent changelogs from commit diffs
+#    - Create at: https://console.anthropic.com/settings/keys
+# 3. SLACK_WEBHOOK_URL: Incoming webhook URL for #ai-internal Slack channel
 #    - Required to send notifications about new PRs
 #    - Create at: https://api.slack.com/apps > Incoming Webhooks
 #
 # WORKFLOW BEHAVIOR:
 # - Creates a temporary release branch from `next`
-# - Opens PR to `main` with categorized changelog
+# - Opens PR to `main` with AI-generated categorized changelog
 # - Assigns reviewers: @wkoutre and @Melvillian
 # - Sends notification to #ai-internal Slack channel
 # - Awaits manual review and merge (does NOT auto-merge)
 # - After merge, publish-packages workflow runs automatically
+#
+# ARCHITECTURE:
+# This workflow uses a 3-job architecture for better separation of concerns:
+# 1. create-pr: Creates the PR and captures commit information
+# 2. generate-changelog: Generates AI-powered changelog using reusable workflow
+# 3. finalize-pr: Updates PR with changelog, assigns reviewers, sends notifications
 
 on:
   schedule:
     # Runs every Monday at 5pm UTC (1pm EDT during daylight saving time)
     # Note: During EST (Nov-Mar), this will run at 12pm EST
-    - cron: "0 17 * * 1"
+    - cron: '0 17 * * 1'
   workflow_dispatch:
 
 jobs:
-  create-and-merge-pr:
+  create-pr:
     runs-on: ubuntu-24.04
     # Only allow this workflow to run from the next branch
     if: github.ref == 'refs/heads/next'
@@ -35,10 +44,20 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+    outputs:
+      pr_created: ${{ steps.create-pr.outputs.pr_created }}
+      pr_number: ${{ steps.create-pr.outputs.pr_number }}
+      pr_url: ${{ steps.create-pr.outputs.pr_url }}
+      temp_branch: ${{ steps.create-pr.outputs.temp_branch }}
+      before_sha: ${{ steps.create-pr.outputs.before_sha }}
+      after_sha: ${{ steps.create-pr.outputs.after_sha }}
+      commit_count: ${{ steps.create-pr.outputs.commit_count }}
 
     steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
       - name: Checkout repository
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
           # Use PAT if available to allow triggering downstream workflows, fallback to GITHUB_TOKEN
@@ -69,9 +88,18 @@ jobs:
           echo "Remote branches:"
           git branch -r
 
+          # Get commit SHAs for changelog generation
+          BEFORE_SHA=$(git rev-parse origin/main)
+          AFTER_SHA=$(git rev-parse origin/next)
+
+          echo "Commit range for changelog: $BEFORE_SHA..$AFTER_SHA"
+          echo "before_sha=$BEFORE_SHA" >> $GITHUB_OUTPUT
+          echo "after_sha=$AFTER_SHA" >> $GITHUB_OUTPUT
+
           # Get commit count difference (using origin/main vs origin/next)
           COMMIT_COUNT=$(git rev-list --count origin/main..origin/next || echo "0")
           echo "Commit count difference: $COMMIT_COUNT"
+          echo "commit_count=$COMMIT_COUNT" >> $GITHUB_OUTPUT
 
           if [ "$COMMIT_COUNT" -eq "0" ]; then
             echo "No new commits to merge from next to main"
@@ -93,24 +121,24 @@ jobs:
             DATE=$(date +'%Y-%m-%d')
             PR_TITLE="chore: [skip ci] promote next to production ($DATE)"
 
-            # Generate PR body with commit list
+            # Generate PR body with commit list (changelog will be added later)
             PR_BODY="## Production Deployment
 
-            This PR promotes the \`next\` branch to \`main\` for production release.
+          This PR promotes the \`next\` branch to \`main\` for production release.
 
-            ### Commits included ($COMMIT_COUNT):
-            \`\`\`
-            $(git log origin/main..HEAD --oneline)
-            \`\`\`
+          ### Commits included ($COMMIT_COUNT):
+          \`\`\`
+          $(git log origin/main..HEAD --oneline)
+          \`\`\`
 
-            ### Merge Strategy
-            Using **merge commit** to preserve full commit history for changelog generation.
+          ### Merge Strategy
+          Using **merge commit** to preserve full commit history for changelog generation.
 
-            ### Temporary Branch
-            This PR is created from a temporary branch \`$TEMP_BRANCH\` that will be deleted after merge.
+          ### Temporary Branch
+          This PR is created from a temporary branch \`$TEMP_BRANCH\` that will be deleted after merge.
 
-            ---
-            *This PR was automatically created by the Update Production workflow.*"
+          ---
+          *This PR was automatically created by the Update Production workflow.*"
 
             # Check if a PR already exists from any release branch
             EXISTING_PR=$(gh pr list --base main --state open --json number,headRefName --jq '.[] | select(.headRefName | startswith("release/next-to-main-")) | .number' | head -n1 || echo "")
@@ -161,98 +189,98 @@ jobs:
             echo "temp_branch=$TEMP_BRANCH" >> $GITHUB_OUTPUT
           fi
 
-      - name: Generate categorized changelog
-        if: steps.create-pr.outputs.pr_created == 'true'
-        id: changelog
+  generate-changelog:
+    needs: create-pr
+    if: needs.create-pr.outputs.pr_created == 'true'
+    uses: ./.github/workflows/reusable/_generate-changelog.yml
+    with:
+      before_sha: ${{ needs.create-pr.outputs.before_sha }}
+      after_sha: ${{ needs.create-pr.outputs.after_sha }}
+      custom_prompt_file: '.github/prompts/production-release-changelog.md'
+      max_tokens: 2048
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  finalize-pr:
+    needs: [create-pr, generate-changelog]
+    if: needs.create-pr.outputs.pr_created == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Update PR with AI-generated changelog
         env:
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
         run: |
-          PR_NUMBER=${{ steps.create-pr.outputs.pr_number }}
+          PR_NUMBER=${{ needs.create-pr.outputs.pr_number }}
 
-          # Generate categorized changelog
-          echo "Generating categorized changelog..."
+          echo "Updating PR #$PR_NUMBER with AI-generated changelog..."
 
-          # Initialize category arrays
-          FEATURES=""
-          FIXES=""
-          DOCS=""
-          CHORES=""
-          OTHERS=""
+          # Get the AI-generated changelog
+          CHANGELOG="${{ needs.generate-changelog.outputs.changelog }}"
 
-          # Get all commits between main and next
-          while IFS= read -r commit; do
-            # Extract commit type from conventional commit format
-            TYPE=$(echo "$commit" | grep -oE '^[a-z]+' || echo "other")
-            MESSAGE=$(echo "$commit" | sed 's/^[a-z]*: //')
-
-            case "$TYPE" in
-              feat|feature)
-                FEATURES="${FEATURES}- ${MESSAGE}\n"
-                ;;
-              fix)
-                FIXES="${FIXES}- ${MESSAGE}\n"
-                ;;
-              docs|doc)
-                DOCS="${DOCS}- ${MESSAGE}\n"
-                ;;
-              chore|build|ci|refactor|style|test|perf)
-                CHORES="${CHORES}- ${MESSAGE}\n"
-                ;;
-              *)
-                OTHERS="${OTHERS}- ${commit}\n"
-                ;;
-            esac
-          done < <(git log origin/main..HEAD --oneline | sed 's/^[a-f0-9]* //')
-
-          # Build changelog sections
-          CHANGELOG="## Changes Summary\n\n"
-
-          if [ -n "$FEATURES" ]; then
-            FEATURE_COUNT=$(echo -e "$FEATURES" | grep -c "^-" || echo "0")
-            CHANGELOG="${CHANGELOG}### ✨ Features (${FEATURE_COUNT})\n${FEATURES}\n"
+          if [ -z "$CHANGELOG" ]; then
+            echo "Warning: No changelog generated, skipping PR update"
+            exit 0
           fi
 
-          if [ -n "$FIXES" ]; then
-            FIX_COUNT=$(echo -e "$FIXES" | grep -c "^-" || echo "0")
-            CHANGELOG="${CHANGELOG}### 🐛 Bug Fixes (${FIX_COUNT})\n${FIXES}\n"
-          fi
+          # Get the current PR body directly from git
+          # We use git log to reconstruct what we know was in the PR
+          BEFORE_SHA="${{ needs.create-pr.outputs.before_sha }}"
+          AFTER_SHA="${{ needs.create-pr.outputs.after_sha }}"
+          COMMIT_COUNT="${{ needs.create-pr.outputs.commit_count }}"
+          TEMP_BRANCH="${{ needs.create-pr.outputs.temp_branch }}"
+          DATE=$(date +'%Y-%m-%d')
 
-          if [ -n "$DOCS" ]; then
-            DOC_COUNT=$(echo -e "$DOCS" | grep -c "^-" || echo "0")
-            CHANGELOG="${CHANGELOG}### 📝 Documentation (${DOC_COUNT})\n${DOCS}\n"
-          fi
+          # Reconstruct the base PR body
+          BASE_PR_BODY="## Production Deployment
 
-          if [ -n "$CHORES" ]; then
-            CHORE_COUNT=$(echo -e "$CHORES" | grep -c "^-" || echo "0")
-            CHANGELOG="${CHANGELOG}### 🔧 Maintenance (${CHORE_COUNT})\n${CHORES}\n"
-          fi
+          This PR promotes the \`next\` branch to \`main\` for production release.
 
-          if [ -n "$OTHERS" ]; then
-            OTHER_COUNT=$(echo -e "$OTHERS" | grep -c "^-" || echo "0")
-            CHANGELOG="${CHANGELOG}### 📦 Other Changes (${OTHER_COUNT})\n${OTHERS}\n"
-          fi
+          ### Commits included ($COMMIT_COUNT):
+          \`\`\`
+          $(git log ${BEFORE_SHA}..${AFTER_SHA} --oneline)
+          \`\`\`
 
-          # Add full commit list
-          CHANGELOG="${CHANGELOG}### Full Commit List\n\`\`\`\n$(git log origin/main..HEAD --oneline)\n\`\`\`\n"
+          ### Merge Strategy
+          Using **merge commit** to preserve full commit history for changelog generation.
 
-          # Get current PR body
-          CURRENT_BODY=$(gh pr view $PR_NUMBER --json body --jq '.body')
+          ### Temporary Branch
+          This PR is created from a temporary branch \`$TEMP_BRANCH\` that will be deleted after merge.
 
-          # Update PR with categorized changelog
-          NEW_BODY="${CURRENT_BODY}\n\n${CHANGELOG}"
+          ---
+          *This PR was automatically created by the Update Production workflow.*"
+
+          # Append the AI-generated changelog
+          NEW_BODY="${BASE_PR_BODY}
+
+          ---
+
+          ${CHANGELOG}"
 
           # Use a temporary file to avoid issues with special characters
-          echo -e "$NEW_BODY" > /tmp/pr_body.txt
+          echo "$NEW_BODY" > /tmp/pr_body.txt
           gh pr edit $PR_NUMBER --body-file /tmp/pr_body.txt
 
-          echo "✅ Categorized changelog added to PR #$PR_NUMBER"
+          echo "✅ AI-generated changelog added to PR #$PR_NUMBER"
+          echo "📊 Changelog generation method: ${{ needs.generate-changelog.outputs.generation_method }}"
 
       - name: Add reviewers
-        if: steps.create-pr.outputs.pr_created == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
         run: |
-          PR_NUMBER=${{ steps.create-pr.outputs.pr_number }}
+          PR_NUMBER=${{ needs.create-pr.outputs.pr_number }}
 
           echo "Adding reviewers to PR #$PR_NUMBER..."
 
@@ -262,13 +290,12 @@ jobs:
           echo "✅ Added reviewers: @wkoutre, @Melvillian"
 
       - name: Check PR mergeability
-        if: steps.create-pr.outputs.pr_created == 'true'
         id: check-mergeable
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
         run: |
-          PR_NUMBER=${{ steps.create-pr.outputs.pr_number }}
+          PR_NUMBER=${{ needs.create-pr.outputs.pr_number }}
 
           echo "Checking if PR #$PR_NUMBER is mergeable..."
 
@@ -296,15 +323,8 @@ jobs:
             echo "has_conflicts=unknown" >> $GITHUB_OUTPUT
           fi
 
-      - name: Get commit count for Slack notification
-        if: steps.create-pr.outputs.pr_created == 'true' && steps.check-mergeable.outputs.has_conflicts != 'true'
-        id: commit-count
-        run: |
-          COMMIT_COUNT=$(git rev-list --count origin/main..origin/next)
-          echo "count=$COMMIT_COUNT" >> $GITHUB_OUTPUT
-
       - name: Send Slack notification (Success)
-        if: steps.create-pr.outputs.pr_created == 'true' && steps.check-mergeable.outputs.has_conflicts != 'true'
+        if: steps.check-mergeable.outputs.has_conflicts != 'true'
         continue-on-error: true
         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
         with:
@@ -320,24 +340,26 @@ jobs:
               - type: "section"
                 fields:
                   - type: "mrkdwn"
-                    text: "*PR Number:*\n#${{ steps.create-pr.outputs.pr_number }}"
+                    text: "*PR Number:*\n#${{ needs.create-pr.outputs.pr_number }}"
                   - type: "mrkdwn"
-                    text: "*Commits:*\n${{ steps.commit-count.outputs.count }} changes"
+                    text: "*Commits:*\n${{ needs.create-pr.outputs.commit_count }} changes"
               - type: "section"
                 fields:
                   - type: "mrkdwn"
                     text: "*Reviewers:*\n@wkoutre @Melvillian"
+                  - type: "mrkdwn"
+                    text: "*Changelog:*\n${{ needs.generate-changelog.outputs.generation_method == 'ai' && 'AI-generated ✨' || 'Fallback (commit list) ⚠️' }}"
               - type: "actions"
                 elements:
                   - type: "button"
                     text:
                       type: "plain_text"
                       text: "Review PR"
-                    url: "${{ steps.create-pr.outputs.pr_url }}"
+                    url: "${{ needs.create-pr.outputs.pr_url }}"
                     style: "primary"
 
       - name: Send Slack notification (Merge Conflicts)
-        if: always() && steps.create-pr.outputs.pr_created == 'true' && steps.check-mergeable.outputs.has_conflicts == 'true'
+        if: always() && steps.check-mergeable.outputs.has_conflicts == 'true'
         continue-on-error: true
         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
         with:
@@ -353,7 +375,7 @@ jobs:
               - type: "section"
                 fields:
                   - type: "mrkdwn"
-                    text: "*PR Number:*\n#${{ steps.create-pr.outputs.pr_number }}"
+                    text: "*PR Number:*\n#${{ needs.create-pr.outputs.pr_number }}"
                   - type: "mrkdwn"
                     text: "*Status:*\nMerge Conflicts"
               - type: "section"
@@ -366,16 +388,16 @@ jobs:
                     text:
                       type: "plain_text"
                       text: "View PR & Resolve Conflicts"
-                    url: "${{ steps.create-pr.outputs.pr_url }}"
+                    url: "${{ needs.create-pr.outputs.pr_url }}"
                     style: "danger"
 
       - name: Cleanup temporary branch on failure
-        if: failure() && steps.create-pr.outputs.temp_branch != '' && steps.check-mergeable.outputs.has_conflicts != 'true'
+        if: failure() && needs.create-pr.outputs.temp_branch != '' && steps.check-mergeable.outputs.has_conflicts != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
         run: |
-          TEMP_BRANCH="${{ steps.create-pr.outputs.temp_branch }}"
-          PR_NUMBER="${{ steps.create-pr.outputs.pr_number }}"
+          TEMP_BRANCH="${{ needs.create-pr.outputs.temp_branch }}"
+          PR_NUMBER="${{ needs.create-pr.outputs.pr_number }}"
 
           echo "Workflow failed for non-conflict reason. Cleaning up..."
           echo "Temporary branch: $TEMP_BRANCH"
@@ -392,26 +414,21 @@ jobs:
       - name: Summary
         if: always()
         run: |
-          if [ "${{ steps.create-pr.outputs.pr_created }}" = "true" ]; then
-            echo "## 📦 Production Release PR Created" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "- **PR Number**: #${{ steps.create-pr.outputs.pr_number }}" >> $GITHUB_STEP_SUMMARY
-            echo "- **PR URL**: ${{ steps.create-pr.outputs.pr_url }}" >> $GITHUB_STEP_SUMMARY
-            echo "- **Temporary Branch**: ${{ steps.create-pr.outputs.temp_branch }}" >> $GITHUB_STEP_SUMMARY
-            echo "- **Reviewers**: @wkoutre, @Melvillian" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "A production release PR has been created from the \`next\` branch." >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Next steps:" >> $GITHUB_STEP_SUMMARY
-            echo "1. ✅ PR created with categorized changelog" >> $GITHUB_STEP_SUMMARY
-            echo "2. ✅ Reviewers assigned (@wkoutre, @Melvillian)" >> $GITHUB_STEP_SUMMARY
-            echo "3. ✅ Slack notification sent to #ai-internal" >> $GITHUB_STEP_SUMMARY
-            echo "4. ⏳ **Awaiting review and approval**" >> $GITHUB_STEP_SUMMARY
-            echo "5. ⏳ After merge, publish-packages workflow will run automatically" >> $GITHUB_STEP_SUMMARY
-            echo "6. ⏳ Packages will be published with the \`latest\` tag" >> $GITHUB_STEP_SUMMARY
-            echo "7. 🧹 Temporary branch will be deleted automatically after merge" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "## ℹ️ No Updates Required" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "The \`next\` branch has no new commits to merge into \`main\`." >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "## 📦 Production Release PR Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **PR Number**: #${{ needs.create-pr.outputs.pr_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **PR URL**: ${{ needs.create-pr.outputs.pr_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Temporary Branch**: ${{ needs.create-pr.outputs.temp_branch }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Changelog Method**: ${{ needs.generate-changelog.outputs.generation_method }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Reviewers**: @wkoutre, @Melvillian" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "A production release PR has been created from the \`next\` branch with an AI-generated changelog." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next steps:" >> $GITHUB_STEP_SUMMARY
+          echo "1. ✅ PR created with AI-generated changelog" >> $GITHUB_STEP_SUMMARY
+          echo "2. ✅ Reviewers assigned (@wkoutre, @Melvillian)" >> $GITHUB_STEP_SUMMARY
+          echo "3. ✅ Slack notification sent to #ai-internal" >> $GITHUB_STEP_SUMMARY
+          echo "4. ⏳ **Awaiting review and approval**" >> $GITHUB_STEP_SUMMARY
+          echo "5. ⏳ After merge, publish-packages workflow will run automatically" >> $GITHUB_STEP_SUMMARY
+          echo "6. ⏳ Packages will be published with the \`latest\` tag" >> $GITHUB_STEP_SUMMARY
+          echo "7. 🧹 Temporary branch will be deleted automatically after merge" >> $GITHUB_STEP_SUMMARY
