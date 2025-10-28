@@ -51,7 +51,7 @@ Analyze each commit message and classify it into ONE of these categories:
 
 Your response MUST follow this exact structure:
 
-```markdown
+```
 ## Changes Summary
 
 ### ✨ Features (N)
@@ -126,7 +126,7 @@ Your response MUST follow this exact structure:
 
 ## Example Output
 
-```markdown
+```
 ## Changes Summary
 
 ### ✨ Features (1)
