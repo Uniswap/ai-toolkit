@@ -207,6 +207,7 @@ jobs:
     with:
       before_sha: ${{ github.event.before }}
       after_sha: ${{ github.sha }}
+      custom_prompt_file: '.github/prompts/release-changelog.md'
       max_tokens: 1024
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

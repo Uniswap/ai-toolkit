@@ -45,6 +45,7 @@ Analyze each commit message and classify it into ONE of these categories:
 
 - Anything that doesn't fit the above categories
 - Use this sparingly - try to categorize first
+- Any commit that contains `chore(release)` should be excluded
 
 ## Output Format Requirements
 
