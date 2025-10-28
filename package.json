@@ -13,7 +13,7 @@
     "lint": "nx run-many --target=lint --all",
     "format": "nx format:write",
     "format:check": "nx format:check",
-    "prepare": "npx lefthook install",
+    "prepare": "node scripts/prepare.cjs",
     "lefthook": "npx lefthook run pre-commit",
     "claude:init": "nx generate @uniswap/ai-toolkit-nx-claude:init"
   },
