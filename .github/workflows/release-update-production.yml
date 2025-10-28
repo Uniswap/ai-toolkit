@@ -119,7 +119,7 @@ jobs:
 
             # Generate PR title with date
             DATE=$(date +'%Y-%m-%d')
-            PR_TITLE="chore: [skip ci] promote next to production ($DATE)"
+            PR_TITLE="chore: promote next to production ($DATE)"
 
             # Generate PR body with commit list (changelog will be added later)
             PR_BODY="## Production Deployment
