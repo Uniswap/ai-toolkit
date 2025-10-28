@@ -1,6 +1,6 @@
 {
   "name": "@ai-toolkit/commands-agnostic",
-  "version": "0.1.14",
+  "version": "0.1.14-next.20",
   "private": true,
   "type": "module",
   "main": "./dist/src/index.js",
@@ -56,6 +56,6 @@
     }
   },
   "dependencies": {
-    "@ai-toolkit/utils": "0.2.10"
+    "@ai-toolkit/utils": "0.2.10-next.20"
   }
 }

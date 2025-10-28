@@ -45,12 +45,13 @@ Analyze each commit message and classify it into ONE of these categories:
 
 - Anything that doesn't fit the above categories
 - Use this sparingly - try to categorize first
+- Any commit that contains `chore(release)` should be excluded
 
 ## Output Format Requirements
 
 Your response MUST follow this exact structure:
 
-```markdown
+```
 ## Changes Summary
 
 ### ✨ Features (N)
@@ -125,7 +126,7 @@ Your response MUST follow this exact structure:
 
 ## Example Output
 
-```markdown
+```
 ## Changes Summary
 
 ### ✨ Features (1)

@@ -12,28 +12,28 @@ on:
   workflow_call:
     inputs:
       branch:
-        description: 'Branch name that was released'
+        description: "Branch name that was released"
         required: true
         type: string
       npm_tag:
-        description: 'NPM tag used for publishing (next or latest)'
+        description: "NPM tag used for publishing (next or latest)"
         required: true
         type: string
       before_sha:
-        description: 'Commit SHA before the push'
+        description: "Commit SHA before the push"
         required: true
         type: string
       after_sha:
-        description: 'Commit SHA after the push'
+        description: "Commit SHA after the push"
         required: true
         type: string
       changelog:
-        description: 'Pre-generated changelog text (from generate-changelog workflow)'
+        description: "Pre-generated changelog text (from generate-changelog workflow)"
         required: true
         type: string
     secrets:
       SLACK_WEBHOOK_URL:
-        description: 'Slack webhook URL for notifications'
+        description: "Slack webhook URL for notifications"
         required: true
 
 jobs:
@@ -70,6 +70,16 @@ jobs:
             echo "description=Packages from the \`main\` branch have been published to npm with the \`latest\` tag." >> $GITHUB_OUTPUT
           fi
 
+      - name: Prepare changelog for Slack
+        id: slack-changelog
+        run: |
+          # Convert real newlines to \n for Slack's mrkdwn format
+          # Slack Block Kit requires explicit \n strings, not actual newline characters
+          CHANGELOG=$(echo "${{ inputs.changelog }}" | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
+
+          # Save to output
+          echo "changelog=$CHANGELOG" >> $GITHUB_OUTPUT
+
       - name: Send Slack notification
         continue-on-error: true
         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
@@ -96,7 +106,7 @@ jobs:
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "*What's Changed:*\n${{ inputs.changelog }}"
+                  text: "*What's Changed:*\n${{ steps.slack-changelog.outputs.changelog }}"
               - type: "actions"
                 elements:
                   - type: "button"

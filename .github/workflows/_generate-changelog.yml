@@ -8,36 +8,36 @@ on:
   workflow_call:
     inputs:
       before_sha:
-        description: 'Starting commit SHA for the changelog range'
+        description: "Starting commit SHA for the changelog range"
         required: true
         type: string
       after_sha:
-        description: 'Ending commit SHA for the changelog range'
+        description: "Ending commit SHA for the changelog range"
         required: true
         type: string
       custom_prompt_file:
-        description: 'Path to custom prompt markdown file (relative to repo root, e.g., .github/prompts/my-prompt.md)'
+        description: "Path to custom prompt markdown file (relative to repo root, e.g., .github/prompts/my-prompt.md)"
         required: false
         type: string
       custom_prompt_text:
-        description: 'Inline custom prompt text (overrides custom_prompt_file if both provided)'
+        description: "Inline custom prompt text (overrides custom_prompt_file if both provided)"
         required: false
         type: string
       max_tokens:
-        description: 'Maximum tokens for AI response'
+        description: "Maximum tokens for AI response"
         required: false
         type: number
         default: 1024
     outputs:
       changelog:
-        description: 'Generated changelog text'
+        description: "Generated changelog text"
         value: ${{ jobs.generate.outputs.changelog }}
       generation_method:
-        description: 'Method used to generate changelog (ai or fallback)'
+        description: "Method used to generate changelog (ai or fallback)"
         value: ${{ jobs.generate.outputs.method }}
     secrets:
       ANTHROPIC_API_KEY:
-        description: 'Anthropic API key for AI changelog generation'
+        description: "Anthropic API key for AI changelog generation"
         required: true
 
 jobs:
@@ -110,15 +110,19 @@ jobs:
         id: ai-changelog
         continue-on-error: true
         run: |
-          # Determine which prompt to use (priority: inline > file > default)
-          if [ -n "${{ inputs.custom_prompt_text }}" ]; then
+          # Evaluate conditions in GitHub Actions context (safe for multi-line content)
+          CUSTOM_TEXT_PROVIDED="${{ inputs.custom_prompt_text != '' }}"
+          FILE_LOAD_SUCCESS="${{ steps.load-prompt.outcome == 'success' }}"
+
+          # Use boolean flags to control flow (never test actual content)
+          if [ "$CUSTOM_TEXT_PROVIDED" == "true" ]; then
             # Use heredoc to safely assign inline custom prompt
             PROMPT=$(cat <<'PROMPT_EOF'
           ${{ inputs.custom_prompt_text }}
           PROMPT_EOF
           )
             echo "Using inline custom prompt"
-          elif [ -n "${{ steps.load-prompt.outputs.prompt }}" ]; then
+          elif [ "$FILE_LOAD_SUCCESS" == "true" ]; then
             # Use heredoc to safely assign file-based custom prompt
             PROMPT=$(cat <<'PROMPT_EOF'
           ${{ steps.load-prompt.outputs.prompt }}
@@ -230,6 +234,5 @@ jobs:
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Generated Changelog:" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.ai-changelog.outputs.changelog || steps.fallback-changelog.outputs.changelog }}" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
