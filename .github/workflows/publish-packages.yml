@@ -121,7 +121,20 @@ jobs:
         id: affected
         run: |
           # Get affected projects using Nx
-          AFFECTED_JSON=$(npx nx show projects --affected --base=${{ steps.base-sha.outputs.base }} --head=HEAD --type=lib --json || echo "[]")
+          echo "Running: npx nx show projects --affected --base=${{ steps.base-sha.outputs.base }} --head=HEAD --type=lib --json"
+
+          # Capture output and check if it's valid JSON
+          AFFECTED_OUTPUT=$(npx nx show projects --affected --base=${{ steps.base-sha.outputs.base }} --head=HEAD --type=lib --json 2>&1 || echo "[]")
+
+          # Check if output is valid JSON
+          if echo "$AFFECTED_OUTPUT" | jq empty 2>/dev/null; then
+            AFFECTED_JSON="$AFFECTED_OUTPUT"
+          else
+            echo "⚠️  Nx output is not valid JSON. Output:"
+            echo "$AFFECTED_OUTPUT"
+            echo "Using empty array as fallback"
+            AFFECTED_JSON="[]"
+          fi
 
           # Extract just the project names from the JSON array and join with commas
           AFFECTED_PROJECTS=$(echo "$AFFECTED_JSON" | jq -r 'join(",")')
