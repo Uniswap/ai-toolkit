@@ -234,6 +234,5 @@ jobs:
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Generated Changelog:" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.ai-changelog.outputs.changelog || steps.fallback-changelog.outputs.changelog }}" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
