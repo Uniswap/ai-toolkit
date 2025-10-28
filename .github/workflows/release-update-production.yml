@@ -231,7 +231,11 @@ jobs:
           echo "Updating PR #$PR_NUMBER with AI-generated changelog..."
 
           # Get the AI-generated changelog
-          CHANGELOG="${{ needs.generate-changelog.outputs.changelog }}"
+          # Use heredoc to safely capture content with special characters (backticks, etc.)
+          CHANGELOG=$(cat <<'CHANGELOG_EOF'
+          ${{ needs.generate-changelog.outputs.changelog }}
+          CHANGELOG_EOF
+          )
 
           if [ -z "$CHANGELOG" ]; then
             echo "Warning: No changelog generated, skipping PR update"
