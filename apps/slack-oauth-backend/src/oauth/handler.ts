@@ -1,5 +1,6 @@
 import { WebClient } from '@slack/web-api';
 import { config } from '../config';
+import { logger } from '../utils/logger';
 import type {
   OAuthHandler,
   OAuthHandlerOptions,
@@ -170,8 +171,8 @@ export class SlackOAuthHandler implements OAuthHandler {
 
       return response as OAuthTokenResponse;
     } catch (error) {
-      // Log error for debugging (in production, use proper logger)
-      console.error('Token exchange failed:', error);
+      // Log error for debugging
+      logger.error('Token exchange failed:', error);
 
       if (error instanceof Error) {
         throw new OAuthError(
@@ -216,7 +217,7 @@ export class SlackOAuthHandler implements OAuthHandler {
       return undefined;
     } catch (error) {
       // Log error but don't fail the OAuth flow
-      console.error('Failed to fetch user info:', error);
+      logger.error('Failed to fetch user info:', error);
       return undefined;
     }
   }
