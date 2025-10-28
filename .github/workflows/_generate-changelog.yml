@@ -110,15 +110,19 @@ jobs:
         id: ai-changelog
         continue-on-error: true
         run: |
-          # Determine which prompt to use (priority: inline > file > default)
-          if [ -n "${{ inputs.custom_prompt_text }}" ]; then
+          # Evaluate conditions in GitHub Actions context (safe for multi-line content)
+          CUSTOM_TEXT_PROVIDED="${{ inputs.custom_prompt_text != '' }}"
+          FILE_LOAD_SUCCESS="${{ steps.load-prompt.outcome == 'success' }}"
+
+          # Use boolean flags to control flow (never test actual content)
+          if [ "$CUSTOM_TEXT_PROVIDED" == "true" ]; then
             # Use heredoc to safely assign inline custom prompt
             PROMPT=$(cat <<'PROMPT_EOF'
           ${{ inputs.custom_prompt_text }}
           PROMPT_EOF
           )
             echo "Using inline custom prompt"
-          elif [ -n "${{ steps.load-prompt.outputs.prompt }}" ]; then
+          elif [ "$FILE_LOAD_SUCCESS" == "true" ]; then
             # Use heredoc to safely assign file-based custom prompt
             PROMPT=$(cat <<'PROMPT_EOF'
           ${{ steps.load-prompt.outputs.prompt }}
