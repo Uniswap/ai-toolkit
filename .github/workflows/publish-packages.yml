@@ -216,7 +216,7 @@ jobs:
           - What was changed or improved
 
           Format requirements (Slack mrkdwn syntax):
-          - Use bullet points (• or -) for each item
+          - Use bullet points (• or -) for each item, separated by newlines
           - Use *asterisks* for bold (NOT **double asterisks**)
           - Use _underscores_ for italic if needed
           - Keep it to 3-7 items max
