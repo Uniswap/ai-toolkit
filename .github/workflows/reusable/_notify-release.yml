@@ -1,0 +1,107 @@
+name: Notify Release
+
+# Reusable workflow for sending Slack notifications about package releases.
+# This workflow expects a pre-generated changelog and focuses solely on notification delivery.
+#
+# ARCHITECTURE:
+# This workflow is intentionally simple and focused on a single responsibility: sending
+# notifications. Changelog generation should be handled by the calling workflow using
+# the generate-changelog.yml reusable workflow.
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        description: 'Branch name that was released'
+        required: true
+        type: string
+      npm_tag:
+        description: 'NPM tag used for publishing (next or latest)'
+        required: true
+        type: string
+      before_sha:
+        description: 'Commit SHA before the push'
+        required: true
+        type: string
+      after_sha:
+        description: 'Commit SHA after the push'
+        required: true
+        type: string
+      changelog:
+        description: 'Pre-generated changelog text (from generate-changelog workflow)'
+        required: true
+        type: string
+    secrets:
+      SLACK_WEBHOOK_URL:
+        description: 'Slack webhook URL for notifications'
+        required: true
+
+jobs:
+  notify:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Get package list for Slack notification
+        id: package-list
+        run: |
+          # Get the list of packages that were published
+          PACKAGES=$(jq -r '.release.projects[]' nx.json | tr '\n' ', ' | sed 's/,$//')
+          echo "packages=$PACKAGES" >> $GITHUB_OUTPUT
+
+      - name: Determine notification details
+        id: notification
+        run: |
+          if [[ "${{ inputs.branch }}" == "next" ]]; then
+            echo "emoji=📦" >> $GITHUB_OUTPUT
+            echo "title=Next Branch Packages Published" >> $GITHUB_OUTPUT
+            echo "description=Packages from the \`next\` branch have been published to npm with the \`next\` tag." >> $GITHUB_OUTPUT
+          else
+            echo "emoji=🚀" >> $GITHUB_OUTPUT
+            echo "title=Production Packages Published" >> $GITHUB_OUTPUT
+            echo "description=Packages from the \`main\` branch have been published to npm with the \`latest\` tag." >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Slack notification
+        continue-on-error: true
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            text: "${{ steps.notification.outputs.emoji }} *${{ steps.notification.outputs.title }}*"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "${{ steps.notification.outputs.emoji }} *${{ steps.notification.outputs.title }}*\n\n${{ steps.notification.outputs.description }}"
+              - type: "section"
+                fields:
+                  - type: "mrkdwn"
+                    text: "*Branch:*\n`${{ inputs.branch }}`"
+                  - type: "mrkdwn"
+                    text: "*npm Tag:*\n`${{ inputs.npm_tag }}`"
+                  - type: "mrkdwn"
+                    text: "*Commits:*\n`${{ inputs.before_sha }}` → `${{ inputs.after_sha }}`"
+                  - type: "mrkdwn"
+                    text: "*Packages:*\n${{ steps.package-list.outputs.packages }}"
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "*What's Changed:*\n${{ inputs.changelog }}"
+              - type: "actions"
+                elements:
+                  - type: "button"
+                    text:
+                      type: "plain_text"
+                      text: "View Workflow Run"
+                    url: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    style: "primary"
