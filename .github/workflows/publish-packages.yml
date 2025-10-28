@@ -44,13 +44,13 @@ on:
   workflow_dispatch:
     inputs:
       dryRun:
-        description: "Perform a dry run without publishing"
+        description: 'Perform a dry run without publishing'
         required: false
-        default: "false"
+        default: 'false'
         type: choice
         options:
-          - "true"
-          - "false"
+          - 'true'
+          - 'false'
 
 jobs:
   publish:
@@ -79,16 +79,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version: "22.13.1"
-          registry-url: "https://registry.npmjs.org"
-          scope: "@uniswap"
-
-      - name: Install dependencies
-        run: npm ci
+          node-version: '22.13.1'
+          registry-url: 'https://registry.npmjs.org'
+          scope: '@uniswap'
 
       - name: Install npm
-        run: npm install -g npm@latest
-
+        run: npm install -g npm@10.9.2
+      - name: Install dependencies
+        run: npm ci
       - name: Configure Git
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -123,7 +121,20 @@ jobs:
         id: affected
         run: |
           # Get affected projects using Nx
-          AFFECTED_JSON=$(npx nx show projects --affected --base=${{ steps.base-sha.outputs.base }} --head=HEAD --type=lib --json || echo "[]")
+          echo "Running: npx nx show projects --affected --base=${{ steps.base-sha.outputs.base }} --head=HEAD --type=lib --json"
+
+          # Capture output and check if it's valid JSON
+          AFFECTED_OUTPUT=$(npx nx show projects --affected --base=${{ steps.base-sha.outputs.base }} --head=HEAD --type=lib --json 2>&1 || echo "[]")
+
+          # Check if output is valid JSON
+          if echo "$AFFECTED_OUTPUT" | jq empty 2>/dev/null; then
+            AFFECTED_JSON="$AFFECTED_OUTPUT"
+          else
+            echo "⚠️  Nx output is not valid JSON. Output:"
+            echo "$AFFECTED_OUTPUT"
+            echo "Using empty array as fallback"
+            AFFECTED_JSON="[]"
+          fi
 
           # Extract just the project names from the JSON array and join with commas
           AFFECTED_PROJECTS=$(echo "$AFFECTED_JSON" | jq -r 'join(",")')
@@ -244,7 +255,7 @@ jobs:
     with:
       before_sha: ${{ github.event.before }}
       after_sha: ${{ github.sha }}
-      custom_prompt_file: ".github/prompts/release-changelog.md"
+      custom_prompt_file: '.github/prompts/release-changelog.md'
       max_tokens: 1024
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
