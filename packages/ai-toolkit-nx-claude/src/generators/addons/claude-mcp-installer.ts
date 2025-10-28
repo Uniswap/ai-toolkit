@@ -2,7 +2,12 @@ import { execSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
-import type { AddonMetadata } from './addon-registry';
+import type {
+  AddonMetadata,
+  McpCommandAddonMetadata,
+  McpRemoteHostedAddonMetadata,
+} from './addon-registry';
+import { isCommandMcpServer, isRemoteHostedMcpServer } from './addon-registry';
 
 /**
  * MCP installation options
@@ -40,26 +45,43 @@ export async function installMcpServer(options: MCPInstallOptions): Promise<{
 
   // Build the Claude MCP add command
   // The server name should come from the addon ID or a specific field
-  const serverName = addon.mcp?.serverName || addon.id;
-  let command = `claude mcp add ${serverName} --scope user --`;
+  const serverName = addon.mcp?.serverName;
+  let command = `claude mcp add ${serverName} --scope user`;
 
-  // Add the MCP server command and args
-  if (addon.mcp?.command) {
-    command += ` ${addon.mcp.command}`;
-
-    // Add universal args based on command type
-    if (addon.mcp.command === 'npx') {
-      command += ' -y';
+  // Add environment variables if specified
+  if (addon.mcp?.env && Object.keys(addon.mcp.env).length > 0) {
+    for (const [key, value] of Object.entries(addon.mcp.env)) {
+      command += ` --env ${key}=${value}`;
     }
+  }
 
-    // Add registry for private packages
-    if (addon.registry) {
-      command += ` ${addon.registry}`;
+  if (isCommandMcpServer(addon.mcp)) {
+    const mcpMetadata = addon.mcp as McpCommandAddonMetadata;
+    // Add the -- separator before the command
+    command += ' --';
+
+    // Add the MCP server command and args
+    if (mcpMetadata.command) {
+      command += ` ${mcpMetadata.command}`;
+
+      // Add all args from the addon configuration
+      if (mcpMetadata.args && mcpMetadata.args.length > 0) {
+        command += ` ${mcpMetadata.args.join(' ')}`;
+      } else {
+        // Fallback: if no args provided, use package name with @latest
+        command += ` ${addon.packageName}@latest`;
+      }
+
+      // Add registry for private packages (if specified separately)
+      if (addon.registry) {
+        command += ` ${addon.registry}`;
+      }
     }
-
-    // Add package name and version
-    const packageSpec = addon.mcp.args?.[0] || `${addon.packageName}@latest`;
-    command += ` ${packageSpec}`;
+  } else if (isRemoteHostedMcpServer(addon.mcp)) {
+    const mcpMetadata = addon.mcp as McpRemoteHostedAddonMetadata;
+    command += ` --transport ${mcpMetadata.transport} ${mcpMetadata.url}`;
+  } else {
+    throw new Error(`Unsupported MCP addon with configuration: ${addon.mcp}`);
   }
 
   // Append any additional server-specific arguments

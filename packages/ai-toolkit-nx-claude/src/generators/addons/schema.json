@@ -5,12 +5,44 @@
   "type": "object",
   "description": "Install and configure Claude Code addons including MCP servers.",
   "properties": {
+    "installMode": {
+      "type": "string",
+      "description": "Installation mode",
+      "enum": ["all", "specific"],
+      "default": "all",
+      "x-prompt": {
+        "message": "🎯 What would you like to install?",
+        "type": "list",
+        "items": [
+          {
+            "value": "all",
+            "label": "All recommended MCP servers (12 servers)"
+          },
+          {
+            "value": "specific",
+            "label": "A specific MCP server"
+          }
+        ]
+      }
+    },
     "addon": {
       "type": "string",
       "description": "The addon to install",
-      "enum": ["spec-workflow-mcp"],
-      "default": "spec-workflow-mcp",
-      "x-prompt": "Select addon to install"
+      "enum": [
+        "spec-workflow-mcp",
+        "graphite-mcp",
+        "nx-mcp",
+        "slack-mcp",
+        "universe-mcp",
+        "linear-mcp",
+        "notion-mcp",
+        "github-mcp",
+        "figma-mcp",
+        "chrome-devtools-mcp",
+        "vercel-mcp",
+        "supabase-mcp"
+      ],
+      "prompt-when": "installMode === 'specific'"
     },
     "dashboardMode": {
       "type": "string",
@@ -44,6 +76,11 @@
       "type": "string",
       "description": "Path to the project where spec-workflow should be installed",
       "x-skip-prompt": true
+    },
+    "dry": {
+      "type": "boolean",
+      "description": "Dry run mode",
+      "default": false
     }
   },
   "required": []

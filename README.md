@@ -4,7 +4,7 @@
 
 ## Overview
 
-The **AI Toolkit** is a standardized collection of AI agents and commands designed for Claude Code workflows. Its goal is to allow anyone at Uniswap to install and configure Claude Code to be maximally useful, all in a single command (`bun run start`)
+The **AI Toolkit** is a standardized collection of AI agents and commands designed for Claude Code workflows. Its goal is to allow anyone at Uniswap to install and configure Claude Code to be maximally useful, all in a single command (`npm run start`)
 
 **What it provides:**
 
@@ -21,7 +21,7 @@ Instead of each person at Uniswap manually configuring AI assistant behaviors fo
 
 Before working with this repository, ensure you have the following tools installed:
 
-- **[Bun 1.2.21+](https://bun.sh)** (recommended) or **Node.js 22+** with npm
+- **Node.js 22+** with npm
 
 ### Local Installation
 
@@ -31,7 +31,7 @@ git clone https://github.com/Uniswap/ai-toolkit
 cd ai-toolkit
 
 # Install all dependencies (also sets up git hooks automatically)
-bun install # or npm install if you're not using bun
+npm install
 ```
 
 ### Setup Claude Code Integration
@@ -40,7 +40,7 @@ bun install # or npm install if you're not using bun
 
 ```bash
 # Run the CLI to show you everything you can install. Start with the 'init' and then 'hooks' to get started
-bun run start
+npm run start
 ```
 
 and you should see the CLI options below:
@@ -51,10 +51,10 @@ and you should see the CLI options below:
 
 ```bash
 # Install just the notification hooks
-bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks
+npx nx generate @uniswap/ai-toolkit-nx-claude:hooks
 
 # Or preview what would be installed (dry-run mode)
-bunx nx generate @uniswap/ai-toolkit-nx-claude:init --dry-run
+npx nx generate @uniswap/ai-toolkit-nx-claude:init --dry-run
 ```
 
 ### Verify Installation
@@ -89,7 +89,7 @@ We welcome contributions from all developers! This project uses a **trunk-based 
    ```bash
    git clone https://github.com/Uniswap/ai-toolkit
    cd ai-toolkit
-   bun install  # Sets up everything including git hooks
+   npm install  # Sets up everything including git hooks
    ```
 
 2. **Install recommended tools**:

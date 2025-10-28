@@ -2,15 +2,19 @@
 
 /**
  * Unified CLI wrapper for all generators.
- * Determines which generator to run based on the script name.
  *
- * This single file handles all generator invocations:
- * - ai-toolkit-nx-claude -> defaults to init generator
- * - ai-toolkit-nx-claude:init -> init generator
- * - ai-toolkit-nx-claude:hooks -> hooks generator
- * - ai-toolkit-nx-claude:addons -> addons generator
- * - ai-toolkit-nx-claude:add-command -> add-command generator
- * - ai-toolkit-nx-claude:add-agent -> add-agent generator
+ * External Usage (npx @uniswap/ai-toolkit-nx-claude@latest):
+ * - No arguments -> runs init generator (prompts for installMode)
+ * - default -> runs init with --install-mode=default
+ * - custom -> runs init with --install-mode=custom
+ *
+ * Internal Usage (from within ai-toolkit repo):
+ * - No arguments -> shows interactive menu of all generators
+ * - Specific generator name -> runs that generator
+ *
+ * This design ensures external users get a streamlined experience (init generator
+ * with its schema-driven installMode prompt) while developers get access to all
+ * generators including internal ones (add-command, add-agent).
  */
 
 import { handleNxExecution } from './cli-utils';
@@ -37,8 +41,8 @@ function isInAiToolkitRepo(): boolean {
 
 // Available generators (only show user-facing ones in interactive mode)
 const GENERATORS = {
-  'default-install': 'Recommended setup with pre-selected components',
-  'custom-install': 'Choose exactly what to install',
+  default: 'Recommended setup with pre-selected components',
+  custom: 'Choose exactly what to install',
 };
 
 // All generators including internal ones (for validation)
@@ -116,8 +120,8 @@ async function main() {
     console.log('\nUsage:');
     console.log('  npx @uniswap/ai-toolkit-nx-claude@latest [generator]');
     console.log('\nExamples:');
-    console.log('  npx @uniswap/ai-toolkit-nx-claude@latest default-install');
-    console.log('  npx @uniswap/ai-toolkit-nx-claude@latest custom-install');
+    console.log('  npx @uniswap/ai-toolkit-nx-claude@latest default');
+    console.log('  npx @uniswap/ai-toolkit-nx-claude@latest custom');
     process.exit(0);
   }
 
@@ -144,10 +148,17 @@ async function main() {
     process.exit(0);
   }
 
-  // If no generator specified and no special flags, enter interactive mode
+  // If no generator specified and no special flags, default to init generator
+  // The init generator's own schema will prompt for installation mode
   if (!generatorName && processedArgs.length === 0) {
-    generatorName = await selectGeneratorInteractively();
-    console.log(''); // Empty line for spacing
+    // Only show interactive menu if in ai-toolkit repo (for developers)
+    if (isInAiToolkitRepo()) {
+      generatorName = await selectGeneratorInteractively();
+      console.log(''); // Empty line for spacing
+    } else {
+      // For external users, default to init generator
+      generatorName = 'init';
+    }
   }
 
   // Ensure we have a generator name at this point
@@ -160,13 +171,13 @@ async function main() {
     process.exit(1);
   }
 
-  // Route default-install and custom-install to init generator with appropriate mode
-  if (generatorName === 'default-install') {
+  // Route default and custom to init generator with appropriate mode
+  if (generatorName === 'default') {
     await handleNxExecution('init', [
       ...processedArgs,
       '--install-mode=default',
     ]);
-  } else if (generatorName === 'custom-install') {
+  } else if (generatorName === 'custom') {
     await handleNxExecution('init', [
       ...processedArgs,
       '--install-mode=custom',

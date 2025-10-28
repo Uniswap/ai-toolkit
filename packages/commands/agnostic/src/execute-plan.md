@@ -52,7 +52,7 @@ Execute the implementation plan step-by-step:
    - Make the necessary code changes using Edit/Write tools
    - Run tests when appropriate using Bash
    - Handle errors and report progress
-3. **Commit Changes**: Create git commit(s) at logical completion points
+3. **Commit Changes**: At logical completion points, ASK THE USER if they would like you to create git commit(s). DO NOT commit changes without User confirmation
 4. **Follow-up Options**: After implementation, ask the user if they'd like to:
    - Generate tests (delegate to test-writer agent)
    - Update documentation (delegate to doc-writer agent)
@@ -94,7 +94,7 @@ If a step fails:
 
 ### Committing Changes
 
-Create git commits at logical points:
+At logical points, ASK THE USER if they're like you to create git commits:
 
 - After completing a cohesive set of changes
 - When a step or group of steps is finished
@@ -153,7 +153,7 @@ This command completes the implementation workflow:
 4. **Execute**: `/execute-plan <plan-file>`
    - Reads the plan and implements it
    - Makes code changes directly
-   - Commits at logical points
+   - Prompts the user to create commits at logical points
    - Offers optional test/doc generation
 
 ## Best Practices

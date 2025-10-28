@@ -32,6 +32,12 @@
       "type": "boolean",
       "description": "Skip confirmation prompts and overwrite existing configuration",
       "default": false
+    },
+    "installMode": {
+      "type": "string",
+      "description": "Installation mode from parent generator (default or custom). When set to 'default', skips all prompts and uses defaults.",
+      "enum": ["default", "custom"],
+      "hidden": true
     }
   },
   "required": []

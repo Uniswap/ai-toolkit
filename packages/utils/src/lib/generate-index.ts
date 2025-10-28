@@ -2,6 +2,7 @@
 
 import { readdir, readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
+import { execSync } from 'child_process';
 
 interface ItemInfo {
   name: string;
@@ -161,6 +162,15 @@ ${itemsObject},
   // Write the generated index.ts
   await writeFile(outputPath, indexContent, 'utf-8');
 
+  // Format the generated file using Prettier
+  try {
+    execSync(`npx prettier --write "${outputPath}"`, {
+      stdio: 'pipe',
+    });
+  } catch (error) {
+    console.warn('⚠️  Failed to format generated file:', error);
+  }
+
   console.log(`✅ Generated index.ts with ${items.length} ${exportName}`);
   items.forEach((item) => {
     console.log(`  - ${item.name}`);
@@ -185,7 +195,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     outputPath,
     typeName,
     exportName,
-    regenerateCommand = 'bunx nx run <project>:generate-index',
+    regenerateCommand = 'npx nx run <project>:generate-index',
   ] = args;
 
   generateIndex({

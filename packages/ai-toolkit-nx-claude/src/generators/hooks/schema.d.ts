@@ -26,4 +26,12 @@ export interface HooksGeneratorSchema {
    * @default false
    */
   verbose?: boolean;
+
+  /**
+   * Installation mode from parent generator (default or custom).
+   * When set to 'default', skips all prompts and uses defaults.
+   * This is passed programmatically from the init generator.
+   * @hidden
+   */
+  installMode?: 'default' | 'custom';
 }

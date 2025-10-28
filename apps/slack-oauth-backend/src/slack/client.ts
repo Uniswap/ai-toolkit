@@ -318,6 +318,8 @@ export function createSlackClient(token?: string): SlackClient {
 export function clearSlackCaches(): void {
   userInfoCache.clear();
   channelCache.clear();
+  // Clear singleton instance for testing
+  (SlackClient as any).instance = undefined;
   logger.info('Slack caches cleared');
 }
 

@@ -116,7 +116,7 @@ sequenceDiagram
     participant Cache as Cache Layer
     participant Dist as Dist Output
 
-    Dev->>Nx: bunx nx build package
+    Dev->>Nx: npx nx build package
     Nx->>Cache: Check cache
 
     alt Cache Hit
@@ -134,19 +134,19 @@ sequenceDiagram
 
 ```bash
 # Build single package
-bunx nx build package-name
+npx nx build package-name
 
 # Build all packages
-bunx nx run-many --target=build
+npx nx run-many --target=build
 
 # Build affected packages
-bunx nx affected --target=build --base=main
+npx nx affected --target=build --base=main
 
 # Build with dependencies
-bunx nx build package-name --with-deps
+npx nx build package-name --with-deps
 
 # Build in watch mode
-bunx nx build package-name --watch
+npx nx build package-name --watch
 ```
 
 ### Build Optimization
@@ -170,7 +170,7 @@ Workflow Triggers:
 
 Jobs:
   1. publish:
-    - Setup environment (Node, Bun, Git)
+    - Setup environment (Node, Git)
     - Determine npm tag (latest/next)
     - Build all packages
     - Version affected packages
@@ -190,11 +190,11 @@ Jobs:
 
 ```bash
 # For next branch (prerelease)
-bunx nx release version prerelease --preid=next
+npx nx release version prerelease --preid=next
 # Results in: 1.0.0-next.0, 1.0.0-next.1, etc.
 
 # For main branch (stable)
-bunx nx release version --specifier=patch
+npx nx release version --specifier=patch
 # Results in: 1.0.0, 1.0.1, 1.1.0, etc.
 ```
 
@@ -238,7 +238,6 @@ graph LR
 ```bash
 # Required for reading from npmjs
 GITHUB_TOKEN        # GitHub authentication
-NODE_AUTH_TOKEN     # NPM authentication for private NPMJS registry
 
 # Optional for configuration
 NX_CLOUD_AUTH_TOKEN # Nx Cloud distributed caching
@@ -285,16 +284,16 @@ Each package versions independently based on its changes:
 
 ```bash
 # Check current versions
-bunx nx show projects --with-target version
+npx nx show projects --with-target version
 
 # Preview version changes (dry-run)
-bunx nx release version --dry-run
+npx nx release version --dry-run
 
 # Generate changelog
-bunx nx release changelog
+npx nx release changelog
 
 # Full release (version + publish)
-bunx nx release
+npx nx release
 ```
 
 ## Branch Synchronization
@@ -365,14 +364,14 @@ gt sync --force --no-interactive
 # 1. Clone and setup
 git clone https://github.com/Uniswap/ai-toolkit
 cd ai-toolkit
-bun install
+npm install
 
 # 2. Create development branch
 git checkout next
 git checkout -b feature/my-feature
 
 # 3. Start development
-bunx nx serve package-name --watch
+npx nx serve package-name --watch
 ```
 
 ### Testing Changes Locally
@@ -381,10 +380,10 @@ bunx nx serve package-name --watch
 
 ```bash
 # Build the generator package
-bunx nx build ai-toolkit-nx-claude
+npx nx build ai-toolkit-nx-claude
 
 # Test generator with dry-run
-bunx nx generate @uniswap/ai-toolkit-nx-claude:init --dry-run
+npx nx generate @uniswap/ai-toolkit-nx-claude:init --dry-run
 
 # Test with local changes
 node ./dist/packages/ai-toolkit-nx-claude/src/generators/init/generator.js
@@ -394,7 +393,7 @@ node ./dist/packages/ai-toolkit-nx-claude/src/generators/init/generator.js
 
 ```bash
 # Create local package
-bunx nx build package-name
+npx nx build package-name
 cd dist/packages/package-name
 npm pack
 
@@ -407,22 +406,22 @@ npm install /path/to/package-name-1.0.0.tgz
 
 ```bash
 # Format code
-bunx nx format:write --uncommitted
+npx nx format:write --uncommitted
 
 # Lint with fixes
-bunx nx affected --target=lint --fix
+npx nx affected --target=lint --fix
 
 # Run tests
-bunx nx affected --target=test
+npx nx affected --target=test
 
 # Type check
-bunx nx affected --target=typecheck
+npx nx affected --target=typecheck
 
 # Clean build artifacts
-bunx nx reset
+npx nx reset
 
 # Update dependencies
-bunx nx migrate latest
+npx nx migrate latest
 ```
 
 ## Debugging & Troubleshooting
@@ -433,14 +432,14 @@ bunx nx migrate latest
 
 ```bash
 # Clear cache and rebuild
-bunx nx reset
-bunx nx run-many --target=build --skip-nx-cache
+npx nx reset
+npx nx run-many --target=build --skip-nx-cache
 
 # Check for circular dependencies
-bunx nx graph
+npx nx graph
 
 # Verbose output for debugging
-bunx nx build package-name --verbose
+npx nx build package-name --verbose
 ```
 
 #### 2. Publishing Failures
@@ -461,18 +460,18 @@ git tag -d package-name@1.0.0  # Delete local tag
 git push origin :package-name@1.0.0  # Delete remote tag
 
 # Fix version in package.json
-bunx nx release version --specifier=1.0.0 --projects=package-name
+npx nx release version --specifier=1.0.0 --projects=package-name
 ```
 
 #### 4. Git Hook Issues
 
 ```bash
 # Reinstall hooks
-bunx lefthook uninstall
-bunx lefthook install
+npx lefthook uninstall
+npx lefthook install
 
 # Run hooks manually
-bunx lefthook run pre-commit
+npx lefthook run pre-commit
 
 # Skip hooks temporarily
 LEFTHOOK=0 git commit -m "message"
@@ -509,7 +508,7 @@ For VS Code / Cursor users:
 
 ```bash
 # Analyze build performance
-bunx nx build package-name --profile
+npx nx build package-name --profile
 
 # View performance report
 open profile.html
@@ -547,7 +546,7 @@ open profile.html
 
 ```bash
 # Connect to Nx Cloud
-bunx nx connect
+npx nx connect
 
 # Configure in nx.json
 {
@@ -559,7 +558,7 @@ bunx nx connect
 
 ```bash
 # Configure parallelism
-bunx nx run-many --target=build --parallel=4
+npx nx run-many --target=build --parallel=4
 
 # In nx.json
 {
@@ -574,7 +573,7 @@ bunx nx run-many --target=build --parallel=4
 export NODE_OPTIONS="--max-old-space-size=8192"
 
 # Run with increased memory
-NODE_OPTIONS="--max-old-space-size=8192" bunx nx build
+NODE_OPTIONS="--max-old-space-size=8192" npx nx build
 ```
 
 ## Advanced Topics
@@ -597,10 +596,10 @@ Create project templates:
 
 ```bash
 # Generate a new generator
-bunx nx g @nx/plugin:generator my-generator --project=tools
+npx nx g @nx/plugin:generator my-generator --project=tools
 
 # Use the generator
-bunx nx g @myorg/tools:my-generator
+npx nx g @myorg/tools:my-generator
 ```
 
 ### Task Dependencies

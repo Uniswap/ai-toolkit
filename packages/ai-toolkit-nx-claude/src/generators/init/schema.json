@@ -8,27 +8,39 @@
       "type": "string",
       "description": "Installation mode (default=recommended, custom=choose components)",
       "enum": ["default", "custom"],
-      "x-skip-prompt": true
+      "default": "default",
+      "x-prompt": {
+        "message": "🚀 Installation Mode:\n  • Default: Quick setup with all recommended commands and agents\n  • Custom: Choose specific commands and agents to install\n\nWhich installation mode would you like?",
+        "type": "list",
+        "items": [
+          {
+            "value": "default",
+            "label": "Default - Install all recommended components (recommended)"
+          },
+          {
+            "value": "custom",
+            "label": "Custom - Choose specific components"
+          }
+        ]
+      }
     },
     "installationType": {
       "type": "string",
       "description": "Installation type (global or local)",
       "enum": ["global", "local"],
       "prompt-when": "installMode === 'custom'",
-      "x-prompt": {
-        "message": "📍 Installation Location Options:\n  • Global: Available to Claude Code in ALL projects on this machine\n  • Local: Available only when Claude Code is run from this specific project\n\nWould you like to install agents and commands globally or locally?",
-        "type": "list",
-        "items": [
-          {
-            "value": "global",
-            "label": "Global (~/.claude) - Use anywhere on this machine"
-          },
-          {
-            "value": "local",
-            "label": "Local (./.claude) - Use only in this project"
-          }
-        ]
-      }
+      "prompt-message": "📍 Installation Location Options:\n  • Global: Available to Claude Code in ALL projects on this machine\n  • Local: Available only when Claude Code is run from this specific project\n\nWould you like to install agents and commands globally or locally?",
+      "prompt-type": "list",
+      "prompt-items": [
+        {
+          "value": "global",
+          "label": "Global (~/.claude) - Use anywhere on this machine"
+        },
+        {
+          "value": "local",
+          "label": "Local (./.claude) - Use only in this project"
+        }
+      ]
     },
     "confirmLocalPath": {
       "type": "boolean",
@@ -71,7 +83,7 @@
       "type": "boolean",
       "description": "Install notification hooks (plays sound when Claude needs input)",
       "default": true,
-      "always-prompt": true,
+      "prompt-when": "installMode === 'custom'",
       "prompt-message": "🔔 Install notification hooks? (recommended - plays sound when Claude needs input)",
       "prompt-type": "confirm"
     },

@@ -48,7 +48,7 @@
       "executor": "@nx/js:prune-lockfile",
       "outputs": [
         "{workspaceRoot}/apps/slack-oauth-backend/dist/package.json",
-        "{workspaceRoot}/apps/slack-oauth-backend/dist/bun.lockb"
+        "{workspaceRoot}/apps/slack-oauth-backend/dist/package-lock.json"
       ],
       "options": {
         "buildTarget": "build"

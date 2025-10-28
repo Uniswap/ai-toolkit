@@ -145,8 +145,37 @@ interface HooksGeneratorSchema {
   'dry-run'?: boolean; // Preview without changes
   force?: boolean; // Skip dependency checks
   verbose?: boolean; // Detailed output
+  installMode?: 'default' | 'custom'; // Installation mode from parent generator (hidden)
 }
 ```
+
+### installMode Parameter
+
+The `installMode` parameter is a **hidden** parameter designed for programmatic use only. It's passed from parent generators (like `init`) to control the prompting behavior:
+
+- **`'default'`**: Skips all interactive prompts and uses default values for all options. This provides a streamlined, non-interactive installation experience.
+- **`'custom'`**: (or undefined): Enables full interactive prompting, allowing users to configure all options through CLI prompts.
+
+**Usage Pattern**:
+
+```typescript
+// Called programmatically from init generator in default mode
+await hooksGenerator(tree, {
+  installMode: 'default', // Skips all prompts
+  force: false,
+  dry: false,
+  backup: true,
+  verbose: false,
+});
+
+// Called programmatically from init generator in custom mode (or standalone)
+await hooksGenerator(tree, {
+  // installMode omitted or 'custom' - enables prompts
+  force: false,
+});
+```
+
+**Implementation**: When `installMode === 'default'`, the generator bypasses the entire `promptForMissingOptions()` flow and constructs the normalized options directly using default values.
 
 ### Input Handling
 
@@ -238,6 +267,29 @@ Manual testing checklist:
 
 ## Development Notes
 
+### Programmatic Usage Pattern
+
+This generator implements the **installMode pattern** for sub-generators:
+
+**Purpose**: Prevent duplicate prompting when generators are called programmatically from parent generators.
+
+**Implementation**:
+
+1. Add `installMode?: 'default' | 'custom'` to schema with `hidden: true`
+2. Add `installMode?: 'default' | 'custom'` to TypeScript interface
+3. In generator.ts, check `if (options.installMode === 'default')` before prompting
+4. When 'default', construct normalized options with defaults instead of prompting
+5. When undefined or 'custom', proceed with normal prompting flow
+
+**Why This Works**:
+
+- Hidden schema properties don't show up in CLI help or prompts
+- Parent generators can pass the mode to control child behavior
+- Avoids issues with `getExplicitlyProvidedOptions()` reading `process.argv`
+- Each generator maintains backward compatibility (works standalone or programmatically)
+
+**Pattern Applied**: This pattern is used across all sub-generators that are called from the `init` generator (hooks, addons, etc.).
+
 ### Adding New Features
 
 To extend the generator:
@@ -254,7 +306,7 @@ To extend the generator:
 Use verbose mode to debug issues:
 
 ```bash
-bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks --verbose
+npx nx generate @uniswap/ai-toolkit-nx-claude:hooks --verbose
 ```
 
 This preserves the cloned repository and shows detailed output.
@@ -288,13 +340,13 @@ Registered in `packages/ai-toolkit-nx-claude/generators.json`:
 
 ```bash
 # Build the generator
-bunx nx build nx-claude
+npx nx build nx-claude
 
 # Run tests
-bunx nx test nx-claude
+npx nx test nx-claude
 
 # Test locally
-bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks --dry-run
+npx nx generate @uniswap/ai-toolkit-nx-claude:hooks --dry-run
 ```
 
 ## Future Enhancements

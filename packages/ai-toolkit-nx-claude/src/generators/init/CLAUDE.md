@@ -215,7 +215,7 @@ npx @uniswap/ai-toolkit-nx-claude@latest
 Automatically invoked when selecting "default-install" from CLI menu, or explicitly:
 
 ```bash
-bunx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=default
+npx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=default
 ```
 
 **Flow**:
@@ -250,7 +250,7 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=default
 Automatically invoked when selecting "custom-install" from CLI menu, or explicitly:
 
 ```bash
-bunx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=custom
+npx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=custom
 ```
 
 **Flow**:
@@ -273,13 +273,13 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=custom
 ### Non-Interactive Default Installation
 
 ```bash
-bunx nx generate @uniswap/ai-toolkit-nx-claude:init --no-interactive --install-mode=default --install-hooks=true
+npx nx generate @uniswap/ai-toolkit-nx-claude:init --no-interactive --install-mode=default --install-hooks=true
 ```
 
 ### Non-Interactive Custom Installation
 
 ```bash
-bunx nx generate @uniswap/ai-toolkit-nx-claude:init \
+npx nx generate @uniswap/ai-toolkit-nx-claude:init \
   --no-interactive \
   --install-mode=custom \
   --installation-type=global \
@@ -294,7 +294,7 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:init \
 ### Dry Run to Preview (Custom Mode Only)
 
 ```bash
-bunx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=custom --dry
+npx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=custom --dry
 ```
 
 In dry-run mode, the generator will show:
@@ -486,16 +486,16 @@ To add new commands or agents:
 
 ```bash
 # Build the plugin first
-bunx nx build nx-claude
+npx nx build nx-claude
 
 # Test global installation with dry-run
-bunx nx generate @uniswap/ai-toolkit-nx-claude:init --dry --installation-type=global
+npx nx generate @uniswap/ai-toolkit-nx-claude:init --dry --installation-type=global
 
 # Test local installation (must be at project root)
-bunx nx generate @uniswap/ai-toolkit-nx-claude:init --installation-type=local --confirm-local-path=true
+npx nx generate @uniswap/ai-toolkit-nx-claude:init --installation-type=local --confirm-local-path=true
 
 # Test interactive mode
-bunx nx generate @uniswap/ai-toolkit-nx-claude:init
+npx nx generate @uniswap/ai-toolkit-nx-claude:init
 
 # Verify global installation
 ls -la ~/.claude/

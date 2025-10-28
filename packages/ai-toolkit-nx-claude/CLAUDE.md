@@ -6,7 +6,7 @@ The `@uniswap/ai-toolkit-nx-claude` package (published as `@uniswap/ai-toolkit-n
 
 ### Standalone Package Usage
 
-This package can be run directly via npx/bunx without cloning the repository:
+This package can be run directly via npx without cloning the repository:
 
 ```bash
 # For Uniswap organization members only
@@ -49,9 +49,9 @@ npx @uniswap/ai-toolkit-nx-claude@latest
 **Direct Usage**:
 
 ```bash
-bunx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=default
+npx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=default
 # or
-bunx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=custom
+npx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=custom
 ```
 
 **Key Features**:
@@ -87,7 +87,7 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=custom
 **Usage**:
 
 ```bash
-bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks
+npx nx generate @uniswap/ai-toolkit-nx-claude:hooks
 ```
 
 **Key Features**:
@@ -107,7 +107,7 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks
 **Usage**:
 
 ```bash
-bunx nx generate @uniswap/ai-toolkit-nx-claude:add-command
+npx nx generate @uniswap/ai-toolkit-nx-claude:add-command
 ```
 
 **Status**: Placeholder implementation - needs completion
@@ -119,12 +119,81 @@ bunx nx generate @uniswap/ai-toolkit-nx-claude:add-command
 **Usage**:
 
 ```bash
-bunx nx generate @uniswap/ai-toolkit-nx-claude:add-agent
+npx nx generate @uniswap/ai-toolkit-nx-claude:add-agent
 ```
 
 **Status**: Placeholder implementation - needs completion
 
 ## Generator Development Patterns
+
+### The installMode Pattern for Sub-Generators
+
+**Critical Pattern for Preventing Duplicate Prompts**
+
+When generators are called programmatically from parent generators (e.g., init calling hooks), they need a way to know whether to prompt interactively or use defaults. The **installMode pattern** solves this:
+
+**Problem**: When a parent generator calls a child generator programmatically, the child's `getExplicitlyProvidedOptions()` reads `process.argv` which contains the ORIGINAL CLI command, not the programmatic options. This causes the child to re-prompt for options that were already decided by the parent.
+
+**Solution**: Add a hidden `installMode` parameter that parent generators can pass to control child behavior:
+
+**Implementation Steps**:
+
+1. **In schema.json**: Add `installMode` property with `hidden: true`
+
+```json
+{
+  "installMode": {
+    "type": "string",
+    "description": "Installation mode from parent generator (default or custom)",
+    "enum": ["default", "custom"],
+    "hidden": true
+  }
+}
+```
+
+2. **In schema.d.ts**: Add to TypeScript interface
+
+```typescript
+interface MyGeneratorSchema {
+  installMode?: 'default' | 'custom';
+  // ... other properties
+}
+```
+
+3. **In generator.ts**: Check installMode before prompting
+
+```typescript
+if (options.installMode === 'default') {
+  // Skip prompts, use defaults
+  normalizedOptions = {
+    option1: options.option1 !== false,
+    option2: options.option2 || false,
+    installMode: 'default',
+  };
+} else {
+  // Normal prompting flow
+  normalizedOptions = await promptForMissingOptions(...);
+}
+```
+
+4. **In parent generator**: Pass installMode when calling child
+
+```typescript
+await childGenerator(tree, {
+  installMode: normalizedOptions.installMode,
+  // ... other options
+});
+```
+
+**Benefits**:
+
+
+- Eliminates duplicate prompts
+- Maintains backward compatibility (works standalone)
+- Hidden property doesn't clutter CLI help
+- Clear control flow between parent and child generators
+
+**Generators Using This Pattern**: hooks, addons
 
 ### Schema-Driven Prompting
 
@@ -363,14 +432,14 @@ All generators are registered in `generators.json`:
 
 ```bash
 # Build the package
-bunx nx build ai-toolkit-nx-claude
+npx nx build ai-toolkit-nx-claude
 
 # Run tests
-bunx nx test ai-toolkit-nx-claude
+npx nx test ai-toolkit-nx-claude
 
 # Test generators locally
-bunx nx generate @uniswap/ai-toolkit-nx-claude:init --dry
-bunx nx generate @uniswap/ai-toolkit-nx-claude:hooks --dry
+npx nx generate @uniswap/ai-toolkit-nx-claude:init --dry
+npx nx generate @uniswap/ai-toolkit-nx-claude:hooks --dry
 ```
 
 ### Nx Workspace Integration
@@ -504,15 +573,15 @@ For manual publishing (maintainers only):
 
 ```bash
 # Build the package
-bunx nx build ai-toolkit-nx-claude
+npx nx build ai-toolkit-nx-claude
 
 # For main branch (latest):
-bunx nx release version --projects=@uniswap/ai-toolkit-nx-claude
-bunx nx release publish --projects=@uniswap/ai-toolkit-nx-claude --tag=latest
+npx nx release version --projects=@uniswap/ai-toolkit-nx-claude
+npx nx release publish --projects=@uniswap/ai-toolkit-nx-claude --tag=latest
 
 # For next branch (prerelease):
-bunx nx release version --projects=@uniswap/ai-toolkit-nx-claude --preid=next --prerelease
-bunx nx release publish --projects=@uniswap/ai-toolkit-nx-claude --tag=next
+npx nx release version --projects=@uniswap/ai-toolkit-nx-claude --preid=next --prerelease
+npx nx release publish --projects=@uniswap/ai-toolkit-nx-claude --tag=next
 ```
 
 ### Fixing Version Misalignment
@@ -529,6 +598,6 @@ If the `next` branch version gets out of sync with `latest`:
 - **1.0.0**: Initial release with init generator
 - **1.1.0**: Added hooks generator for notifications
 - **1.2.0**: Added automatic fallback mechanism for Claude CLI installation (curl → npm)
-- **1.3.0**: Added standalone package publishing and direct npx/bunx execution
+- **1.3.0**: Added standalone package publishing and direct npx/npx execution
 - Future versions will be documented here
 ````
