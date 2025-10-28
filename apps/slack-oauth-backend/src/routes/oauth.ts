@@ -49,7 +49,7 @@ router.get(
         throw new OAuthError(
           params.error_description ||
             `OAuth authorization failed: ${params.error}`,
-          'invalid_code',
+          'INVALID_CODE',
           { error: params.error }
         );
       }
