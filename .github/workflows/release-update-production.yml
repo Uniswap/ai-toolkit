@@ -192,7 +192,7 @@ jobs:
   generate-changelog:
     needs: create-pr
     if: needs.create-pr.outputs.pr_created == 'true'
-    uses: ./.github/workflows/reusable/_generate-changelog.yml
+    uses: ./.github/workflows/_generate-changelog.yml
     with:
       before_sha: ${{ needs.create-pr.outputs.before_sha }}
       after_sha: ${{ needs.create-pr.outputs.after_sha }}
