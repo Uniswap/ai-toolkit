@@ -121,6 +121,9 @@ jobs:
             DATE=$(date +'%Y-%m-%d')
             PR_TITLE="chore: [skip ci] promote next to production ($DATE)"
 
+            # Capture git log output first to avoid bash parsing issues with special characters
+            COMMIT_LIST=$(git log origin/main..HEAD --oneline)
+
             # Generate PR body with commit list (changelog will be added later)
             PR_BODY="## Production Deployment
 
@@ -128,7 +131,7 @@ jobs:
 
           ### Commits included ($COMMIT_COUNT):
           \`\`\`
-          $(git log origin/main..HEAD --oneline)
+          ${COMMIT_LIST}
           \`\`\`
 
           ### Merge Strategy
@@ -243,6 +246,9 @@ jobs:
           TEMP_BRANCH="${{ needs.create-pr.outputs.temp_branch }}"
           DATE=$(date +'%Y-%m-%d')
 
+          # Capture git log output first to avoid bash parsing issues with special characters
+          COMMIT_LIST=$(git log ${BEFORE_SHA}..${AFTER_SHA} --oneline)
+
           # Reconstruct the base PR body
           BASE_PR_BODY="## Production Deployment
 
@@ -250,7 +256,7 @@ jobs:
 
           ### Commits included ($COMMIT_COUNT):
           \`\`\`
-          $(git log ${BEFORE_SHA}..${AFTER_SHA} --oneline)
+          ${COMMIT_LIST}
           \`\`\`
 
           ### Merge Strategy
