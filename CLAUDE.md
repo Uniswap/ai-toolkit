@@ -1,4 +1,4 @@
-# CLAUDE.md - AI Toolkit Project Guidelines
+F# CLAUDE.md - AI Toolkit Project Guidelines
 
 ## Core Requirements
 
@@ -83,7 +83,9 @@ After making any code changes, Claude Code MUST:
    - This runs ESLint on all affected projects based on your changes
    - If there are linting errors that can be auto-fixed, add the `--fix` flag: `npx nx affected --target=lint --base=HEAD~1 --fix`
 
-3. **Why use these commands**:
+3. **Typecheck the code**: Run `npx nx affected --target=typecheck --base=HEAD~1` to typecheck all affected projects.
+
+4. **Why use these commands**:
    - `--uncommitted` flag formats only files that haven't been committed yet
    - `--affected` with `--base=HEAD~1` identifies all projects affected by changes since the last commit
    - Using Nx's affected commands ensures only relevant code is checked, making the process fast and efficient

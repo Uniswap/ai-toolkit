@@ -112,14 +112,23 @@ jobs:
         run: |
           # Determine which prompt to use (priority: inline > file > default)
           if [ -n "${{ inputs.custom_prompt_text }}" ]; then
-            PROMPT="${{ inputs.custom_prompt_text }}"
+            # Use heredoc to safely assign inline custom prompt
+            PROMPT=$(cat <<'PROMPT_EOF'
+          ${{ inputs.custom_prompt_text }}
+          PROMPT_EOF
+          )
             echo "Using inline custom prompt"
           elif [ -n "${{ steps.load-prompt.outputs.prompt }}" ]; then
-            PROMPT="${{ steps.load-prompt.outputs.prompt }}"
+            # Use heredoc to safely assign file-based custom prompt
+            PROMPT=$(cat <<'PROMPT_EOF'
+          ${{ steps.load-prompt.outputs.prompt }}
+          PROMPT_EOF
+          )
             echo "Using custom prompt from file"
           else
             # Default prompt (similar to notify-release.yml)
-            PROMPT="You are a changelog generator. Based on the following git changes, create a concise, human-readable changelog summary.
+            PROMPT=$(cat <<'PROMPT_EOF'
+          You are a changelog generator. Based on the following git changes, create a concise, human-readable changelog summary.
 
           Focus on:
           - What features were added
@@ -131,14 +140,19 @@ jobs:
           - Keep it to 3-10 items max
           - Be concise and clear
           - Do NOT include commit hashes unless specifically requested
-          - Group related changes together"
+          - Group related changes together
+          PROMPT_EOF
+          )
             echo "Using default prompt"
           fi
 
-          # Append the git context to the prompt
-          FULL_PROMPT="$PROMPT
+          # Append the git context to the prompt using heredoc
+          FULL_PROMPT=$(cat <<FULL_PROMPT_EOF
+          $PROMPT
 
-          ${{ steps.git-context.outputs.context }}"
+          ${{ steps.git-context.outputs.context }}
+          FULL_PROMPT_EOF
+          )
 
           # Call Anthropic API
           RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
