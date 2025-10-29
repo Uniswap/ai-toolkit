@@ -113,8 +113,7 @@
         "options": {
           "commands": [
             "node packages/ai-toolkit-nx-claude/scripts/update-entrypoints.js",
-            "nx run @uniswap/ai-toolkit-nx-claude:bundle",
-            "chmod +x packages/ai-toolkit-nx-claude/dist/cli-generator.cjs"
+            "nx run @uniswap/ai-toolkit-nx-claude:bundle"
           ],
           "parallel": false
         },
