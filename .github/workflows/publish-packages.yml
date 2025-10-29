@@ -127,7 +127,10 @@ jobs:
           echo "Running: npx nx show projects --affected --base=${{ steps.base-sha.outputs.base }} --head=HEAD --type=lib --json"
 
           # Capture output and check if it's valid JSON
-          AFFECTED_OUTPUT=$(npx nx show projects --affected --base=${{ steps.base-sha.outputs.base }} --head=HEAD --type=lib --json 2>&1 || echo "[]")
+          # Suppress Node.js deprecation warnings to avoid polluting JSON output
+          AFFECTED_OUTPUT=$(NODE_NO_WARNINGS=1 npx nx show projects --affected --base=${{ steps.base-sha.outputs.base }} --head=HEAD --type=lib --json 2>&1 || echo "[]")
+
+          echo "AFFECTED_OUTPUT: $AFFECTED_OUTPUT"
 
           # Check if output is valid JSON
           if echo "$AFFECTED_OUTPUT" | jq empty 2>/dev/null; then
