@@ -63,6 +63,8 @@ jobs:
       packages: write
       pull-requests: write
       issues: write
+    outputs:
+      has_affected: ${{ steps.affected.outputs.has_affected }}
     # Skip the workflow if the commit is a version bump (to prevent loops)
     # Allow workflow to run for merge commits from update-production workflow
     # Skip workflow for branch sync commits
@@ -251,7 +253,7 @@ jobs:
   generate-changelog:
     name: Generate AI-powered changelog
     needs: publish
-    if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
+    if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && needs.publish.outputs.has_affected == 'true'
     uses: ./.github/workflows/_generate-changelog.yml
     with:
       before_sha: ${{ github.event.before }}
@@ -264,7 +266,7 @@ jobs:
   notify-release:
     name: Notify release via Slack
     needs: [publish, generate-changelog]
-    if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
+    if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && needs.publish.outputs.has_affected == 'true'
     uses: ./.github/workflows/_notify-release.yml
     with:
       branch: ${{ github.ref_name }}
