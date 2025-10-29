@@ -25,7 +25,6 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
-
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
@@ -52,23 +51,23 @@ jobs:
       - name: Build changed packages
         run: |
           echo "Building changed packages..."
-          npx nx affected --target=build
+          npx nx affected --target=build --verbose
           echo "✅ Build(s) completed successfully"
 
       - name: Run linting
         run: |
           echo "Running linters..."
-          npx nx affected --target=lint
+          npx nx affected --target=lint --verbose
           echo "✅ Linting passed"
 
       - name: Check formatting
         run: |
           echo "Checking code formatting..."
-          npx nx affected --target=format
+          npx nx affected --target=format --verbose
           echo "✅ Formatting check passed"
 
       - name: Run tests
         run: |
           echo "Running tests..."
-          npx nx affected --target=test --parallel=3 --coverage
+          npx nx affected --target=test --parallel=3 --coverage --verbose
           echo "✅ Tests passed"

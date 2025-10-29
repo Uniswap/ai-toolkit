@@ -8,7 +8,6 @@
       "type": "boolean",
       "description": "Backup existing hooks configuration before installation",
       "default": true,
-      "always-prompt": true,
       "prompt-message": "💾 Backup existing hooks configuration (if any)?",
       "prompt-type": "confirm"
     },
@@ -16,7 +15,6 @@
       "type": "boolean",
       "description": "Preview installation without making changes",
       "default": false,
-      "always-prompt": true,
       "prompt-message": "👁️ Run in dry-run mode (preview only)?",
       "prompt-type": "confirm"
     },
@@ -24,7 +22,6 @@
       "type": "boolean",
       "description": "Show detailed output during installation",
       "default": false,
-      "always-prompt": true,
       "prompt-message": "📝 Show verbose output during installation?",
       "prompt-type": "confirm"
     },

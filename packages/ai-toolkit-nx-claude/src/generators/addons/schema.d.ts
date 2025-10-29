@@ -1,8 +1,8 @@
 export interface AddonsGeneratorSchema {
-  /** Installation mode */
-  installMode?: 'all' | 'specific';
-  /** The addon to install */
-  addon?:
+  /** Selection mode for which addons to install */
+  selectionMode?: 'all' | 'specific';
+  /** The addons to install */
+  addons?: Array<
     | 'spec-workflow-mcp'
     | 'graphite-mcp'
     | 'nx-mcp'
@@ -14,7 +14,8 @@ export interface AddonsGeneratorSchema {
     | 'figma-mcp'
     | 'chrome-devtools-mcp'
     | 'vercel-mcp'
-    | 'supabase-mcp';
+    | 'supabase-mcp'
+  >;
   /** Dashboard startup mode */
   dashboardMode?: 'always' | 'manual';
   /** Dashboard port (default: auto) */
@@ -27,4 +28,6 @@ export interface AddonsGeneratorSchema {
   projectPath?: string;
   /** Dry run mode */
   dry?: boolean;
+  /** Installation mode from parent generator (default or custom) */
+  installMode?: 'default' | 'custom';
 }
