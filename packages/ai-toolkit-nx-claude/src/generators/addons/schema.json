@@ -5,9 +5,9 @@
   "type": "object",
   "description": "Install and configure Claude Code addons including MCP servers.",
   "properties": {
-    "installMode": {
+    "selectionMode": {
       "type": "string",
-      "description": "Installation mode",
+      "description": "Selection mode for which addons to install",
       "enum": ["all", "specific"],
       "default": "all",
       "x-prompt": {
@@ -20,29 +20,34 @@
           },
           {
             "value": "specific",
-            "label": "A specific MCP server"
+            "label": "Select specific MCP servers"
           }
         ]
       }
     },
-    "addon": {
-      "type": "string",
-      "description": "The addon to install",
-      "enum": [
-        "spec-workflow-mcp",
-        "graphite-mcp",
-        "nx-mcp",
-        "slack-mcp",
-        "universe-mcp",
-        "linear-mcp",
-        "notion-mcp",
-        "github-mcp",
-        "figma-mcp",
-        "chrome-devtools-mcp",
-        "vercel-mcp",
-        "supabase-mcp"
-      ],
-      "prompt-when": "installMode === 'specific'"
+    "addons": {
+      "type": "array",
+      "description": "The addons to install",
+      "items": {
+        "type": "string",
+        "enum": [
+          "spec-workflow-mcp",
+          "graphite-mcp",
+          "nx-mcp",
+          "slack-mcp",
+          "universe-mcp",
+          "linear-mcp",
+          "notion-mcp",
+          "github-mcp",
+          "figma-mcp",
+          "chrome-devtools-mcp",
+          "vercel-mcp",
+          "supabase-mcp"
+        ]
+      },
+      "prompt-when": "selectionMode === 'specific'",
+      "prompt-type": "multiselect",
+      "prompt-message": "🔌 Select MCP servers to install"
     },
     "dashboardMode": {
       "type": "string",
@@ -81,6 +86,12 @@
       "type": "boolean",
       "description": "Dry run mode",
       "default": false
+    },
+    "installMode": {
+      "type": "string",
+      "description": "Installation mode from parent generator (default or custom)",
+      "enum": ["default", "custom"],
+      "hidden": true
     }
   },
   "required": []

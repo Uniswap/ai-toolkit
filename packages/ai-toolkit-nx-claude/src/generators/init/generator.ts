@@ -236,6 +236,20 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     logger.info('🔍 DRY RUN MODE - No files will be modified');
   }
 
+  // Handle 'all' selection modes
+  if (normalizedOptions.commandSelectionMode === 'all') {
+    normalizedOptions.commands = Object.keys(agnosticCommands);
+    logger.info(
+      `📝 All commands selected (${normalizedOptions.commands.length} total)`
+    );
+  }
+  if (normalizedOptions.agentSelectionMode === 'all') {
+    normalizedOptions.agents = Object.keys(agnosticAgents);
+    logger.info(
+      `🤖 All agents selected (${normalizedOptions.agents.length} total)`
+    );
+  }
+
   // Skip command/agent arrays if install flags are false
   if (normalizedOptions.installCommands === false) {
     normalizedOptions.commands = [];
@@ -536,7 +550,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
           dry: false,
           backup: true,
           verbose: false,
-          installMode: normalizedOptions.installMode,
+          installMode: 'default', // Always use 'default' to prevent re-prompting
         });
         logger.info('✅ Notification hooks installed successfully');
       } catch (error: any) {
@@ -547,27 +561,9 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
       }
     }
 
-    // Prompt for and install addons in custom mode, after hooks
+    // Install addons if requested (now schema-driven, no manual prompt needed)
     let addonsInstalled = false;
-    let shouldInstallAddons = normalizedOptions.installAddons === true;
-    const installAddonsExplicit =
-      explicitlyProvided.has('installAddons') ||
-      explicitlyProvided.has('install-addons');
-
-    if (
-      normalizedOptions.installMode === 'custom' &&
-      !installAddonsExplicit &&
-      !nxNoInteractiveProvided &&
-      !normalizedOptions.nonInteractive
-    ) {
-      const { value } = await prompt<{ value: boolean }>({
-        type: 'confirm',
-        name: 'value',
-        message: '🔌 Install addons/mcps?',
-        initial: false,
-      });
-      shouldInstallAddons = value;
-    }
+    const shouldInstallAddons = normalizedOptions.installAddons === true;
 
     if (shouldInstallAddons) {
       try {
@@ -576,24 +572,25 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
           throw new Error('addonsGenerator export not found');
         }
 
-        await addonsGenerator(
-          tree,
-          // In default mode, install all MCPs. In custom mode, let user choose
-          normalizedOptions.installMode === 'default'
-            ? {
-                dry: false, // Never run in dry-run mode in default mode
-                installMode: 'all' as const,
-                force: normalizedOptions.force || false,
-                skipVerification: false, // Don't skip verification in default mode
-                dashboardMode: 'always' as const, // Auto-start dashboard
-                port: 0, // Use default port
-              }
-            : {
-                // Custom mode - let addons generator prompt user for specific addon
-                installMode: 'specific' as const,
-                force: normalizedOptions.force || false,
-              }
-        );
+        // Determine addon installation mode based on addonSelectionMode
+        const addonInstallMode =
+          normalizedOptions.installMode === 'default' ||
+          normalizedOptions.addonSelectionMode === 'all'
+            ? ('all' as const)
+            : ('specific' as const);
+
+        await addonsGenerator(tree, {
+          dry: normalizedOptions.dry || false,
+          selectionMode: addonInstallMode,
+          force: normalizedOptions.force || false,
+          skipVerification: false,
+          dashboardMode: 'always' as const,
+          port: 0,
+          installMode:
+            normalizedOptions.addonSelectionMode === 'specific'
+              ? 'custom'
+              : 'default',
+        });
         logger.info('✅ Addons installed successfully');
         addonsInstalled = true;
       } catch (error: any) {

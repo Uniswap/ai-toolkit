@@ -33,8 +33,10 @@ export async function promptForMissingOptions<T extends Record<string, any>>(
   context: {
     availableCommands?: string[];
     availableAgents?: string[];
+    availableAddons?: string[];
     commandDescriptions?: Record<string, string>;
     agentDescriptions?: Record<string, string>;
+    addonDescriptions?: Record<string, string>;
     // Explicit global/local format
     globalExistingCommands?: Set<string>;
     globalExistingAgents?: Set<string>;
@@ -171,6 +173,11 @@ export async function promptForMissingOptions<T extends Record<string, any>>(
         result.installAddons = true;
         result.dry = false;
 
+        // Set selection modes to 'all' for default mode
+        result.commandSelectionMode = 'all';
+        result.agentSelectionMode = 'all';
+        result.addonSelectionMode = 'all';
+
         // Set default command and agent selections
         if (context.defaultCommands) {
           result.commands = context.defaultCommands;
@@ -189,6 +196,9 @@ export async function promptForMissingOptions<T extends Record<string, any>>(
           explicitlyProvidedOptions.set('hooksMode', 'sound');
           explicitlyProvidedOptions.set('installAddons', true);
           explicitlyProvidedOptions.set('dry', false);
+          explicitlyProvidedOptions.set('commandSelectionMode', 'all');
+          explicitlyProvidedOptions.set('agentSelectionMode', 'all');
+          explicitlyProvidedOptions.set('addonSelectionMode', 'all');
           if (context.defaultCommands) {
             explicitlyProvidedOptions.set('commands', context.defaultCommands);
           }
@@ -220,8 +230,10 @@ async function promptForProperty(
   context: {
     availableCommands?: string[];
     availableAgents?: string[];
+    availableAddons?: string[];
     commandDescriptions?: Record<string, string>;
     agentDescriptions?: Record<string, string>;
+    addonDescriptions?: Record<string, string>;
     // Explicit global/local format
     globalExistingCommands?: Set<string>;
     globalExistingAgents?: Set<string>;
@@ -351,6 +363,18 @@ async function promptForProperty(
       );
     }
 
+    if (key === 'addons' && context.availableAddons) {
+      return await promptMultiSelectWithAll(
+        promptMessage,
+        context.availableAddons,
+        'addons',
+        context.addonDescriptions,
+        undefined, // No existing set for addons
+        undefined, // No other location set for addons
+        undefined // No installation type for addons
+      );
+    }
+
     // Generic array input (shouldn't happen in practice)
     return [];
   }
@@ -382,7 +406,7 @@ async function promptForProperty(
 async function promptMultiSelectWithAll(
   message: string,
   choices: string[],
-  type: 'commands' | 'agents',
+  type: 'commands' | 'agents' | 'addons',
   descriptions?: Record<string, string>,
   existingItems?: Set<string>,
   otherLocationItems?: Set<string>,
