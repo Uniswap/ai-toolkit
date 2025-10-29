@@ -65,7 +65,8 @@ jobs:
       issues: write
     # Skip the workflow if the commit is a version bump (to prevent loops)
     # Allow workflow to run for merge commits from update-production workflow
-    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
+    # Skip workflow for branch sync commits
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') && !startsWith(github.event.head_commit.message, 'chore(sync):') }}
 
     steps:
       - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
@@ -329,6 +330,10 @@ jobs:
           # Try to rebase onto origin/main
           if git rebase origin/main; then
             echo "✅ Rebase successful!"
+
+            # Create an empty commit to mark this as a sync operation
+            # This prevents the publish workflow from triggering on the next branch
+            git commit --allow-empty -m "chore(sync): [skip ci] sync next with main"
 
             # Force push the rebased next branch
             git push origin next --force-with-lease
