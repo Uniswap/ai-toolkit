@@ -18,15 +18,15 @@ name: Update Production
 # - Creates a temporary release branch from `next`
 # - Opens PR to `main` with AI-generated categorized changelog
 # - Assigns reviewers: @wkoutre and @Melvillian
-# - Sends notification to #ai-internal Slack channel
-# - Awaits manual review and merge (does NOT auto-merge)
+# - Automatically merges PR if there are no merge conflicts
+# - Sends notification to #ai-internal Slack channel with merge status
 # - After merge, publish-packages workflow runs automatically
 #
 # ARCHITECTURE:
 # This workflow uses a 3-job architecture for better separation of concerns:
 # 1. create-pr: Creates the PR and captures commit information
 # 2. generate-changelog: Generates AI-powered changelog using reusable workflow
-# 3. finalize-pr: Updates PR with changelog, assigns reviewers, sends notifications
+# 3. finalize-pr: Updates PR with changelog, assigns reviewers, auto-merges if possible, sends notifications
 
 on:
   schedule:
@@ -346,6 +346,30 @@ jobs:
             echo "has_conflicts=unknown" >> $GITHUB_OUTPUT
           fi
 
+      - name: Auto-merge PR
+        id: auto-merge
+        if: steps.check-mergeable.outputs.has_conflicts == 'false'
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ needs.create-pr.outputs.pr_number }}
+
+          echo "Attempting to auto-merge PR #$PR_NUMBER..."
+
+          # Use merge commit strategy and merge immediately (no --auto flag)
+          # This bypasses waiting for status checks
+          gh pr merge $PR_NUMBER --merge
+
+          if [ $? -eq 0 ]; then
+            echo "✅ PR #$PR_NUMBER successfully merged"
+            echo "merged=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Failed to merge PR #$PR_NUMBER"
+            echo "merged=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
       - name: Send Slack notification (Success)
         if: steps.check-mergeable.outputs.has_conflicts != 'true'
         continue-on-error: true
@@ -354,12 +378,12 @@ jobs:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
           payload: |
-            text: "📦 *Production Release PR Ready for Review*"
+            text: "${{ steps.auto-merge.outputs.merged == 'true' && '✅ *Production Release Auto-Merged*' || '📦 *Production Release PR Ready for Review*' }}"
             blocks:
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "📦 *Production Release PR Ready for Review*\n\nA new production release PR has been automatically created and is ready for review."
+                  text: "${{ steps.auto-merge.outputs.merged == 'true' && '✅ *Production Release Auto-Merged*\n\nThe production release PR has been automatically merged to `main`.' || '📦 *Production Release PR Ready for Review*\n\nA new production release PR has been automatically created and is ready for review.' }}"
               - type: "section"
                 fields:
                   - type: "mrkdwn"
@@ -369,7 +393,7 @@ jobs:
               - type: "section"
                 fields:
                   - type: "mrkdwn"
-                    text: "*Reviewers:*\n${{ steps.add-reviewers.outcome == 'success' && '@wkoutre @Melvillian' || 'Manual assignment needed ⚠️' }}"
+                    text: "${{ steps.auto-merge.outputs.merged == 'true' && '*Status:*\nMerged ✅' || format('*Reviewers:*\n{0}', steps.add-reviewers.outcome == 'success' && '@wkoutre @Melvillian' || 'Manual assignment needed ⚠️') }}"
                   - type: "mrkdwn"
                     text: "*Changelog:*\n${{ needs.generate-changelog.outputs.generation_method == 'ai' && 'AI-generated ✨' || 'Fallback (commit list) ⚠️' }}"
               - type: "actions"
@@ -377,9 +401,9 @@ jobs:
                   - type: "button"
                     text:
                       type: "plain_text"
-                      text: "Review PR"
+                      text: "${{ steps.auto-merge.outputs.merged == 'true' && 'View Merged PR' || 'Review PR' }}"
                     url: "${{ needs.create-pr.outputs.pr_url }}"
-                    style: "primary"
+                    style: "${{ steps.auto-merge.outputs.merged == 'true' && 'primary' || 'primary' }}"
 
       - name: Send Slack notification (Merge Conflicts)
         if: always() && steps.check-mergeable.outputs.has_conflicts == 'true'
@@ -437,33 +461,55 @@ jobs:
       - name: Summary
         if: always()
         run: |
-          echo "## 📦 Production Release PR Created" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.auto-merge.outputs.merged }}" = "true" ]; then
+            echo "## ✅ Production Release Auto-Merged" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## 📦 Production Release PR Created" >> $GITHUB_STEP_SUMMARY
+          fi
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **PR Number**: #${{ needs.create-pr.outputs.pr_number }}" >> $GITHUB_STEP_SUMMARY
           echo "- **PR URL**: ${{ needs.create-pr.outputs.pr_url }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Temporary Branch**: ${{ needs.create-pr.outputs.temp_branch }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Changelog Method**: ${{ needs.generate-changelog.outputs.generation_method }}" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ steps.add-reviewers.outcome }}" = "success" ]; then
-            echo "- **Reviewers**: @wkoutre, @Melvillian (automatically assigned)" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.auto-merge.outputs.merged }}" = "true" ]; then
+            echo "- **Status**: ✅ Automatically merged to main" >> $GITHUB_STEP_SUMMARY
           else
-            echo "- **Reviewers**: ⚠️ Automatic assignment failed - please add manually (@wkoutre, @Melvillian)" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ steps.add-reviewers.outcome }}" = "success" ]; then
+              echo "- **Reviewers**: @wkoutre, @Melvillian (automatically assigned)" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- **Reviewers**: ⚠️ Automatic assignment failed - please add manually (@wkoutre, @Melvillian)" >> $GITHUB_STEP_SUMMARY
+            fi
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "A production release PR has been created from the \`next\` branch with an AI-generated changelog." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Next steps:" >> $GITHUB_STEP_SUMMARY
-          echo "1. ✅ PR created with AI-generated changelog" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ steps.add-reviewers.outcome }}" = "success" ]; then
-            echo "2. ✅ Reviewers assigned (@wkoutre, @Melvillian)" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.auto-merge.outputs.merged }}" = "true" ]; then
+            echo "The production release PR has been automatically merged to \`main\`." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Completed steps:" >> $GITHUB_STEP_SUMMARY
+            echo "1. ✅ PR created with AI-generated changelog" >> $GITHUB_STEP_SUMMARY
+            echo "2. ✅ PR automatically merged (no conflicts detected)" >> $GITHUB_STEP_SUMMARY
+            echo "3. ✅ Slack notification sent to #ai-internal" >> $GITHUB_STEP_SUMMARY
+            echo "4. ⏳ Publish-packages workflow will run automatically" >> $GITHUB_STEP_SUMMARY
+            echo "5. ⏳ Packages will be published with the \`latest\` tag" >> $GITHUB_STEP_SUMMARY
+            echo "6. 🧹 Temporary branch will be deleted automatically" >> $GITHUB_STEP_SUMMARY
           else
-            echo "2. ⚠️ Reviewers could not be assigned automatically - please add manually" >> $GITHUB_STEP_SUMMARY
-          fi
+            echo "A production release PR has been created from the \`next\` branch with an AI-generated changelog." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Next steps:" >> $GITHUB_STEP_SUMMARY
+            echo "1. ✅ PR created with AI-generated changelog" >> $GITHUB_STEP_SUMMARY
 
-          echo "3. ✅ Slack notification sent to #ai-internal" >> $GITHUB_STEP_SUMMARY
-          echo "4. ⏳ **Awaiting review and approval**" >> $GITHUB_STEP_SUMMARY
-          echo "5. ⏳ After merge, publish-packages workflow will run automatically" >> $GITHUB_STEP_SUMMARY
-          echo "6. ⏳ Packages will be published with the \`latest\` tag" >> $GITHUB_STEP_SUMMARY
-          echo "7. 🧹 Temporary branch will be deleted automatically after merge" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ steps.add-reviewers.outcome }}" = "success" ]; then
+              echo "2. ✅ Reviewers assigned (@wkoutre, @Melvillian)" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "2. ⚠️ Reviewers could not be assigned automatically - please add manually" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            echo "3. ✅ Slack notification sent to #ai-internal" >> $GITHUB_STEP_SUMMARY
+            echo "4. ⏳ **Awaiting review and approval**" >> $GITHUB_STEP_SUMMARY
+            echo "5. ⏳ After merge, publish-packages workflow will run automatically" >> $GITHUB_STEP_SUMMARY
+            echo "6. ⏳ Packages will be published with the \`latest\` tag" >> $GITHUB_STEP_SUMMARY
+            echo "7. 🧹 Temporary branch will be deleted automatically after merge" >> $GITHUB_STEP_SUMMARY
+          fi

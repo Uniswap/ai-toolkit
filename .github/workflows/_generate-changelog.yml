@@ -8,36 +8,36 @@ on:
   workflow_call:
     inputs:
       before_sha:
-        description: "Starting commit SHA for the changelog range"
+        description: 'Starting commit SHA for the changelog range'
         required: true
         type: string
       after_sha:
-        description: "Ending commit SHA for the changelog range"
+        description: 'Ending commit SHA for the changelog range'
         required: true
         type: string
       custom_prompt_file:
-        description: "Path to custom prompt markdown file (relative to repo root, e.g., .github/prompts/my-prompt.md)"
+        description: 'Path to custom prompt markdown file (relative to repo root, e.g., .github/prompts/my-prompt.md)'
         required: false
         type: string
       custom_prompt_text:
-        description: "Inline custom prompt text (overrides custom_prompt_file if both provided)"
+        description: 'Inline custom prompt text (overrides custom_prompt_file if both provided)'
         required: false
         type: string
       max_tokens:
-        description: "Maximum tokens for AI response"
+        description: 'Maximum tokens for AI response'
         required: false
         type: number
         default: 1024
     outputs:
       changelog:
-        description: "Generated changelog text"
+        description: 'Generated changelog text'
         value: ${{ jobs.generate.outputs.changelog }}
       generation_method:
-        description: "Method used to generate changelog (ai or fallback)"
+        description: 'Method used to generate changelog (ai or fallback)'
         value: ${{ jobs.generate.outputs.method }}
     secrets:
       ANTHROPIC_API_KEY:
-        description: "Anthropic API key for AI changelog generation"
+        description: 'Anthropic API key for AI changelog generation'
         required: true
 
 jobs:
@@ -219,20 +219,30 @@ jobs:
       - name: Summary
         if: always()
         run: |
-          echo "## 📝 Changelog Generation Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit Range**: \`${{ inputs.before_sha }}\` → \`${{ inputs.after_sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Generation Method**: ${{ steps.ai-changelog.outcome == 'success' && 'AI-powered ✨' || 'Fallback (commit list) ⚠️' }}" >> $GITHUB_STEP_SUMMARY
+          # Safely capture the changelog using heredoc
+          CHANGELOG=$(cat <<'CHANGELOG_EOF'
+          ${{ steps.ai-changelog.outputs.changelog || steps.fallback-changelog.outputs.changelog }}
+          CHANGELOG_EOF
+          )
 
+          # Determine prompt source
           if [ -n "${{ inputs.custom_prompt_text }}" ]; then
-            echo "- **Prompt Source**: Inline custom prompt" >> $GITHUB_STEP_SUMMARY
+            PROMPT_SOURCE="Inline custom prompt"
           elif [ -n "${{ inputs.custom_prompt_file }}" ]; then
-            echo "- **Prompt Source**: \`${{ inputs.custom_prompt_file }}\`" >> $GITHUB_STEP_SUMMARY
+            PROMPT_SOURCE="\`${{ inputs.custom_prompt_file }}\`"
           else
-            echo "- **Prompt Source**: Default prompt" >> $GITHUB_STEP_SUMMARY
+            PROMPT_SOURCE="Default prompt"
           fi
 
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Generated Changelog:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.ai-changelog.outputs.changelog || steps.fallback-changelog.outputs.changelog }}" >> $GITHUB_STEP_SUMMARY
+          # Write the entire summary using heredoc to safely handle all content
+          cat <<SUMMARY_EOF >> $GITHUB_STEP_SUMMARY
+          ## 📝 Changelog Generation Summary
+
+          - **Commit Range**: \`${{ inputs.before_sha }}\` → \`${{ inputs.after_sha }}\`
+          - **Generation Method**: ${{ steps.ai-changelog.outcome == 'success' && 'AI-powered ✨' || 'Fallback (commit list) ⚠️' }}
+          - **Prompt Source**: $PROMPT_SOURCE
+
+          ### Generated Changelog:
+
+          $CHANGELOG
+          SUMMARY_EOF
