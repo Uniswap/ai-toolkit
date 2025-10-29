@@ -44,13 +44,13 @@ on:
   workflow_dispatch:
     inputs:
       dryRun:
-        description: "Perform a dry run without publishing"
+        description: 'Perform a dry run without publishing'
         required: false
-        default: "false"
+        default: 'false'
         type: choice
         options:
-          - "true"
-          - "false"
+          - 'true'
+          - 'false'
 
 jobs:
   publish:
@@ -79,9 +79,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version: "22.13.1"
-          registry-url: "https://registry.npmjs.org"
-          scope: "@uniswap"
+          node-version: '22.13.1'
+          registry-url: 'https://registry.npmjs.org'
+          scope: '@uniswap'
 
       - name: Install npm
         run: npm install -g npm@10.9.2
@@ -255,7 +255,7 @@ jobs:
     with:
       before_sha: ${{ github.event.before }}
       after_sha: ${{ github.sha }}
-      custom_prompt_file: ".github/prompts/release-changelog.md"
+      custom_prompt_file: '.github/prompts/release-changelog.md'
       max_tokens: 1024
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
