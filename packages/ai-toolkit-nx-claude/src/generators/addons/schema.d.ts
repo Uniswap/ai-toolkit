@@ -15,6 +15,7 @@ export interface AddonsGeneratorSchema {
     | 'chrome-devtools-mcp'
     | 'vercel-mcp'
     | 'supabase-mcp'
+    | 'aws-log-analyzer-mcp'
   >;
   /** Dashboard startup mode */
   dashboardMode?: 'always' | 'manual';
