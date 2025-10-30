@@ -18,6 +18,10 @@ import {
   // removeMcpServer,
 } from './claude-mcp-installer';
 import { setupSpecWorkflow } from './spec-workflow-setup';
+import {
+  setupAwsLogAnalyzer,
+  getAwsLogAnalyzerServerPath,
+} from './aws-log-analyzer-setup';
 
 /**
  * Main generator function for installing Claude Code addons
@@ -344,6 +348,24 @@ async function installMcpAddon(
   addon: any,
   options: AddonsGeneratorSchema & { dryRun?: boolean }
 ): Promise<void> {
+  // Special handling for AWS Log Analyzer - clone repository first
+  if (addon.id === 'aws-log-analyzer-mcp') {
+    console.log('\n📦 AWS Log Analyzer requires repository setup...');
+    const setupResult = await setupAwsLogAnalyzer(options);
+
+    if (!setupResult.success) {
+      throw new Error(setupResult.error || setupResult.message);
+    }
+
+    console.log(`✅ ${setupResult.message}`);
+
+    // Now build the args dynamically with the cloned path
+    const serverPath = setupResult.serverPath || getAwsLogAnalyzerServerPath();
+    addon.mcp.args = ['--directory', serverPath, 'run', 'server.py'];
+
+    console.log(`📍 Server path: ${serverPath}`);
+  }
+
   if (options.dryRun) {
     console.log('\n🔧 [DRY-RUN] Simulating MCP server installation...');
   } else {
@@ -427,6 +449,7 @@ function showGeneralMcpInstructions(installedAddons: any[]): void {
     (addon) =>
       addon.id === 'slack-mcp' ||
       addon.id === 'github-mcp' ||
+      addon.id === 'aws-log-analyzer-mcp' ||
       addon.id === 'linear-mcp' ||
       addon.id === 'notion-mcp' ||
       addon.id === 'supabase-mcp'
@@ -440,11 +463,14 @@ function showGeneralMcpInstructions(installedAddons: any[]): void {
     console.log('');
   }
 
-  // Show specific authentication instructions for Slack and GitHub
+  // Show specific authentication instructions for Slack, GitHub, and AWS
   const hasSlack = installedAddons.some((addon) => addon.id === 'slack-mcp');
   const hasGithub = installedAddons.some((addon) => addon.id === 'github-mcp');
+  const hasAws = installedAddons.some(
+    (addon) => addon.id === 'aws-log-analyzer-mcp'
+  );
 
-  if (hasSlack || hasGithub) {
+  if (hasSlack || hasGithub || hasAws) {
     console.log('📋 Specific Authentication Instructions:\n');
 
     if (hasSlack) {
@@ -463,6 +489,16 @@ function showGeneralMcpInstructions(installedAddons: any[]): void {
       console.log('   $ gh auth token');
       console.log(
         '   (Requires GitHub CLI to be installed and authenticated)\n'
+      );
+    }
+
+    if (hasAws) {
+      console.log('🔐 AWS Log Analyzer MCP:');
+      console.log(
+        '   Requires AWS credentials with CloudWatchLogsReadOnlyAccess'
+      );
+      console.log(
+        '   📖 Documentation: https://github.com/awslabs/Log-Analyzer-with-MCP\n'
       );
     }
   }

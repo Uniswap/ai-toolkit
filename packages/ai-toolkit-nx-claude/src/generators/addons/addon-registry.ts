@@ -222,6 +222,28 @@ const ADDON_REGISTRY: AddonMetadata[] = [
       url: 'https://mcp.vercel.com',
     },
   },
+  {
+    id: 'aws-log-analyzer-mcp',
+    name: 'AWS Log Analyzer MCP',
+    description:
+      'MCP server for AWS CloudWatch Logs analysis, searching, and correlation',
+    type: 'mcp-server',
+    packageName: 'Log-Analyzer-with-MCP',
+    mcp: {
+      serverName: 'cw-mcp-server',
+      command: 'uv',
+      args: [],
+      // Note: args will be dynamically set during installation to include the cloned repo path
+    },
+    projectSetup: {
+      repositoryUrl: 'https://github.com/awslabs/Log-Analyzer-with-MCP.git',
+      configSourcePath: 'src/cw-mcp-server',
+      targetDirectory: '.aws-log-analyzer-mcp',
+    },
+    requirements: {
+      commands: ['git', 'uv', 'python3'],
+    },
+  },
 ];
 
 /**

@@ -42,7 +42,8 @@
           "figma-mcp",
           "chrome-devtools-mcp",
           "vercel-mcp",
-          "supabase-mcp"
+          "supabase-mcp",
+          "aws-log-analyzer-mcp"
         ]
       },
       "prompt-when": "selectionMode === 'specific'",
