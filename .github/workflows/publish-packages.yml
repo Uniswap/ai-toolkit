@@ -52,6 +52,13 @@ on:
           - 'true'
           - 'false'
 
+# Ensure only one publish workflow runs at a time per branch
+# If a new run is triggered while one is in progress, it will be queued
+# Setting cancel-in-progress to false ensures queued runs execute sequentially
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on:
