@@ -3,5 +3,17 @@
   "installCommand": "pwd && ls -a && cd ../../ && npm install --include=dev",
   "buildCommand": "cd ../../ && npx nx build slack-oauth-backend --prod",
   "outputDirectory": "dist",
-  "framework": null
+  "framework": null,
+  "ignoreCommand": "bash ../../scripts/vercel-ignore-build-check.sh slack-oauth-backend",
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 10
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api"
+    }
+  ]
 }

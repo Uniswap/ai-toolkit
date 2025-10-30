@@ -2,8 +2,16 @@
 # https://github.com/evilmartians/lefthook
 
 pre-commit:
-  parallel: false # Changed to false to ensure format runs before lint
+  parallel: false # Changed to false to ensure commands run in order
   commands:
+    update-package-lock:
+      run: sh scripts/lefthook/update-package-lock.sh
+      tags: package-lock
+      skip:
+        - merge
+        - rebase
+      fail_text: 'Failed to update package-lock.json. Please run npm install manually.'
+
     format:
       run: sh scripts/lefthook/format-files.sh
       tags: format
