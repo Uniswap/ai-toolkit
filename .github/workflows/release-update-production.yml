@@ -36,10 +36,24 @@ on:
   workflow_dispatch:
 
 jobs:
-  create-pr:
+  validate-branch:
     runs-on: ubuntu-24.04
-    # Only allow this workflow to run from the next branch
-    if: github.ref == 'refs/heads/next'
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Validate workflow is running from next branch
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/next" ]; then
+            echo "❌ ERROR: This workflow can only be run from the 'next' branch"
+            echo "Current branch: ${{ github.ref }}"
+            echo "Expected branch: refs/heads/next"
+            exit 1
+          fi
+          echo "✅ Branch validation passed - running from 'next' branch"
+
+  create-pr:
+    needs: validate-branch
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
       pull-requests: write
