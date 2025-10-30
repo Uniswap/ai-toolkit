@@ -1,6 +1,6 @@
 {
   "name": "@uniswap/ai-toolkit-nx-claude",
-  "version": "0.5.10-next.6",
+  "version": "0.5.12-next.0",
   "private": false,
   "main": "./dist/index.cjs",
   "module": "./dist/index.cjs",
@@ -113,8 +113,7 @@
         "options": {
           "commands": [
             "node packages/ai-toolkit-nx-claude/scripts/update-entrypoints.js",
-            "nx run @uniswap/ai-toolkit-nx-claude:bundle",
-            "chmod +x packages/ai-toolkit-nx-claude/dist/cli-generator.cjs"
+            "nx run @uniswap/ai-toolkit-nx-claude:bundle"
           ],
           "parallel": false
         },
@@ -169,7 +168,7 @@
     "enquirer": "*"
   },
   "devDependencies": {
-    "@ai-toolkit/commands-agnostic": "0.1.14-next.6",
-    "@ai-toolkit/agents-agnostic": "0.2.10-next.6"
+    "@ai-toolkit/commands-agnostic": "0.1.16-next.0",
+    "@ai-toolkit/agents-agnostic": "0.2.12-next.0"
   }
 }

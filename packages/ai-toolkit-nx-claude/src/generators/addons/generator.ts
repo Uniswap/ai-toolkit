@@ -8,13 +8,13 @@ import {
 } from '../../utils/cli-parser';
 import {
   getAddonById,
+  getAvailableAddons,
   isAddonInstalled,
   validateAddonRequirements,
 } from './addon-registry';
 import {
   installMcpServer,
-  verifyMcpInstallation,
-  updateMcpServer,
+  // updateMcpServer,
   // removeMcpServer,
 } from './claude-mcp-installer';
 import { setupSpecWorkflow } from './spec-workflow-setup';
@@ -28,9 +28,6 @@ export default async function generator(
 ): Promise<void> {
   console.log('\n🎯 Claude Code Addons Installer');
   console.log('================================\n');
-
-  // Track whether project setup was performed
-  let projectSetupCompleted = false;
 
   // Check if Nx dry-run flag was provided
   const dryRunFlagProvided = isNxDryRunProvided() ?? schema.dry;
@@ -57,153 +54,196 @@ export default async function generator(
     console.log('🔍 Dry-run mode activated\n');
   }
 
-  // Always prompt for options (even in dry-run mode) to customize the output
-  const options = (await promptForMissingOptions(
-    schema,
-    require('./schema.json')
-  )) as AddonsGeneratorSchema & { dryRun?: boolean };
+  // Check if parent generator wants to skip prompting
+  let options: AddonsGeneratorSchema & { dryRun?: boolean };
 
-  // Set the dryRun flag based on our earlier determination
-  options.dryRun = isDryRun;
+  if (schema.installMode === 'default') {
+    // Skip prompting - use provided options
+    options = {
+      selectionMode: schema.selectionMode || 'all',
+      force: schema.force || false,
+      skipVerification: schema.skipVerification || false,
+      dashboardMode: schema.dashboardMode || 'always',
+      port: schema.port || 0,
+      dry: schema.dry || false,
+      installMode: 'default',
+      dryRun: isDryRun,
+    };
+  } else {
+    // Normal prompting flow
+    const availableAddons = getAvailableAddons();
+    options = (await promptForMissingOptions(schema, require('./schema.json'), {
+      availableAddons: availableAddons.map((a) => a.id),
+      addonDescriptions: availableAddons.reduce((acc, a) => {
+        acc[a.id] = `${a.name}: ${a.description}`;
+        return acc;
+      }, {} as Record<string, string>),
+    })) as AddonsGeneratorSchema & { dryRun?: boolean };
+
+    // Set the dryRun flag based on our earlier determination
+    options.dryRun = isDryRun;
+  }
 
   // Handle "install all" mode
-  if (options.installMode === 'all') {
+  if (options.selectionMode === 'all') {
     await installAllAddons(tree, options);
     return;
   }
 
-  // Get the selected addon (specific mode)
-  const addon = getAddonById(options.addon || 'spec-workflow-mcp');
-  if (!addon) {
-    throw new Error(`Unknown addon: ${options.addon}`);
+  // Handle "specific" mode - install selected addons
+  await installSelectedAddons(tree, options);
+
+  await formatFiles(tree);
+}
+
+/**
+ * Install selected MCP server addons
+ */
+async function installSelectedAddons(
+  tree: Tree,
+  options: AddonsGeneratorSchema & { dryRun?: boolean }
+): Promise<void> {
+  // Get selected addons
+  const selectedAddonIds = options.addons || [];
+
+  if (selectedAddonIds.length === 0) {
+    console.log('\n⚠️  No addons selected for installation');
+    return;
   }
 
-  console.log(`\n📦 Installing: ${addon.name}`);
-  console.log(`   ${addon.description}\n`);
+  const selectedAddons = selectedAddonIds
+    .map((id) => getAddonById(id))
+    .filter((addon) => addon !== undefined);
 
-  // Check if already installed
-  if (!options.force && !options.dryRun) {
-    const installed = await isAddonInstalled(addon.id);
-    if (installed) {
-      console.log('✅ Addon is already installed');
+  if (selectedAddons.length === 0) {
+    throw new Error('No valid addons found in selection');
+  }
 
-      // Ask if user wants to update configuration
-      const { confirm } = await require('enquirer').prompt({
-        type: 'confirm',
-        name: 'confirm',
-        message: 'Would you like to update the configuration?',
-        initial: false,
-      });
+  console.log('\n📦 Installing Selected MCP Servers');
+  console.log('===================================\n');
+  console.log(`Installing ${selectedAddons.length} MCP server(s)\n`);
 
-      if (confirm) {
-        await updateConfiguration(addon.id, options);
+  const results: Array<{ addon: any; success: boolean; error?: string }> = [];
+
+  // Install each selected addon
+  for (let i = 0; i < selectedAddons.length; i++) {
+    const addon = selectedAddons[i];
+    console.log(
+      `\n[${i + 1}/${selectedAddons.length}] Installing: ${addon.name}`
+    );
+    console.log(`   ${addon.description}`);
+
+    try {
+      // Check if already installed
+      if (!options.force && !options.dryRun) {
+        const installed = await isAddonInstalled(addon.id);
+        if (installed) {
+          console.log('   ✅ Already installed, skipping');
+          results.push({ addon, success: true });
+          continue;
+        }
       }
-      return;
-    }
-  } else if (options.dryRun) {
-    // In dry-run mode, just note if it would check for existing installation
-    const installed = await isAddonInstalled(addon.id);
-    if (installed && !options.force) {
-      console.log(
-        'ℹ️  [DRY-RUN] Addon is already installed, would prompt for update'
-      );
-    }
-  }
 
-  // Validate requirements
-  console.log('\n🔍 Checking requirements...');
-  const validation = await validateAddonRequirements(addon.id);
-  if (!validation.valid) {
-    console.error('\n❌ Requirements not met:');
-    validation.errors.forEach((error) => console.error(`   • ${error}`));
+      // Validate requirements
+      const validation = await validateAddonRequirements(addon.id);
+      if (!validation.valid && !options.force) {
+        console.log('   ⚠️  Requirements not met:');
+        validation.errors.forEach((error) => console.log(`      • ${error}`));
+        console.log('   ⏭️  Skipping (use --force to override)');
+        results.push({
+          addon,
+          success: false,
+          error: 'Requirements not met',
+        });
+        continue;
+      }
 
-    if (!options.force) {
-      throw new Error(
-        'Installation requirements not met. Use --force to override.'
-      );
-    }
-    console.log('\n⚠️  Continuing with --force flag...');
-  }
+      // Install the MCP server
+      await installMcpAddon(addon, options);
 
-  // Install the addon based on type
-  if (addon.type === 'mcp-server') {
-    await installMcpAddon(addon, options);
-
-    // If the addon has project setup configuration, prompt for setup
-    if (addon.projectSetup) {
-      // Ask user if they want to set up project configuration
-      const { setupProject } = await require('enquirer').prompt({
-        type: 'confirm',
-        name: 'setupProject',
-        message:
-          '📁 Would you like to set up spec-workflow configuration for a particular project?',
-        initial: true,
-      });
-
-      if (setupProject) {
-        // Prompt for project path
-        const { projectPath } = await require('enquirer').prompt({
-          type: 'input',
-          name: 'projectPath',
+      // If this is spec-workflow and it's the only/last addon, prompt for project setup
+      if (
+        addon.id === 'spec-workflow-mcp' &&
+        addon.projectSetup &&
+        i === selectedAddons.length - 1
+      ) {
+        // Ask user if they want to set up project configuration
+        const { setupProject } = await require('enquirer').prompt({
+          type: 'confirm',
+          name: 'setupProject',
           message:
-            '📁 Enter the project path where spec-workflow config should be added:',
-          initial: process.cwd(),
-          result: (value: string) => value || process.cwd(),
+            '📁 Would you like to set up spec-workflow configuration for a particular project?',
+          initial: true,
         });
 
-        options.projectPath = projectPath;
+        if (setupProject) {
+          // Prompt for project path
+          const { projectPath } = await require('enquirer').prompt({
+            type: 'input',
+            name: 'projectPath',
+            message:
+              '📁 Enter the project path where spec-workflow config should be added:',
+            initial: process.cwd(),
+            result: (value: string) => value || process.cwd(),
+          });
 
-        if (options.dryRun) {
+          options.projectPath = projectPath;
+
+          if (options.dryRun) {
+            console.log(
+              `\n📁 [DRY-RUN] Would set up project configuration at: ${projectPath}`
+            );
+          }
+
+          await installProjectSetup(addon, options);
+        } else if (options.dryRun) {
           console.log(
-            `\n📁 [DRY-RUN] Would set up project configuration at: ${projectPath}`
+            '\n📁 [DRY-RUN] Skipping project configuration (user chose not to set up)'
           );
         }
-
-        await installProjectSetup(addon, options);
-        projectSetupCompleted = true;
-      } else if (options.dryRun) {
-        console.log(
-          '\n📁 [DRY-RUN] Skipping project configuration (user chose not to set up)'
-        );
       }
+
+      results.push({ addon, success: true });
+    } catch (error) {
+      console.error(
+        `   ❌ Failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+      results.push({
+        addon,
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
-  } else {
-    throw new Error(`Addon type '${addon.type}' is not yet supported`);
   }
 
-  // Verify installation (skip in dry-run mode)
-  if (!options.skipVerification && !options.dryRun) {
-    console.log('\n🔍 Verifying installation...');
-    const serverName = addon.mcp.serverName;
-    const verification = await verifyMcpInstallation(serverName);
+  // Show summary
+  console.log('\n\n📊 Installation Summary');
+  console.log('======================\n');
 
-    if (verification.installed) {
-      console.log('✅ Installation verified successfully');
+  const successful = results.filter((r) => r.success);
+  const failed = results.filter((r) => !r.success);
 
-      // Show usage instructions
-      showUsageInstructions(addon, options, projectSetupCompleted);
-    } else {
-      console.log('⚠️  Could not verify installation');
-      console.log('   The addon may still work correctly.');
-      // Show usage instructions anyway
-      showUsageInstructions(addon, options, projectSetupCompleted);
-    }
-  } else if (options.dryRun) {
-    console.log('\n🔍 [DRY-RUN] Skipping installation verification');
-    // Still show usage instructions in dry-run mode
-    showUsageInstructions(addon, options, projectSetupCompleted);
+  console.log(`✅ Successfully installed: ${successful.length}`);
+  successful.forEach((r) => console.log(`   • ${r.addon.name}`));
+
+  if (failed.length > 0) {
+    console.log(`\n❌ Failed to install: ${failed.length}`);
+    failed.forEach((r) =>
+      console.log(`   • ${r.addon.name} - ${r.error || 'Unknown error'}`)
+    );
   }
 
   if (options.dryRun) {
     console.log('\n✨ Dry-run complete! No changes were made.\n');
+    // Show general MCP authentication instructions (even in dry-run)
+    showGeneralMcpInstructions(selectedAddons);
   } else {
     console.log('\n✨ Installation complete!\n');
+    // Show general MCP authentication instructions
+    showGeneralMcpInstructions(successful.map((r) => r.addon));
   }
-
-  // Show general MCP authentication instructions (always, even in dry-run)
-  showGeneralMcpInstructions([addon]);
-
-  await formatFiles(tree);
 }
 
 /**
@@ -362,149 +402,6 @@ async function installProjectSetup(
   }
 
   console.log(`✅ ${result.message}`);
-}
-
-/**
- * Update configuration for an existing addon
- */
-async function updateConfiguration(
-  addonId: string,
-  options: AddonsGeneratorSchema
-): Promise<void> {
-  console.log('\n🔧 Updating configuration...');
-
-  const addon = getAddonById(addonId);
-  if (!addon) {
-    console.error(`❌ Unknown addon: ${addonId}`);
-    return;
-  }
-
-  const serverName = addon.mcp.serverName;
-
-  // Build updates based on addon type
-  const argUpdates: { remove?: string[]; add?: string[] } = {
-    remove: [],
-    add: [],
-  };
-
-  // Handle spec-workflow specific updates
-  if (addon.id === 'spec-workflow-mcp') {
-    // Update dashboard mode
-    if (options.dashboardMode) {
-      // Remove existing dashboard flags
-      argUpdates.remove!.push('--AutoStartDashboard');
-
-      // Add new dashboard flag
-      if (options.dashboardMode === 'always') {
-        argUpdates.add!.push('--AutoStartDashboard');
-      }
-    }
-
-    // Update port
-    if (options.port !== undefined) {
-      // Remove existing port flag
-      argUpdates.remove!.push('--Port=');
-
-      // Add new port flag if not 0
-      if (options.port > 0) {
-        argUpdates.add!.push(`--Port=${options.port}`);
-      }
-    }
-  }
-
-  const result = await updateMcpServer(serverName, argUpdates);
-
-  if (result.success) {
-    console.log(`✅ ${result.message}`);
-  } else {
-    console.error(`❌ ${result.message}`);
-  }
-}
-
-/**
- * Show usage instructions after installation
- */
-function showUsageInstructions(
-  addon: any,
-  options: AddonsGeneratorSchema & { dryRun?: boolean },
-  projectSetupCompleted = false
-): void {
-  console.log('\n📚 Usage Instructions:');
-  console.log('====================\n');
-
-  if (addon.id === 'spec-workflow-mcp') {
-    console.log(
-      '1. Start a new instance of Claude Code to load the new MCP server'
-    );
-    console.log('2. Open your project in Claude Code');
-
-    if (options.dashboardMode === 'always') {
-      console.log(
-        '3. The spec-workflow dashboard will start automatically once you ask claude code "use the spec-workflow mcp to <do some task>"'
-      );
-      console.log(
-        `   Dashboard URL: http://localhost:${options.port || 50014}`
-      );
-    } else {
-      console.log(
-        '3. Start the dashboard manually with: npx @uniswap/spec-workflow-mcp@latest --dashboard'
-      );
-    }
-
-    console.log('\n📋 Available MCP Tools:');
-    console.log('  • spec-workflow-guide - Get workflow documentation');
-    console.log('  • create-spec-doc - Create spec documents');
-    console.log('  • spec-status - Check specification status');
-    console.log('  • manage-tasks - Manage implementation tasks');
-    console.log('  • request-approval - Request human approval for documents');
-    console.log('  • orchestrate-with-agents - Use AI agent orchestration');
-    console.log('  • And more...');
-
-    // If project setup was also configured and completed
-    if (addon.projectSetup && projectSetupCompleted) {
-      console.log('\n📁 Project Configuration:');
-      console.log(
-        '  ✅ Spec-workflow configuration has been added to your project'
-      );
-      console.log('  • .spec-workflow/ - Configuration directory');
-      console.log(
-        '  • .spec-workflow/orchestration.yaml - Agent orchestration config'
-      );
-
-      console.log('\n🤖 Agent Orchestration:');
-      console.log('  Automatic agent orchestration is ENABLED by default');
-      console.log('  Edit .spec-workflow/orchestration.yaml to customize');
-    }
-
-    console.log('\n🚀 Quick Start - start a new instance of Claude Code and:');
-    console.log('  1. Ask Claude: "Show me the spec workflow guide"');
-    console.log('  2. Ask Claude: "Help me create a new spec for [feature]"');
-    console.log('  3. Visit the dashboard to monitor progress');
-    console.log('  4. Start creating specs for your features!');
-  }
-
-  // Show authentication instructions for specific MCPs
-  showAuthInstructions(addon);
-}
-
-/**
- * Show authentication instructions for MCPs that require setup
- */
-function showAuthInstructions(addon: any): void {
-  if (addon.id === 'slack-mcp') {
-    console.log('\n🔐 Slack MCP Authentication:');
-    console.log(
-      '  📖 Documentation: https://www.notion.so/uniswaplabs/Using-a-Slack-MCP-with-Claude-Claude-Code-249c52b2548b8052b901dc05d90e57fc'
-    );
-    console.log(
-      '  This guide contains detailed instructions on how to obtain your Slack bot token.'
-    );
-  } else if (addon.id === 'github-mcp') {
-    console.log('\n🔐 GitHub MCP Authentication:');
-    console.log('  You can obtain your GitHub Personal Access Token using:');
-    console.log('  $ gh auth token');
-    console.log('  (Requires GitHub CLI to be installed and authenticated)');
-  }
 }
 
 /**

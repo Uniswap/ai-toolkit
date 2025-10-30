@@ -5,6 +5,12 @@ dist
 tmp
 out-tsc
 
+# TypeScript build artifacts
+*.tsbuildinfo
+
+# Nx graph artifacts
+graph.json
+
 # dependencies
 node_modules
 

@@ -63,9 +63,12 @@ jobs:
       packages: write
       pull-requests: write
       issues: write
+    outputs:
+      has_affected: ${{ steps.affected.outputs.has_affected }}
     # Skip the workflow if the commit is a version bump (to prevent loops)
     # Allow workflow to run for merge commits from update-production workflow
-    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
+    # Skip workflow for branch sync commits
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') && !startsWith(github.event.head_commit.message, 'chore(sync):') }}
 
     steps:
       - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
@@ -84,7 +87,7 @@ jobs:
           scope: '@uniswap'
 
       - name: Install npm
-        run: npm install -g npm@10.9.2
+        run: npm install -g npm@latest
       - name: Install dependencies
         run: npm ci
       - name: Configure Git
@@ -124,7 +127,13 @@ jobs:
           echo "Running: npx nx show projects --affected --base=${{ steps.base-sha.outputs.base }} --head=HEAD --type=lib --json"
 
           # Capture output and check if it's valid JSON
-          AFFECTED_OUTPUT=$(npx nx show projects --affected --base=${{ steps.base-sha.outputs.base }} --head=HEAD --type=lib --json 2>&1 || echo "[]")
+          # Suppress Node.js deprecation warnings and npm warnings to avoid polluting JSON output
+          RAW_OUTPUT=$(NODE_NO_WARNINGS=1 npx nx show projects --affected --base=${{ steps.base-sha.outputs.base }} --head=HEAD --type=lib --json 2>&1 || echo "[]")
+
+          # Filter out npm warnings (lines starting with "npm warn")
+          AFFECTED_OUTPUT=$(echo "$RAW_OUTPUT" | grep -v '^npm warn' || echo "[]")
+
+          echo "AFFECTED_OUTPUT: $AFFECTED_OUTPUT"
 
           # Check if output is valid JSON
           if echo "$AFFECTED_OUTPUT" | jq empty 2>/dev/null; then
@@ -250,7 +259,7 @@ jobs:
   generate-changelog:
     name: Generate AI-powered changelog
     needs: publish
-    if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
+    if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && needs.publish.outputs.has_affected == 'true'
     uses: ./.github/workflows/_generate-changelog.yml
     with:
       before_sha: ${{ github.event.before }}
@@ -263,7 +272,7 @@ jobs:
   notify-release:
     name: Notify release via Slack
     needs: [publish, generate-changelog]
-    if: github.event.inputs.dryRun != 'true' && github.event_name == 'push'
+    if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && needs.publish.outputs.has_affected == 'true'
     uses: ./.github/workflows/_notify-release.yml
     with:
       branch: ${{ github.ref_name }}
@@ -329,6 +338,10 @@ jobs:
           # Try to rebase onto origin/main
           if git rebase origin/main; then
             echo "✅ Rebase successful!"
+
+            # Create an empty commit to mark this as a sync operation
+            # This prevents the publish workflow from triggering on the next branch
+            git commit --allow-empty -m "chore(sync): [skip ci] sync next with main"
 
             # Force push the rebased next branch
             git push origin next --force-with-lease
