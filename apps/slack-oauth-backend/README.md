@@ -275,7 +275,7 @@ The service is configured for Vercel deployment from an Nx monorepo. The configu
      "outputDirectory": "apps/slack-oauth-backend/dist",
      "installCommand": "npm install",
      "framework": null,
-     "ignoreCommand": "nx show projects --affected --base=$VERCEL_GIT_PREVIOUS_SHA --head=$VERCEL_GIT_COMMIT_SHA | grep -q '^slack-oauth-backend$'",
+     "ignoreCommand": "bash scripts/vercel-ignore-build-check.sh slack-oauth-backend",
      "functions": {
        "apps/slack-oauth-backend/dist/main.js": {
          "maxDuration": 10
