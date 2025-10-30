@@ -494,19 +494,11 @@ function showGeneralMcpInstructions(installedAddons: any[]): void {
 
     if (hasAws) {
       console.log('🔐 AWS Log Analyzer MCP:');
-      console.log('   Configure AWS credentials using one of these methods:');
-      console.log('   1. Run: $ aws configure');
       console.log(
-        '   2. Set environment variables: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION'
+        '   Requires AWS credentials with CloudWatchLogsReadOnlyAccess'
       );
       console.log(
-        '   3. Use AWS credentials file: ~/.aws/credentials and ~/.aws/config'
-      );
-      console.log(
-        '   📖 Documentation: https://github.com/awslabs/Log-Analyzer-with-MCP'
-      );
-      console.log(
-        '   Required IAM permissions: CloudWatchLogsReadOnlyAccess\n'
+        '   📖 Documentation: https://github.com/awslabs/Log-Analyzer-with-MCP\n'
       );
     }
   }
