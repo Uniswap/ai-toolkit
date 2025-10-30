@@ -452,7 +452,8 @@ function showGeneralMcpInstructions(installedAddons: any[]): void {
       addon.id === 'aws-log-analyzer-mcp' ||
       addon.id === 'linear-mcp' ||
       addon.id === 'notion-mcp' ||
-      addon.id === 'supabase-mcp'
+      addon.id === 'supabase-mcp' ||
+      addon.id === 'pulumi-mcp'
   );
 
   if (needsAuth.length > 0) {
@@ -463,14 +464,16 @@ function showGeneralMcpInstructions(installedAddons: any[]): void {
     console.log('');
   }
 
-  // Show specific authentication instructions for Slack, GitHub, and AWS
+  // Show specific authentication instructions for Slack, GitHub, AWS, and Pulumi
   const hasSlack = installedAddons.some((addon) => addon.id === 'slack-mcp');
   const hasGithub = installedAddons.some((addon) => addon.id === 'github-mcp');
+  const hasPulumi = installedAddons.some((addon) => addon.id === 'pulumi-mcp');
+
   const hasAws = installedAddons.some(
     (addon) => addon.id === 'aws-log-analyzer-mcp'
   );
 
-  if (hasSlack || hasGithub || hasAws) {
+  if (hasSlack || hasGithub || hasAws || hasPulumi) {
     console.log('📋 Specific Authentication Instructions:\n');
 
     if (hasSlack) {
@@ -499,6 +502,19 @@ function showGeneralMcpInstructions(installedAddons: any[]): void {
       );
       console.log(
         '   📖 Documentation: https://github.com/awslabs/Log-Analyzer-with-MCP\n'
+      );
+    }
+
+    if (hasPulumi) {
+      console.log('🔐 Pulumi MCP:');
+      console.log(
+        '   When authenticating for the first time, you will need to create a Pulumi Personal Access Token (PAT).'
+      );
+      console.log(
+        '   📖 Documentation: https://www.pulumi.com/docs/iac/guides/ai-integration/mcp-server/'
+      );
+      console.log(
+        '   Create your PAT at: https://app.pulumi.com/account/tokens\n'
       );
     }
   }

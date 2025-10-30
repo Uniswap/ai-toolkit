@@ -43,7 +43,8 @@
           "chrome-devtools-mcp",
           "vercel-mcp",
           "supabase-mcp",
-          "aws-log-analyzer-mcp"
+          "aws-log-analyzer-mcp",
+          "pulumi-mcp"
         ]
       },
       "prompt-when": "selectionMode === 'specific'",

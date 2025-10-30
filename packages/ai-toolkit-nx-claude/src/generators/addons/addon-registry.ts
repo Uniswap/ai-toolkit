@@ -244,6 +244,19 @@ const ADDON_REGISTRY: AddonMetadata[] = [
       commands: ['git', 'uv', 'python3'],
     },
   },
+  {
+    id: 'pulumi-mcp',
+    name: 'Pulumi MCP',
+    description:
+      'MCP server for Pulumi infrastructure as code management (HTTP)',
+    type: 'mcp-server',
+    packageName: 'pulumi',
+    mcp: {
+      serverName: 'pulumi',
+      transport: 'http',
+      url: 'https://mcp.ai.pulumi.com/mcp',
+    },
+  },
 ];
 
 /**
