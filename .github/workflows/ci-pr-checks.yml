@@ -45,7 +45,7 @@ jobs:
       - name: Clean install dependencies
         run: |
           echo "Running npm ci to validate clean installation..."
-          npm ci
+          npm ci --prefer-offline --no-audit
           echo "✅ npm ci completed successfully"
 
       - name: Build changed packages
