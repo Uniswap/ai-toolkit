@@ -16,6 +16,7 @@ export interface AddonsGeneratorSchema {
     | 'vercel-mcp'
     | 'supabase-mcp'
     | 'aws-log-analyzer-mcp'
+    | 'pulumi-mcp'
   >;
   /** Dashboard startup mode */
   dashboardMode?: 'always' | 'manual';
