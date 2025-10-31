@@ -24,6 +24,6 @@
       ],
       "@ai-toolkit/utils": ["packages/utils/src/index.ts"]
     },
-    "customConditions": ["development"]
+    "customConditions": ["@ai-toolkit/source"]
   }
 }
