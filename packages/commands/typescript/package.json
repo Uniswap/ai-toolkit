@@ -1,6 +1,6 @@
 {
   "name": "@ai-toolkit/commands-typescript",
-  "version": "0.1.13-next.4",
+  "version": "0.1.13-next.5",
   "private": true,
   "type": "module",
   "main": "./src/index.ts",
