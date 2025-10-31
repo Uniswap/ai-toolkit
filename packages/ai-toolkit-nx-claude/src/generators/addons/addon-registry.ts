@@ -188,13 +188,13 @@ const ADDON_REGISTRY: AddonMetadata[] = [
   {
     id: 'figma-mcp',
     name: 'Figma MCP',
-    description: 'MCP server for Figma design file access (SSE)',
+    description: 'MCP server for Figma design file access',
     type: 'mcp-server',
     packageName: 'figma',
     mcp: {
       serverName: 'figma',
-      transport: 'sse',
-      url: 'http://127.0.0.1:3845/mcp',
+      transport: 'http',
+      url: 'https://mcp.figma.com/mcp',
     },
   },
   {
