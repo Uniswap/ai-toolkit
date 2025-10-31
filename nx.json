@@ -106,7 +106,6 @@
       "@ai-toolkit/commands-typescript"
     ],
     "projectsRelationship": "independent",
-    "releaseTagPattern": "{projectName}@{version}",
     "version": {
       "conventionalCommits": true,
       "preVersionCommand": "npx nx affected -t build",
@@ -124,6 +123,9 @@
         "commit": true,
         "tag": true
       }
+    },
+    "releaseTag": {
+      "pattern": "{projectName}@{version}"
     }
   }
 }

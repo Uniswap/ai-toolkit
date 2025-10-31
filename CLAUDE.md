@@ -100,6 +100,33 @@ This is the AI Toolkit monorepo that provides standardized, one-shot setup for C
 - npm as the package manager
 - ESLint and Prettier for code quality
 
+### npm Version Requirement
+
+**CRITICAL: This project requires npm 11.6.2**
+
+**Why npm 11.6.2?**
+
+1. **OIDC Trusted Publishing**: npm OIDC trusted publishing requires npm >= 11.5.1
+2. **Lockfile Consistency**: Using the same npm version in CI and local development prevents lockfile format changes
+
+**Installation:**
+
+```bash
+npm install -g npm@11.6.2
+```
+
+**Verification:**
+
+```bash
+npm --version  # Should output: 11.6.2
+```
+
+The project enforces this version through:
+
+- `engines` field in package.json (warns if wrong version)
+- `engine-strict=true` in .npmrc (prevents installation with wrong version)
+- Pre-install script that checks the version
+
 ## Package Scope
 
 All packages use the `@ai-toolkit` scope.

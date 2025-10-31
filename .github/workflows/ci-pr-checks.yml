@@ -28,9 +28,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version: '22.13.1'
-          cache: 'npm'
-
+          node-version: "22.21.1"
+          cache: "npm"
+      - name: Install npm
+        run: npm install -g npm@11.6.2
       - name: Verify package-lock.json
         run: |
           echo "Checking if package-lock.json is up to date..."
