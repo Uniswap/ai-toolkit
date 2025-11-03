@@ -196,9 +196,9 @@ jobs:
               exit 1
             fi
 
-            # Convert real newlines to \\n for Slack's mrkdwn format
-            # Slack Block Kit requires explicit \\n strings, not actual newline characters
-            SLACK_CHANGELOG_ESCAPED=$(echo "$SLACK_CHANGELOG" | awk '{printf "%s\\\\n", $0}' | sed 's/\\\\n$//')
+            # Convert real newlines to \n for Slack's mrkdwn format
+            # Slack Block Kit requires explicit \n strings, not actual newline characters
+            SLACK_CHANGELOG_ESCAPED=$(echo "$SLACK_CHANGELOG" | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
 
             echo "changelog_for_slack=$SLACK_CHANGELOG_ESCAPED" >> $GITHUB_OUTPUT
           fi
