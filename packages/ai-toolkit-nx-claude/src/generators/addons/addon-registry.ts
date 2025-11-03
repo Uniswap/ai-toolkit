@@ -188,13 +188,13 @@ const ADDON_REGISTRY: AddonMetadata[] = [
   {
     id: 'figma-mcp',
     name: 'Figma MCP',
-    description: 'MCP server for Figma design file access (SSE)',
+    description: 'MCP server for Figma design file access',
     type: 'mcp-server',
     packageName: 'figma',
     mcp: {
       serverName: 'figma',
-      transport: 'sse',
-      url: 'http://127.0.0.1:3845/mcp',
+      transport: 'http',
+      url: 'https://mcp.figma.com/mcp',
     },
   },
   {
@@ -220,6 +220,41 @@ const ADDON_REGISTRY: AddonMetadata[] = [
       serverName: 'vercel',
       transport: 'http',
       url: 'https://mcp.vercel.com',
+    },
+  },
+  {
+    id: 'aws-log-analyzer-mcp',
+    name: 'AWS Log Analyzer MCP',
+    description:
+      'MCP server for AWS CloudWatch Logs analysis, searching, and correlation',
+    type: 'mcp-server',
+    packageName: 'Log-Analyzer-with-MCP',
+    mcp: {
+      serverName: 'cw-mcp-server',
+      command: 'uv',
+      args: [],
+      // Note: args will be dynamically set during installation to include the cloned repo path
+    },
+    projectSetup: {
+      repositoryUrl: 'https://github.com/awslabs/Log-Analyzer-with-MCP.git',
+      configSourcePath: 'src/cw-mcp-server',
+      targetDirectory: '.aws-log-analyzer-mcp',
+    },
+    requirements: {
+      commands: ['git', 'uv', 'python3'],
+    },
+  },
+  {
+    id: 'pulumi-mcp',
+    name: 'Pulumi MCP',
+    description:
+      'MCP server for Pulumi infrastructure as code management (HTTP)',
+    type: 'mcp-server',
+    packageName: 'pulumi',
+    mcp: {
+      serverName: 'pulumi',
+      transport: 'http',
+      url: 'https://mcp.ai.pulumi.com/mcp',
     },
   },
 ];

@@ -32,14 +32,28 @@ on:
   schedule:
     # Runs every Monday at 5pm UTC (1pm EDT during daylight saving time)
     # Note: During EST (Nov-Mar), this will run at 12pm EST
-    - cron: "0 17 * * 1"
+    - cron: '0 17 * * 1'
   workflow_dispatch:
 
 jobs:
-  create-pr:
+  validate-branch:
     runs-on: ubuntu-24.04
-    # Only allow this workflow to run from the next branch
-    if: github.ref == 'refs/heads/next'
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Validate workflow is running from next branch
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/next" ]; then
+            echo "❌ ERROR: This workflow can only be run from the 'next' branch"
+            echo "Current branch: ${{ github.ref }}"
+            echo "Expected branch: refs/heads/next"
+            exit 1
+          fi
+          echo "✅ Branch validation passed - running from 'next' branch"
+
+  create-pr:
+    needs: validate-branch
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
       pull-requests: write
@@ -119,7 +133,7 @@ jobs:
 
             # Generate PR title with date
             DATE=$(date +'%Y-%m-%d')
-            PR_TITLE="chore: promote next to production ($DATE)"
+            PR_TITLE="chore(release): promote next to production ($DATE)"
 
             # Capture git log output first to avoid bash parsing issues with special characters
             COMMIT_LIST=$(git log origin/main..HEAD --oneline)
@@ -199,7 +213,7 @@ jobs:
     with:
       before_sha: ${{ needs.create-pr.outputs.before_sha }}
       after_sha: ${{ needs.create-pr.outputs.after_sha }}
-      custom_prompt_file: ".github/prompts/production-release-changelog.md"
+      custom_prompt_file: '.github/prompts/production-release-changelog.md'
       max_tokens: 2048
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
