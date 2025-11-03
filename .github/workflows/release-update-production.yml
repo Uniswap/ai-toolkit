@@ -211,8 +211,9 @@ jobs:
     if: needs.create-pr.outputs.pr_created == 'true'
     uses: ./.github/workflows/_generate-changelog.yml
     with:
-      before_sha: ${{ needs.create-pr.outputs.before_sha }}
-      after_sha: ${{ needs.create-pr.outputs.after_sha }}
+      from_ref: ${{ needs.create-pr.outputs.before_sha }}
+      to_ref: ${{ needs.create-pr.outputs.after_sha }}
+      output_formats: 'markdown'
       custom_prompt_file: '.github/prompts/production-release-changelog.md'
       max_tokens: 2048
     secrets:
@@ -247,7 +248,7 @@ jobs:
           # Get the AI-generated changelog
           # Use heredoc to safely capture content with special characters (backticks, etc.)
           CHANGELOG=$(cat <<'CHANGELOG_EOF'
-          ${{ needs.generate-changelog.outputs.changelog }}
+          ${{ needs.generate-changelog.outputs.changelog_markdown }}
           CHANGELOG_EOF
           )
 
