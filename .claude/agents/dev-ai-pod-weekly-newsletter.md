@@ -38,6 +38,9 @@ interface NewsletterInput {
   // Database IDs (optional, defaults provided)
   readingDatabaseId?: string; // Default: collection://287c52b2-548b-80e8-ba26-000bd3f9e0a4
   useCasesDatabaseId?: string; // Default: collection://28ec52b2-548b-80aa-b880-000b42eedf1f
+
+  // GitHub repositories for release tracking (optional)
+  githubRepositories?: string[]; // e.g., ['https://github.com/Uniswap/ai-toolkit', 'https://github.com/Uniswap/spec-workflow-mcp']
 }
 ```
 
@@ -51,7 +54,31 @@ interface NewsletterInput {
 
 ## Process
 
-Follow these 6 steps to generate and publish the newsletter:
+Follow these 8 steps to generate and publish the newsletter:
+
+### 0. Verify Tool Availability
+
+Before proceeding with newsletter generation, verify that all required tools are configured:
+
+**Required Tools:**
+
+- Notion MCP (for all sections)
+- Slack MCP (for 💬 Slack Summary section)
+- GitHub CLI `gh` (for 🔨 Tool Updates section)
+
+**Verification Steps:**
+
+1. Check if Notion MCP tools are accessible (existing requirement)
+2. Check if Slack MCP tools are accessible by attempting to call a Slack MCP tool or checking available tools
+3. Check if GitHub CLI `gh` is installed and authenticated by running `gh auth status` via Bash
+
+**Error Handling:**
+
+- If Notion MCP unavailable: FAIL with error message "Notion MCP required. Please configure Notion integration in Claude Code."
+- If Slack MCP unavailable: FAIL with error message "Slack MCP required. Please configure Slack integration in Claude Code."
+- If GitHub CLI unavailable or not authenticated: FAIL with error message "Github CLI required. Run `gh auth login` to authenticate."
+
+**CRITICAL:** All three tools are REQUIRED. The agent MUST FAIL if any of these tools are unavailable. Do not proceed with partial newsletter generation.
 
 ### 1. Validate Input Parameters
 
@@ -122,7 +149,110 @@ mcp__notion__notion -
 - If `Description` missing: Skip description
 - If `Name` missing: Skip entry entirely
 
-### 4. Filter and Sort Entries
+### 4. Query Slack Channels
+
+**Critical:** Use Slack MCP to search messages in `#ai-internal` (channel_id: 'C091XE1DNP2'), `#pod-dev-ai` (channel_id: 'C094URH6C13'), and `#ai-achieved-internally` (channel_id: 'C08J4JPQ3AM') channels. If Slack MCP is unavailable, the agent should have already failed in Step 0. When using the `slack_get_channel_history` MCP function, alway use a limit of 10.
+
+**Channels to Query:**
+
+- `#ai-internal` (channel_id: 'C091XE1DNP2') - Internal channel used by the Dev AI Pod to discuss current tasks to each other.
+- `#pod-dev-ai` (channel_id: 'C094URH6C13') - Official channel of the Dev AI Pod, and used by general Uniswap devs to communicate with the Dev AI Pod
+- `#ai-achieved-internally` (channel_id: 'C08J4JPQ3AM') - AI wins and success stories
+
+**Message Retrieval:**
+
+Use Slack MCP search functionality to retrieve messages from these channels within the date range.
+
+**Filtering Criteria:**
+
+- Date range: Use same `startDate` and `endDate` from Step 1
+- Use a limit = 10 in the `slack_get_channel_history`
+- Engagement threshold: Messages with at least 3 reactions OR at least 2 replies
+- Sort by: Total engagement (reactions + reply count) descending
+- Limit: Top 5 most engaging messages across all 3 channels. Downweight `#ai-internal` because that channel is less relevant for the average Uniswap employee
+
+**Extract Message Data:**
+
+For each message, extract:
+
+- `text` (message content) - Truncate to first 200 characters if longer
+- `user` (author) - Convert user ID to display name if possible
+- `ts` (timestamp) - Convert to readable date format
+- `permalink` (message link) - For "view in Slack" links
+- `reaction_count` (total reactions) - Sum of all reaction types
+- `reply_count` (number of replies)
+
+**Handle Missing Data:**
+
+- If `permalink` missing: Skip message (cannot link to it)
+- If `text` missing or empty: Skip message
+- If `user` missing: Display as "Unknown User"
+- If no messages meet threshold: Display "No significant discussions this week"
+
+**Pagination Logic:**
+
+- Call `slack_get_channel_history` with `limit=10`
+- Check the timestamp of the last message received
+- If last message timestamp > `endDate`, fetch next batch
+- Repeat until last message timestamp <= `endDate` OR no more messages available
+- Filter messages by `startDate` and `endDate` after fetching
+
+**Error Handling:**
+
+- If channel not accessible: Fail immediately with clear error message about channel permissions
+- If API error: Fail immediately with error details
+
+### 5. Query GitHub Releases
+
+**Critical:** Use GitHub CLI (`gh`) to list releases for specified repositories. This step requires GitHub CLI (verified in Step 0). If GitHub CLI is unavailable or not authenticated, the agent should have already failed in Step 0.
+
+**Repositories to Query:**
+
+Use repositories from `githubRepositories` input parameter. If not provided, use exactly these 2: 'Uniswap/ai-toolkit' and 'Uniswap/spec-workflow-mcp'
+
+**Release Retrieval:**
+
+For each repository, run the following GitHub CLI command via Bash:
+
+```bash
+gh release list --repo <owner/repo> --limit 10 --json tagName,publishedAt,name,url,body
+```
+
+Example:
+
+```bash
+gh release list --repo Uniswap/ai-toolkit --limit 10 --json tagName,publishedAt,name,url,body
+```
+
+**Filtering Criteria:**
+
+- Date range: Filter releases where `publishedAt` falls within `startDate` and `endDate`
+- Only show important user-facing releases: For `Uniswap/ai-toolkit`, DO NOT SHOW `next` releases; but do show `latest` releases.
+- Sort by: Published date descending (newest first)
+
+**Extract Release Data:**
+
+For each release, extract:
+
+- `name` (release name) - Use this as primary display title
+- `tagName` (version tag) - e.g., "v1.2.3"
+- `publishedAt` (timestamp) - Convert to YYYY-MM-DD format
+- `url` (release URL) - Link to full release notes on GitHub
+- `body` (changelog/description) - Truncate to first 150 characters if longer
+
+**Handle Missing Data:**
+
+- If `name` missing: Use `tagName` as fallback
+- If `body` missing or empty: Display "No release notes provided"
+- If `url` missing: Skip release (cannot link to it)
+- If no releases in date range: Display "No releases this week"
+
+**Error Handling:**
+
+- If repository not found: Fail immediately with clear error message listing the invalid repository
+- If API rate limit exceeded: Fail immediately with rate limit error and retry instructions
+
+### 6. Filter and Sort Entries
 
 **Primary Filtering:** Done server-side via `filters.created_date_range` in search queries.
 
@@ -134,14 +264,47 @@ mcp__notion__notion -
   - `date:Date Added:start` for "Real-World AI Use Cases"
 - Sort entries by date descending (newest first)
 
-### 5. Format Newsletter Content
+### 7. Format Newsletter Content
 
-Build markdown structure following this template:
+Build markdown structure following this section ordering:
+
+1. 📅 Get Involved
+2. 📊 This Week's Agent Usage
+3. 📚 What We're Reading
+4. 🌎 Real World Use Cases
+5. 💬 Slack Summary
+6. 🔨 Tool Updates
+
+Below is an example output:
 
 ```markdown
 # Dev AI Pod Weekly Newsletter
 
 **Week of:** {startDate} to {endDate}
+
+## 📅 Get Involved
+
+**Join the Conversation**
+
+- 🎉 **[#ai-achieved-internally](https://uniswapteam.enterprise.slack.com/archives/C08J4JPQ3AM)** - Share your AI wins and success stories
+- 🛠️ **[#pod-dev-ai](https://uniswapteam.enterprise.slack.com/archives/C094URH6C13)** - Provide feedback on this newsletter
+
+**Want Some Help With AI?**
+
+- [Schedule office hours with us!](https://www.notion.so/uniswaplabs/27ac52b2548b80018562f41eacf07f74?v=27ac52b2548b8041a52e000c69551fa1)
+
+## 📊 This Week's Agent Usage
+
+View detailed agent usage metrics and trends on our DataDog dashboard:
+
+**[→ View Agent Usage Dashboard](https://app.datadoghq.com/dash/integration/32027/anthropic-usage-and-costs-overview?fromUser=false&refresh_mode=sliding&storage=flex_tier&from_ts=1761580066307&to_ts=1762184866307&live=true)**
+
+This dashboard tracks:
+
+- Agent invocation counts
+- Success rates and error patterns
+- Token usage and costs
+- Response times and performance metrics
 
 ## 📚 What We're Reading
 
@@ -154,23 +317,85 @@ Build markdown structure following this template:
 1. [Use Case Title](https://example.com) - Description
 2. [Another Use Case](https://example.com) - Description
 
----
+## 💬 Slack Summary
+
+1. Message title or first line
+   "Brief excerpt from the message..." [→ thread](https://slack-permalink) • {X} reactions
+
+1. Message title or first line
+   "Brief excerpt from the message..." [→ thread](https://slack-permalink) • {X} reactions
+
+## 🔨 Tool Updates
+
+**Releases This Week:**
+
+**[Repository Name]** → v1.2.3
+_Released on YYYY-MM-DD_
+
+- Brief changelog or description (truncated to 150 chars)
+- [Full Release Notes](github-release-url)
+
+(Repeat for each release)
 
 _Generated by ai-toolkit newsletter agent_
-_{reading_count} reading items, {use_cases_count} use cases_
 ```
 
 **Formatting Rules:**
 
-- Section headers: "## 📚 What We're Reading" and "## 🌎 Real World Use Cases"
-- Numbered lists for both sections
+**Section Ordering (Critical):**
+
+1. 📅 Get Involved
+2. 📊 This Week's Agent Usage
+3. 📚 What We're Reading
+4. 🌎 Real World Use Cases
+5. 💬 Slack Summary
+6. 🔨 Tool Updates
+
+**Slack Summary Section:**
+
+- 1 section, whose contents come from 3 channels: `#ai-internal` (channel_id: 'C091XE1DNP2'), `#pod-dev-ai` (channel_id: 'C094URH6C13'), and `#ai-achieved-internally` (channel_id: 'C08J4JPQ3AM'). DO NOT mention or create subsections for each of the 3 channels; instead, simply have the list of messages under the "💬 Slack Summary" section header
+- Numbered list format: `Message title`
+- Include brief summary (max 100 chars)
+- Add permalink with "→ thread" link text
+- If no messages: Display "No significant discussions this week"
+
+**Tool Updates Section:**
+
+- Group by repository
+- Format: `**[Repository Name]** → vX.Y.Z`
+- Include release date: `*Released on YYYY-MM-DD*`
+- Bulleted changelog (max 150 chars per release)
+- Link to full release notes: `[Full Release Notes](url)`
+- If no releases: Display "No releases this week"
+
+**Agent Usage Section:**
+
+- Static content (no data retrieval)
+- Always include DataDog dashboard link
+- List metrics tracked (static bullets)
+
+**What We're Reading Section:**
+
+- Numbered list format
 - Format links: `[Name](URL)` for items with URLs
 - Format items without URLs: `Name` (no brackets)
 - Add descriptions after links with " - " separator
-- If no items found: Display "No new items this week" under section
-- Include footer with counts and generation notice
+- If no items: Display "No new items this week"
 
-### 6. Create Notion Database Record
+**Real World Use Cases Section:**
+
+- Numbered list format
+- Same link formatting as Reading section
+- Include descriptions
+- If no items: Display "No new items this week"
+
+**Get Involved Section:**
+
+- Static content (no data retrieval)
+- Three subsections: "Join the Conversation", "Upcoming Events", "Have an AI use case to share?"
+- Update channel names and event times as needed
+
+### 8. Create Notion Database Record
 
 **Important:** DO NOT print to screen or write files. Create a new page in the Notion database with the newsletter content.
 
@@ -247,7 +472,9 @@ The agent creates the newsletter directly in the Notion database. Users can view
 
 ### Error Handling
 
-**Notion MCP Unavailable:**
+**Critical Errors (Fail Immediately):**
+
+1. **Notion MCP Unavailable:**
 
 ```
 Error: "Cannot connect to Notion integration"
@@ -256,7 +483,7 @@ Message: "This agent requires Notion MCP. Please verify Notion integration
 Action: Fail immediately with clear setup instructions
 ```
 
-**Database Access Denied:**
+2. **Database Access Denied:**
 
 ```
 Error: "Database not accessible"
@@ -265,31 +492,15 @@ Message: "Cannot read database {ID}. Ensure the database is shared with
 Action: Fail immediately, provide database ID for debugging
 ```
 
-**Empty Results:**
+3. **Date Range Validation Failed:**
 
 ```
-Warning: "No entries found in date range"
-Action: Return newsletter with "No new items this week" for empty sections
-Status: Success (not an error)
+Error: "Invalid date range"
+Message: "endDate must be greater than or equal to startDate. Provided: {startDate} to {endDate}"
+Action: Fail immediately with validation error
 ```
 
-**Missing Required Properties:**
-
-```
-Warning: "Entry missing required property: {property}"
-Action: Skip entry or use placeholder value
-Status: Continue processing other entries
-```
-
-**Rate Limit Exceeded:**
-
-```
-Error: "Notion API rate limit reached"
-Message: "Too many requests. Please wait 60 seconds and retry."
-Action: Recommend retry after delay
-```
-
-**Newsletter Page Creation Failed:**
+4. **Newsletter Page Creation Failed:**
 
 ```
 Error: "Failed to create newsletter page in Notion"
@@ -298,11 +509,56 @@ Message: "Cannot write to database collection://29cc52b2-548b-807c-b66c-000bdf38
 Action: Fail immediately with clear error message and database ID
 ```
 
+5. **Slack API Error (after tool verification passed):**
+
+```
+Error: "Slack API request failed: {error details}"
+Action: Fail immediately with error message
+Message: "Failed to retrieve Slack messages: {error message}. Please check channel permissions and Slack MCP configuration."
+Status: FAIL (Slack data is required for newsletter)
+```
+
+6. **GitHub CLI Error (after tool verification passed):**
+
+```
+Error: "GitHub CLI request failed: {error details}"
+Action: Fail immediately with error message
+Message: "Failed to retrieve GitHub releases: {error message}. Please verify repository access and GitHub CLI authentication."
+Status: FAIL (GitHub data is required for newsletter)
+```
+
+**Non-Critical Errors (Continue with Adjusted Output):**
+
+1. **Empty Results (Not an Error):**
+
+```
+Warning: "No entries found in date range"
+Action: Return newsletter with "No new items this week" for empty sections
+Status: Success (display empty section message, not a failure)
+```
+
+6. **Missing Required Properties:**
+
+```
+Warning: "Entry missing required property: {property}"
+Action: Skip entry or use placeholder value
+Status: Continue processing other entries
+```
+
+7. **Rate Limit Exceeded (Notion API):**
+
+```
+Error: "Notion API rate limit reached"
+Message: "Too many requests. Please wait 60 seconds and retry."
+Action: Recommend retry after delay
+```
+
 **Partial Failures:**
 
-- If one database fails, continue with the other
-- Return partial newsletter with warning
-- Clearly indicate which section had issues
+- If one Notion database fails, continue with the other (Reading or Use Cases sections can be empty)
+- If individual Slack channels fail but Slack MCP is available, fail immediately (all channels are required)
+- If individual GitHub repositories fail but GitHub CLI is available, fail immediately (all repositories are required)
+- Empty results (no items found in date range) are acceptable - display "No new items this week"
 
 ### Best Practices
 
