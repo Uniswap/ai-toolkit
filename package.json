@@ -20,9 +20,12 @@
   },
   "private": true,
   "dependencies": {
+    "@notionhq/client": "^2.2.15",
+    "@tryfabric/martian": "^1.2.4",
     "express": "^5.1.0",
     "express-rate-limit": "^8.0.1",
-    "helmet": "^8.1.0"
+    "helmet": "^8.1.0",
+    "minimist": "^1.2.8"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
@@ -43,6 +46,7 @@
     "@swc/jest": "~0.2.38",
     "@types/express": "^5.0.4",
     "@types/jest": "^30.0.0",
+    "@types/minimist": "^1.2.5",
     "@types/node": "20.19.9",
     "@types/supertest": "^6.0.3",
     "@typescript-eslint/eslint-plugin": "^8.42.0",

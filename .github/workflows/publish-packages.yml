@@ -44,13 +44,13 @@ on:
   workflow_dispatch:
     inputs:
       dryRun:
-        description: "Perform a dry run without publishing"
+        description: 'Perform a dry run without publishing'
         required: false
-        default: "false"
+        default: 'false'
         type: choice
         options:
-          - "true"
-          - "false"
+          - 'true'
+          - 'false'
 
 # Ensure only one publish workflow runs at a time per branch
 # If a new run is triggered while one is in progress, it will be queued
@@ -89,9 +89,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version: "22.21.1"
-          registry-url: "https://registry.npmjs.org"
-          scope: "@uniswap"
+          node-version: '22.21.1'
+          registry-url: 'https://registry.npmjs.org'
+          scope: '@uniswap'
 
       - name: Install npm
         run: npm install -g npm@11.6.2
@@ -273,8 +273,51 @@ jobs:
       - name: Create GitHub releases
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.affected.outputs.has_affected == 'true'
         run: |
-          # Nx Release will create GitHub releases based on changelog configuration
-          echo "GitHub releases will be created by Nx Release based on the changelog configuration"
+          # Get the tags that were just pushed (created by Nx release version)
+          # These are the tags created since the previous commit
+          AFFECTED_PROJECTS="${{ steps.affected.outputs.projects }}"
+
+          # Convert comma-separated list to array
+          IFS=',' read -ra PACKAGES <<< "$AFFECTED_PROJECTS"
+
+          for package in "${PACKAGES[@]}"; do
+            if [ -n "$package" ]; then
+              # Extract the package name without scope for tag checking
+              PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
+
+              # Get the latest tag for this package
+              # Nx creates tags in the format: package-name@version
+              LATEST_TAG=$(git tag -l "${PACKAGE_NAME}@*" --sort=-v:refname | head -n 1)
+
+              if [ -z "$LATEST_TAG" ]; then
+                # Try with full package name including scope
+                LATEST_TAG=$(git tag -l "${package}@*" --sort=-v:refname | head -n 1)
+              fi
+
+              if [ -n "$LATEST_TAG" ]; then
+                # Extract version from tag
+                VERSION="${LATEST_TAG##*@}"
+
+                # Check if release already exists
+                if gh release view "$LATEST_TAG" &>/dev/null; then
+                  echo "✓ Release $LATEST_TAG already exists, skipping"
+                else
+                  echo "Creating GitHub release for $LATEST_TAG"
+
+                  # Create the release with a basic changelog
+                  # The AI-generated changelog will be added to Slack/Notion notifications
+                  gh release create "$LATEST_TAG" \
+                    --title "$package $VERSION" \
+                    --notes "Release $VERSION of $package. See [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details." \
+                    --verify-tag
+
+                  echo "✅ Created release for $LATEST_TAG"
+                fi
+              else
+                echo "⚠️ No tag found for $package"
+              fi
+            fi
+          done
         env:
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
 
@@ -284,9 +327,10 @@ jobs:
     if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && needs.publish.outputs.has_affected == 'true'
     uses: ./.github/workflows/_generate-changelog.yml
     with:
-      before_sha: ${{ github.event.before }}
-      after_sha: ${{ github.sha }}
-      custom_prompt_file: ".github/prompts/release-changelog.md"
+      from_ref: ${{ github.event.before }}
+      to_ref: ${{ github.sha }}
+      output_formats: 'slack,markdown'
+      custom_prompt_file: '.github/prompts/release-changelog.md'
       max_tokens: 1024
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -297,11 +341,13 @@ jobs:
     if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && needs.publish.outputs.has_affected == 'true'
     uses: ./.github/workflows/_notify-release.yml
     with:
+      changelog_slack: ${{ needs.generate-changelog.outputs.changelog_slack }}
+      changelog_markdown: ${{ needs.generate-changelog.outputs.changelog_markdown }}
+      destinations: 'slack'
+      from_ref: ${{ github.event.before }}
+      to_ref: ${{ github.sha }}
       branch: ${{ github.ref_name }}
       npm_tag: ${{ github.ref_name == 'next' && 'next' || 'latest' }}
-      before_sha: ${{ github.event.before }}
-      after_sha: ${{ github.sha }}
-      changelog: ${{ needs.generate-changelog.outputs.changelog }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 

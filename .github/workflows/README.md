@@ -68,8 +68,12 @@ Workflows designed to be called by other workflows using `workflow_call`. These 
 
 - **notify-release.yml**:
   - Sends rich Slack notifications with formatted changelog
+  - Supports Notion database integration via TypeScript script
   - Different emoji and styling for production vs. next branch
   - Includes commit range, package list, and workflow run links
+  - Uses community-maintained libraries (minimist, @notionhq/client, @tryfabric/martian)
+
+**📚 For comprehensive documentation including implementation details, dependencies, and usage examples, see [REUSABLE_WORKFLOWS.md](../REUSABLE_WORKFLOWS.md)**
 
 ---
 

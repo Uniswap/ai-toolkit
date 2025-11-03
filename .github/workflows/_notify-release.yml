@@ -1,46 +1,120 @@
 name: Notify Release
 
-# Reusable workflow for sending Slack notifications about package releases.
+# Reusable workflow for sending release notifications to multiple destinations.
 # This workflow expects a pre-generated changelog and focuses solely on notification delivery.
 #
 # ARCHITECTURE:
-# This workflow is intentionally simple and focused on a single responsibility: sending
-# notifications. Changelog generation should be handled by the calling workflow using
-# the generate-changelog.yml reusable workflow.
+# This workflow is intentionally simple and focused on a single responsibility: routing
+# notifications to configured destinations. Changelog generation should be handled by the
+# calling workflow using the _generate-changelog.yml reusable workflow.
+#
+# Supports routing to Slack, Notion, or both destinations based on configuration.
 
 on:
   workflow_call:
     inputs:
+      changelog_slack:
+        description: |
+          Pre-generated Slack-formatted changelog from _generate-changelog.yml.
+          Required if "slack" in destinations and want formatted output.
+          If not provided but changelog_markdown is, will be auto-converted.
+        required: false
+        type: string
+
+      changelog_markdown:
+        description: |
+          Pre-generated markdown changelog from _generate-changelog.yml.
+          Required if "notion" in destinations.
+          Can be used for Slack if changelog_slack not provided.
+        required: false
+        type: string
+
+      destinations:
+        description: |
+          Comma-separated list of notification destinations.
+          Options: "slack", "notion", or "slack,notion"
+          - "slack": Send to Slack via webhook (requires SLACK_WEBHOOK_URL secret)
+          - "notion": Create page in Notion database (requires NOTION_API_KEY, RELEASE_NOTES_NOTION_DATABASE_ID)
+          At least one changelog input must be provided for each destination.
+        required: true
+        type: string
+
+      from_ref:
+        description: |
+          Starting git reference for display in notifications.
+          Example: "v1.0.0" or "abc123d"
+        required: true
+        type: string
+
+      to_ref:
+        description: |
+          Ending git reference for display in notifications.
+          Example: "v1.1.0" or "def456a"
+        required: true
+        type: string
+
       branch:
-        description: "Branch name that was released"
+        description: |
+          Branch name that was released.
+          Example: "main", "next", "develop"
         required: true
         type: string
+
       npm_tag:
-        description: "NPM tag used for publishing (next or latest)"
-        required: true
+        description: |
+          NPM tag used for publishing.
+          Example: "latest", "next", "beta"
+          Used for display purposes in notifications.
+        required: false
         type: string
-      before_sha:
-        description: "Commit SHA before the push"
-        required: true
+
+      release_title:
+        description: |
+          Custom title for the release notification.
+          Used as Notion page title and Slack header.
+          Example: "Production Release v1.1.0"
+          Default: Generated from branch and ref range.
+        required: false
         type: string
-      after_sha:
-        description: "Commit SHA after the push"
-        required: true
-        type: string
-      changelog:
-        description: "Pre-generated changelog text (from generate-changelog workflow)"
-        required: true
-        type: string
+
     secrets:
       SLACK_WEBHOOK_URL:
-        description: "Slack webhook URL for notifications"
-        required: true
+        description: |
+          Slack incoming webhook URL for notifications.
+          Required if "slack" included in destinations input.
+          Format: https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
+        required: false
+
+      # NOTE: Notion integration is currently disabled but configuration is kept for future use
+      NOTION_API_KEY:
+        description: |
+          Notion integration API key with write access to target database.
+          Required if "notion" included in destinations input.
+          Format: secret_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          Obtain from: https://www.notion.so/my-integrations
+        required: false
+
+      RELEASE_NOTES_NOTION_DATABASE_ID:
+        description: |
+          Notion database ID where changelog pages will be created.
+          Required if "notion" included in destinations input.
+          Format: 32-character hex string (xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
+          Extract from database URL: notion.so/{workspace}/{database_id}?v=...
+        required: false
 
 jobs:
-  notify:
+  prepare:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
+    outputs:
+      packages: ${{ steps.package-list.outputs.packages }}
+      emoji: ${{ steps.notification.outputs.emoji }}
+      title: ${{ steps.notification.outputs.title }}
+      description: ${{ steps.notification.outputs.description }}
+      final_title: ${{ steps.notification.outputs.final_title }}
+      changelog_for_slack: ${{ steps.prepare-changelogs.outputs.changelog_for_slack }}
+      changelog_for_notion: ${{ steps.prepare-changelogs.outputs.changelog_for_notion }}
 
     steps:
       - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
@@ -50,7 +124,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get package list for Slack notification
+      - name: Get package list for notifications
         id: package-list
         run: |
           # Get the list of packages that were published
@@ -59,8 +133,14 @@ jobs:
 
       - name: Determine notification details
         id: notification
+        env:
+          INPUT_BRANCH: ${{ inputs.branch }}
+          INPUT_RELEASE_TITLE: ${{ inputs.release_title }}
+          INPUT_FROM_REF: ${{ inputs.from_ref }}
+          INPUT_TO_REF: ${{ inputs.to_ref }}
         run: |
-          if [[ "${{ inputs.branch }}" == "next" ]]; then
+          # Set emoji, title, and description based on branch
+          if [[ "$INPUT_BRANCH" == "next" ]]; then
             echo "emoji=📦" >> $GITHUB_OUTPUT
             echo "title=Next Branch Packages Published" >> $GITHUB_OUTPUT
             echo "description=Packages from the \`next\` branch have been published to npm with the \`next\` tag." >> $GITHUB_OUTPUT
@@ -70,15 +150,90 @@ jobs:
             echo "description=Packages from the \`main\` branch have been published to npm with the \`latest\` tag." >> $GITHUB_OUTPUT
           fi
 
-      - name: Prepare changelog for Slack
-        id: slack-changelog
-        run: |
-          # Convert real newlines to \n for Slack's mrkdwn format
-          # Slack Block Kit requires explicit \n strings, not actual newline characters
-          CHANGELOG=$(echo "${{ inputs.changelog }}" | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
+          # Determine final title for notifications
+          if [[ -n "$INPUT_RELEASE_TITLE" ]]; then
+            FINAL_TITLE="$INPUT_RELEASE_TITLE"
+          else
+            FINAL_TITLE="Release $INPUT_BRANCH - $INPUT_FROM_REF → $INPUT_TO_REF"
+          fi
 
-          # Save to output
-          echo "changelog=$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "final_title=$FINAL_TITLE" >> $GITHUB_OUTPUT
+
+      - name: Prepare changelogs for destinations
+        id: prepare-changelogs
+        env:
+          INPUT_DESTINATIONS: ${{ inputs.destinations }}
+          INPUT_CHANGELOG_SLACK: ${{ inputs.changelog_slack }}
+          INPUT_CHANGELOG_MARKDOWN: ${{ inputs.changelog_markdown }}
+        run: |
+          # Determine what we need
+          NEED_SLACK=false
+          NEED_NOTION=false
+
+          if [[ "$INPUT_DESTINATIONS" == *"slack"* ]]; then
+            NEED_SLACK=true
+          fi
+          if [[ "$INPUT_DESTINATIONS" == *"notion"* ]]; then
+            NEED_NOTION=true
+          fi
+
+          echo "Preparing changelogs for destinations: $INPUT_DESTINATIONS"
+          echo "Need Slack: $NEED_SLACK, Need Notion: $NEED_NOTION"
+
+          # Prepare Slack changelog
+          if [ "$NEED_SLACK" == "true" ]; then
+            if [[ -n "$INPUT_CHANGELOG_SLACK" ]]; then
+              # Use provided Slack format
+              SLACK_CHANGELOG="$INPUT_CHANGELOG_SLACK"
+              echo "Using provided Slack changelog"
+            elif [[ -n "$INPUT_CHANGELOG_MARKDOWN" ]]; then
+              # Convert markdown to Slack format (basic conversion)
+              # Replace markdown bullets with Slack bullets
+              SLACK_CHANGELOG=$(echo "$INPUT_CHANGELOG_MARKDOWN" | sed 's/^[*-] /• /g')
+              echo "Converted markdown to Slack format"
+            else
+              echo "Error: Slack destination requested but no changelog provided"
+              exit 1
+            fi
+
+            # Convert real newlines to \\n for Slack's mrkdwn format
+            # Slack Block Kit requires explicit \\n strings, not actual newline characters
+            SLACK_CHANGELOG_ESCAPED=$(echo "$SLACK_CHANGELOG" | awk '{printf "%s\\\\n", $0}' | sed 's/\\\\n$//')
+
+            echo "changelog_for_slack=$SLACK_CHANGELOG_ESCAPED" >> $GITHUB_OUTPUT
+          fi
+
+          # Prepare Notion changelog
+          if [ "$NEED_NOTION" == "true" ]; then
+            if [[ -n "$INPUT_CHANGELOG_MARKDOWN" ]]; then
+              # Use provided markdown format
+              NOTION_CHANGELOG="$INPUT_CHANGELOG_MARKDOWN"
+              echo "Using markdown changelog for Notion"
+            elif [[ -n "$INPUT_CHANGELOG_SLACK" ]]; then
+              # Use Slack format as fallback (Notion can handle basic markdown-like text)
+              NOTION_CHANGELOG="$INPUT_CHANGELOG_SLACK"
+              echo "Using Slack changelog for Notion (fallback)"
+            else
+              echo "Error: Notion destination requested but no changelog provided"
+              exit 1
+            fi
+
+            {
+              echo 'changelog_for_notion<<EOF'
+              echo "$NOTION_CHANGELOG"
+              echo 'EOF'
+            } >> $GITHUB_OUTPUT
+          fi
+
+  notify-slack:
+    needs: prepare
+    if: contains(inputs.destinations, 'slack')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
 
       - name: Send Slack notification
         continue-on-error: true
@@ -87,12 +242,12 @@ jobs:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
           payload: |
-            text: "${{ steps.notification.outputs.emoji }} *${{ steps.notification.outputs.title }}*"
+            text: "${{ needs.prepare.outputs.emoji }} *${{ needs.prepare.outputs.title }}*"
             blocks:
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "${{ steps.notification.outputs.emoji }} *${{ steps.notification.outputs.title }}*\n\n${{ steps.notification.outputs.description }}"
+                  text: "${{ needs.prepare.outputs.emoji }} *${{ needs.prepare.outputs.title }}*\n\n${{ needs.prepare.outputs.description }}"
               - type: "section"
                 fields:
                   - type: "mrkdwn"
@@ -100,13 +255,13 @@ jobs:
                   - type: "mrkdwn"
                     text: "*npm Tag:*\n`${{ inputs.npm_tag }}`"
                   - type: "mrkdwn"
-                    text: "*Commits:*\n`${{ inputs.before_sha }}` → `${{ inputs.after_sha }}`"
+                    text: "*Commits:*\n`${{ inputs.from_ref }}` → `${{ inputs.to_ref }}`"
                   - type: "mrkdwn"
-                    text: "*Packages:*\n${{ steps.package-list.outputs.packages }}"
+                    text: "*Packages:*\n${{ needs.prepare.outputs.packages }}"
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "*What's Changed:*\n${{ steps.slack-changelog.outputs.changelog }}"
+                  text: "*What's Changed:*\n${{ needs.prepare.outputs.changelog_for_slack }}"
               - type: "actions"
                 elements:
                   - type: "button"
@@ -115,3 +270,77 @@ jobs:
                       text: "View Workflow Run"
                     url: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                     style: "primary"
+
+  notify-notion:
+    needs: prepare
+    if: contains(inputs.destinations, 'notion')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Publish to Notion
+        id: notion-publish
+        continue-on-error: true
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          RELEASE_NOTES_NOTION_DATABASE_ID: ${{ secrets.RELEASE_NOTES_NOTION_DATABASE_ID }}
+          INPUT_TITLE: ${{ needs.prepare.outputs.final_title }}
+          INPUT_CONTENT: ${{ needs.prepare.outputs.changelog_for_notion }}
+          INPUT_FROM_REF: ${{ inputs.from_ref }}
+          INPUT_TO_REF: ${{ inputs.to_ref }}
+          INPUT_BRANCH: ${{ inputs.branch }}
+          INPUT_NPM_TAG: ${{ inputs.npm_tag }}
+        run: |
+          # Call the TypeScript Notion publishing script with flags
+          PAGE_URL=$(npx tsx .github/scripts/notion-publish.ts \
+            --title "$INPUT_TITLE" \
+            --content "$INPUT_CONTENT" \
+            --from-ref "$INPUT_FROM_REF" \
+            --to-ref "$INPUT_TO_REF" \
+            --branch "$INPUT_BRANCH" \
+            --npm-tag "$INPUT_NPM_TAG")
+
+          echo "✅ Notion page created: $PAGE_URL"
+          echo "page_url=$PAGE_URL" >> $GITHUB_OUTPUT
+
+      - name: Add Notion URL to summary
+        if: steps.notion-publish.outcome == 'success'
+        run: |
+          cat <<SUMMARY_EOF >> $GITHUB_STEP_SUMMARY
+          ## 📄 Notion Page Created
+
+          **Page URL**: ${{ steps.notion-publish.outputs.page_url }}
+
+          [View in Notion](${{ steps.notion-publish.outputs.page_url }})
+          SUMMARY_EOF
+
+      - name: Notion publishing failed
+        if: steps.notion-publish.outcome == 'failure'
+        run: |
+          echo "⚠️ Notion publishing failed (check logs above)"
+          cat <<SUMMARY_EOF >> $GITHUB_STEP_SUMMARY
+          ## ⚠️ Notion Publishing Failed
+
+          The Notion page could not be created. Check the workflow logs for details.
+
+          Common issues:
+          - Invalid NOTION_API_KEY secret
+          - Invalid RELEASE_NOTES_NOTION_DATABASE_ID secret
+          - Notion integration doesn't have access to the database
+          - Database properties don't match expected schema
+          SUMMARY_EOF
