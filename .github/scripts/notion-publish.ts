@@ -13,14 +13,12 @@ const args = minimist(process.argv.slice(2), {
     'from-ref',
     'to-ref',
     'branch',
-    'npm-tag',
   ],
   alias: {
     'api-key': 'apiKey',
     'database-id': 'databaseId',
     'from-ref': 'fromRef',
     'to-ref': 'toRef',
-    'npm-tag': 'npmTag',
   },
 });
 
@@ -29,7 +27,7 @@ const args = minimist(process.argv.slice(2), {
 const apiKey = process.env.NOTION_API_KEY || args.apiKey;
 const databaseId =
   process.env.RELEASE_NOTES_NOTION_DATABASE_ID || args.databaseId;
-const { title, content, fromRef, toRef, branch, npmTag } = args;
+const { title, content, fromRef, toRef, branch } = args;
 
 // Color codes for output
 const RED = '\x1b[0;31m';
@@ -116,12 +114,6 @@ async function publishToNotion() {
     if (branch) {
       properties.Branch = {
         rich_text: [{ text: { content: branch } }],
-      };
-    }
-
-    if (npmTag) {
-      properties['NPM Tag'] = {
-        rich_text: [{ text: { content: npmTag } }],
       };
     }
 
