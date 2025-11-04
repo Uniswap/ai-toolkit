@@ -367,10 +367,10 @@ jobs:
             # Both formats - need to split the response
 
             # Extract Slack format (between "## SLACK FORMAT" and "## MARKDOWN FORMAT")
-            SLACK_CONTENT=$(echo "$RESPONSE" | sed -n '/## SLACK FORMAT/,/## MARKDOWN FORMAT/p' | sed '1d;$d' | sed '/^$/d')
+            SLACK_CONTENT=$(echo "$RESPONSE" | sed -n '/## SLACK FORMAT/,/## MARKDOWN FORMAT/p' | sed '1d;$d')
 
             # Extract Markdown format (after "## MARKDOWN FORMAT")
-            MARKDOWN_CONTENT=$(echo "$RESPONSE" | sed -n '/## MARKDOWN FORMAT/,$p' | sed '1d' | sed '/^$/d')
+            MARKDOWN_CONTENT=$(echo "$RESPONSE" | sed -n '/## MARKDOWN FORMAT/,$p' | sed '1d')
 
             # Save both outputs
             {
