@@ -1,0 +1,344 @@
+name: Release Integration Example
+
+# PURPOSE:
+# This example demonstrates how to integrate the reusable changelog generation
+# and notification workflows into your existing release pipeline. It shows a
+# simplified version of a typical release workflow with proper job orchestration.
+#
+# USE CASE:
+# You already have a working release pipeline that builds, tests, and publishes
+# your software. Now you want to add automated, AI-powered changelogs and
+# release notifications without disrupting your existing workflow.
+#
+# PATTERN:
+# This example shows the "generate-after-release" pattern:
+#   1. Build and test (your existing logic)
+#   2. Release/publish (your existing logic)
+#   3. Generate changelog (NEW: using _generate-changelog.yml)
+#   4. Send notifications (NEW: using _notify-release.yml)
+#
+# REQUIREMENTS:
+# - ANTHROPIC_API_KEY secret: For AI-powered changelog generation
+# - SLACK_WEBHOOK_URL secret: For Slack notifications (optional)
+# - Your existing release infrastructure (NPM, Docker, etc.)
+
+on:
+  push:
+    branches:
+      - main
+      - production
+      - release/*
+
+  # Support manual triggering for testing
+  workflow_dispatch:
+    inputs:
+      skip_release:
+        description: 'Skip the actual release (test changelog generation only)'
+        type: boolean
+        default: false
+
+# Prevent concurrent releases on the same branch
+# This is CRITICAL for release pipelines to avoid race conditions
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # =============================================================================
+  # STEP 1: Your existing build/test logic
+  # =============================================================================
+  build:
+    name: Build and Test
+    runs-on: ubuntu-24.04
+    outputs:
+      # Output a flag indicating if there are changes to release
+      # Adjust this detection logic based on your project's needs
+      has_changes: ${{ steps.check-changes.outputs.has_changes }}
+    permissions:
+      contents: read
+
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0  # Full history needed for changelog generation
+
+      # === YOUR EXISTING BUILD STEPS GO HERE ===
+      # Example:
+      - name: Setup Node.js
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build project
+        run: npm run build
+
+      # === END OF YOUR EXISTING BUILD STEPS ===
+
+      # Determine if there are changes worth releasing
+      # Adjust this logic based on your project's release strategy
+      - name: Check for releasable changes
+        id: check-changes
+        run: |
+          # Example 1: Check if there have been commits since last tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No previous tags found - this appears to be a first release"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            COMMITS_SINCE_TAG=$(git rev-list ${LATEST_TAG}..HEAD --count)
+            echo "Commits since ${LATEST_TAG}: ${COMMITS_SINCE_TAG}"
+
+            if [ "$COMMITS_SINCE_TAG" -gt 0 ]; then
+              echo "has_changes=true" >> $GITHUB_OUTPUT
+            else
+              echo "has_changes=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+          # Example 2: For semantic-release or conventional commits projects:
+          # Use your versioning tool to determine if a release is needed
+          # npx semantic-release --dry-run
+
+          # Example 3: For manual versioning:
+          # Check if package.json version differs from latest tag
+
+  # =============================================================================
+  # STEP 2: Your existing release/publish logic
+  # =============================================================================
+  release:
+    name: Release
+    needs: build
+    if: needs.build.outputs.has_changes == 'true' && github.event.inputs.skip_release != 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+    outputs:
+      # Capture the before/after commit SHAs for changelog generation
+      # These are needed by the changelog workflow
+      before_sha: ${{ github.event.before }}
+      after_sha: ${{ github.sha }}
+      branch: ${{ github.ref_name }}
+
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # === YOUR EXISTING RELEASE STEPS GO HERE ===
+      # ...
+      # === END OF YOUR EXISTING RELEASE STEPS ===
+
+      - name: Capture release metadata
+        id: metadata
+        run: |
+          # Output information about what was released
+          # This can be customized based on your project
+          echo "## 📦 Release Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Previous Commit**: \`${{ github.event.before }}\`" >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
+  # STEP 3: NEW - Generate AI-powered changelog
+  # =============================================================================
+  generate-changelog:
+    name: Generate Changelog
+    needs: release
+    # This job calls the reusable _generate-changelog.yml workflow
+    # It generates changelogs in both Slack and Markdown formats
+    # NOTE: Update @main to @v1.0.0 for pinned version or @next for preview features
+    uses: uniswap/ai-toolkit/.github/workflows/_generate-changelog.yml@main
+    with:
+      # The commit range to generate changelog for
+      # github.event.before = the commit before this push
+      # github.sha = the current commit after the push
+      from_ref: ${{ github.event.before }}
+      to_ref: ${{ github.sha }}
+
+      # Generate both Slack and Markdown formats
+      # Slack format: for Slack notifications
+      # Markdown format: for GitHub releases, Notion, etc.
+      output_formats: 'slack,markdown'
+
+      # Optional: Use a custom prompt for your project
+      # See .github/prompts/release-changelog.md for example
+      # custom_prompt_file: '.github/prompts/release-changelog.md'
+
+      # Optional: Control the length of the generated changelog
+      # 512 = very concise, 1024 = balanced, 2048 = detailed
+      # max_tokens: 1024
+
+    secrets:
+      # Required: Anthropic API key for AI generation
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  # =============================================================================
+  # STEP 4: NEW - Send notifications with the generated changelog
+  # =============================================================================
+  notify-slack:
+    name: Notify Slack
+    needs: [release, generate-changelog]
+    # This job calls the reusable _notify-release.yml workflow
+    # It sends the changelog to configured destinations (Slack, Notion, etc.)
+    # NOTE: Update @main to @v1.0.0 for pinned version or @next for preview features
+    uses: uniswap/ai-toolkit/.github/workflows/_notify-release.yml@main
+    with:
+      # Pass through the generated changelogs
+      changelog_slack: ${{ needs.generate-changelog.outputs.changelog_slack }}
+      changelog_markdown: ${{ needs.generate-changelog.outputs.changelog_markdown }}
+
+      # Configure which destinations to notify
+      # Options: 'slack', 'notion', or 'slack,notion'
+      destinations: 'slack'
+
+      # Provide context about what was released
+      from_ref: ${{ github.event.before }}
+      to_ref: ${{ github.sha }}
+      branch: ${{ github.ref_name }}
+
+      # Optional: Custom title for the notification
+      # If omitted, will use: "Release {branch} - {from_ref} → {to_ref}"
+      # release_title: 'Production Release v1.2.3'
+
+    secrets:
+      # Required if 'slack' in destinations
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      # Required if 'notion' in destinations
+      # NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+      # RELEASE_NOTES_NOTION_DATABASE_ID: ${{ secrets.RELEASE_NOTES_NOTION_DATABASE_ID }}
+
+# =============================================================================
+# INTEGRATION PATTERNS AND TIPS
+# =============================================================================
+#
+# 1. ERROR HANDLING:
+#    - Use `needs.job_name.result == 'success'` to check job status
+#    - Add `if: failure()` conditions for cleanup jobs
+#    - Use `continue-on-error: true` for optional notification jobs
+#
+#    Example:
+#    notify-slack:
+#      needs: [release, generate-changelog]
+#      if: always() && needs.release.result == 'success'
+#      continue-on-error: true  # Don't fail release if notification fails
+#
+# 2. MULTIPLE BRANCHES:
+#    - Use branch-specific configurations for different environments
+#    - Example: main = production, develop = staging
+#
+#    Example:
+#    - name: Determine environment
+#      id: env
+#      run: |
+#        if [[ "${{ github.ref_name }}" == "main" ]]; then
+#          echo "name=production" >> $GITHUB_OUTPUT
+#          echo "channel=#releases" >> $GITHUB_OUTPUT
+#        else
+#          echo "name=staging" >> $GITHUB_OUTPUT
+#          echo "channel=#releases-dev" >> $GITHUB_OUTPUT
+#        fi
+#
+# 3. CONDITIONAL NOTIFICATIONS:
+#    - Only notify for certain branches or conditions
+#
+#    Example:
+#    notify-slack:
+#      if: github.ref_name == 'main' || github.ref_name == 'production'
+#
+# 4. MULTIPLE DESTINATIONS:
+#    - Send to Slack immediately for visibility
+#    - Archive in Notion for historical record
+#
+#    Example:
+#    uses: ./.github/workflows/_notify-release.yml
+#    with:
+#      destinations: 'slack,notion'
+#
+# 5. CUSTOM PROMPTS:
+#    - Create custom prompts for different release types
+#    - Store in .github/prompts/ directory
+#    - Reference in generate-changelog job
+#
+#    Example:
+#    generate-changelog:
+#      uses: ./.github/workflows/_generate-changelog.yml
+#      with:
+#        custom_prompt_file: '.github/prompts/hotfix-changelog.md'
+#
+# 6. ROLLBACK SUPPORT:
+#    - Generate changelogs even for rollback commits
+#    - Use custom prompts to explain what was rolled back
+#
+#    Example:
+#    - name: Check if rollback
+#      id: rollback
+#      run: |
+#        if [[ "${{ github.event.head_commit.message }}" == *"[rollback]"* ]]; then
+#          echo "is_rollback=true" >> $GITHUB_OUTPUT
+#          echo "prompt_file=.github/prompts/rollback-changelog.md" >> $GITHUB_OUTPUT
+#        fi
+#
+# 7. DRY RUN MODE:
+#    - Test changelog generation without releasing
+#    - Useful for previewing changes before merge
+#
+#    This example already includes dry run support via workflow_dispatch
+
+# =============================================================================
+# TROUBLESHOOTING
+# =============================================================================
+#
+# Q: "Changelog generation is too slow/expensive"
+# A: Reduce max_tokens to 512 or 1024 for faster, cheaper results
+#
+# Q: "I want different changelog formats for different branches"
+# A: Use conditional logic to set custom_prompt_file based on branch:
+#    custom_prompt_file: ${{ github.ref_name == 'main' && '.github/prompts/production.md' || '.github/prompts/staging.md' }}
+#
+# Q: "Notifications are failing but I don't want to fail the whole workflow"
+# A: Add `continue-on-error: true` to the notify job:
+#    notify-slack:
+#      continue-on-error: true
+#
+# Q: "How do I test this without triggering a real release?"
+# A: Use the workflow_dispatch trigger with skip_release: true
+#
+# Q: "Can I generate a changelog for older commits retroactively?"
+# A: Yes! Use the manual-changelog-generator.yml example workflow
+
+# =============================================================================
+# NEXT STEPS
+# =============================================================================
+#
+# 1. Copy this file to your .github/workflows/ directory
+# 2. Replace the placeholder build/release steps with your actual logic
+# 3. Add the required secrets to your GitHub Actions Secrets (ANTHROPIC_API_KEY, SLACK_WEBHOOK_URL)
+# 4. Customize the has_changes detection logic for your project
+# 5. Test using workflow_dispatch with skip_release: true
+# 6. Commit and push to trigger your first automated changelog!
+#
+# For more examples and advanced patterns, see:
+# - 01-manual-changelog-generator.yml: On-demand changelog generation
+# - 03-weekly-digest.yml: Automated weekly change summaries
+# - 04-hotfix-release.yml: Emergency release notifications
