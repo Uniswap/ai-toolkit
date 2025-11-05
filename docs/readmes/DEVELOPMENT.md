@@ -406,7 +406,7 @@ npm install /path/to/package-name-1.0.0.tgz
 
 ```bash
 # Format code
-npx nx format:write --uncommitted
+npm run format
 
 # Lint with fixes
 npx nx affected --target=lint --fix
