@@ -189,8 +189,8 @@ Our codebase enforces quality through automated checks:
 Before committing:
 
 ```bash
-# Format all uncommitted files
-npx nx format:write --uncommitted
+# Format all files
+npm run format
 
 # Lint affected projects
 npx nx affected --target=lint --base=HEAD~1
