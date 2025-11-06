@@ -225,41 +225,92 @@ jobs:
           AFFECTED_PROJECTS="${{ steps.affected.outputs.projects }}"
           echo "Publishing affected packages with tag: ${{ steps.npm-tag.outputs.tag }} to NPM"
           echo "Affected packages: $AFFECTED_PROJECTS"
-
-          # Check if any of the affected packages have been released before
-          # If no tags exist for any affected package, use --first-release flag
-          IS_FIRST_RELEASE=true
+          echo ""
 
           # Convert comma-separated list to array
           IFS=',' read -ra PACKAGES <<< "$AFFECTED_PROJECTS"
 
+          # Track publishing results
+          FAILED_PACKAGES=()
+          SUCCESS_PACKAGES=()
+
+          # Publish each package individually with appropriate flags
           for package in "${PACKAGES[@]}"; do
-            if [ -n "$package" ]; then
-              # Extract the package name without scope for tag checking
-              PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
+            if [ -z "$package" ]; then
+              continue
+            fi
 
-              echo "Checking for Git tags for package: $package"
+            echo "=========================================="
+            echo "Processing package: $package"
+            echo "=========================================="
 
-              # Check if any tags exist for this package
-              # Nx typically creates tags in the format: package-name@version
-              if git tag -l | grep -q "^${PACKAGE_NAME}@" || git tag -l | grep -q "^${package}@"; then
-                echo "✓ Found existing tags for $package"
-                IS_FIRST_RELEASE=false
-                break
+            # Extract the package name without scope for tag checking
+            PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
+
+            # Check if any tags exist for THIS specific package
+            # Nx creates tags in the format: package-name@version or @scope/package-name@version
+            echo "Checking for existing Git tags..."
+
+            # Use git tag glob patterns for precise matching without escaping issues
+            # Check both with-scope and without-scope formats
+            FOUND_TAGS=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | sort -u || echo "")
+
+            if [ -n "$FOUND_TAGS" ]; then
+              # Package has been published before
+              echo "📦 Status: EXISTING package (found Git tags)"
+              echo "Tags found:"
+              echo "$FOUND_TAGS" | head -n 5
+              if [ $(echo "$FOUND_TAGS" | wc -l) -gt 5 ]; then
+                echo "... and $(( $(echo "$FOUND_TAGS" | wc -l) - 5 )) more"
+              fi
+              echo ""
+              echo "Publishing without --first-release flag..."
+
+              if npx nx release publish --projects="$package" --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org; then
+                echo "✅ Successfully published $package"
+                SUCCESS_PACKAGES+=("$package")
               else
-                echo "✗ No tags found for $package"
+                echo "❌ Failed to publish $package"
+                FAILED_PACKAGES+=("$package")
+              fi
+            else
+              # Package has never been published
+              echo "🆕 Status: NEW package (no Git tags found)"
+              echo "Publishing with --first-release flag..."
+
+              if npx nx release publish --projects="$package" --first-release --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org; then
+                echo "✅ Successfully published $package (first release)"
+                SUCCESS_PACKAGES+=("$package")
+              else
+                echo "❌ Failed to publish $package (first release)"
+                FAILED_PACKAGES+=("$package")
               fi
             fi
+
+            echo ""
           done
 
-          # Publish the packages
-          # Nx release publish will only publish packages that were versioned in the previous step
-          if [ "$IS_FIRST_RELEASE" = true ]; then
-            echo "No tags found for any affected packages - publishing with --first-release flag"
-            npx nx release publish --first-release --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org
+          # Report results
+          echo "=========================================="
+          echo "Publishing Summary"
+          echo "=========================================="
+          echo "Successful: ${#SUCCESS_PACKAGES[@]} package(s)"
+          for pkg in "${SUCCESS_PACKAGES[@]}"; do
+            echo "  ✅ $pkg"
+          done
+
+          if [ ${#FAILED_PACKAGES[@]} -gt 0 ]; then
+            echo ""
+            echo "Failed: ${#FAILED_PACKAGES[@]} package(s)"
+            for pkg in "${FAILED_PACKAGES[@]}"; do
+              echo "  ❌ $pkg"
+            done
+            echo ""
+            echo "❌ Some packages failed to publish. Check the logs above for details."
+            exit 1
           else
-            echo "Found existing tags - publishing without --first-release flag"
-            npx nx release publish --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org
+            echo ""
+            echo "✅ All packages published successfully!"
           fi
 
       - name: Push version commits and tags
@@ -277,47 +328,54 @@ jobs:
           # These are the tags created since the previous commit
           AFFECTED_PROJECTS="${{ steps.affected.outputs.projects }}"
 
+          echo "Creating GitHub releases for affected packages..."
+          echo ""
+
           # Convert comma-separated list to array
           IFS=',' read -ra PACKAGES <<< "$AFFECTED_PROJECTS"
 
           for package in "${PACKAGES[@]}"; do
-            if [ -n "$package" ]; then
-              # Extract the package name without scope for tag checking
-              PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
-
-              # Get the latest tag for this package
-              # Nx creates tags in the format: package-name@version
-              LATEST_TAG=$(git tag -l "${PACKAGE_NAME}@*" --sort=-v:refname | head -n 1)
-
-              if [ -z "$LATEST_TAG" ]; then
-                # Try with full package name including scope
-                LATEST_TAG=$(git tag -l "${package}@*" --sort=-v:refname | head -n 1)
-              fi
-
-              if [ -n "$LATEST_TAG" ]; then
-                # Extract version from tag
-                VERSION="${LATEST_TAG##*@}"
-
-                # Check if release already exists
-                if gh release view "$LATEST_TAG" &>/dev/null; then
-                  echo "✓ Release $LATEST_TAG already exists, skipping"
-                else
-                  echo "Creating GitHub release for $LATEST_TAG"
-
-                  # Create the release with a basic changelog
-                  # The AI-generated changelog will be added to Slack/Notion notifications
-                  gh release create "$LATEST_TAG" \
-                    --title "$package $VERSION" \
-                    --notes "Release $VERSION of $package. See [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details." \
-                    --verify-tag
-
-                  echo "✅ Created release for $LATEST_TAG"
-                fi
-              else
-                echo "⚠️ No tag found for $package"
-              fi
+            if [ -z "$package" ]; then
+              continue
             fi
+
+            echo "Processing package: $package"
+
+            # Extract the package name without scope for tag checking
+            PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
+
+            # Get the latest tag for this package
+            # Nx creates tags in the format: package-name@version or @scope/package-name@version
+            # Use git tag glob patterns for precise matching without escaping issues
+            LATEST_TAG=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | sort -V | tail -n 1)
+
+            if [ -n "$LATEST_TAG" ]; then
+              # Extract version from tag
+              VERSION="${LATEST_TAG##*@}"
+
+              # Check if release already exists
+              if gh release view "$LATEST_TAG" &>/dev/null; then
+                echo "✓ Release $LATEST_TAG already exists, skipping"
+              else
+                echo "Creating GitHub release for $LATEST_TAG"
+
+                # Create the release with a basic changelog
+                # The AI-generated changelog will be added to Slack/Notion notifications
+                gh release create "$LATEST_TAG" \
+                  --title "$package $VERSION" \
+                  --notes "Release $VERSION of $package. See [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details." \
+                  --verify-tag
+
+                echo "✅ Created release for $LATEST_TAG"
+              fi
+            else
+              echo "⚠️ No tag found for $package (this might indicate the package was not versioned)"
+            fi
+
+            echo ""
           done
+
+          echo "GitHub releases creation complete."
         env:
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
 
