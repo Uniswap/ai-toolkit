@@ -20,6 +20,9 @@
     },
     {
       "path": "./apps/slack-oauth-backend"
+    },
+    {
+      "path": "./packages/mcp-config"
     }
   ]
 }
