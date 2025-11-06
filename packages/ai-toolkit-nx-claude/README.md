@@ -55,4 +55,4 @@ Run `npm nx build ai-toolkit-nx-claude` to build the library.
 
 ## Testing
 
-Run `npx nx test ai-toolkit-nx-claude` to test this library
+Run `npx nx test ai-toolkit-nx-claude` to test this library.

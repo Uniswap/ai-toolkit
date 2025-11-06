@@ -345,7 +345,3 @@ If you get permission errors when running the tool:
 ```bash
 chmod +x packages/mcp-config/dist/mcp-config.cjs
 ```
-
-## License
-
-Part of the AI Toolkit monorepo.
