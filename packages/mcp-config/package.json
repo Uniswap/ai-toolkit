@@ -17,8 +17,7 @@
     "directory": "packages/mcp-config"
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "restricted"
   },
   "type": "commonjs",
   "main": "./dist/index.js",

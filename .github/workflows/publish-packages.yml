@@ -312,6 +312,7 @@ jobs:
           echo ""
         env:
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
       - name: Version and publish packages (dry run)
         if: github.event.inputs.dryRun == 'true' || github.event_name == 'workflow_dispatch'
@@ -450,6 +451,8 @@ jobs:
             echo ""
             echo "✅ All packages published successfully!"
           fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
       - name: Push version commits and tags
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.affected.outputs.has_affected == 'true'
