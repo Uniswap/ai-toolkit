@@ -136,9 +136,9 @@ const ADDON_REGISTRY: AddonMetadata[] = [
     type: 'mcp-server',
     packageName: 'slack-mcp',
     mcp: {
-      serverName: 'zencoder-slack',
-      command: 'slack-mcp',
-      args: ['--transport', 'stdio'],
+      serverName: 'slack',
+      command: 'npx',
+      args: ['-y', '@zencoderai/slack-mcp-server', '--transport', 'stdio'],
       env: {
         SLACK_BOT_TOKEN: 'PROMPT_TO_INSERT_SLACK_BOT_TOKEN',
         SLACK_TEAM_ID: 'TKZBCKUJJ',

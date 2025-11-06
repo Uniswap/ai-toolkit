@@ -67,7 +67,7 @@ git checkout -b fix/bug-description
 # ... edit files ...
 
 # Run quality checks frequently
-npx nx format:write --uncommitted  # Format code
+npm run format  # Format code
 npx nx affected --target=lint --base=next  # Lint
 npx nx affected --target=test --base=next  # Test
 

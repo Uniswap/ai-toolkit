@@ -3,38 +3,88 @@ name: Generate Changelog
 # Reusable workflow for generating AI-powered changelogs from git commit ranges.
 # This workflow can be called by other workflows to generate consistent, high-quality
 # changelogs using Anthropic's Claude API.
+#
+# Supports flexible git reference types (SHA, tag, branch) and multiple output formats
+# (Slack mrkdwn, standard markdown) generated in a single AI call for efficiency.
 
 on:
   workflow_call:
     inputs:
-      before_sha:
-        description: 'Starting commit SHA for the changelog range'
+      from_ref:
+        description: |
+          Starting git reference for changelog range.
+          Accepts: commit SHA, tag (v1.0.0), or branch name (main).
+          Example: "v1.0.0" or "abc123def" or "main"
         required: true
         type: string
-      after_sha:
-        description: 'Ending commit SHA for the changelog range'
+
+      to_ref:
+        description: |
+          Ending git reference for changelog range.
+          Accepts: commit SHA, tag (v1.1.0), or branch name (develop).
+          Example: "v1.1.0" or "def456abc" or "HEAD"
         required: true
         type: string
+
+      output_formats:
+        description: |
+          Comma-separated list of output formats to generate.
+          Options: "slack", "markdown", or "slack,markdown"
+          - "slack": Slack mrkdwn format with proper escaping
+          - "markdown": Standard GitHub-flavored markdown
+          Default: "markdown"
+        required: false
+        type: string
+        default: 'markdown'
+
       custom_prompt_file:
-        description: 'Path to custom prompt markdown file (relative to repo root, e.g., .github/prompts/my-prompt.md)'
+        description: |
+          Path to custom prompt markdown file (relative to repo root).
+          Example: ".github/prompts/changelog-prompt.md"
+          Mutually exclusive with custom_prompt_text.
+          If both provided, custom_prompt_text takes precedence.
         required: false
         type: string
+
       custom_prompt_text:
-        description: 'Inline custom prompt text (overrides custom_prompt_file if both provided)'
+        description: |
+          Inline custom prompt text for AI changelog generation.
+          Overrides custom_prompt_file if both provided.
+          Example: "Focus on breaking changes and new features. Group by category."
         required: false
         type: string
+
       max_tokens:
-        description: 'Maximum tokens for AI response'
+        description: |
+          Maximum tokens for AI response.
+          Recommended: 1024 for concise, 2048 for detailed, 4096 for comprehensive.
+          Default: 2048
         required: false
         type: number
-        default: 1024
+        default: 2048
+
     outputs:
-      changelog:
-        description: 'Generated changelog text'
-        value: ${{ jobs.generate.outputs.changelog }}
+      changelog_slack:
+        description: |
+          Slack mrkdwn formatted changelog.
+          Only populated if "slack" included in output_formats.
+          Properly escaped for Slack Block Kit API.
+        value: ${{ jobs.generate.outputs.changelog_slack }}
+
+      changelog_markdown:
+        description: |
+          Standard GitHub-flavored markdown formatted changelog.
+          Only populated if "markdown" included in output_formats.
+          Safe for GitHub releases, Notion, and general markdown renderers.
+        value: ${{ jobs.generate.outputs.changelog_markdown }}
+
       generation_method:
-        description: 'Method used to generate changelog (ai or fallback)'
+        description: |
+          Method used to generate changelog.
+          Values: "ai" (successful AI generation) or "fallback" (commit list fallback).
+          Use this to determine if AI generation succeeded.
         value: ${{ jobs.generate.outputs.method }}
+
     secrets:
       ANTHROPIC_API_KEY:
         description: 'Anthropic API key for AI changelog generation'
@@ -46,7 +96,8 @@ jobs:
     permissions:
       contents: read
     outputs:
-      changelog: ${{ steps.ai-changelog.outputs.changelog || steps.fallback-changelog.outputs.changelog }}
+      changelog_slack: ${{ steps.parse-response.outputs.changelog_slack || steps.fallback-changelog.outputs.changelog }}
+      changelog_markdown: ${{ steps.parse-response.outputs.changelog_markdown || steps.fallback-changelog.outputs.changelog }}
       method: ${{ steps.ai-changelog.outcome == 'success' && 'ai' || 'fallback' }}
 
     steps:
@@ -57,17 +108,34 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Normalize git references
+        id: normalize-refs
+        env:
+          INPUT_FROM_REF: ${{ inputs.from_ref }}
+          INPUT_TO_REF: ${{ inputs.to_ref }}
+        run: |
+          echo "Input references: $INPUT_FROM_REF → $INPUT_TO_REF"
+
+          # Normalize references to commit SHAs
+          FROM_SHA=$(git rev-parse "$INPUT_FROM_REF")
+          TO_SHA=$(git rev-parse "$INPUT_TO_REF")
+
+          echo "Resolved SHAs: $FROM_SHA → $TO_SHA"
+
+          echo "from_sha=$FROM_SHA" >> $GITHUB_OUTPUT
+          echo "to_sha=$TO_SHA" >> $GITHUB_OUTPUT
+
       - name: Get git diff and commit messages
         id: git-context
         run: |
-          BEFORE_SHA="${{ inputs.before_sha }}"
-          AFTER_SHA="${{ inputs.after_sha }}"
+          FROM_SHA="${{ steps.normalize-refs.outputs.from_sha }}"
+          TO_SHA="${{ steps.normalize-refs.outputs.to_sha }}"
 
-          echo "Comparing commits: $BEFORE_SHA...$AFTER_SHA"
+          echo "Comparing commits: $FROM_SHA...$TO_SHA"
 
           # Get the diff with file changes and commit messages
-          DIFF_OUTPUT=$(git diff --stat "$BEFORE_SHA...$AFTER_SHA")
-          COMMIT_MESSAGES=$(git log --pretty=format:"- %s (%h)" "$BEFORE_SHA..$AFTER_SHA")
+          DIFF_OUTPUT=$(git diff --stat "$FROM_SHA...$TO_SHA")
+          COMMIT_MESSAGES=$(git log --pretty=format:"- %s (%h)" "$FROM_SHA..$TO_SHA")
 
           # Combine into a single context for the AI
           FULL_CONTEXT="## Commits in this range:
@@ -109,28 +177,42 @@ jobs:
       - name: Generate AI-powered changelog
         id: ai-changelog
         continue-on-error: true
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CUSTOM_TEXT_PROVIDED: ${{ inputs.custom_prompt_text != '' }}
+          FILE_LOAD_SUCCESS: ${{ steps.load-prompt.outcome == 'success' }}
+          OUTPUT_FORMATS: ${{ inputs.output_formats }}
+          CUSTOM_PROMPT_TEXT: ${{ inputs.custom_prompt_text }}
+          CUSTOM_PROMPT_FILE: ${{ steps.load-prompt.outputs.prompt }}
+          GIT_CONTEXT: ${{ steps.git-context.outputs.context }}
+          MAX_TOKENS: ${{ inputs.max_tokens }}
         run: |
-          # Evaluate conditions in GitHub Actions context (safe for multi-line content)
-          CUSTOM_TEXT_PROVIDED="${{ inputs.custom_prompt_text != '' }}"
-          FILE_LOAD_SUCCESS="${{ steps.load-prompt.outcome == 'success' }}"
+          # Evaluate conditions from environment variables
 
-          # Use boolean flags to control flow (never test actual content)
+          # Determine which formats to generate
+          GENERATE_SLACK="false"
+          GENERATE_MARKDOWN="false"
+
+          if [[ "$OUTPUT_FORMATS" == *"slack"* ]]; then
+            GENERATE_SLACK="true"
+          fi
+          if [[ "$OUTPUT_FORMATS" == *"markdown"* ]]; then
+            GENERATE_MARKDOWN="true"
+          fi
+
+          echo "Generating formats: slack=$GENERATE_SLACK, markdown=$GENERATE_MARKDOWN"
+
+          # Build base prompt
           if [ "$CUSTOM_TEXT_PROVIDED" == "true" ]; then
-            # Use heredoc to safely assign inline custom prompt
-            PROMPT=$(cat <<'PROMPT_EOF'
-          ${{ inputs.custom_prompt_text }}
-          PROMPT_EOF
-          )
+            # Use inline custom prompt from environment variable
+            PROMPT="$CUSTOM_PROMPT_TEXT"
             echo "Using inline custom prompt"
           elif [ "$FILE_LOAD_SUCCESS" == "true" ]; then
-            # Use heredoc to safely assign file-based custom prompt
-            PROMPT=$(cat <<'PROMPT_EOF'
-          ${{ steps.load-prompt.outputs.prompt }}
-          PROMPT_EOF
-          )
+            # Use file-based custom prompt from environment variable
+            PROMPT="$CUSTOM_PROMPT_FILE"
             echo "Using custom prompt from file"
           else
-            # Default prompt (similar to notify-release.yml)
+            # Default prompt
             PROMPT=$(cat <<'PROMPT_EOF'
           You are a changelog generator. Based on the following git changes, create a concise, human-readable changelog summary.
 
@@ -139,34 +221,106 @@ jobs:
           - What bugs were fixed
           - What was changed or improved
 
-          Format requirements:
-          - Use bullet points (• or -) for each item
-          - Keep it to 3-10 items max
-          - Be concise and clear
-          - Do NOT include commit hashes unless specifically requested
-          - Group related changes together
+          Keep it to 3-10 items max.
+          Group related changes together.
           PROMPT_EOF
           )
             echo "Using default prompt"
           fi
 
-          # Append the git context to the prompt using heredoc
-          FULL_PROMPT=$(cat <<FULL_PROMPT_EOF
-          $PROMPT
+          # Build format-specific instructions
+          FORMAT_INSTRUCTIONS=""
 
-          ${{ steps.git-context.outputs.context }}
-          FULL_PROMPT_EOF
+          if [ "$GENERATE_SLACK" == "true" ] && [ "$GENERATE_MARKDOWN" == "true" ]; then
+            # Both formats requested
+            FORMAT_INSTRUCTIONS=$(cat <<'FORMAT_EOF'
+
+          ## Output Format Requirements
+
+          Generate the changelog in TWO formats with clear section markers:
+
+          ### Slack Format
+
+          Start this section with the marker: "## SLACK FORMAT"
+
+          Requirements for Slack format:
+          - Use Slack mrkdwn syntax
+          - Use • (bullet) for list items
+          - Use *bold* for emphasis
+          - Use _italic_ for secondary emphasis
+          - Use `code` for inline code
+          - Keep very concise (3-10 items max)
+          - Properly escape special characters for Slack
+          - Do NOT include commit hashes
+          - Format: • Item description
+
+          ### Markdown Format
+
+          Start this section with the marker: "## MARKDOWN FORMAT"
+
+          Requirements for Markdown format:
+          - Use standard GitHub-flavored markdown
+          - Use - or * for list items
+          - Use **bold** for emphasis
+          - Use *italic* for secondary emphasis
+          - Use `code` for inline code
+          - Include appropriate headers (###, ####) for grouping
+          - Can be more detailed than Slack version
+          - Format: - Item description
+          FORMAT_EOF
           )
+          elif [ "$GENERATE_SLACK" == "true" ]; then
+            # Slack only
+            FORMAT_INSTRUCTIONS=$(cat <<'FORMAT_EOF'
+
+          ## Output Format Requirements
+
+          Format the changelog for Slack using mrkdwn syntax:
+          - Use • (bullet) for list items
+          - Use *bold* for emphasis
+          - Use _italic_ for secondary emphasis
+          - Use `code` for inline code
+          - Keep very concise (3-10 items max)
+          - Properly escape special characters for Slack
+          - Do NOT include commit hashes unless specifically requested
+          - Format: • Item description
+          FORMAT_EOF
+          )
+          elif [ "$GENERATE_MARKDOWN" == "true" ]; then
+            # Markdown only
+            FORMAT_INSTRUCTIONS=$(cat <<'FORMAT_EOF'
+
+          ## Output Format Requirements
+
+          Format the changelog using standard markdown:
+          - Use - or * for list items
+          - Use **bold** for emphasis
+          - Use *italic* for secondary emphasis
+          - Use `code` for inline code
+          - Include appropriate headers (###, ####) for grouping if helpful
+          - Keep concise but can be more detailed than typical Slack messages
+          - Do NOT include commit hashes unless specifically requested
+          - Format: - Item description
+          FORMAT_EOF
+          )
+          fi
+
+          # Append the git context and format instructions to the prompt
+          FULL_PROMPT="$PROMPT
+
+          $FORMAT_INSTRUCTIONS
+
+          $GIT_CONTEXT"
 
           # Call Anthropic API
           RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
             -H "Content-Type: application/json" \
-            -H "x-api-key: ${{ secrets.ANTHROPIC_API_KEY }}" \
+            -H "x-api-key: $ANTHROPIC_API_KEY" \
             -H "anthropic-version: 2023-06-01" \
             -d @- <<EOF
           {
             "model": "claude-haiku-4-5",
-            "max_tokens": ${{ inputs.max_tokens }},
+            "max_tokens": $MAX_TOKENS,
             "messages": [{
               "role": "user",
               "content": $(echo "$FULL_PROMPT" | jq -Rs .)
@@ -186,30 +340,91 @@ jobs:
 
           echo "✅ AI changelog generated successfully"
 
-          # Save to output
+          # Save full response to output for parsing
           {
-            echo 'changelog<<EOF'
+            echo 'response<<EOF'
             echo "$CHANGELOG"
             echo 'EOF'
           } >> $GITHUB_OUTPUT
+
+          # Save format flags for parsing step
+          echo "generate_slack=$GENERATE_SLACK" >> $GITHUB_OUTPUT
+          echo "generate_markdown=$GENERATE_MARKDOWN" >> $GITHUB_OUTPUT
+
+      - name: Parse AI response into formats
+        if: steps.ai-changelog.outcome == 'success'
+        id: parse-response
+        env:
+          GENERATE_SLACK: ${{ steps.ai-changelog.outputs.generate_slack }}
+          GENERATE_MARKDOWN: ${{ steps.ai-changelog.outputs.generate_markdown }}
+          AI_RESPONSE: ${{ steps.ai-changelog.outputs.response }}
+        run: |
+          # Load the response from environment variable
+          RESPONSE="$AI_RESPONSE"
+
+          # Parse based on what was requested
+          if [ "$GENERATE_SLACK" == "true" ] && [ "$GENERATE_MARKDOWN" == "true" ]; then
+            # Both formats - need to split the response
+
+            # Extract Slack format (between "## SLACK FORMAT" and "## MARKDOWN FORMAT")
+            SLACK_CONTENT=$(echo "$RESPONSE" | sed -n '/## SLACK FORMAT/,/## MARKDOWN FORMAT/p' | sed '1d;$d')
+
+            # Extract Markdown format (after "## MARKDOWN FORMAT")
+            MARKDOWN_CONTENT=$(echo "$RESPONSE" | sed -n '/## MARKDOWN FORMAT/,$p' | sed '1d')
+
+            # Save both outputs
+            {
+              echo 'changelog_slack<<EOF'
+              echo "$SLACK_CONTENT"
+              echo 'EOF'
+            } >> $GITHUB_OUTPUT
+
+            {
+              echo 'changelog_markdown<<EOF'
+              echo "$MARKDOWN_CONTENT"
+              echo 'EOF'
+            } >> $GITHUB_OUTPUT
+
+            echo "✅ Parsed both Slack and Markdown formats"
+
+          elif [ "$GENERATE_SLACK" == "true" ]; then
+            # Slack only - entire response is Slack format
+            {
+              echo 'changelog_slack<<EOF'
+              echo "$RESPONSE"
+              echo 'EOF'
+            } >> $GITHUB_OUTPUT
+
+            echo "✅ Generated Slack format"
+
+          elif [ "$GENERATE_MARKDOWN" == "true" ]; then
+            # Markdown only - entire response is Markdown format
+            {
+              echo 'changelog_markdown<<EOF'
+              echo "$RESPONSE"
+              echo 'EOF'
+            } >> $GITHUB_OUTPUT
+
+            echo "✅ Generated Markdown format"
+          fi
 
       - name: Generate fallback changelog from commits
         if: steps.ai-changelog.outcome == 'failure'
         id: fallback-changelog
         run: |
-          BEFORE_SHA="${{ inputs.before_sha }}"
-          AFTER_SHA="${{ inputs.after_sha }}"
+          FROM_SHA="${{ steps.normalize-refs.outputs.from_sha }}"
+          TO_SHA="${{ steps.normalize-refs.outputs.to_sha }}"
 
-          echo "⚠️ AI generation failed, using fallback changelog"
+          echo "⚠️ AI generation failed, using fallback changelog (markdown format)"
 
           # Get commits between the two SHAs
-          COMMITS=$(git log --pretty=format:"• %s (%h)" "$BEFORE_SHA..$AFTER_SHA" | head -n 20)
+          COMMITS=$(git log --pretty=format:"- %s (%h)" "$FROM_SHA..$TO_SHA" | head -n 20)
 
           if [ -z "$COMMITS" ]; then
-            COMMITS="• No commits found in this range"
+            COMMITS="- No commits found in this range"
           fi
 
-          # Save to output
+          # Save to output (markdown format only for fallback)
           {
             echo 'changelog<<EOF'
             echo "$COMMITS"
@@ -218,31 +433,71 @@ jobs:
 
       - name: Summary
         if: always()
+        env:
+          AI_OUTCOME: ${{ steps.ai-changelog.outcome }}
+          SLACK_CHANGELOG_OUTPUT: ${{ steps.parse-response.outputs.changelog_slack }}
+          MARKDOWN_CHANGELOG_OUTPUT: ${{ steps.parse-response.outputs.changelog_markdown }}
+          FALLBACK_CHANGELOG_OUTPUT: ${{ steps.fallback-changelog.outputs.changelog }}
+          INPUT_CUSTOM_PROMPT_TEXT: ${{ inputs.custom_prompt_text }}
+          INPUT_CUSTOM_PROMPT_FILE: ${{ inputs.custom_prompt_file }}
+          INPUT_FROM_REF: ${{ inputs.from_ref }}
+          INPUT_TO_REF: ${{ inputs.to_ref }}
+          NORMALIZED_FROM_SHA: ${{ steps.normalize-refs.outputs.from_sha }}
+          NORMALIZED_TO_SHA: ${{ steps.normalize-refs.outputs.to_sha }}
+          INPUT_OUTPUT_FORMATS: ${{ inputs.output_formats }}
         run: |
-          # Safely capture the changelog using heredoc
-          CHANGELOG=$(cat <<'CHANGELOG_EOF'
-          ${{ steps.ai-changelog.outputs.changelog || steps.fallback-changelog.outputs.changelog }}
-          CHANGELOG_EOF
-          )
+          # Safely capture the changelog from environment variables
+          if [ "$AI_OUTCOME" == "success" ]; then
+            SLACK_CHANGELOG="$SLACK_CHANGELOG_OUTPUT"
+            MARKDOWN_CHANGELOG="$MARKDOWN_CHANGELOG_OUTPUT"
+          else
+            MARKDOWN_CHANGELOG="$FALLBACK_CHANGELOG_OUTPUT"
+          fi
 
           # Determine prompt source
-          if [ -n "${{ inputs.custom_prompt_text }}" ]; then
+          if [ -n "$INPUT_CUSTOM_PROMPT_TEXT" ]; then
             PROMPT_SOURCE="Inline custom prompt"
-          elif [ -n "${{ inputs.custom_prompt_file }}" ]; then
-            PROMPT_SOURCE="\`${{ inputs.custom_prompt_file }}\`"
+          elif [ -n "$INPUT_CUSTOM_PROMPT_FILE" ]; then
+            PROMPT_SOURCE="\`$INPUT_CUSTOM_PROMPT_FILE\`"
           else
             PROMPT_SOURCE="Default prompt"
+          fi
+
+          # Determine generation method
+          if [ "$AI_OUTCOME" == "success" ]; then
+            GENERATION_METHOD="AI-powered ✨"
+          else
+            GENERATION_METHOD="Fallback (commit list) ⚠️"
           fi
 
           # Write the entire summary using heredoc to safely handle all content
           cat <<SUMMARY_EOF >> $GITHUB_STEP_SUMMARY
           ## 📝 Changelog Generation Summary
 
-          - **Commit Range**: \`${{ inputs.before_sha }}\` → \`${{ inputs.after_sha }}\`
-          - **Generation Method**: ${{ steps.ai-changelog.outcome == 'success' && 'AI-powered ✨' || 'Fallback (commit list) ⚠️' }}
+          - **Git References**: \`$INPUT_FROM_REF\` → \`$INPUT_TO_REF\`
+          - **Resolved SHAs**: \`$NORMALIZED_FROM_SHA\` → \`$NORMALIZED_TO_SHA\`
+          - **Output Formats**: \`$INPUT_OUTPUT_FORMATS\`
+          - **Generation Method**: $GENERATION_METHOD
           - **Prompt Source**: $PROMPT_SOURCE
 
-          ### Generated Changelog:
-
-          $CHANGELOG
           SUMMARY_EOF
+
+          # Add Slack format if generated
+          if [ -n "$SLACK_CHANGELOG" ]; then
+            cat <<SLACK_SECTION >> $GITHUB_STEP_SUMMARY
+          ### Slack Format:
+
+          $SLACK_CHANGELOG
+
+          SLACK_SECTION
+          fi
+
+          # Add Markdown format if generated
+          if [ -n "$MARKDOWN_CHANGELOG" ]; then
+            cat <<MARKDOWN_SECTION >> $GITHUB_STEP_SUMMARY
+          ### Markdown Format:
+
+          $MARKDOWN_CHANGELOG
+
+          MARKDOWN_SECTION
+          fi

@@ -44,13 +44,13 @@ on:
   workflow_dispatch:
     inputs:
       dryRun:
-        description: "Perform a dry run without publishing"
+        description: 'Perform a dry run without publishing'
         required: false
-        default: "false"
+        default: 'false'
         type: choice
         options:
-          - "true"
-          - "false"
+          - 'true'
+          - 'false'
 
 # Ensure only one publish workflow runs at a time per branch
 # If a new run is triggered while one is in progress, it will be queued
@@ -89,9 +89,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version: "22.21.1"
-          registry-url: "https://registry.npmjs.org"
-          scope: "@uniswap"
+          node-version: '22.21.1'
+          registry-url: 'https://registry.npmjs.org'
+          scope: '@uniswap'
 
       - name: Install npm
         run: npm install -g npm@11.6.2
@@ -167,18 +167,55 @@ jobs:
             AFFECTED_JSON="[]"
           fi
 
-          # Extract just the project names from the JSON array and join with commas
-          AFFECTED_PROJECTS=$(echo "$AFFECTED_JSON" | jq -r 'join(",")')
+          # Extract project names and filter out private packages
+          # Read each project and check if it has "private": true in package.json
+          echo "Filtering out private packages..."
+          PUBLISHABLE_PROJECTS=()
+          PACKAGE_NAMES=()
 
-          echo "Affected projects: $AFFECTED_PROJECTS"
+          for project in $(echo "$AFFECTED_JSON" | jq -r '.[]'); do
+            # Find the package.json for this project
+            # Use nx show project to get the project root
+            PROJECT_ROOT=$(npx nx show project "$project" --json 2>/dev/null | jq -r '.root' || echo "")
+
+            if [ -n "$PROJECT_ROOT" ] && [ -f "$PROJECT_ROOT/package.json" ]; then
+              # Check if package is private
+              IS_PRIVATE=$(jq -r '.private // false' "$PROJECT_ROOT/package.json")
+
+              if [ "$IS_PRIVATE" = "true" ]; then
+                echo "  ⏭️  Skipping $project (private: true)"
+              else
+                PACKAGE_NAME=$(jq -r '.name // ""' "$PROJECT_ROOT/package.json")
+                if [ -n "$PACKAGE_NAME" ]; then
+                  echo "  ✅ Including $project → $PACKAGE_NAME (publishable)"
+                  PUBLISHABLE_PROJECTS+=("$project")  # Store Nx project name
+                  PACKAGE_NAMES+=("$PACKAGE_NAME")    # Store npm package name
+                else
+                  echo "  ⚠️  Skipping $project (no package name found)"
+                fi
+              fi
+            else
+              echo "  ⚠️  Skipping $project (no package.json found)"
+            fi
+          done
+
+          # Join arrays with commas
+          AFFECTED_PROJECTS=$(IFS=,; echo "${PUBLISHABLE_PROJECTS[*]}")
+          AFFECTED_PACKAGES=$(IFS=,; echo "${PACKAGE_NAMES[*]}")
+
+          echo "Publishable affected projects (Nx names): $AFFECTED_PROJECTS"
+          echo "Publishable affected packages (npm names): $AFFECTED_PACKAGES"
+
           echo "projects=$AFFECTED_PROJECTS" >> $GITHUB_OUTPUT
+          echo "packages=$AFFECTED_PACKAGES" >> $GITHUB_OUTPUT
 
           # Set a flag indicating if any packages are affected
           if [ -z "$AFFECTED_PROJECTS" ] || [ "$AFFECTED_PROJECTS" = "null" ]; then
             echo "has_affected=false" >> $GITHUB_OUTPUT
-            echo "No affected packages found - skipping release"
+            echo "No publishable affected packages found - skipping release"
           else
             echo "has_affected=true" >> $GITHUB_OUTPUT
+            echo "Found ${#PUBLISHABLE_PROJECTS[@]} publishable package(s)"
           fi
 
       - name: Build affected packages
@@ -186,6 +223,175 @@ jobs:
         run: |
           echo "Building affected packages: ${{ steps.affected.outputs.projects }}"
           npx nx affected --target=build --base=${{ steps.base-sha.outputs.base }} --head=HEAD
+
+      - name: Clean up orphaned tags
+        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.affected.outputs.has_affected == 'true'
+        run: |
+          # Configure npm authentication for viewing restricted packages
+          # The @uniswap packages are restricted and require authentication even for read operations
+          echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+          echo "Configured npm authentication for restricted package queries"
+          echo ""
+
+          AFFECTED_PACKAGES="${{ steps.affected.outputs.packages }}"
+
+          echo "=========================================="
+          echo "Checking for orphaned Git tags"
+          echo "=========================================="
+          echo ""
+          echo "Orphaned tags are Git tags that exist but their corresponding"
+          echo "npm package version was never successfully published."
+          echo "These must be cleaned up before versioning can proceed."
+          echo ""
+
+          # Convert comma-separated list to array
+          IFS=',' read -ra PACKAGES <<< "$AFFECTED_PACKAGES"
+
+          CLEANED_TAGS=()
+
+          for package in "${PACKAGES[@]}"; do
+            if [ -z "$package" ]; then
+              continue
+            fi
+
+            echo "Checking package: $package"
+
+            # Extract the package name without scope for tag checking
+            PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
+
+            # Get the latest tag for this package
+            LATEST_TAG=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | sort -V | tail -n 1)
+
+            if [ -z "$LATEST_TAG" ]; then
+              echo "  ℹ️  No tags found - will create first tag during versioning"
+              echo ""
+              continue
+            fi
+
+            # Extract version from tag
+            VERSION="${LATEST_TAG##*@}"
+            echo "  Latest tag: $LATEST_TAG (version: $VERSION)"
+
+            # Check if this specific version exists on npm
+            if npm view "${package}@${VERSION}" version --registry=https://registry.npmjs.org &>/dev/null; then
+              echo "  ✅ Version $VERSION exists on npm - tag is valid"
+              echo ""
+            else
+              echo "  ⚠️  Version $VERSION NOT found on npm - tag is orphaned!"
+              echo "  🧹 Deleting orphaned tag: $LATEST_TAG"
+
+              # Delete tag locally
+              if git tag -d "$LATEST_TAG" 2>/dev/null; then
+                echo "  ✅ Deleted local tag"
+              else
+                echo "  ⚠️  Local tag already deleted or doesn't exist"
+              fi
+
+              # Delete tag from remote
+              if git push --delete origin "$LATEST_TAG" 2>/dev/null; then
+                echo "  ✅ Deleted remote tag"
+                CLEANED_TAGS+=("$LATEST_TAG")
+              else
+                echo "  ⚠️  Remote tag already deleted or doesn't exist"
+              fi
+
+              echo ""
+            fi
+          done
+
+          echo ""
+          echo "=========================================="
+          echo "Checking for missing Git tags"
+          echo "=========================================="
+          echo ""
+          echo "Missing tags are npm versions that were successfully"
+          echo "published but their Git tags were never pushed to remote."
+          echo "These must be created so Nx can properly version from them."
+          echo ""
+
+          CREATED_TAGS=()
+
+          for package in "${PACKAGES[@]}"; do
+            if [ -z "$package" ]; then
+              continue
+            fi
+
+            echo "Checking package: $package"
+
+            # Get latest version from npm for the appropriate dist-tag
+            if [[ "${{ github.ref_name }}" == "next" ]]; then
+              LATEST_NPM=$(npm view "$package" dist-tags.next --registry=https://registry.npmjs.org 2>/dev/null || echo "")
+              echo "  Querying npm dist-tag 'next'..."
+            else
+              LATEST_NPM=$(npm view "$package" version --registry=https://registry.npmjs.org 2>/dev/null || echo "")
+              echo "  Querying npm version (latest)..."
+            fi
+
+            if [ -z "$LATEST_NPM" ]; then
+              echo "  ℹ️  Package not on npm yet (will be first release)"
+              echo ""
+              continue
+            fi
+
+            EXPECTED_TAG="${package}@${LATEST_NPM}"
+            echo "  Latest npm version: $LATEST_NPM"
+
+            # Check if Git tag exists for this version
+            if git rev-parse "$EXPECTED_TAG" >/dev/null 2>&1; then
+              echo "  ✅ Git tag exists: $EXPECTED_TAG (in sync)"
+            else
+              echo "  🔧 Git tag missing for npm version $LATEST_NPM"
+              echo "  🏷️  Creating tag: $EXPECTED_TAG"
+
+              # Create tag at current HEAD
+              # (Assumes HEAD is at or past the commit where this version was published)
+              if git tag "$EXPECTED_TAG" HEAD 2>/dev/null; then
+                echo "  ✅ Created local tag at HEAD"
+                CREATED_TAGS+=("$EXPECTED_TAG")
+              else
+                echo "  ⚠️  Failed to create tag (may already exist locally)"
+              fi
+            fi
+
+            echo ""
+          done
+
+          # Summary
+          echo "=========================================="
+          echo "Git/npm Sync Summary"
+          echo "=========================================="
+
+          if [ ${#CLEANED_TAGS[@]} -gt 0 ]; then
+            echo "Orphaned Tags Cleaned (deleted): ${#CLEANED_TAGS[@]}"
+            for tag in "${CLEANED_TAGS[@]}"; do
+              echo "  🧹 $tag"
+            done
+            echo "  → These will be recreated with correct associations"
+          else
+            echo "Orphaned Tags Cleaned: 0"
+            echo "  ✅ No orphaned tags found"
+          fi
+
+          echo ""
+
+          if [ ${#CREATED_TAGS[@]} -gt 0 ]; then
+            echo "Missing Tags Created: ${#CREATED_TAGS[@]}"
+            for tag in "${CREATED_TAGS[@]}"; do
+              echo "  🏷️  $tag"
+            done
+            echo "  → Nx will now use these as base for version bumps"
+          else
+            echo "Missing Tags Created: 0"
+            echo "  ✅ Git tags in sync with npm versions"
+          fi
+
+          echo ""
+          echo "✅ Git/npm synchronization complete."
+          echo "   Nx versioning will now use accurate base versions."
+          echo ""
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
       - name: Version and publish packages (dry run)
         if: github.event.inputs.dryRun == 'true' || github.event_name == 'workflow_dispatch'
@@ -218,49 +424,121 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
       - name: Publish affected packages to NPM
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.affected.outputs.has_affected == 'true'
         run: |
+          # Configure npm authentication for viewing restricted packages
+          # The @uniswap packages are restricted and require authentication even for read operations
+          echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+          echo "Configured npm authentication for restricted package queries"
+          echo ""
+
           AFFECTED_PROJECTS="${{ steps.affected.outputs.projects }}"
+          AFFECTED_PACKAGES="${{ steps.affected.outputs.packages }}"
           echo "Publishing affected packages with tag: ${{ steps.npm-tag.outputs.tag }} to NPM"
-          echo "Affected packages: $AFFECTED_PROJECTS"
+          echo "Nx projects: $AFFECTED_PROJECTS"
+          echo "npm packages: $AFFECTED_PACKAGES"
+          echo ""
 
-          # Check if any of the affected packages have been released before
-          # If no tags exist for any affected package, use --first-release flag
-          IS_FIRST_RELEASE=true
+          # Convert comma-separated lists to arrays
+          IFS=',' read -ra PROJECTS <<< "$AFFECTED_PROJECTS"
+          IFS=',' read -ra PACKAGES <<< "$AFFECTED_PACKAGES"
 
-          # Convert comma-separated list to array
-          IFS=',' read -ra PACKAGES <<< "$AFFECTED_PROJECTS"
+          # Track publishing results
+          FAILED_PACKAGES=()
+          SUCCESS_PACKAGES=()
 
-          for package in "${PACKAGES[@]}"; do
-            if [ -n "$package" ]; then
-              # Extract the package name without scope for tag checking
-              PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
+          # Publish each package individually with appropriate flags
+          # Loop through both arrays using indices
+          for i in "${!PROJECTS[@]}"; do
+            project="${PROJECTS[$i]}"
+            package="${PACKAGES[$i]}"
 
-              echo "Checking for Git tags for package: $package"
+            if [ -z "$project" ] || [ -z "$package" ]; then
+              continue
+            fi
 
-              # Check if any tags exist for this package
-              # Nx typically creates tags in the format: package-name@version
-              if git tag -l | grep -q "^${PACKAGE_NAME}@" || git tag -l | grep -q "^${package}@"; then
-                echo "✓ Found existing tags for $package"
-                IS_FIRST_RELEASE=false
-                break
+            echo "=========================================="
+            echo "Processing: $project → $package"
+            echo "=========================================="
+
+            # Extract the package name without scope for debugging
+            PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
+
+            # Check if package exists on npm registry (not just Git tags)
+            # Git tags can exist even if npm publishing failed, so we need to check npm directly
+            echo "Checking if package exists on npm registry..."
+
+            # Query npm registry to check if package exists
+            # Returns 0 if package exists, non-zero if it doesn't
+            if npm view "$package" version --registry=https://registry.npmjs.org &>/dev/null; then
+              # Package exists on npm
+              NPM_VERSION=$(npm view "$package" version --registry=https://registry.npmjs.org 2>/dev/null || echo "unknown")
+              echo "📦 Status: EXISTING package on npm (current version: $NPM_VERSION)"
+              echo "Publishing without --first-release flag..."
+
+              # Use Nx PROJECT NAME for the --projects flag
+              if npx nx release publish --projects="$project" --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org; then
+                echo "✅ Successfully published $package"
+                SUCCESS_PACKAGES+=("$package")
               else
-                echo "✗ No tags found for $package"
+                echo "❌ Failed to publish $package"
+                FAILED_PACKAGES+=("$package")
+              fi
+            else
+              # Package does NOT exist on npm (truly a first release)
+              echo "🆕 Status: NEW package (not found on npm registry)"
+
+              # Show Git tags if they exist (for debugging orphaned tags)
+              FOUND_TAGS=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | sort -u || echo "")
+              if [ -n "$FOUND_TAGS" ]; then
+                echo "⚠️  Note: Git tags exist but package not on npm (likely from failed previous publish)"
+                echo "Git tags found:"
+                echo "$FOUND_TAGS" | head -n 3
+                echo ""
+              fi
+
+              echo "Publishing with --first-release flag..."
+
+              # Use Nx PROJECT NAME for the --projects flag
+              if npx nx release publish --projects="$project" --first-release --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org; then
+                echo "✅ Successfully published $package (first release)"
+                SUCCESS_PACKAGES+=("$package")
+              else
+                echo "❌ Failed to publish $package (first release)"
+                FAILED_PACKAGES+=("$package")
               fi
             fi
+
+            echo ""
           done
 
-          # Publish the packages
-          # Nx release publish will only publish packages that were versioned in the previous step
-          if [ "$IS_FIRST_RELEASE" = true ]; then
-            echo "No tags found for any affected packages - publishing with --first-release flag"
-            npx nx release publish --first-release --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org
+          # Report results
+          echo "=========================================="
+          echo "Publishing Summary"
+          echo "=========================================="
+          echo "Successful: ${#SUCCESS_PACKAGES[@]} package(s)"
+          for pkg in "${SUCCESS_PACKAGES[@]}"; do
+            echo "  ✅ $pkg"
+          done
+
+          if [ ${#FAILED_PACKAGES[@]} -gt 0 ]; then
+            echo ""
+            echo "Failed: ${#FAILED_PACKAGES[@]} package(s)"
+            for pkg in "${FAILED_PACKAGES[@]}"; do
+              echo "  ❌ $pkg"
+            done
+            echo ""
+            echo "❌ Some packages failed to publish. Check the logs above for details."
+            exit 1
           else
-            echo "Found existing tags - publishing without --first-release flag"
-            npx nx release publish --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org
+            echo ""
+            echo "✅ All packages published successfully!"
           fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
       - name: Push version commits and tags
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.affected.outputs.has_affected == 'true'
@@ -273,8 +551,59 @@ jobs:
       - name: Create GitHub releases
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.affected.outputs.has_affected == 'true'
         run: |
-          # Nx Release will create GitHub releases based on changelog configuration
-          echo "GitHub releases will be created by Nx Release based on the changelog configuration"
+          # Get the tags that were just pushed (created by Nx release version)
+          # These are the tags created since the previous commit
+          AFFECTED_PACKAGES="${{ steps.affected.outputs.packages }}"
+
+          echo "Creating GitHub releases for affected packages..."
+          echo "npm packages: $AFFECTED_PACKAGES"
+          echo ""
+
+          # Convert comma-separated list to array
+          IFS=',' read -ra PACKAGES <<< "$AFFECTED_PACKAGES"
+
+          for package in "${PACKAGES[@]}"; do
+            if [ -z "$package" ]; then
+              continue
+            fi
+
+            echo "Processing package: $package"
+
+            # Extract the package name without scope for tag checking
+            PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
+
+            # Get the latest tag for this package
+            # Nx creates tags in the format: package-name@version or @scope/package-name@version
+            # Use git tag glob patterns for precise matching without escaping issues
+            LATEST_TAG=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | sort -V | tail -n 1)
+
+            if [ -n "$LATEST_TAG" ]; then
+              # Extract version from tag
+              VERSION="${LATEST_TAG##*@}"
+
+              # Check if release already exists
+              if gh release view "$LATEST_TAG" &>/dev/null; then
+                echo "✓ Release $LATEST_TAG already exists, skipping"
+              else
+                echo "Creating GitHub release for $LATEST_TAG"
+
+                # Create the release with a basic changelog
+                # The AI-generated changelog will be added to Slack/Notion notifications
+                gh release create "$LATEST_TAG" \
+                  --title "$package $VERSION" \
+                  --notes "Release $VERSION of $package. See [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details." \
+                  --verify-tag
+
+                echo "✅ Created release for $LATEST_TAG"
+              fi
+            else
+              echo "⚠️ No tag found for $package (this might indicate the package was not versioned)"
+            fi
+
+            echo ""
+          done
+
+          echo "GitHub releases creation complete."
         env:
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
 
@@ -284,9 +613,10 @@ jobs:
     if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && needs.publish.outputs.has_affected == 'true'
     uses: ./.github/workflows/_generate-changelog.yml
     with:
-      before_sha: ${{ github.event.before }}
-      after_sha: ${{ github.sha }}
-      custom_prompt_file: ".github/prompts/release-changelog.md"
+      from_ref: ${{ github.event.before }}
+      to_ref: ${{ github.sha }}
+      output_formats: 'slack,markdown'
+      custom_prompt_file: '.github/prompts/release-changelog.md'
       max_tokens: 1024
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -297,11 +627,12 @@ jobs:
     if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && needs.publish.outputs.has_affected == 'true'
     uses: ./.github/workflows/_notify-release.yml
     with:
+      changelog_slack: ${{ needs.generate-changelog.outputs.changelog_slack }}
+      changelog_markdown: ${{ needs.generate-changelog.outputs.changelog_markdown }}
+      destinations: 'slack'
+      from_ref: ${{ github.event.before }}
+      to_ref: ${{ github.sha }}
       branch: ${{ github.ref_name }}
-      npm_tag: ${{ github.ref_name == 'next' && 'next' || 'latest' }}
-      before_sha: ${{ github.event.before }}
-      after_sha: ${{ github.sha }}
-      changelog: ${{ needs.generate-changelog.outputs.changelog }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 

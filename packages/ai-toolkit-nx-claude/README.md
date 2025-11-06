@@ -16,7 +16,7 @@ npx nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec
 
 ### Run Specific Generators
 
-Each generator can be run directly desired generator's subcommand:
+Each generator can be run directly via the desired generator's subcommand:
 
 ```bash
 # One-shot installer for Claude Code configs

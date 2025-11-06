@@ -211,3 +211,122 @@ The lefthook configuration is defined in `lefthook.yml` at the root of the repos
 - All committed code is properly formatted
 - All committed code passes linting rules
 - Only affected files are checked (leveraging Nx's dependency graph)
+
+## GitHub Actions Best Practices
+
+### Script Separation Policy
+
+**CRITICAL: Complex scripts in GitHub Actions workflows MUST be separated into standalone files.**
+
+When working with GitHub Actions workflows (`.github/workflows/*.yml`), follow this mandatory policy:
+
+#### Policy Rules
+
+1. **Complex Logic Extraction**: If a workflow step contains complex bash scripting (50+ lines, multiple functions, intricate logic, API integrations, etc.), it MUST be extracted to a separate script file in the `.github/scripts/` directory.
+
+2. **Script Location**: All standalone scripts should be placed in `.github/scripts/` with descriptive, kebab-case names (e.g., `notion-publish.ts`, `notion-publish.sh`, `update-changelog.sh`).
+
+3. **Script Requirements**: Each script file should:
+
+   - Include a shebang line (`#!/usr/bin/env bash` for bash, `#!/usr/bin/env node` for TypeScript/JavaScript)
+   - Have comprehensive header documentation explaining:
+     - Purpose
+     - Usage/arguments
+     - Environment variables
+     - Outputs
+     - Examples
+   - Implement proper error handling (`set -euo pipefail` for bash, proper try-catch for TypeScript)
+   - Use clear argument parsing (positional args or environment variables)
+   - Include logging/output formatting
+   - Be executable (`chmod +x`)
+   - For TypeScript scripts: prefer using community-maintained libraries over custom implementations
+
+4. **Workflow Integration**: Call scripts from workflows using relative paths:
+
+   For bash scripts:
+
+   ```yaml
+   - name: Execute complex operation
+     run: |
+       ./.github/scripts/my-script.sh \
+         "${{ inputs.arg1 }}" \
+         "${{ inputs.arg2 }}"
+   ```
+
+   For TypeScript scripts (requires Node.js setup):
+
+   ```yaml
+   - name: Setup Node.js
+     uses: actions/setup-node@v4
+     with:
+       node-version: '22'
+       cache: 'npm'
+
+   - name: Install dependencies
+     run: npm ci
+
+   - name: Execute TypeScript script
+     run: |
+       npx tsx .github/scripts/my-script.ts \
+         "${{ inputs.arg1 }}" \
+         "${{ inputs.arg2 }}"
+   ```
+
+#### Why This Matters
+
+- **Maintainability**: Separate scripts are easier to read, test, and debug than inline YAML
+- **Reusability**: Scripts can be shared across multiple workflows
+- **Version Control**: Better diff tracking for script changes vs. YAML changes
+- **Testing**: Scripts can be tested independently outside of GitHub Actions
+- **IDE Support**: Better syntax highlighting, linting, and debugging in dedicated files
+- **Complexity Management**: Keeps workflows focused on orchestration, not implementation
+
+#### Examples
+
+**❌ BAD - Complex inline script:**
+
+```yaml
+- name: Publish to Notion
+  run: |
+    # 200+ lines of bash script with API calls, JSON parsing, etc.
+    API_KEY="${{ secrets.NOTION_API_KEY }}"
+    # ... (massive inline script)
+```
+
+**✅ GOOD - External TypeScript script with flags:**
+
+```yaml
+- name: Setup Node.js
+  uses: actions/setup-node@v4
+  with:
+    node-version: '22'
+    cache: 'npm'
+
+- name: Install dependencies
+  run: npm ci
+
+- name: Publish to Notion
+  run: |
+    npx tsx .github/scripts/notion-publish.ts \
+      --api-key "${{ secrets.NOTION_API_KEY }}" \
+      --database-id "${{ secrets.RELEASE_NOTES_NOTION_DATABASE_ID }}" \
+      --title "${{ inputs.title }}" \
+      --content "${{ inputs.content }}"
+```
+
+#### Current Examples
+
+See the following for reference implementations:
+
+- `.github/scripts/notion-publish.ts` - Notion API integration using TypeScript with community libraries (~120 lines)
+
+#### When Inline Scripts Are Acceptable
+
+Inline scripts are acceptable when they are:
+
+- Less than 20 lines
+- Simple, straightforward operations (git commands, file operations)
+- Single-purpose without complex logic
+- Not candidates for reuse across workflows
+
+**This policy is mandatory and should be enforced during code review.**

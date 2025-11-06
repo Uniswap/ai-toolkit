@@ -1,0 +1,271 @@
+name: Manual Changelog Generator
+
+# PURPOSE:
+# This workflow allows you to manually generate changelogs between any two git references
+# (commits, tags, or branches) on demand. Perfect for:
+# - Creating changelogs for past releases
+# - Testing different custom prompts
+# - Generating release notes after the fact
+# - Comparing changes between any two points in history
+#
+# USE CASE EXAMPLE:
+# You just released v1.5.0 and forgot to generate a changelog. Run this workflow:
+#   from_ref: v1.4.0
+#   to_ref: v1.5.0
+#   format: markdown
+#
+# The generated changelog will be available:
+# 1. In the GitHub Actions workflow summary (web UI)
+# 2. As a downloadable artifact (changelog.txt)
+
+on:
+  workflow_dispatch:
+    inputs:
+      from_ref:
+        description: |
+          Starting git reference for changelog range.
+          Examples: "v1.0.0", "abc123def", "main", "HEAD~10"
+        required: true
+        type: string
+
+      to_ref:
+        description: |
+          Ending git reference for changelog range.
+          Examples: "v1.1.0", "def456abc", "HEAD", "main"
+        required: true
+        type: string
+
+      format:
+        description: "Output format(s) to generate"
+        required: true
+        type: choice
+        options:
+          - "markdown"
+          - "slack"
+          - "slack,markdown"
+        default: "markdown"
+
+      custom_prompt_text:
+        description: |
+          Optional: Inline custom prompt to override default.
+          Leave empty to use default prompt.
+          Example: "Focus only on breaking changes"
+        required: false
+        type: string
+
+      max_tokens:
+        description: "Maximum AI response tokens (512=concise, 2048=detailed)"
+        required: false
+        type: choice
+        options:
+          - "512"
+          - "1024"
+          - "2048"
+          - "4096"
+        default: "2048"
+
+jobs:
+  generate-changelog:
+    name: Generate Changelog
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+
+    steps:
+      # Security scanning step
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      # Call the reusable changelog generation workflow
+      # This is a "local workflow call" which doesn't support the standard `uses:` syntax
+      # Instead, we'll inline the steps here for simplicity
+      #
+      # NOTE: If you need to call this from another workflow, use:
+      #   uses: ./.github/workflows/_generate-changelog.yml
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0 # Need full history to compare any two refs
+
+      - name: Display input summary
+        env:
+          FROM_REF: ${{ inputs.from_ref }}
+          TO_REF: ${{ inputs.to_ref }}
+          FORMAT: ${{ inputs.format }}
+          MAX_TOKENS: ${{ inputs.max_tokens }}
+          CUSTOM_PROMPT_TEXT: ${{ inputs.custom_prompt_text }}
+        run: |
+          echo "## 📝 Changelog Generation Request" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **From**: \`$FROM_REF\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **To**: \`$TO_REF\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Format(s)**: \`$FORMAT\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Max Tokens**: \`$MAX_TOKENS\`" >> $GITHUB_STEP_SUMMARY
+
+          if [ -n "$CUSTOM_PROMPT_TEXT" ]; then
+            echo "- **Custom Prompt**: Yes" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Custom Prompt**: No (using default)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+  # Call the reusable workflow for changelog generation
+  # NOTE: Update the @main reference to match your versioning strategy:
+  #   - @main: Latest stable version (recommended)
+  #   - @v1.0.0: Pinned to specific version (most stable)
+  #   - @next: Preview upcoming features (for early adopters)
+  call-changelog-generator:
+    needs: generate-changelog
+    uses: uniswap/ai-toolkit/.github/workflows/_generate-changelog.yml@main
+    with:
+      from_ref: ${{ inputs.from_ref }}
+      to_ref: ${{ inputs.to_ref }}
+      output_formats: ${{ inputs.format }}
+      custom_prompt_text: ${{ inputs.custom_prompt_text }}
+      max_tokens: ${{ fromJSON(inputs.max_tokens) }}
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  # Display the results and create downloadable artifacts
+  save-results:
+    name: Save Results
+    needs: call-changelog-generator
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Display results
+        env:
+          CHANGELOG_SLACK: ${{ needs.call-changelog-generator.outputs.changelog_slack }}
+          CHANGELOG_MARKDOWN: ${{ needs.call-changelog-generator.outputs.changelog_markdown }}
+          GENERATION_METHOD: ${{ needs.call-changelog-generator.outputs.generation_method }}
+        run: |
+          echo "## ✅ Changelog Generated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Generation Method**: $GENERATION_METHOD" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Display markdown changelog if generated
+          if [ -n "$CHANGELOG_MARKDOWN" ]; then
+            echo "### Markdown Format:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "$CHANGELOG_MARKDOWN" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "---" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Display Slack changelog if generated
+          if [ -n "$CHANGELOG_SLACK" ]; then
+            echo "### Slack Format:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "$CHANGELOG_SLACK" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # Create downloadable artifact with the changelog
+      - name: Save changelog to file
+        env:
+          CHANGELOG_MARKDOWN: ${{ needs.call-changelog-generator.outputs.changelog_markdown }}
+          CHANGELOG_SLACK: ${{ needs.call-changelog-generator.outputs.changelog_slack }}
+          GENERATION_METHOD: ${{ needs.call-changelog-generator.outputs.generation_method }}
+          FROM_REF: ${{ inputs.from_ref }}
+          TO_REF: ${{ inputs.to_ref }}
+          FORMAT: ${{ inputs.format }}
+          MAX_TOKENS: ${{ inputs.max_tokens }}
+        run: |
+          mkdir -p artifacts
+
+          # Save markdown format if generated
+          if [ -n "$CHANGELOG_MARKDOWN" ]; then
+            echo "$CHANGELOG_MARKDOWN" > artifacts/changelog-markdown.txt
+            echo "✅ Saved markdown changelog to artifacts/"
+          fi
+
+          # Save Slack format if generated
+          if [ -n "$CHANGELOG_SLACK" ]; then
+            echo "$CHANGELOG_SLACK" > artifacts/changelog-slack.txt
+            echo "✅ Saved Slack changelog to artifacts/"
+          fi
+
+          # Also save metadata
+          cat << EOF > artifacts/metadata.txt
+          Generation Method: $GENERATION_METHOD
+          From Ref: $FROM_REF
+          To Ref: $TO_REF
+          Format(s): $FORMAT
+          Max Tokens: $MAX_TOKENS
+          Generated At: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          EOF
+
+      # Upload artifacts so they can be downloaded
+      - name: Upload changelog artifacts
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: changelog-${{ github.run_id }}
+          path: artifacts/
+          retention-days: 90 # Keep for 90 days
+
+      - name: Artifact instructions
+        env:
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📦 Download Changelog" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The generated changelog has been saved as an artifact." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**To download**:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Scroll to the bottom of this workflow run page" >> $GITHUB_STEP_SUMMARY
+          echo "2. Look for the \"Artifacts\" section" >> $GITHUB_STEP_SUMMARY
+          echo "3. Click on \`changelog-$RUN_ID\` to download" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Files included**:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`changelog-markdown.txt\` - Markdown format (if generated)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`changelog-slack.txt\` - Slack format (if generated)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`metadata.txt\` - Generation metadata" >> $GITHUB_STEP_SUMMARY
+
+# CUSTOMIZATION TIPS:
+#
+# 1. Add more format options:
+#    - Create custom formats by modifying the _generate-changelog.yml workflow
+#    - Add custom prompts to .github/prompts/ directory
+#
+# 2. Auto-post to Slack after generation:
+#    - Add a job that depends on `save-results`
+#    - Call ./.github/workflows/_notify-release.yml
+#    - Pass the generated changelog outputs
+#
+# 3. Create GitHub Release automatically:
+#    - Add a step using `gh release create`
+#    - Use the generated changelog as release notes
+#
+# 4. Store in Notion automatically:
+#    - Add a job that calls _notify-release.yml with destinations: 'notion'
+#
+# 5. Send to multiple destinations:
+#    - Chain both generate + notify workflows
+#    - See example 02-existing-release-integration.yml for pattern
+
+# TROUBLESHOOTING:
+#
+# Q: "ANTHROPIC_API_KEY secret not found"
+# A: Add the secret at: Repository Settings → Secrets and variables → Actions → New repository secret
+#
+# Q: "Invalid git reference"
+# A: Ensure both from_ref and to_ref exist in your repository. Check with: git log --oneline
+#
+# Q: "No changes found"
+# A: Verify the commit range has actual changes: git log from_ref..to_ref
+#
+# Q: "Workflow fails with 404"
+# A: Ensure _generate-changelog.yml exists in .github/workflows/
