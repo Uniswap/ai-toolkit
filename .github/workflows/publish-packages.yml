@@ -293,22 +293,95 @@ jobs:
             fi
           done
 
+          echo ""
+          echo "=========================================="
+          echo "Checking for missing Git tags"
+          echo "=========================================="
+          echo ""
+          echo "Missing tags are npm versions that were successfully"
+          echo "published but their Git tags were never pushed to remote."
+          echo "These must be created so Nx can properly version from them."
+          echo ""
+
+          CREATED_TAGS=()
+
+          for package in "${PACKAGES[@]}"; do
+            if [ -z "$package" ]; then
+              continue
+            fi
+
+            echo "Checking package: $package"
+
+            # Get latest version from npm for the appropriate dist-tag
+            if [[ "${{ github.ref_name }}" == "next" ]]; then
+              LATEST_NPM=$(npm view "$package" dist-tags.next --registry=https://registry.npmjs.org 2>/dev/null || echo "")
+              echo "  Querying npm dist-tag 'next'..."
+            else
+              LATEST_NPM=$(npm view "$package" version --registry=https://registry.npmjs.org 2>/dev/null || echo "")
+              echo "  Querying npm version (latest)..."
+            fi
+
+            if [ -z "$LATEST_NPM" ]; then
+              echo "  ℹ️  Package not on npm yet (will be first release)"
+              echo ""
+              continue
+            fi
+
+            EXPECTED_TAG="${package}@${LATEST_NPM}"
+            echo "  Latest npm version: $LATEST_NPM"
+
+            # Check if Git tag exists for this version
+            if git rev-parse "$EXPECTED_TAG" >/dev/null 2>&1; then
+              echo "  ✅ Git tag exists: $EXPECTED_TAG (in sync)"
+            else
+              echo "  🔧 Git tag missing for npm version $LATEST_NPM"
+              echo "  🏷️  Creating tag: $EXPECTED_TAG"
+
+              # Create tag at current HEAD
+              # (Assumes HEAD is at or past the commit where this version was published)
+              if git tag "$EXPECTED_TAG" HEAD 2>/dev/null; then
+                echo "  ✅ Created local tag at HEAD"
+                CREATED_TAGS+=("$EXPECTED_TAG")
+              else
+                echo "  ⚠️  Failed to create tag (may already exist locally)"
+              fi
+            fi
+
+            echo ""
+          done
+
           # Summary
           echo "=========================================="
-          echo "Orphaned Tag Cleanup Summary"
+          echo "Git/npm Sync Summary"
           echo "=========================================="
+
           if [ ${#CLEANED_TAGS[@]} -gt 0 ]; then
-            echo "Cleaned up ${#CLEANED_TAGS[@]} orphaned tag(s):"
+            echo "Orphaned Tags Cleaned (deleted): ${#CLEANED_TAGS[@]}"
             for tag in "${CLEANED_TAGS[@]}"; do
               echo "  🧹 $tag"
             done
-            echo ""
-            echo "✅ These tags will be recreated during versioning and"
-            echo "   associated with the successful npm publish in this run."
+            echo "  → These will be recreated with correct associations"
           else
-            echo "✅ No orphaned tags found - all existing tags have"
-            echo "   corresponding published npm versions."
+            echo "Orphaned Tags Cleaned: 0"
+            echo "  ✅ No orphaned tags found"
           fi
+
+          echo ""
+
+          if [ ${#CREATED_TAGS[@]} -gt 0 ]; then
+            echo "Missing Tags Created: ${#CREATED_TAGS[@]}"
+            for tag in "${CREATED_TAGS[@]}"; do
+              echo "  🏷️  $tag"
+            done
+            echo "  → Nx will now use these as base for version bumps"
+          else
+            echo "Missing Tags Created: 0"
+            echo "  ✅ Git tags in sync with npm versions"
+          fi
+
+          echo ""
+          echo "✅ Git/npm synchronization complete."
+          echo "   Nx versioning will now use accurate base versions."
           echo ""
         env:
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
@@ -345,6 +418,7 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
       - name: Publish affected packages to NPM
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.affected.outputs.has_affected == 'true'
