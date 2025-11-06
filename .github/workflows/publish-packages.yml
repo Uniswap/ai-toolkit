@@ -131,15 +131,23 @@ jobs:
       - name: Determine base SHA for affected detection
         id: base-sha
         run: |
-          # Get the latest release tag to use as base for affected detection
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          # For push events, use the commit before the push
+          # For manual triggers, fall back to HEAD~1
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            BASE_SHA="${{ github.event.before }}"
 
-          if [ -z "$LATEST_TAG" ]; then
-            echo "No previous release tags found - this appears to be a first release"
-            echo "base=HEAD~1" >> $GITHUB_OUTPUT
+            # Handle edge case: first push to a new branch (null SHA)
+            if [[ "$BASE_SHA" == "0000000000000000000000000000000000000000" ]]; then
+              echo "First push to branch - using HEAD~1 as base"
+              echo "base=HEAD~1" >> $GITHUB_OUTPUT
+            else
+              echo "Using commit before push: $BASE_SHA"
+              echo "base=$BASE_SHA" >> $GITHUB_OUTPUT
+            fi
           else
-            echo "Latest release tag: $LATEST_TAG"
-            echo "base=$LATEST_TAG" >> $GITHUB_OUTPUT
+            # Manual workflow dispatch - use previous commit
+            echo "Manual trigger - using HEAD~1 as base"
+            echo "base=HEAD~1" >> $GITHUB_OUTPUT
           fi
 
       - name: Determine affected packages
