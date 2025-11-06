@@ -167,18 +167,55 @@ jobs:
             AFFECTED_JSON="[]"
           fi
 
-          # Extract just the project names from the JSON array and join with commas
-          AFFECTED_PROJECTS=$(echo "$AFFECTED_JSON" | jq -r 'join(",")')
+          # Extract project names and filter out private packages
+          # Read each project and check if it has "private": true in package.json
+          echo "Filtering out private packages..."
+          PUBLISHABLE_PROJECTS=()
+          PACKAGE_NAMES=()
 
-          echo "Affected projects: $AFFECTED_PROJECTS"
+          for project in $(echo "$AFFECTED_JSON" | jq -r '.[]'); do
+            # Find the package.json for this project
+            # Use nx show project to get the project root
+            PROJECT_ROOT=$(npx nx show project "$project" --json 2>/dev/null | jq -r '.root' || echo "")
+
+            if [ -n "$PROJECT_ROOT" ] && [ -f "$PROJECT_ROOT/package.json" ]; then
+              # Check if package is private
+              IS_PRIVATE=$(jq -r '.private // false' "$PROJECT_ROOT/package.json")
+
+              if [ "$IS_PRIVATE" = "true" ]; then
+                echo "  ⏭️  Skipping $project (private: true)"
+              else
+                PACKAGE_NAME=$(jq -r '.name // ""' "$PROJECT_ROOT/package.json")
+                if [ -n "$PACKAGE_NAME" ]; then
+                  echo "  ✅ Including $project → $PACKAGE_NAME (publishable)"
+                  PUBLISHABLE_PROJECTS+=("$project")  # Store Nx project name
+                  PACKAGE_NAMES+=("$PACKAGE_NAME")    # Store npm package name
+                else
+                  echo "  ⚠️  Skipping $project (no package name found)"
+                fi
+              fi
+            else
+              echo "  ⚠️  Skipping $project (no package.json found)"
+            fi
+          done
+
+          # Join arrays with commas
+          AFFECTED_PROJECTS=$(IFS=,; echo "${PUBLISHABLE_PROJECTS[*]}")
+          AFFECTED_PACKAGES=$(IFS=,; echo "${PACKAGE_NAMES[*]}")
+
+          echo "Publishable affected projects (Nx names): $AFFECTED_PROJECTS"
+          echo "Publishable affected packages (npm names): $AFFECTED_PACKAGES"
+
           echo "projects=$AFFECTED_PROJECTS" >> $GITHUB_OUTPUT
+          echo "packages=$AFFECTED_PACKAGES" >> $GITHUB_OUTPUT
 
           # Set a flag indicating if any packages are affected
           if [ -z "$AFFECTED_PROJECTS" ] || [ "$AFFECTED_PROJECTS" = "null" ]; then
             echo "has_affected=false" >> $GITHUB_OUTPUT
-            echo "No affected packages found - skipping release"
+            echo "No publishable affected packages found - skipping release"
           else
             echo "has_affected=true" >> $GITHUB_OUTPUT
+            echo "Found ${#PUBLISHABLE_PROJECTS[@]} publishable package(s)"
           fi
 
       - name: Build affected packages
@@ -223,50 +260,51 @@ jobs:
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.affected.outputs.has_affected == 'true'
         run: |
           AFFECTED_PROJECTS="${{ steps.affected.outputs.projects }}"
+          AFFECTED_PACKAGES="${{ steps.affected.outputs.packages }}"
           echo "Publishing affected packages with tag: ${{ steps.npm-tag.outputs.tag }} to NPM"
-          echo "Affected packages: $AFFECTED_PROJECTS"
+          echo "Nx projects: $AFFECTED_PROJECTS"
+          echo "npm packages: $AFFECTED_PACKAGES"
           echo ""
 
-          # Convert comma-separated list to array
-          IFS=',' read -ra PACKAGES <<< "$AFFECTED_PROJECTS"
+          # Convert comma-separated lists to arrays
+          IFS=',' read -ra PROJECTS <<< "$AFFECTED_PROJECTS"
+          IFS=',' read -ra PACKAGES <<< "$AFFECTED_PACKAGES"
 
           # Track publishing results
           FAILED_PACKAGES=()
           SUCCESS_PACKAGES=()
 
           # Publish each package individually with appropriate flags
-          for package in "${PACKAGES[@]}"; do
-            if [ -z "$package" ]; then
+          # Loop through both arrays using indices
+          for i in "${!PROJECTS[@]}"; do
+            project="${PROJECTS[$i]}"
+            package="${PACKAGES[$i]}"
+
+            if [ -z "$project" ] || [ -z "$package" ]; then
               continue
             fi
 
             echo "=========================================="
-            echo "Processing package: $package"
+            echo "Processing: $project → $package"
             echo "=========================================="
 
-            # Extract the package name without scope for tag checking
+            # Extract the package name without scope for debugging
             PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
 
-            # Check if any tags exist for THIS specific package
-            # Nx creates tags in the format: package-name@version or @scope/package-name@version
-            echo "Checking for existing Git tags..."
+            # Check if package exists on npm registry (not just Git tags)
+            # Git tags can exist even if npm publishing failed, so we need to check npm directly
+            echo "Checking if package exists on npm registry..."
 
-            # Use git tag glob patterns for precise matching without escaping issues
-            # Check both with-scope and without-scope formats
-            FOUND_TAGS=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | sort -u || echo "")
-
-            if [ -n "$FOUND_TAGS" ]; then
-              # Package has been published before
-              echo "📦 Status: EXISTING package (found Git tags)"
-              echo "Tags found:"
-              echo "$FOUND_TAGS" | head -n 5
-              if [ $(echo "$FOUND_TAGS" | wc -l) -gt 5 ]; then
-                echo "... and $(( $(echo "$FOUND_TAGS" | wc -l) - 5 )) more"
-              fi
-              echo ""
+            # Query npm registry to check if package exists
+            # Returns 0 if package exists, non-zero if it doesn't
+            if npm view "$package" version --registry=https://registry.npmjs.org &>/dev/null; then
+              # Package exists on npm
+              NPM_VERSION=$(npm view "$package" version --registry=https://registry.npmjs.org 2>/dev/null || echo "unknown")
+              echo "📦 Status: EXISTING package on npm (current version: $NPM_VERSION)"
               echo "Publishing without --first-release flag..."
 
-              if npx nx release publish --projects="$package" --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org; then
+              # Use Nx PROJECT NAME for the --projects flag
+              if npx nx release publish --projects="$project" --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org; then
                 echo "✅ Successfully published $package"
                 SUCCESS_PACKAGES+=("$package")
               else
@@ -274,11 +312,22 @@ jobs:
                 FAILED_PACKAGES+=("$package")
               fi
             else
-              # Package has never been published
-              echo "🆕 Status: NEW package (no Git tags found)"
+              # Package does NOT exist on npm (truly a first release)
+              echo "🆕 Status: NEW package (not found on npm registry)"
+
+              # Show Git tags if they exist (for debugging orphaned tags)
+              FOUND_TAGS=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | sort -u || echo "")
+              if [ -n "$FOUND_TAGS" ]; then
+                echo "⚠️  Note: Git tags exist but package not on npm (likely from failed previous publish)"
+                echo "Git tags found:"
+                echo "$FOUND_TAGS" | head -n 3
+                echo ""
+              fi
+
               echo "Publishing with --first-release flag..."
 
-              if npx nx release publish --projects="$package" --first-release --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org; then
+              # Use Nx PROJECT NAME for the --projects flag
+              if npx nx release publish --projects="$project" --first-release --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org; then
                 echo "✅ Successfully published $package (first release)"
                 SUCCESS_PACKAGES+=("$package")
               else
@@ -326,13 +375,14 @@ jobs:
         run: |
           # Get the tags that were just pushed (created by Nx release version)
           # These are the tags created since the previous commit
-          AFFECTED_PROJECTS="${{ steps.affected.outputs.projects }}"
+          AFFECTED_PACKAGES="${{ steps.affected.outputs.packages }}"
 
           echo "Creating GitHub releases for affected packages..."
+          echo "npm packages: $AFFECTED_PACKAGES"
           echo ""
 
           # Convert comma-separated list to array
-          IFS=',' read -ra PACKAGES <<< "$AFFECTED_PROJECTS"
+          IFS=',' read -ra PACKAGES <<< "$AFFECTED_PACKAGES"
 
           for package in "${PACKAGES[@]}"; do
             if [ -z "$package" ]; then
