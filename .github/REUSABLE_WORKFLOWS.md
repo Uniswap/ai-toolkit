@@ -1,27 +1,97 @@
-# Reusable Workflows Documentation
+# Reusable Changelog & Notification Workflows
 
-This document provides comprehensive documentation for the reusable GitHub Actions workflows available in this repository. These workflows can be used by any repository in the organization to generate AI-powered changelogs and send notifications to multiple destinations.
+This repository provides two reusable GitHub Actions workflows for generating AI-powered changelogs and sending notifications to multiple destinations (Slack, Notion).
 
 ## Table of Contents
 
-- [Overview](#overview)
+- [Quick Start](#quick-start)
 - [Prerequisites](#prerequisites)
-- [Workflows](#workflows)
-  - [Generate Changelog (`_generate-changelog.yml`)](#generate-changelog-_generate-changelogyml)
-  - [Notify Release (`_notify-release.yml`)](#notify-release-_notify-releaseyml)
+- [Architecture](#architecture)
+- [Workflows Reference](#workflows-reference)
+  - [\_generate-changelog.yml](#_generate-changelogyml)
+  - [\_notify-release.yml](#_notify-releaseyml)
+- [Implementation Details](#implementation-details)
+- [Real-World Examples](#real-world-examples)
 - [Usage Examples](#usage-examples)
+- [Custom Prompts](#custom-prompts)
 - [Best Practices](#best-practices)
 - [Troubleshooting](#troubleshooting)
+- [Migration Guides](#migration-guides)
+- [Support and Contributing](#support-and-contributing)
 
-## Overview
+## Quick Start
 
-These reusable workflows provide:
+### 30-Second Integration into Existing Release Pipeline
 
-1. **AI-Powered Changelog Generation**: Generate human-readable changelogs from git commit ranges using Anthropic's Claude API
-2. **Multi-Format Output**: Support for Slack mrkdwn and standard markdown formats
-3. **Flexible Git References**: Support for any git reference type (SHA, tag, branch)
-4. **Multiple Notification Destinations**: Route notifications to Slack, Notion, or both
-5. **Customizable Prompts**: Bring your own prompts for domain-specific changelog formatting
+Add these jobs to your existing release workflow:
+
+```yaml
+jobs:
+  # Your existing release job
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Version and publish
+        run: npm publish
+      # ... other steps
+
+  # Add changelog generation
+  generate-changelog:
+    needs: publish
+    uses: uniswap/ai-toolkit/.github/workflows/_generate-changelog.yml@main
+    with:
+      from_ref: ${{ github.event.before }}
+      to_ref: ${{ github.sha }}
+      output_formats: 'slack,markdown'
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  # Add notifications
+  notify-release:
+    needs: [publish, generate-changelog]
+    uses: uniswap/ai-toolkit/.github/workflows/_notify-release.yml@main
+    with:
+      changelog_slack: ${{ needs.generate-changelog.outputs.changelog_slack }}
+      changelog_markdown: ${{ needs.generate-changelog.outputs.changelog_markdown }}
+      destinations: 'slack'
+      from_ref: ${{ github.event.before }}
+      to_ref: ${{ github.sha }}
+      branch: ${{ github.ref_name }}
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+```
+
+### 60-Second Manual Changelog Generation
+
+Create `.github/workflows/manual-changelog.yml`:
+
+```yaml
+name: Manual Changelog Generator
+
+on:
+  workflow_dispatch:
+    inputs:
+      from_ref:
+        description: 'Starting git reference (tag, SHA, or branch)'
+        required: true
+        type: string
+      to_ref:
+        description: 'Ending git reference (tag, SHA, or branch)'
+        required: true
+        type: string
+
+jobs:
+  generate:
+    uses: uniswap/ai-toolkit/.github/workflows/_generate-changelog.yml@main
+    with:
+      from_ref: ${{ inputs.from_ref }}
+      to_ref: ${{ inputs.to_ref }}
+      output_formats: 'markdown'
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+Then run from GitHub Actions UI: Actions → Manual Changelog Generator → Run workflow
 
 ## Prerequisites
 
@@ -68,44 +138,87 @@ Add these secrets to your repository:
 2. Click "New repository secret"
 3. Add each required secret with its value
 
----
+## Architecture
 
-## Workflows
+### Workflow Separation
 
-### Generate Changelog (`_generate-changelog.yml`)
+These workflows follow a modular design pattern:
 
-Generates AI-powered changelogs from git commit ranges with support for multiple output formats.
-
-#### Reference
-
-```yaml
-uses: your-org/your-repo/.github/workflows/_generate-changelog.yml@main
 ```
+┌─────────────────────────┐
+│  Your Release Workflow  │
+│  (publish, version,     │
+│   build, etc.)          │
+└───────────┬─────────────┘
+            │
+            ├─────────────────────────────┐
+            │                             │
+            ▼                             ▼
+┌─────────────────────────┐   ┌──────────────────────────┐
+│ _generate-changelog.yml │   │   _notify-release.yml    │
+│                         │   │                          │
+│  • Calls Anthropic API  │──▶│  • Formats for Slack     │
+│  • Parses git diff      │   │  • Sends to Slack        │
+│  • Returns changelog    │   │  • Creates Notion page   │
+└─────────────────────────┘   └──────────────────────────┘
+```
+
+### Why Two Separate Workflows?
+
+1. **Modularity**: Use changelog generation without notifications, or vice versa
+2. **Reusability**: Call from multiple workflows (release, hotfix, digest, etc.)
+3. **Testability**: Test changelog generation independently from notifications
+4. **Cost Optimization**: Skip AI generation when you already have a changelog
+5. **Flexibility**: Mix and match output formats and notification destinations
+
+### Data Flow
+
+```
+Input: Git References (from_ref, to_ref)
+  ↓
+Generate Changelog (_generate-changelog.yml)
+  ├─ Fetch commit history
+  ├─ Call Claude API with custom prompt
+  ├─ Parse response into multiple formats
+  └─ Output: changelog_slack, changelog_markdown
+      ↓
+Notify Release (_notify-release.yml)
+  ├─ Prepare changelogs for each destination
+  ├─ Format for Slack (escape, convert newlines)
+  ├─ Send to Slack via webhook
+  └─ Create Notion page with TypeScript script
+```
+
+## Workflows Reference
+
+### \_generate-changelog.yml
+
+**Purpose**: Generate AI-powered changelogs from git commit ranges using Anthropic's Claude API.
 
 #### Inputs
 
-| Input                | Type   | Required | Default      | Description                                                          |
-| -------------------- | ------ | -------- | ------------ | -------------------------------------------------------------------- |
-| `from_ref`           | string | ✅ Yes   | -            | Starting git reference (SHA, tag, or branch)                         |
-| `to_ref`             | string | ✅ Yes   | -            | Ending git reference (SHA, tag, or branch)                           |
-| `output_formats`     | string | ❌ No    | `"markdown"` | Comma-separated list: `"slack"`, `"markdown"`, or `"slack,markdown"` |
-| `custom_prompt_file` | string | ❌ No    | -            | Path to custom prompt file (relative to repo root)                   |
-| `custom_prompt_text` | string | ❌ No    | -            | Inline custom prompt text (overrides `custom_prompt_file`)           |
-| `max_tokens`         | number | ❌ No    | `2048`       | Maximum tokens for AI response (1024-4096)                           |
+| Input                | Required | Default      | Description                                                                     |
+| -------------------- | -------- | ------------ | ------------------------------------------------------------------------------- |
+| `from_ref`           | Yes      | -            | Starting git reference (SHA, tag, or branch name)                               |
+| `to_ref`             | Yes      | -            | Ending git reference (SHA, tag, or branch name)                                 |
+| `output_formats`     | No       | `'markdown'` | Comma-separated formats: `'slack'`, `'markdown'`, or `'slack,markdown'`         |
+| `custom_prompt_file` | No       | -            | Path to custom prompt file (relative to repo root)                              |
+| `custom_prompt_text` | No       | -            | Inline custom prompt (overrides `custom_prompt_file`)                           |
+| `max_tokens`         | No       | `2048`       | Maximum tokens for AI response (1024=concise, 2048=detailed, 4096=comprehensive |
 
 #### Outputs
 
-| Output               | Type   | Description                                                                      |
-| -------------------- | ------ | -------------------------------------------------------------------------------- |
-| `changelog_slack`    | string | Slack mrkdwn formatted changelog (only if `"slack"` in `output_formats`)         |
-| `changelog_markdown` | string | Standard markdown formatted changelog (only if `"markdown"` in `output_formats`) |
-| `generation_method`  | string | Method used: `"ai"` (success) or `"fallback"` (commit list)                      |
+| Output               | Description                                                          |
+| -------------------- | -------------------------------------------------------------------- |
+| `changelog_slack`    | Slack mrkdwn formatted changelog (only if `'slack'` in formats)      |
+| `changelog_markdown` | GitHub-flavored markdown changelog (only if `'markdown'` in formats) |
+| `generation_method`  | Either `'ai'` (success) or `'fallback'` (commit list)                |
 
 #### Secrets
 
-| Secret              | Required | Description                     |
-| ------------------- | -------- | ------------------------------- |
-| `ANTHROPIC_API_KEY` | ✅ Yes   | Anthropic API key for Claude AI |
+| Secret              | Required | Description                        |
+| ------------------- | -------- | ---------------------------------- |
+| `ANTHROPIC_API_KEY` | Yes      | API key from console.anthropic.com |
 
 #### Features
 
@@ -115,90 +228,68 @@ uses: your-org/your-repo/.github/workflows/_generate-changelog.yml@main
 - **Automatic Fallback**: Falls back to commit list if AI generation fails
 - **Format-Specific Instructions**: Automatically appends format requirements to your custom prompt
 
-#### Example Usage
-
-<details>
-<summary>Basic Usage - Markdown Only</summary>
+#### Example: Multiple Formats
 
 ```yaml
 jobs:
-  generate-changelog:
-    uses: your-org/your-repo/.github/workflows/_generate-changelog.yml@main
+  changelog:
+    uses: uniswap/ai-toolkit/.github/workflows/_generate-changelog.yml@main
     with:
-      from_ref: v1.0.0
-      to_ref: v1.1.0
-    secrets:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-```
-
-</details>
-
-<details>
-<summary>Multi-Format with Custom Prompt</summary>
-
-```yaml
-jobs:
-  generate-changelog:
-    uses: your-org/your-repo/.github/workflows/_generate-changelog.yml@main
-    with:
-      from_ref: ${{ github.event.before }}
-      to_ref: ${{ github.sha }}
-      output_formats: 'slack,markdown'
-      custom_prompt_file: '.github/prompts/release-changelog.md'
+      from_ref: 'v1.0.0'
+      to_ref: 'v1.1.0'
+      output_formats: 'slack,markdown' # Generate both formats in one call
       max_tokens: 1024
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-</details>
-
-<details>
-<summary>SHA to SHA with Inline Prompt</summary>
+#### Example: Custom Prompt File
 
 ```yaml
 jobs:
-  generate-changelog:
-    uses: your-org/your-repo/.github/workflows/_generate-changelog.yml@main
+  changelog:
+    uses: uniswap/ai-toolkit/.github/workflows/_generate-changelog.yml@main
     with:
-      from_ref: abc123def
-      to_ref: def456abc
-      output_formats: 'markdown'
-      custom_prompt_text: |
-        Create a changelog focusing on:
-        - Breaking changes (highlight prominently)
-        - New features
-        - Bug fixes
-        Group by impact level.
+      from_ref: ${{ github.event.before }}
+      to_ref: ${{ github.sha }}
+      custom_prompt_file: '.github/prompts/release-changelog.md'
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-</details>
-
----
-
-### Notify Release (`_notify-release.yml`)
-
-Routes release notifications to multiple destinations (Slack, Notion, or both) with pre-generated changelogs.
-
-#### Reference
+#### Example: Inline Custom Prompt
 
 ```yaml
-uses: your-org/your-repo/.github/workflows/_notify-release.yml@main
+jobs:
+  changelog:
+    uses: uniswap/ai-toolkit/.github/workflows/_generate-changelog.yml@main
+    with:
+      from_ref: ${{ github.event.before }}
+      to_ref: ${{ github.sha }}
+      custom_prompt_text: |
+        Generate a changelog focusing ONLY on breaking changes.
+        Format as a numbered list with upgrade instructions for each breaking change.
+        Ignore all other changes.
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
+
+### \_notify-release.yml
+
+**Purpose**: Send release notifications to Slack, Notion, or both with pre-generated changelogs.
 
 #### Inputs
 
-| Input                | Type   | Required | Default | Description                                                              |
-| -------------------- | ------ | -------- | ------- | ------------------------------------------------------------------------ |
-| `changelog_slack`    | string | ❌ No    | -       | Pre-generated Slack-formatted changelog                                  |
-| `changelog_markdown` | string | ❌ No    | -       | Pre-generated markdown changelog                                         |
-| `destinations`       | string | ✅ Yes   | -       | Comma-separated destinations: `"slack"`, `"notion"`, or `"slack,notion"` |
-| `from_ref`           | string | ✅ Yes   | -       | Starting git reference (for display)                                     |
-| `to_ref`             | string | ✅ Yes   | -       | Ending git reference (for display)                                       |
-| `branch`             | string | ✅ Yes   | -       | Branch name that was released                                            |
-| `npm_tag`            | string | ❌ No    | -       | NPM tag used for publishing                                              |
-| `release_title`      | string | ❌ No    | -       | Custom title (default: generated from branch/refs)                       |
+| Input                | Required | Default | Description                                                  |
+| -------------------- | -------- | ------- | ------------------------------------------------------------ |
+| `changelog_slack`    | No       | -       | Pre-generated Slack changelog (from \_generate-changelog)    |
+| `changelog_markdown` | No       | -       | Pre-generated markdown changelog (from \_generate-changelog) |
+| `destinations`       | Yes      | -       | Comma-separated: `'slack'`, `'notion'`, or `'slack,notion'`  |
+| `from_ref`           | Yes      | -       | Starting git reference (for display in notifications)        |
+| `to_ref`             | Yes      | -       | Ending git reference (for display in notifications)          |
+| `branch`             | Yes      | -       | Branch name that was released                                |
+| `npm_tag`            | No       | -       | NPM tag used for publishing                                  |
+| `release_title`      | No       | -       | Custom title (default: generated from branch/refs)           |
 
 #### Outputs
 
@@ -206,11 +297,7 @@ This workflow does not have outputs (notifications are fire-and-forget).
 
 #### Secrets
 
-| Secret                             | Required                           | Description                |
-| ---------------------------------- | ---------------------------------- | -------------------------- |
-| `SLACK_WEBHOOK_URL`                | ✅ If `"slack"` in `destinations`  | Slack incoming webhook URL |
-| `NOTION_API_KEY`     | ✅ If `"notion"` in `destinations` | Notion integration API key |
-| `RELEASE_NOTES_NOTION_DATABASE_ID` | ✅ If `"notion"` in `destinations` | Target Notion database ID  |
+| Secret | Required | Description |\n| ---------------------------------- | ---------------------------------- | -------------------------- |\n| `SLACK_WEBHOOK_URL` | ✅ If `\"slack\"` in `destinations` | Slack incoming webhook URL |\n| `NOTION_API_KEY` | ✅ If `\"notion\"` in `destinations` | Notion integration API key |\n| `RELEASE_NOTES_NOTION_DATABASE_ID` | ✅ If `\"notion\"` in `destinations` | Target Notion database ID |
 
 #### Features
 
@@ -220,35 +307,46 @@ This workflow does not have outputs (notifications are fire-and-forget).
 - **Graceful Failures**: Notifications continue even if one destination fails
 - **GitHub Actions Summary**: Provides detailed summary with links in workflow UI
 
-#### Example Usage
-
-<details>
-<summary>Slack Only Notification</summary>
+#### Example: Slack Only
 
 ```yaml
 jobs:
   notify:
-    uses: your-org/your-repo/.github/workflows/_notify-release.yml@main
+    uses: uniswap/ai-toolkit/.github/workflows/_notify-release.yml@main
     with:
       changelog_slack: ${{ needs.generate-changelog.outputs.changelog_slack }}
       destinations: 'slack'
-      from_ref: v1.0.0
-      to_ref: v1.1.0
-      branch: main
-      npm_tag: latest
+      from_ref: 'v1.0.0'
+      to_ref: 'v1.1.0'
+      branch: 'main'
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 ```
 
-</details>
-
-<details>
-<summary>Both Slack and Notion</summary>
+#### Example: Notion Only
 
 ```yaml
 jobs:
   notify:
-    uses: your-org/your-repo/.github/workflows/_notify-release.yml@main
+    uses: uniswap/ai-toolkit/.github/workflows/_notify-release.yml@main
+    with:
+      changelog_markdown: ${{ needs.generate-changelog.outputs.changelog_markdown }}
+      destinations: 'notion'
+      from_ref: 'v1.0.0'
+      to_ref: 'v1.1.0'
+      branch: 'main'
+      release_title: 'Production Release v1.1.0'
+    secrets:
+      NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+      RELEASE_NOTES_NOTION_DATABASE_ID: ${{ secrets.RELEASE_NOTES_NOTION_DATABASE_ID }}
+```
+
+#### Example: Both Destinations
+
+```yaml
+jobs:
+  notify:
+    uses: uniswap/ai-toolkit/.github/workflows/_notify-release.yml@main
     with:
       changelog_slack: ${{ needs.generate-changelog.outputs.changelog_slack }}
       changelog_markdown: ${{ needs.generate-changelog.outputs.changelog_markdown }}
@@ -256,38 +354,11 @@ jobs:
       from_ref: ${{ github.event.before }}
       to_ref: ${{ github.sha }}
       branch: ${{ github.ref_name }}
-      npm_tag: ${{ github.ref_name == 'main' && 'latest' || 'next' }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
       RELEASE_NOTES_NOTION_DATABASE_ID: ${{ secrets.RELEASE_NOTES_NOTION_DATABASE_ID }}
 ```
-
-</details>
-
-<details>
-<summary>Notion Only with Custom Title</summary>
-
-```yaml
-jobs:
-  notify:
-    uses: your-org/your-repo/.github/workflows/_notify-release.yml@main
-    with:
-      changelog_markdown: ${{ needs.generate-changelog.outputs.changelog_markdown }}
-      destinations: 'notion'
-      from_ref: v2.0.0
-      to_ref: v2.1.0
-      branch: main
-      npm_tag: latest
-      release_title: 'Production Release v2.1.0 - Major Update'
-    secrets:
-      NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
-      RELEASE_NOTES_NOTION_DATABASE_ID: ${{ secrets.RELEASE_NOTES_NOTION_DATABASE_ID }}
-```
-
-</details>
-
----
 
 ## Implementation Details
 
@@ -448,7 +519,23 @@ When modifying or extending these workflows:
    - Document why type handling is necessary
 4. **Dependencies**: Keep dependencies minimal but don't reinvent the wheel
 
----
+## Real-World Examples
+
+See the [`examples/`](./examples/) directory for complete, working workflows:
+
+| Example                               | Use Case                                    | Complexity |
+| ------------------------------------- | ------------------------------------------- | ---------- |
+| `01-manual-changelog-generator.yml`   | On-demand changelog between any two commits | ⭐         |
+| `02-existing-release-integration.yml` | Integrate into existing release pipeline    | ⭐⭐       |
+| `03-weekly-digest.yml`                | Scheduled weekly team updates               | ⭐⭐⭐     |
+| `04-hotfix-release.yml`               | Emergency hotfix notifications              | ⭐⭐       |
+
+### When to Use Each Example
+
+- **Manual Generator**: Perfect for generating changelogs for past releases, creating release notes after the fact, or testing different prompts
+- **Release Integration**: The most common pattern - integrate into your existing npm publish, docker push, or deployment workflow
+- **Weekly Digest**: Great for keeping stakeholders informed without notification overload
+- **Hotfix Release**: Fast-track critical patches with appropriate urgency in notifications
 
 ## Usage Examples
 
@@ -606,21 +693,65 @@ jobs:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 ```
 
----
+## Custom Prompts
 
-## Best Practices
+### Anatomy of an Effective Prompt
 
-### 1. Custom Prompts
+```markdown
+# Your Prompt Title
 
-Create repository-specific prompt files for consistent changelog formatting:
+You are a changelog generator. [Set the role/context]
 
-```bash
-.github/
-  prompts/
-    release-changelog.md      # Production releases
-    weekly-digest.md          # Weekly summaries
-    hotfix-changelog.md       # Emergency fixes
+Focus on: [Define what to include]
+
+- Feature additions
+- Bug fixes
+- Breaking changes
+
+Format requirements: [Specify output format]
+
+- Use bullet points
+- Keep it concise (3-10 items)
+- Group related changes
+
+[Format-specific instructions follow - see below]
 ```
+
+### Format-Specific Tips
+
+#### Slack Format (mrkdwn)
+
+```markdown
+Slack formatting requirements:
+
+- Use _asterisks_ for bold (NOT double asterisks)
+- Use _underscores_ for italic
+- Use • or - for bullets
+- NO markdown headers (##, ###)
+- Plain URLs only (no [text](url) format)
+- Keep very concise
+```
+
+#### Markdown Format
+
+```markdown
+Markdown formatting requirements:
+
+- Use **double asterisks** for bold
+- Use _single asterisks_ for italic
+- Use ### headers for sections
+- Can include [links](url)
+- Can be more detailed than Slack
+```
+
+### Example Custom Prompts
+
+See `.github/prompts/` for production examples:
+
+- `release-changelog.md` - Standard release notes
+- `production-release-changelog.md` - Detailed production deployment notes
+- `weekly-digest.md` - Weekly summary format
+- `hotfix-changelog.md` - Urgent hotfix format
 
 **Example Prompt File** (`.github/prompts/release-changelog.md`):
 
@@ -658,7 +789,50 @@ Rules:
 - Max 15 items total
 ```
 
-### 2. Output Format Selection
+### Testing Custom Prompts
+
+Before committing a custom prompt, test it locally:
+
+```bash
+# 1. Create your prompt file
+echo "Your custom prompt..." > .github/prompts/test-prompt.md
+
+# 2. Trigger workflow with your prompt
+# (Use manual-changelog-generator example)
+
+# 3. Review output in workflow summary
+# 4. Iterate until satisfied
+```
+
+## Best Practices
+
+### 1. Keep Prompts Focused
+
+❌ **Bad**: Vague, multi-purpose prompt
+
+```markdown
+Generate a changelog. Include everything that changed.
+Make it look nice. Format appropriately for the destination.
+```
+
+✅ **Good**: Specific, single-purpose prompt
+
+```markdown
+Generate a concise changelog (3-7 items) focusing on user-facing changes only.
+Ignore internal refactoring, dependency updates, and test changes.
+Group by: Features, Fixes, Breaking Changes.
+```
+
+### 2. Token Budget Recommendations
+
+| Use Case                 | Recommended max_tokens | Estimated Cost |
+| ------------------------ | ---------------------- | -------------- |
+| Hotfix (urgent, concise) | 512-1024               | ~$0.005        |
+| Standard release         | 1024-2048              | ~$0.01         |
+| Detailed release notes   | 2048-4096              | ~$0.02         |
+| Weekly digest            | 2048-4096              | ~$0.02         |
+
+### 3. Output Format Selection
 
 Choose the right format(s) for your needs:
 
@@ -668,17 +842,18 @@ Choose the right format(s) for your needs:
 
 **Pro Tip**: Generate both formats in a single call for efficiency, even if you only need one immediately. The other can be saved for future use.
 
-### 3. Token Limits
+### 4. Multi-Format Strategy
 
-Adjust `max_tokens` based on changelog complexity:
+Generate both formats in one AI call to save costs:
 
-- **1024**: Short, concise changelogs (< 10 commits)
-- **2048**: Standard releases (10-50 commits) ← **Recommended default**
-- **4096**: Large releases or detailed changelogs (50+ commits)
+```yaml
+# ✅ Efficient: One AI call generates both formats
+output_formats: 'slack,markdown'
+# ❌ Wasteful: Would require two separate AI calls
+# (Don't do this - use the comma-separated approach above)
+```
 
-Higher token limits cost more and may take longer to generate.
-
-### 4. Notion Database Schema
+### 5. Notion Database Schema
 
 Set up your Notion database with these properties for best compatibility:
 
@@ -699,16 +874,6 @@ Set up your Notion database with these properties for best compatibility:
 - **Version** (Rich Text) - Version number
 - **Author** (Person) - Release author
 
-### 5. Error Handling
-
-Both workflows use `continue-on-error: true` for non-critical steps:
-
-- **Changelog Generation**: Falls back to commit list if AI fails
-- **Slack Notifications**: Continues if webhook fails
-- **Notion Publishing**: Continues if API call fails
-
-Check workflow logs and GitHub Actions summary for detailed error information.
-
 ### 6. Git Reference Patterns
 
 **Recommended patterns:**
@@ -725,76 +890,155 @@ Check workflow logs and GitHub Actions summary for detailed error information.
 - Branch-to-branch comparisons (ambiguous)
 - Mixing local and remote references without clear intent
 
----
+### 7. Error Handling
+
+Always use `continue-on-error` for non-critical notifications:
+
+```yaml
+- name: Send Slack notification
+  continue-on-error: true # Don't fail entire workflow if Slack is down
+  uses: uniswap/ai-toolkit/.github/workflows/_notify-release.yml@main
+  # ...
+```
+
+Both workflows use `continue-on-error: true` for non-critical steps:
+
+- **Changelog Generation**: Falls back to commit list if AI fails
+- **Slack Notifications**: Continues if webhook fails
+- **Notion Publishing**: Continues if API call fails
+
+Check workflow logs and GitHub Actions summary for detailed error information.
+
+### 8. Caching Considerations
+
+GitHub Actions caches:
+
+- ✅ Node modules (automatic with `actions/setup-node@v6`)
+- ✅ Dependencies (automatic with `npm ci`)
+- ❌ AI responses (not cached - each run calls API)
+
+### 9. Security
+
+1. **Never Log Secrets**: Secrets are automatically redacted, but avoid `echo $SECRET`
+2. **Use Least Privilege**: Slack webhooks should only post to specific channels
+3. **Rotate Keys**: Rotate Anthropic API keys every 90 days
+4. **Limit Scope**: Don't use workspace-wide Notion integrations
+
+### 10. Cost Optimization
+
+1. **Skip redundant generation**: If you already have a changelog, skip `_generate-changelog.yml`
+2. **Use appropriate token limits**: Don't use 4096 tokens when 1024 will suffice
+3. **Batch notifications**: Send weekly digests instead of per-commit notifications
+4. **Monitor usage**: Check Anthropic dashboard monthly
 
 ## Troubleshooting
 
-### Common Issues
+### AI Generation Failures
 
-#### 1. "No changelog generated"
+**Symptom**: `generation_method` output is `'fallback'` instead of `'ai'`
 
-**Symptom**: Empty or missing changelog output
+**Causes & Solutions**:
 
-**Possible Causes:**
+1. **Invalid API Key**
 
-- Insufficient ANTHROPIC_API_KEY credits
-- Invalid API key
-- Network timeout
-- Git reference doesn't exist
+   ```
+   Error: 401 Unauthorized
+   Solution: Verify ANTHROPIC_API_KEY secret is correct
+   ```
 
-**Solutions:**
+2. **Rate Limiting**
 
-- Check API key validity at <https://console.anthropic.com>
-- Verify git references exist: `git rev-parse <ref>`
-- Check workflow logs for API errors
-- Verify `from_ref` and `to_ref` are correct
+   ```
+   Error: 429 Too Many Requests
+   Solution: Wait and retry, or implement exponential backoff
+   ```
 
-#### 2. "Notion publishing failed"
+3. **Timeout**
 
-**Symptom**: Notion page not created, error in logs
+   ```
+   Error: Request timeout
+   Solution: Reduce max_tokens or simplify custom prompt
+   ```
 
-**Possible Causes:**
+4. **Invalid Response**
 
-- Invalid NOTION_API_KEY
-- Invalid RELEASE_NOTES_NOTION_DATABASE_ID
-- Integration doesn't have database access
-- Database schema mismatch
+   ```
+   Error: Failed to parse API response
+   Solution: Check Anthropic status page for API issues
+   ```
 
-**Solutions:**
+**Fallback Behavior**: When AI generation fails, the workflow automatically falls back to a simple commit list (markdown format only). Check the `generation_method` output to detect this.
 
-- Verify API key at <https://www.notion.so/my-integrations>
-- Confirm database ID from URL
-- Grant integration access to database (Share → Add Integration)
-- Ensure database has "Name" property (title type)
+### Slack Notification Errors
 
-#### 3. "Slack notification failed"
+**Symptom**: Slack notification step fails
 
-**Symptom**: No Slack message, error in logs
+**Common Issues**:
 
-**Possible Causes:**
+1. **Invalid Webhook URL**
 
-- Invalid SLACK_WEBHOOK_URL
-- Webhook URL expired/revoked
-- Channel deleted or archived
+   ```yaml
+   # ❌ Wrong - missing https://
+   webhook: hooks.slack.com/services/...
 
-**Solutions:**
+   # ✅ Correct
+   webhook: https://hooks.slack.com/services/...
+   ```
 
-- Regenerate webhook URL at <https://api.slack.com/apps>
-- Verify webhook URL format (should start with `https://hooks.slack.com`)
-- Check Slack app configuration
-- Test webhook with curl:
+2. **Webhook Revoked**
 
-  ```bash
-  curl -X POST -H 'Content-type: application/json' \
-    --data '{"text":"Test"}' \
-    YOUR_WEBHOOK_URL
-  ```
+   - Check Slack app settings
+   - Regenerate webhook if needed
 
-#### 4. "Invalid git reference"
+3. **Payload Too Large**
+
+   - Reduce `max_tokens` in changelog generation
+   - Use more concise custom prompt
+   - Slack has 3000 character limit per message
+
+4. **Special Characters**
+   - Workflow handles escaping automatically
+   - If issues persist, check for unmatched quotes in custom prompt
+
+### Notion Integration Issues
+
+**Symptom**: Notion page creation fails
+
+**Common Issues**:
+
+1. **Missing Database Properties**
+
+   ```
+   Error: Property "Name" not found
+   Solution: Notion database must have these properties:
+   - Name (title)
+   - Date (date)
+   - Commit Range (rich_text)
+   - Branch (rich_text)
+   ```
+
+2. **Permission Denied**
+
+   ```
+   Error: 403 Forbidden
+   Solution: Ensure Notion integration has access to the database
+   - Go to database in Notion
+   - Click "..." → Connections → Add your integration
+   ```
+
+3. **Invalid Database ID**
+
+   ```
+   Error: 404 Not Found
+   Solution: Extract correct ID from database URL:
+   https://notion.so/workspace/DATABASE_ID?v=...
+   ```
+
+### Invalid Git Reference
 
 **Symptom**: `fatal: bad revision` error
 
-**Possible Causes:**
+**Possible Causes**:
 
 - Reference doesn't exist
 - Shallow clone (insufficient history)
@@ -806,7 +1050,7 @@ Check workflow logs and GitHub Actions summary for detailed error information.
 - Verify reference exists: `git rev-parse <ref>`
 - For tags, ensure they're fetched: `git fetch --tags`
 
-#### 5. "Format mismatch"
+### Format Mismatch
 
 **Symptom**: Wrong format received or parsed incorrectly
 
@@ -823,7 +1067,59 @@ Check workflow logs and GitHub Actions summary for detailed error information.
   - `changelog_markdown` for markdown format
 - Verify destination expects correct format
 
----
+### Rate Limits and Quotas
+
+**Anthropic API**:
+
+- Free tier: 50 requests/day
+- Paid tier: Much higher (check current limits)
+- Cost: ~$0.01-0.03 per changelog (with Claude Haiku)
+
+**GitHub Actions**:
+
+- 2000 minutes/month (free tier)
+- These workflows use ~2-5 minutes per run
+
+**Slack**:
+
+- 1 request/second per webhook
+- No daily limit
+
+### Debug Mode
+
+Enable verbose logging:
+
+```yaml
+- name: Enable debug logging
+  run: echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
+
+- uses: uniswap/ai-toolkit/.github/workflows/_generate-changelog.yml@main
+  # ... workflow continues with debug output
+```
+
+## Migration Guides
+
+### From Manual Changelogs
+
+1. Start with manual generator to test AI output quality
+2. Once satisfied, integrate into release pipeline
+3. Keep manual generator for backfilling historical releases
+
+### From conventional-changelog
+
+These workflows can coexist! Use AI for human-readable summaries, keep conventional-changelog for detailed CHANGELOG.md files:
+
+```yaml
+jobs:
+  conventional:
+    runs-on: ubuntu-latest
+    steps:
+      - run: npx conventional-changelog-cli -p angular -i CHANGELOG.md -s
+
+  ai-changelog:
+    uses: uniswap/ai-toolkit/.github/workflows/_generate-changelog.yml@main
+    # ... generate human-readable summary for Slack
+```
 
 ## Support and Contributing
 
