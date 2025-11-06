@@ -224,6 +224,95 @@ jobs:
           echo "Building affected packages: ${{ steps.affected.outputs.projects }}"
           npx nx affected --target=build --base=${{ steps.base-sha.outputs.base }} --head=HEAD
 
+      - name: Clean up orphaned tags
+        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.affected.outputs.has_affected == 'true'
+        run: |
+          AFFECTED_PACKAGES="${{ steps.affected.outputs.packages }}"
+
+          echo "=========================================="
+          echo "Checking for orphaned Git tags"
+          echo "=========================================="
+          echo ""
+          echo "Orphaned tags are Git tags that exist but their corresponding"
+          echo "npm package version was never successfully published."
+          echo "These must be cleaned up before versioning can proceed."
+          echo ""
+
+          # Convert comma-separated list to array
+          IFS=',' read -ra PACKAGES <<< "$AFFECTED_PACKAGES"
+
+          CLEANED_TAGS=()
+
+          for package in "${PACKAGES[@]}"; do
+            if [ -z "$package" ]; then
+              continue
+            fi
+
+            echo "Checking package: $package"
+
+            # Extract the package name without scope for tag checking
+            PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
+
+            # Get the latest tag for this package
+            LATEST_TAG=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | sort -V | tail -n 1)
+
+            if [ -z "$LATEST_TAG" ]; then
+              echo "  ℹ️  No tags found - will create first tag during versioning"
+              echo ""
+              continue
+            fi
+
+            # Extract version from tag
+            VERSION="${LATEST_TAG##*@}"
+            echo "  Latest tag: $LATEST_TAG (version: $VERSION)"
+
+            # Check if this specific version exists on npm
+            if npm view "${package}@${VERSION}" version --registry=https://registry.npmjs.org &>/dev/null; then
+              echo "  ✅ Version $VERSION exists on npm - tag is valid"
+              echo ""
+            else
+              echo "  ⚠️  Version $VERSION NOT found on npm - tag is orphaned!"
+              echo "  🧹 Deleting orphaned tag: $LATEST_TAG"
+
+              # Delete tag locally
+              if git tag -d "$LATEST_TAG" 2>/dev/null; then
+                echo "  ✅ Deleted local tag"
+              else
+                echo "  ⚠️  Local tag already deleted or doesn't exist"
+              fi
+
+              # Delete tag from remote
+              if git push --delete origin "$LATEST_TAG" 2>/dev/null; then
+                echo "  ✅ Deleted remote tag"
+                CLEANED_TAGS+=("$LATEST_TAG")
+              else
+                echo "  ⚠️  Remote tag already deleted or doesn't exist"
+              fi
+
+              echo ""
+            fi
+          done
+
+          # Summary
+          echo "=========================================="
+          echo "Orphaned Tag Cleanup Summary"
+          echo "=========================================="
+          if [ ${#CLEANED_TAGS[@]} -gt 0 ]; then
+            echo "Cleaned up ${#CLEANED_TAGS[@]} orphaned tag(s):"
+            for tag in "${CLEANED_TAGS[@]}"; do
+              echo "  🧹 $tag"
+            done
+            echo ""
+            echo "✅ These tags will be recreated during versioning and"
+            echo "   associated with the successful npm publish in this run."
+          else
+            echo "✅ No orphaned tags found - all existing tags have"
+            echo "   corresponding published npm versions."
+          fi
+          echo ""
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+
       - name: Version and publish packages (dry run)
         if: github.event.inputs.dryRun == 'true' || github.event_name == 'workflow_dispatch'
         run: |
