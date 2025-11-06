@@ -227,6 +227,12 @@ jobs:
       - name: Clean up orphaned tags
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.affected.outputs.has_affected == 'true'
         run: |
+          # Configure npm authentication for viewing restricted packages
+          # The @uniswap packages are restricted and require authentication even for read operations
+          echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+          echo "Configured npm authentication for restricted package queries"
+          echo ""
+
           AFFECTED_PACKAGES="${{ steps.affected.outputs.packages }}"
 
           echo "=========================================="
@@ -423,6 +429,12 @@ jobs:
       - name: Publish affected packages to NPM
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.affected.outputs.has_affected == 'true'
         run: |
+          # Configure npm authentication for viewing restricted packages
+          # The @uniswap packages are restricted and require authentication even for read operations
+          echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+          echo "Configured npm authentication for restricted package queries"
+          echo ""
+
           AFFECTED_PROJECTS="${{ steps.affected.outputs.projects }}"
           AFFECTED_PACKAGES="${{ steps.affected.outputs.packages }}"
           echo "Publishing affected packages with tag: ${{ steps.npm-tag.outputs.tag }} to NPM"
