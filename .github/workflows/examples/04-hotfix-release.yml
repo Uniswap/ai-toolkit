@@ -1,0 +1,443 @@
+name: Hotfix Release
+
+# PURPOSE:
+# Fast-track emergency releases with immediate notifications for critical fixes.
+# This workflow is optimized for speed and visibility during production incidents.
+#
+# USE CASE:
+# Production is down due to a critical bug. You:
+# 1. Create a hotfix/issue-123 branch from production
+# 2. Fix the bug and push to the branch
+# 3. This workflow automatically generates a focused changelog
+# 4. Notifications are sent immediately to all critical channels
+# 5. Team is alerted within seconds
+#
+# The goal is SPEED and CLARITY during incidents.
+
+on:
+  push:
+    branches:
+      # Trigger on any branch starting with 'hotfix/'
+      - hotfix/*
+      # Also support emergency fix branches
+      - emergency/*
+      # Support explicit release branches for hotfixes
+      - release/hotfix-*
+
+  # Allow manual triggering for testing or re-running notifications
+  workflow_dispatch:
+
+# No concurrency control - we want hotfixes to run immediately
+# Each hotfix push creates a new workflow run
+
+jobs:
+  validate:
+    name: Validate Hotfix
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      is_valid: ${{ steps.check.outputs.is_valid }}
+      issue_number: ${{ steps.check.outputs.issue_number }}
+
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Validate hotfix branch
+        id: check
+        run: |
+          BRANCH_NAME="${{ github.ref_name }}"
+          echo "Validating hotfix branch: $BRANCH_NAME"
+
+          # Extract issue number from branch name if present
+          # Examples: hotfix/123, hotfix/issue-456, emergency/bug-789
+          ISSUE_NUM=$(echo "$BRANCH_NAME" | grep -oE '[0-9]+' | head -n 1 || echo "")
+
+          if [ -n "$ISSUE_NUM" ]; then
+            echo "Found issue number: $ISSUE_NUM"
+            echo "issue_number=$ISSUE_NUM" >> $GITHUB_OUTPUT
+          else
+            echo "No issue number found in branch name"
+            echo "issue_number=" >> $GITHUB_OUTPUT
+          fi
+
+          # Validate that this is indeed a hotfix branch
+          if [[ "$BRANCH_NAME" == hotfix/* ]] || [[ "$BRANCH_NAME" == emergency/* ]] || [[ "$BRANCH_NAME" == release/hotfix-* ]]; then
+            echo "✅ Valid hotfix branch"
+            echo "is_valid=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Not a hotfix branch - workflow should not run"
+            echo "is_valid=false" >> $GITHUB_OUTPUT
+          fi
+
+  # Quick smoke tests - keep these FAST (under 2 minutes)
+  # The goal is to catch obvious errors without delaying the hotfix
+  quick-test:
+    name: Quick Validation
+    needs: validate
+    if: needs.validate.outputs.is_valid == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Only run critical tests - skip integration tests, e2e tests, etc.
+      # These can run after the hotfix is deployed
+      - name: Run critical tests
+        run: |
+          # Run only fast unit tests, skip slow integration tests
+          npm test -- --coverage=false --maxWorkers=2 --bail
+
+          # Alternative: Run only tests for changed files
+          # npm test -- --changedSince=HEAD~1 --coverage=false
+
+      # Quick lint check for obvious syntax errors
+      - name: Quick lint
+        run: npm run lint -- --quiet
+
+  # Deploy the hotfix immediately after validation
+  # Replace this with your actual deployment logic
+  deploy:
+    name: Deploy Hotfix
+    needs: [validate, quick-test]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+    outputs:
+      deployed_version: ${{ steps.deploy.outputs.version }}
+
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # === YOUR HOTFIX DEPLOYMENT LOGIC HERE ===
+      #
+      # Example: Kubernetes blue-green deployment
+      # - name: Deploy to production
+      #   run: |
+      #     kubectl set image deployment/app app=myapp:${{ github.sha }}
+      #     kubectl rollout status deployment/app
+      #
+      # Example: Serverless deployment
+      # - name: Deploy to AWS Lambda
+      #   run: |
+      #     npm run build
+      #     serverless deploy --stage production
+      #
+      # Example: Static site deployment
+      # - name: Deploy to Cloudflare Pages
+      #   run: |
+      #     npm run build
+      #     wrangler pages deploy dist/
+
+      - name: Mock deployment (replace with real deployment)
+        id: deploy
+        run: |
+          echo "🚀 Deploying hotfix..."
+          echo "In a real workflow, this would deploy your application"
+
+          # Generate a version number (replace with your versioning logic)
+          VERSION="hotfix-$(date +%Y%m%d-%H%M%S)"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          echo "✅ Hotfix deployed as version: $VERSION"
+
+          # Add to summary
+          cat <<SUMMARY_EOF >> $GITHUB_STEP_SUMMARY
+          ## 🚀 Hotfix Deployed
+
+          - **Version**: \`$VERSION\`
+          - **Branch**: \`${{ github.ref_name }}\`
+          - **Commit**: \`${{ github.sha }}\`
+          - **Deploy Time**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          SUMMARY_EOF
+
+  # Generate a focused changelog for the hotfix
+  # This should explain WHAT was fixed and WHY it was urgent
+  generate-changelog:
+    name: Generate Hotfix Changelog
+    needs: [validate, deploy]
+    # NOTE: Update @main to @v1.0.0 for pinned version or @next for preview features
+    uses: uniswap/ai-toolkit/.github/workflows/_generate-changelog.yml@main
+    with:
+      # Compare against the production branch (usually main or master)
+      # Adjust this to match your production branch name
+      from_ref: 'main'
+      to_ref: ${{ github.sha }}
+
+      # Generate both formats for maximum visibility
+      output_formats: 'slack,markdown'
+
+      # Use a custom prompt optimized for hotfixes
+      # This prompt emphasizes:
+      # - What broke and what was fixed
+      # - Impact on users
+      # - Any required actions from the team
+      custom_prompt_file: '.github/prompts/hotfix-changelog.md'
+
+      # Keep it concise - hotfix changelogs should be short and focused
+      # 512-1024 tokens is usually sufficient for a focused hotfix summary
+      max_tokens: 1024
+
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  # Send URGENT notifications to all critical channels
+  # This should alert the entire team immediately
+  notify-urgent:
+    name: Send Urgent Notifications
+    needs: [validate, deploy, generate-changelog]
+    # NOTE: Update @main to @v1.0.0 for pinned version or @next for preview features
+    uses: uniswap/ai-toolkit/.github/workflows/_notify-release.yml@main
+    with:
+      changelog_slack: ${{ needs.generate-changelog.outputs.changelog_slack }}
+      changelog_markdown: ${{ needs.generate-changelog.outputs.changelog_markdown }}
+
+      # Send to all configured destinations
+      # For hotfixes, you probably want both Slack and Notion
+      destinations: 'slack'
+
+      from_ref: 'main'  # Or your production branch
+      to_ref: ${{ github.sha }}
+      branch: ${{ github.ref_name }}
+
+      # Custom title with urgency indicators
+      release_title: '🚨 HOTFIX DEPLOYED - ${{ needs.deploy.outputs.deployed_version }}'
+
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      # Uncomment to also send to Notion
+      # NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+      # RELEASE_NOTES_NOTION_DATABASE_ID: ${{ secrets.RELEASE_NOTES_NOTION_DATABASE_ID }}
+
+  # Optional: Update the related issue with deployment information
+  update-issue:
+    name: Update Related Issue
+    needs: [validate, deploy]
+    if: needs.validate.outputs.issue_number != ''
+    runs-on: ubuntu-24.04
+    permissions:
+      issues: write
+
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Add deployment comment to issue
+        env:
+          ISSUE_NUMBER: ${{ needs.validate.outputs.issue_number }}
+          VERSION: ${{ needs.deploy.outputs.deployed_version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Add a comment to the related issue
+          gh issue comment "$ISSUE_NUMBER" --body "🚀 **Hotfix deployed**
+
+          This issue has been addressed in hotfix version \`$VERSION\`.
+
+          - **Branch**: \`${{ github.ref_name }}\`
+          - **Commit**: \`${{ github.sha }}\`
+          - **Deployed**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          - **Workflow Run**: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          Please verify that the issue is resolved in production." || echo "Could not update issue (it may not exist)"
+
+  # Optional: Create a GitHub Release for the hotfix
+  create-release:
+    name: Create GitHub Release
+    needs: [validate, deploy, generate-changelog]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Create release
+        env:
+          VERSION: ${{ needs.deploy.outputs.deployed_version }}
+          CHANGELOG: ${{ needs.generate-changelog.outputs.changelog_markdown }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Create a GitHub release for this hotfix
+          gh release create "$VERSION" \
+            --title "🚨 Hotfix: $VERSION" \
+            --notes "## Emergency Hotfix Release
+
+          $CHANGELOG
+
+          ---
+          **This was an emergency hotfix deployed to production.**
+
+          - Branch: \`${{ github.ref_name }}\`
+          - Commit: \`${{ github.sha }}\`
+          - Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --target "${{ github.sha }}" \
+            --prerelease  # Mark as prerelease since it's a hotfix
+
+# =============================================================================
+# HOTFIX WORKFLOW BEST PRACTICES
+# =============================================================================
+#
+# 1. SPEED IS CRITICAL:
+#    - Keep tests fast (under 2 minutes)
+#    - Run only critical validation
+#    - Deploy immediately after tests pass
+#    - Don't wait for full test suites
+#
+# 2. VISIBILITY IS ESSENTIAL:
+#    - Send notifications to ALL critical channels
+#    - Use urgent/alert channels (#incidents, #alerts)
+#    - Include @here or @channel mentions in Slack
+#    - Update status pages immediately
+#
+# 3. DOCUMENTATION:
+#    - Always explain WHAT broke and WHY
+#    - Document any manual steps required
+#    - Link to related issues/tickets
+#    - Include rollback instructions
+#
+# 4. FOLLOW-UP:
+#    - Schedule full test suite to run after deployment
+#    - Create post-mortem issue
+#    - Plan proper fix for next release
+#    - Review what went wrong
+#
+# 5. SECURITY:
+#    - Be extra careful with hotfixes
+#    - Review changes carefully despite urgency
+#    - Check for injection vulnerabilities
+#    - Verify authentication/authorization
+#
+# 6. ROLLBACK PLAN:
+#    - Know how to rollback before deploying
+#    - Keep previous version accessible
+#    - Test rollback procedure regularly
+#    - Document rollback steps
+
+# =============================================================================
+# CUSTOMIZATION IDEAS
+# =============================================================================
+#
+# 1. ADD APPROVAL STEP:
+#    For particularly sensitive hotfixes, require manual approval:
+#
+#    deploy:
+#      environment:
+#        name: production-hotfix
+#        url: https://your-app.com
+#      # This will pause and require approval in GitHub UI
+#
+# 2. ALERT SPECIFIC PEOPLE:
+#    In your Slack notification, mention specific oncall engineers:
+#    - Add @oncall or @engineering-leads to Slack message
+#    - Use GitHub API to assign reviewers
+#    - Send PagerDuty/OpsGenie alerts
+#
+# 3. MULTIPLE ENVIRONMENTS:
+#    Deploy to staging first, then production:
+#    - Create separate deploy-staging and deploy-production jobs
+#    - Require manual approval between stages
+#    - Validate on staging before production
+#
+# 4. AUTOMATED ROLLBACK:
+#    Monitor health checks after deployment:
+#    - Add a health-check job after deploy
+#    - Automatically rollback if checks fail
+#    - Alert the team about automatic rollback
+#
+# 5. INCIDENT TRACKING:
+#    Automatically create/update incident tickets:
+#    - Create Jira/Linear issue
+#    - Update PagerDuty incident
+#    - Post to status page
+#
+# 6. COMPLIANCE LOGGING:
+#    For regulated environments, log everything:
+#    - Who deployed
+#    - What changed
+#    - When it was deployed
+#    - Why it was needed (link to incident)
+#
+# 7. TEAM COORDINATION:
+#    Create a Slack thread for the hotfix:
+#    - Post initial notification
+#    - Update with progress
+#    - Request verification
+#    - Coordinate rollback if needed
+
+# =============================================================================
+# TROUBLESHOOTING
+# =============================================================================
+#
+# Q: "The workflow ran but no notification was sent"
+# A: Check the validate job output. The branch name must match the patterns:
+#    - hotfix/*
+#    - emergency/*
+#    - release/hotfix-*
+#
+# Q: "I need to skip tests for an urgent hotfix"
+# A: You can manually trigger with workflow_dispatch and add a skip_tests input.
+#    However, this is NOT recommended - at least run smoke tests.
+#
+# Q: "The changelog doesn't emphasize the urgency"
+# A: Customize .github/prompts/hotfix-changelog.md to include urgency language.
+#    Add phrases like "CRITICAL FIX" or "PRODUCTION INCIDENT" to the prompt.
+#
+# Q: "I want different notification channels for different severities"
+# A: Create separate workflows:
+#    - hotfix-critical.yml (all channels, @here mentions)
+#    - hotfix-minor.yml (reduced notifications)
+#    Trigger based on branch naming: hotfix/critical-* vs hotfix/minor-*
+#
+# Q: "Can I test this without deploying?"
+# A: Yes! Create a workflow_dispatch input like skip_deployment: true
+#    Or use a separate hotfix-test.yml workflow on test branches
+
+# =============================================================================
+# EMERGENCY PROCEDURES
+# =============================================================================
+#
+# IF THIS WORKFLOW FAILS DURING A CRITICAL INCIDENT:
+#
+# 1. Don't panic - the workflow is not your production system
+# 2. Deploy using your manual emergency procedure
+# 3. Manually send notifications to team channels
+# 4. Fix the workflow after the incident is resolved
+# 5. Document what went wrong in post-mortem
+#
+# MANUAL HOTFIX CHECKLIST:
+# □ Create hotfix branch from production
+# □ Fix the bug locally and test
+# □ Push hotfix branch
+# □ Wait for CI to pass (or run tests locally)
+# □ Deploy to production using your deployment tool
+# □ Verify fix in production
+# □ Notify team in Slack/Discord/Teams
+# □ Update incident tracking system
+# □ Create post-mortem issue
+# □ Schedule follow-up to improve workflow

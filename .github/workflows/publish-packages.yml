@@ -347,7 +347,6 @@ jobs:
       from_ref: ${{ github.event.before }}
       to_ref: ${{ github.sha }}
       branch: ${{ github.ref_name }}
-      npm_tag: ${{ github.ref_name == 'next' && 'next' || 'latest' }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
