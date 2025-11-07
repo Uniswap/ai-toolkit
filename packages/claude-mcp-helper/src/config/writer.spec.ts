@@ -222,7 +222,10 @@ describe('Configuration Writer', () => {
         localConfigPath,
         JSON.stringify({
           permissions: { allow: ['read', 'write'] },
-          deniedMcpServers: [{ serverName: 'github' }, { serverName: 'linear' }],
+          deniedMcpServers: [
+            { serverName: 'github' },
+            { serverName: 'linear' },
+          ],
         })
       );
 

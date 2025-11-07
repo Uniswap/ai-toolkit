@@ -1,4 +1,4 @@
-import { enableCommand } from './enable';
+import { disableCommand } from './disable';
 import * as reader from '../config/reader';
 import * as writer from '../config/writer';
 import * as display from '../utils/display';
@@ -7,7 +7,7 @@ jest.mock('../config/reader');
 jest.mock('../config/writer');
 jest.mock('../utils/display');
 
-describe('enable command', () => {
+describe('disable command', () => {
   let consoleLogSpy: jest.SpyInstance;
 
   beforeEach(() => {
@@ -20,13 +20,13 @@ describe('enable command', () => {
   });
 
   it('should display error when no server names provided', () => {
-    enableCommand([]);
+    disableCommand([]);
 
     expect(display.displayError).toHaveBeenCalledWith(
-      'Please specify at least one server name to enable.'
+      'Please specify at least one server name to disable.'
     );
     expect(consoleLogSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Usage: mcp-config enable')
+      expect.stringContaining('Usage: claude-mcp-helper disable')
     );
   });
 
@@ -35,7 +35,7 @@ describe('enable command', () => {
       .spyOn(reader, 'getAvailableServers')
       .mockReturnValue(['github', 'linear']);
 
-    enableCommand(['nonexistent']);
+    disableCommand(['nonexistent']);
 
     expect(display.displayError).toHaveBeenCalledWith(
       'Server "nonexistent" is not configured.'
@@ -45,40 +45,40 @@ describe('enable command', () => {
     );
   });
 
-  it('should display warning when server is already enabled', () => {
-    jest.spyOn(reader, 'getAvailableServers').mockReturnValue(['github']);
-    jest.spyOn(reader, 'getServerStatus').mockReturnValue({
-      name: 'github',
-      enabled: true,
-      source: 'none',
-    });
-
-    enableCommand(['github']);
-
-    expect(display.displayWarning).toHaveBeenCalledWith(
-      'Server "github" is already enabled.'
-    );
-    expect(writer.enableServer).not.toHaveBeenCalled();
-  });
-
-  it('should enable a disabled server successfully', () => {
+  it('should display warning when server is already disabled', () => {
     jest.spyOn(reader, 'getAvailableServers').mockReturnValue(['github']);
     jest.spyOn(reader, 'getServerStatus').mockReturnValue({
       name: 'github',
       enabled: false,
       source: 'local',
     });
-    jest.spyOn(writer, 'enableServer').mockImplementation();
 
-    enableCommand(['github']);
+    disableCommand(['github']);
 
-    expect(writer.enableServer).toHaveBeenCalledWith('github');
+    expect(display.displayWarning).toHaveBeenCalledWith(
+      'Server "github" is already disabled.'
+    );
+    expect(writer.disableServer).not.toHaveBeenCalled();
+  });
+
+  it('should disable an enabled server successfully', () => {
+    jest.spyOn(reader, 'getAvailableServers').mockReturnValue(['github']);
+    jest.spyOn(reader, 'getServerStatus').mockReturnValue({
+      name: 'github',
+      enabled: true,
+      source: 'none',
+    });
+    jest.spyOn(writer, 'disableServer').mockImplementation();
+
+    disableCommand(['github']);
+
+    expect(writer.disableServer).toHaveBeenCalledWith('github');
     expect(display.displaySuccess).toHaveBeenCalledWith(
-      'Enabled server "github".'
+      'Disabled server "github".'
     );
   });
 
-  it('should enable multiple servers', () => {
+  it('should disable multiple servers', () => {
     jest
       .spyOn(reader, 'getAvailableServers')
       .mockReturnValue(['github', 'linear', 'notion']);
@@ -86,39 +86,37 @@ describe('enable command', () => {
       .spyOn(reader, 'getServerStatus')
       .mockImplementation((name: string) => ({
         name,
-        enabled: false,
-        source: 'local',
+        enabled: true,
+        source: 'none',
       }));
-    jest.spyOn(writer, 'enableServer').mockImplementation();
+    jest.spyOn(writer, 'disableServer').mockImplementation();
 
-    enableCommand(['github', 'linear']);
+    disableCommand(['github', 'linear']);
 
-    expect(writer.enableServer).toHaveBeenCalledWith('github');
-    expect(writer.enableServer).toHaveBeenCalledWith('linear');
+    expect(writer.disableServer).toHaveBeenCalledWith('github');
+    expect(writer.disableServer).toHaveBeenCalledWith('linear');
     expect(display.displaySuccess).toHaveBeenCalledTimes(2);
   });
 
-  it('should handle errors when enabling a server', () => {
+  it('should handle errors when disabling a server', () => {
     jest.spyOn(reader, 'getAvailableServers').mockReturnValue(['github']);
     jest.spyOn(reader, 'getServerStatus').mockReturnValue({
       name: 'github',
-      enabled: false,
-      source: 'local',
+      enabled: true,
+      source: 'none',
     });
-    jest
-      .spyOn(writer, 'enableServer')
-      .mockImplementation(() => {
-        throw new Error('Write failed');
-      });
+    jest.spyOn(writer, 'disableServer').mockImplementation(() => {
+      throw new Error('Write failed');
+    });
 
-    enableCommand(['github']);
+    disableCommand(['github']);
 
     expect(display.displayError).toHaveBeenCalledWith(
-      expect.stringContaining('Failed to enable "github"')
+      expect.stringContaining('Failed to disable "github"')
     );
   });
 
-  it('should continue enabling other servers if one fails', () => {
+  it('should continue disabling other servers if one fails', () => {
     jest
       .spyOn(reader, 'getAvailableServers')
       .mockReturnValue(['github', 'linear']);
@@ -126,11 +124,11 @@ describe('enable command', () => {
       .spyOn(reader, 'getServerStatus')
       .mockImplementation((name: string) => ({
         name,
-        enabled: false,
-        source: 'local',
+        enabled: true,
+        source: 'none',
       }));
     jest
-      .spyOn(writer, 'enableServer')
+      .spyOn(writer, 'disableServer')
       .mockImplementationOnce(() => {
         throw new Error('Write failed');
       })
@@ -138,10 +136,10 @@ describe('enable command', () => {
         // Second call succeeds
       });
 
-    enableCommand(['github', 'linear']);
+    disableCommand(['github', 'linear']);
 
-    expect(writer.enableServer).toHaveBeenCalledWith('github');
-    expect(writer.enableServer).toHaveBeenCalledWith('linear');
+    expect(writer.disableServer).toHaveBeenCalledWith('github');
+    expect(writer.disableServer).toHaveBeenCalledWith('linear');
     expect(display.displayError).toHaveBeenCalledTimes(1);
     expect(display.displaySuccess).toHaveBeenCalledTimes(1);
   });
@@ -150,19 +148,19 @@ describe('enable command', () => {
     jest.spyOn(reader, 'getAvailableServers').mockReturnValue(['github']);
     jest.spyOn(reader, 'getServerStatus').mockReturnValue({
       name: 'github',
-      enabled: false,
-      source: 'local',
+      enabled: true,
+      source: 'none',
     });
-    jest.spyOn(writer, 'enableServer').mockImplementation();
+    jest.spyOn(writer, 'disableServer').mockImplementation();
 
-    enableCommand(['nonexistent', 'github']);
+    disableCommand(['nonexistent', 'github']);
 
     expect(display.displayError).toHaveBeenCalledWith(
       'Server "nonexistent" is not configured.'
     );
-    expect(writer.enableServer).toHaveBeenCalledWith('github');
+    expect(writer.disableServer).toHaveBeenCalledWith('github');
     expect(display.displaySuccess).toHaveBeenCalledWith(
-      'Enabled server "github".'
+      'Disabled server "github".'
     );
   });
 });

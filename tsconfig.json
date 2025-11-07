@@ -22,7 +22,7 @@
       "path": "./apps/slack-oauth-backend"
     },
     {
-      "path": "./packages/mcp-config"
+      "path": "./packages/claude-mcp-helper"
     }
   ]
 }

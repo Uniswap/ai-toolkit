@@ -9,7 +9,7 @@ const swcJestConfig = JSON.parse(
 swcJestConfig.swcrc = false;
 
 export default {
-  displayName: '@ai-toolkit/mcp-config',
+  displayName: '@ai-toolkit/claude-mcp-helper',
   preset: '../../jest.preset.js',
   testEnvironment: 'node',
   transform: {

@@ -186,10 +186,7 @@ describe('Configuration Reader', () => {
         },
       };
 
-      vol.writeFileSync(
-        join(mockCwd, '.mcp.json'),
-        JSON.stringify(mockConfig)
-      );
+      vol.writeFileSync(join(mockCwd, '.mcp.json'), JSON.stringify(mockConfig));
 
       const config = readMcpJsonConfig();
       expect(config).toEqual(mockConfig);
@@ -260,10 +257,7 @@ describe('Configuration Reader', () => {
         },
       };
 
-      vol.writeFileSync(
-        join(mockCwd, '.mcp.json'),
-        JSON.stringify(mockConfig)
-      );
+      vol.writeFileSync(join(mockCwd, '.mcp.json'), JSON.stringify(mockConfig));
 
       const servers = getAvailableServers();
       expect(servers).toEqual(['local1', 'local2']);
@@ -508,10 +502,7 @@ describe('Configuration Reader', () => {
         },
       };
 
-      vol.writeFileSync(
-        join(mockCwd, '.mcp.json'),
-        JSON.stringify(mockConfig)
-      );
+      vol.writeFileSync(join(mockCwd, '.mcp.json'), JSON.stringify(mockConfig));
 
       const result = hasMcpServers();
       expect(result).toBe(true);

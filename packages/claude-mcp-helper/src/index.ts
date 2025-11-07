@@ -13,7 +13,7 @@ function displayHelp(): void {
     colorize('\nMCP Config - Manage MCP servers for Claude Code', 'bold')
   );
   console.log(colorize('\nUsage:', 'bold'));
-  console.log('  mcp-config [command] [options]');
+  console.log('  claude-mcp-helper [command] [options]');
   console.log(colorize('\nCommands:', 'bold'));
   console.log('  list                       List all MCP servers with status');
   console.log('  enable <server...>         Enable one or more servers');
@@ -22,10 +22,14 @@ function displayHelp(): void {
   console.log('  interactive                Interactive multi-select mode');
   console.log('  help                       Show this help message');
   console.log(colorize('\nExamples:', 'bold'));
-  console.log('  mcp-config                 # Interactive mode (default)');
-  console.log('  mcp-config list            # List all servers');
-  console.log('  mcp-config enable github   # Enable the github server');
-  console.log('  mcp-config disable supabase nx   # Disable multiple servers');
+  console.log(
+    '  claude-mcp-helper                 # Interactive mode (default)'
+  );
+  console.log('  claude-mcp-helper list            # List all servers');
+  console.log('  claude-mcp-helper enable github   # Enable the github server');
+  console.log(
+    '  claude-mcp-helper disable supabase nx   # Disable multiple servers'
+  );
   console.log(colorize('\nConfiguration:', 'bold'));
   console.log('  Global:  ~/.claude.json');
   console.log('  Local:   ./.claude/settings.local.json\n');
