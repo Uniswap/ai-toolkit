@@ -1,4 +1,4 @@
-# MCP Config
+# Claude MCP Helper
 
 **Package**: `@uniswap/ai-toolkit-claude-mcp-helper`
 
@@ -17,16 +17,16 @@ A standalone CLI tool to manage MCP (Model Context Protocol) servers for Claude 
 
 ### Via npm (Recommended)
 
-Install globally for easy access from anywhere:
-
-```bash
-npm install -g @uniswap/ai-toolkit-claude-mcp-helper
-```
-
-Or use via npx without installation:
+Use via npx without installation:
 
 ```bash
 npx @uniswap/ai-toolkit-claude-mcp-helper list
+```
+
+Alias in your shell for easy access. For example, run this to automatically add it as an alias, `claude-mcp-helper`, to your `~/.zshrc` file:
+
+```bash
+echo '\n# ai-toolkit claude-mcp helper\nalias claude-mcp-helper="npx -y @uniswap/ai-toolkit-claude-mcp-helper@latest"' >> ~/.zshrc
 ```
 
 ### Build from Source
@@ -35,51 +35,21 @@ If you're developing or contributing to this package:
 
 ```bash
 # From the ai-toolkit monorepo root
-npx nx build mcp-config
+npx nx build @uniswap/ai-toolkit-claude-mcp-helper
 
-# The executable will be at: packages/mcp-config/dist/mcp-config.cjs
-```
-
-### Set Up Shell Alias (Development)
-
-Add an alias to your shell configuration for easy access from anywhere:
-
-#### Bash (~/.bashrc or ~/.bash_profile)
-
-```bash
-alias mcp-config="/absolute/path/to/ai-toolkit/packages/mcp-config/dist/mcp-config.cjs"
-```
-
-#### Zsh (~/.zshrc)
-
-```bash
-alias mcp-config="/absolute/path/to/ai-toolkit/packages/mcp-config/dist/mcp-config.cjs"
-```
-
-#### Fish (~/.config/fish/config.fish)
-
-```fish
-alias mcp-config="/absolute/path/to/ai-toolkit/packages/mcp-config/dist/mcp-config.cjs"
-```
-
-After adding the alias, reload your shell configuration:
-
-```bash
-# Bash/Zsh
-source ~/.zshrc  # or ~/.bashrc
-
-# Fish
-source ~/.config/fish/config.fish
+# The executable will be at: packages/claude-mcp-helper/dist/claude-mcp-helper.cjs
 ```
 
 ## Usage
 
+This assumes you've aliased it properly.
+
 ### Interactive Mode (Recommended)
 
-Simply run `mcp-config` without arguments to enter interactive mode:
+Simply run `claude-mcp-helper` without arguments to enter interactive mode:
 
 ```bash
-mcp-config
+claude-mcp-helper
 ```
 
 This will show a multi-select interface where you can:
@@ -94,7 +64,7 @@ This will show a multi-select interface where you can:
 View all MCP servers and their status:
 
 ```bash
-mcp-config list
+claude-mcp-helper list
 ```
 
 Output example:
@@ -118,10 +88,10 @@ Enable one or more servers:
 
 ```bash
 # Enable single server
-mcp-config enable github
+claude-mcp-helper enable github
 
 # Enable multiple servers
-mcp-config enable github linear notion
+claude-mcp-helper enable github linear notion
 ```
 
 ### Disable Servers
@@ -130,10 +100,10 @@ Disable one or more servers:
 
 ```bash
 # Disable single server
-mcp-config disable chrome-devtools
+claude-mcp-helper disable chrome-devtools
 
 # Disable multiple servers
-mcp-config disable chrome-devtools claude-historian
+claude-mcp-helper disable chrome-devtools claude-historian
 ```
 
 ### Detailed Status
@@ -141,14 +111,14 @@ mcp-config disable chrome-devtools claude-historian
 Show comprehensive status information:
 
 ```bash
-mcp-config status
+claude-mcp-helper status
 ```
 
 ## Configuration
 
 ### How It Works
 
-MCP Config discovers MCP servers from multiple sources and manages their enabled/disabled state:
+Claude MCP Helper discovers MCP servers from multiple sources and manages their enabled/disabled state:
 
 #### MCP Server Sources
 
@@ -202,7 +172,7 @@ You want to disable `chrome-devtools` only in the current project:
 
 ```bash
 cd /path/to/your/project
-mcp-config disable chrome-devtools
+claude-mcp-helper disable chrome-devtools
 ```
 
 This adds the server to `./.claude/settings.local.json`:
@@ -216,12 +186,12 @@ This adds the server to `./.claude/settings.local.json`:
 ### Scenario: Enable All Servers in Project
 
 ```bash
-mcp-config interactive
+claude-mcp-helper interactive
 # Select all servers (press 'a')
 # Press Enter to save
 ```
 
-This removes all entries from `./.claude/settings.local.json.deniedMcpServers`.
+This removes all entries from the `deniedMcpServers` array in `./.claude/settings.local.json`.
 
 ### Scenario: Share Team MCP Servers via .mcp.json
 
@@ -242,12 +212,12 @@ Create a `.mcp.json` file in your project root to share MCP server configuration
 }
 ```
 
-Commit this file to version control. Team members running `mcp-config` will see these servers alongside their personal global servers.
+Commit this file to version control. Team members running `claude-mcp-helper` will see these servers alongside their personal global servers.
 
 ### Scenario: Check What's Enabled
 
 ```bash
-mcp-config list
+claude-mcp-helper list
 ```
 
 Shows:
@@ -261,7 +231,7 @@ Shows:
 ### Project Structure
 
 ```text
-packages/mcp-config/
+packages/claude-mcp-helper/
 ├── src/
 │   ├── index.ts              # CLI entry point
 │   ├── commands/
@@ -284,7 +254,7 @@ packages/mcp-config/
 ### Building
 
 ```bash
-npx nx build mcp-config
+npx nx build @uniswap/ai-toolkit-claude-mcp-helper
 ```
 
 The build process:
@@ -298,13 +268,13 @@ The build process:
 
 ```bash
 # Build
-npx nx build mcp-config
+npx nx build @uniswap/ai-toolkit-claude-mcp-helper
 
 # Run directly
-packages/mcp-config/dist/mcp-config.cjs list
+packages/claude-mcp-helper/dist/claude-mcp-helper.cjs list
 
 # Or use alias after setting it up
-mcp-config list
+claude-mcp-helper list
 ```
 
 ## Troubleshooting
@@ -343,5 +313,5 @@ Make sure you:
 If you get permission errors when running the tool:
 
 ```bash
-chmod +x packages/mcp-config/dist/mcp-config.cjs
+chmod +x packages/claude-mcp-helper/dist/claude-mcp-helper.cjs
 ```

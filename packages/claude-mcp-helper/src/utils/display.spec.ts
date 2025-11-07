@@ -83,9 +83,7 @@ describe('Display Utilities', () => {
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining('✓ Enabled Servers:')
       );
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('✓')
-      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('✓'));
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining('github')
       );
@@ -240,9 +238,7 @@ describe('Display Utilities', () => {
     it('should display success message with checkmark', () => {
       displaySuccess('Operation completed');
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('✓')
-      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('✓'));
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining('Operation completed')
       );
@@ -280,9 +276,7 @@ describe('Display Utilities', () => {
     it('should display warning message with warning symbol', () => {
       displayWarning('Be careful');
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('⚠')
-      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('⚠'));
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining('Be careful')
       );

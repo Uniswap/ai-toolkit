@@ -8,8 +8,10 @@ import { displaySuccess, displayError, displayWarning } from '../utils/display';
 export function disableCommand(serverNames: string[]): void {
   if (serverNames.length === 0) {
     displayError('Please specify at least one server name to disable.');
-    console.log('\nUsage: mcp-config disable <server-name> [<server-name>...]');
-    console.log('Example: mcp-config disable github supabase\n');
+    console.log(
+      '\nUsage: claude-mcp-helper disable <server-name> [<server-name>...]'
+    );
+    console.log('Example: claude-mcp-helper disable github supabase\n');
     return;
   }
 

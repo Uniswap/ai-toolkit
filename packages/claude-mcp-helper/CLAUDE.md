@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `@uniswap/ai-toolkit-claude-mcp-helper` package (source directory: `packages/mcp-config`) is a standalone CLI tool for managing MCP (Model Context Protocol) servers in Claude Code workspaces. It provides an intuitive interface for enabling/disabling MCP servers across global and project-specific configurations.
+The `@uniswap/ai-toolkit-claude-mcp-helper` package (source directory: `packages/claude-mcp-helper`) is a standalone CLI tool for managing MCP (Model Context Protocol) servers in Claude Code workspaces. It provides an intuitive interface for enabling/disabling MCP servers across global and project-specific configurations.
 
 ## Package Purpose
 
@@ -77,7 +77,7 @@ This format is critical for proper integration with Claude Code's configuration 
 ## Module Structure
 
 ```
-packages/mcp-config/
+packages/claude-mcp-helper/
 ├── src/
 │   ├── index.ts              # CLI entry point and command router
 │   ├── commands/
@@ -255,7 +255,7 @@ Displays all servers with their status:
 Removes servers from `deniedMcpServers`:
 
 ```bash
-mcp-config enable chrome-devtools linear
+claude-mcp-helper enable chrome-devtools linear
 ```
 
 #### disable.ts - Disable Command
@@ -263,7 +263,7 @@ mcp-config enable chrome-devtools linear
 Adds servers to `deniedMcpServers`:
 
 ```bash
-mcp-config disable chrome-devtools claude-historian
+claude-mcp-helper disable chrome-devtools claude-historian
 ```
 
 #### status.ts - Status Command
@@ -383,10 +383,10 @@ Key configuration for building executable CLI:
 {
   "type": "commonjs",
   "bin": {
-    "mcp-config": "./dist/mcp-config.cjs"
+    "claude-mcp-helper": "./dist/claude-mcp-helper.cjs"
   },
   "scripts": {
-    "postbuild": "chmod +x dist/mcp-config.cjs"
+    "postbuild": "chmod +x dist/claude-mcp-helper.cjs"
   },
   "nx": {
     "targets": {
@@ -394,7 +394,7 @@ Key configuration for building executable CLI:
         "executor": "@nx/esbuild:esbuild",
         "options": {
           "format": ["cjs"],
-          "outputFileName": "mcp-config.cjs",
+          "outputFileName": "claude-mcp-helper.cjs",
           "bundle": true,
           "thirdParty": true,
           "platform": "node",
@@ -421,8 +421,8 @@ Key configuration for building executable CLI:
 ### Building
 
 ```bash
-npx nx build mcp-config
-# Output: packages/mcp-config/dist/mcp-config.cjs
+npx nx build claude-mcp-helper
+# Output: packages/claude-mcp-helper/dist/claude-mcp-helper.cjs
 ```
 
 ## Installation and Usage
@@ -434,13 +434,13 @@ The tool is designed to be used via shell alias:
 **Bash/Zsh** (`~/.bashrc` or `~/.zshrc`):
 
 ```bash
-alias mcp-config="/absolute/path/to/ai-toolkit/packages/mcp-config/dist/mcp-config.cjs"
+alias claude-mcp-helper="/absolute/path/to/ai-toolkit/packages/claude-mcp-helper/dist/claude-mcp-helper.cjs"
 ```
 
 **Fish** (`~/.config/fish/config.fish`):
 
 ```fish
-alias mcp-config="/absolute/path/to/ai-toolkit/packages/mcp-config/dist/mcp-config.cjs"
+alias claude-mcp-helper="/absolute/path/to/ai-toolkit/packages/claude-mcp-helper/dist/claude-mcp-helper.cjs"
 ```
 
 After adding alias, reload shell:
@@ -453,22 +453,22 @@ source ~/.zshrc  # or ~/.bashrc or ~/.config/fish/config.fish
 
 ```bash
 # Interactive mode (recommended)
-mcp-config
+claude-mcp-helper
 
 # List all servers
-mcp-config list
+claude-mcp-helper list
 
 # Enable servers
-mcp-config enable github linear
+claude-mcp-helper enable github linear
 
 # Disable servers
-mcp-config disable chrome-devtools
+claude-mcp-helper disable chrome-devtools
 
 # Show detailed status
-mcp-config status
+claude-mcp-helper status
 
 # Show help
-mcp-config help
+claude-mcp-helper help
 ```
 
 ## Dependencies
@@ -513,7 +513,7 @@ To configure MCP servers, add them to ~/.claude.json:
 If executable permissions are missing:
 
 ```bash
-chmod +x packages/mcp-config/dist/mcp-config.cjs
+chmod +x packages/claude-mcp-helper/dist/claude-mcp-helper.cjs
 ```
 
 ### Configuration Read Errors
@@ -590,7 +590,7 @@ The `deniedMcpServers` array in local config is the primary mechanism for projec
 
 ### Restarting Claude Code
 
-After making configuration changes with mcp-config:
+After making configuration changes with claude-mcp-helper:
 
 1. Save the configuration
 2. Restart Claude Code for changes to take effect
@@ -620,7 +620,7 @@ Potential improvements:
 - Dependencies are updated
 - Integration patterns change
 
-This documentation serves as the source of truth for AI assistants working with the mcp-config package.
+This documentation serves as the source of truth for AI assistants working with the claude-mcp-helper package.
 
 ## Related Documentation
 
