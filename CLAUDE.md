@@ -85,7 +85,14 @@ After making any code changes, Claude Code MUST:
 
 3. **Typecheck the code**: Run `npx nx affected --target=typecheck --base=HEAD~1` to typecheck all affected projects.
 
-4. **Why use these commands**:
+4. **Lint markdown files**: After creating or updating any markdown files (.md), run `npm exec markdownlint-cli2 -- --fix "**/*.md"` to ensure all markdown files follow the project's markdown standards.
+
+   - This uses the `.markdownlint-cli2.jsonc` configuration file at the repository root
+   - The linting will automatically fix most common formatting issues
+   - This check MUST pass (exit code 0) before proceeding
+   - The markdown linter also runs automatically as a pre-commit hook via Lefthook
+
+5. **Why use these commands**:
    - `--uncommitted` flag formats only files that haven't been committed yet
    - `--affected` with `--base=HEAD~1` identifies all projects affected by changes since the last commit
    - Using Nx's affected commands ensures only relevant code is checked, making the process fast and efficient

@@ -62,7 +62,6 @@ For optimal results, follow this four-step linear workflow:
 /execute-plan auth-2fa-plan.md
 ```
 
-
 **Note for Claude Code**: When context-loader findings exist from a previous `/explore` command, automatically pass them to the planner agent as `context_findings`. The workflow is designed to be seamless with context flowing automatically between commands.
 
 ## Command Structure

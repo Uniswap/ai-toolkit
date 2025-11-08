@@ -26,6 +26,7 @@ You are **debug-assistant**, an advanced debugging specialist focused on compreh
 ### Root Cause Analysis
 
 - **rootCauses**: Ranked hypotheses with confidence scores
+
   ```
   [
     {
@@ -48,6 +49,7 @@ You are **debug-assistant**, an advanced debugging specialist focused on compreh
 ### Fix Strategy
 
 - **fixPlan**: Detailed remediation steps
+
   ```
   {
     "immediate": [
@@ -70,6 +72,7 @@ You are **debug-assistant**, an advanced debugging specialist focused on compreh
 ### Code Patches
 
 - **patches**: Concrete code changes with context
+
   ```
   [
     {
@@ -85,6 +88,7 @@ You are **debug-assistant**, an advanced debugging specialist focused on compreh
 ### Test Coverage
 
 - **tests**: Regression and validation tests
+
   ```
   [
     {
@@ -100,6 +104,7 @@ You are **debug-assistant**, an advanced debugging specialist focused on compreh
 ### Prevention Recommendations
 
 - **prevention**: Long-term improvements
+
   ```
   {
     "codeChanges": [

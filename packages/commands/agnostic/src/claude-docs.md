@@ -13,6 +13,7 @@ Intelligently manages CLAUDE.md documentation files across your repository. Supp
 Accept natural language input and extract intent:
 
 - **Input text**: Parse the user's request to understand intent
+
   - **"init" keywords**: "init", "initialize", "setup", "create", "bootstrap", "start"
     - Triggers: "init docs", "initialize documentation", "setup CLAUDE.md files"
     - Routes to: **INIT Path** (claude-docs-initializer agent)
@@ -24,6 +25,7 @@ Accept natural language input and extract intent:
     - Path references: "in packages/ui", "for the UI package", specific paths mentioned
 
 - **Mode determination**:
+
   1. Explicitly check for init keywords first → Use **INIT Path**
   2. Otherwise → Use **UPDATE Path** (default)
   3. Extract any file limit specification (e.g., "init with max 50 files per agent")
@@ -45,6 +47,7 @@ Accept natural language input and extract intent:
 ### Task for Update
 
 1. **Analyze Change Significance**:
+
    - Identify significant vs insignificant changes
    - Filter out minor fixes, typos, formatting
 
@@ -55,6 +58,7 @@ Accept natural language input and extract intent:
 ### Delegation for Update
 
 Invoke **claude-docs-manager** with:
+
 - `changes`: Complete list of all significant file changes
   - `filePath`: Absolute path to changed file
   - `changeType`: added|modified|deleted
@@ -68,6 +72,7 @@ Invoke **claude-docs-manager** with:
 - `rootGuidelines`: (Optional) Key guidelines from existing root CLAUDE.md
 
 The agent will:
+
 - Identify ALL CLAUDE.md files that need updates
 - Update each file with appropriate scope (component/module/package/root)
 - Create new CLAUDE.md files where needed
@@ -76,6 +81,7 @@ The agent will:
 ### Output for Update
 
 Return results from claude-docs-manager:
+
 ```yaml
 summary: |
   Successfully updated N CLAUDE.md files
@@ -148,12 +154,14 @@ Please be patient - the process is working even during apparent pauses.
 ### Task for Init
 
 1. **Repository Analysis**:
+
    - Use git to quickly understand structure: `git ls-files | wc -l`
    - Find major boundaries: packages, apps, services
    - Count files per area: `git ls-files [area] | wc -l`
    - Assess complexity by file types and patterns
 
 2. **Intelligent Area Splitting**:
+
    - Default: 100 files at most per agent (or user-specified limit)
    - Split areas exceeding limits into logical sub-areas
    - Identify natural boundaries (pages vs components, routes vs services)
@@ -165,6 +173,7 @@ Please be patient - the process is working even during apparent pauses.
    - Track dependencies between levels
 
 Example execution plan for large monorepo:
+
 ```
 Level 1 (Parallel leaf documentation):
   - Agent A: "Document user-facing frontend pages in /frontend/pages/user (50 files)"
@@ -195,11 +204,13 @@ Execute hierarchical parallelized documentation creation:
 #### Phase 1: Repository Analysis
 
 **⚠️ CRITICAL: ALWAYS prefer git commands over find/glob for discovery!**
+
 - Git automatically excludes node_modules, build outputs, and ignored files
 - Only use find/glob as fallback for non-git repositories
 - If using find, MUST use `*/node_modules/*` not `./node_modules/*` for exclusions
 
 Quickly analyze repository structure using git:
+
 - Get total file count: `git ls-files | wc -l`
 - Find package boundaries: `git ls-files | grep 'package\.json$'`
 - Identify tech stacks used and major directories and their sizes
@@ -214,6 +225,7 @@ Based on analysis, determine splitting strategy
 Invoke multiple **claude-docs-initializer** agents in PARALLEL:
 
 For each Level 1 agent:
+
 - `target`: "Document [specific area description] in [path]"
 - `siblingContext`: "Other agents are documenting: [list of other Level 1 areas]"
 
@@ -243,6 +255,7 @@ After all Level 2 agents complete, invoke **claude-docs-manager**:
 ### Output for Init
 
 Return aggregated results from all agents (claude-docs-initializer for all levels except repository root, claude-docs-manager for repository root only):
+
 ```yaml
 summary: |
   Repository analysis: [monorepo with X packages | single app | library]
@@ -254,41 +267,41 @@ executionPlan:
   level1Agents: 5 # Parallel leaf documentation
   level2Agents: 2 # Area roots
   level3Agents: 1 # Repository root
-  totalExecutionTime: "2m 34s"
+  totalExecutionTime: '2m 34s'
 
 createdFilesByLevel:
   leafDocumentation:
-    - agent: "frontend-user-pages"
+    - agent: 'frontend-user-pages'
       files: 3
-      paths: ["/frontend/pages/user/CLAUDE.md", ...]
-    - agent: "frontend-admin-pages"
+      paths: ['/frontend/pages/user/CLAUDE.md', ...]
+    - agent: 'frontend-admin-pages'
       files: 2
-      paths: ["/frontend/pages/admin/CLAUDE.md", ...]
+      paths: ['/frontend/pages/admin/CLAUDE.md', ...]
 
   areaRoots:
-    - path: "/frontend/CLAUDE.md"
-      synthesizedFrom: ["frontend-user-pages", "frontend-admin-pages", "frontend-components"]
-    - path: "/backend/CLAUDE.md"
-      synthesizedFrom: ["backend-routes", "backend-services"]
+    - path: '/frontend/CLAUDE.md'
+      synthesizedFrom: ['frontend-user-pages', 'frontend-admin-pages', 'frontend-components']
+    - path: '/backend/CLAUDE.md'
+      synthesizedFrom: ['backend-routes', 'backend-services']
 
   repositoryRoot:
-    - path: "/CLAUDE.md"
-      synthesizedFrom: ["frontend-root", "backend-root", "database"]
+    - path: '/CLAUDE.md'
+      synthesizedFrom: ['frontend-root', 'backend-root', 'database']
 
 architecturalFindings: # Aggregated from all agents
-  frontend: "Next.js 14 with App Router, Tailwind CSS, 234 total components"
-  backend: "Express with layered architecture, 23 RESTful endpoints"
-  database: "PostgreSQL with Prisma ORM, 15 models"
-  patterns: "Consistent use of TypeScript, feature-based organization"
+  frontend: 'Next.js 14 with App Router, Tailwind CSS, 234 total components'
+  backend: 'Express with layered architecture, 23 RESTful endpoints'
+  database: 'PostgreSQL with Prisma ORM, 15 models'
+  patterns: 'Consistent use of TypeScript, feature-based organization'
 
 recommendations: # Collected from all agents
-  - "Split large UserDashboard component (500+ lines)"
-  - "Add CLAUDE.md for growing analytics module"
-  - "Consider documenting complex auth flow separately"
+  - 'Split large UserDashboard component (500+ lines)'
+  - 'Add CLAUDE.md for growing analytics module'
+  - 'Consider documenting complex auth flow separately'
 
 errors: # Any failures across all agents
-  - agent: "frontend-utils"
-    error: "Failed to analyze due to circular dependencies"
+  - agent: 'frontend-utils'
+    error: 'Failed to analyze due to circular dependencies'
 ```
 
 ### Examples for Init
@@ -320,6 +333,7 @@ errors: # Any failures across all agents
 When user runs: `/claude-docs init`
 
 1. **Quick Analysis** determines:
+
    ```
    Total files: 2500
    Frontend: /app (1800 files)
@@ -328,6 +342,7 @@ When user runs: `/claude-docs init`
    ```
 
 2. **Intelligent Splitting** creates plan:
+
    ```
    Frontend needs splitting (1800 > 100):
    - /app/(user) → 450 files (complex pages) → split to 150x3
@@ -343,6 +358,7 @@ When user runs: `/claude-docs init`
    ```
 
 3. **Hierarchical Execution**:
+
    ```
    Level 1 (14 agents in parallel):
    ├── frontend-user-1 (150 files)

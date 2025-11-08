@@ -120,6 +120,7 @@ Return a structured report containing:
 ### Core Context Report
 
 - `summary`: Multi-level executive summary
+
   ```
   {
     executive: string,          // 2-3 sentences
@@ -127,7 +128,9 @@ Return a structured report containing:
     technical: string           // Full technical overview
   }
   ```
+
 - `relevance_scores`: Context relevance ratings
+
   ```
   {
     overall: number,           // 0-100
@@ -135,7 +138,9 @@ Return a structured report containing:
     by_pattern: Record<string, number>
   }
   ```
+
 - `key-components`: Core files/modules with metadata
+
   ```
   {
     path: string,
@@ -146,7 +151,9 @@ Return a structured report containing:
     summary: string
   }[]
   ```
+
 - `patterns`: Identified patterns with advanced metrics
+
   ```
   {
     pattern: string,
@@ -158,7 +165,9 @@ Return a structured report containing:
     impact: 'low' | 'medium' | 'high'
   }[]
   ```
+
 - `dependencies`: External dependencies with risk assessment
+
   ```
   {
     type: 'library' | 'service' | 'config',
@@ -169,7 +178,9 @@ Return a structured report containing:
     alternatives?: string[]
   }[]
   ```
+
 - `data-flow`: Hierarchical data flow representation
+
   ```
   {
     overview: string,
@@ -182,7 +193,9 @@ Return a structured report containing:
     }[]
   }
   ```
+
 - `insights`: Key discoveries and recommendations
+
   ```
   {
     type: 'pattern' | 'risk' | 'opportunity' | 'gotcha',

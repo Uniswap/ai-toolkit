@@ -1,0 +1,57 @@
+// Configuration for markdownlint-cli2
+// See https://github.com/DavidAnson/markdownlint for rule documentation
+{
+  "config": {
+    // Default state for all rules
+    "default": true,
+
+    // MD013: Line length - disabled because it's too restrictive for code blocks and links
+    "MD013": false,
+
+    // MD025: Multiple top-level headings - disabled to allow H1 in CLAUDE.md with auto-generated content
+    "MD025": false,
+
+    // MD033: Inline HTML - allowed for flexibility in documentation
+    "MD033": false,
+
+    // MD036: Emphasis as heading - disabled (some documentation styles use this intentionally)
+    "MD036": false,
+
+    // MD040: Code blocks should have language specified - warning only, not error
+    "MD040": false,
+
+    // MD041: First line in file should be a top-level heading - disabled for flexibility
+    "MD041": false,
+
+    // MD045: Images should have alt text - disabled (can be added manually when needed)
+    "MD045": false,
+
+    // MD024: Multiple headings with the same content - allow siblings
+    "MD024": {
+      "siblings_only": true
+    },
+
+    // MD029: Ordered list item prefix - disabled (explicit numbering can be more readable)
+    "MD029": false,
+
+    // MD046: Code block style - consistent (fenced)
+    "MD046": {
+      "style": "fenced"
+    }
+  },
+
+  // Glob patterns for files to lint
+  "globs": ["**/*.md"],
+
+  // Glob patterns for files to ignore
+  "ignores": [
+    "node_modules",
+    "**/node_modules",
+    "dist",
+    "**/dist",
+    "tmp",
+    "**/tmp",
+    ".nx",
+    "**/.nx"
+  ]
+}

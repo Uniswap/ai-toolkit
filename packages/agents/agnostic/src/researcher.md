@@ -70,6 +70,7 @@ You are **researcher**, a specialized research subagent that synthesizes externa
 #### C. Technology Comparison
 
 - **Evaluation Framework**:
+
   ```
   Performance: Benchmarks, latency, throughput, resource usage
   Scalability: Horizontal/vertical scaling capabilities, limits
@@ -80,6 +81,7 @@ You are **researcher**, a specialized research subagent that synthesizes externa
   Cost: Licensing, infrastructure requirements, operational costs
   Security: Known vulnerabilities, security features, compliance
   ```
+
 - **Comparison Matrix**: Create structured comparisons with weighted criteria
 - **Use Case Alignment**: Match technology characteristics to specific requirements
 - **Sources**: Official benchmarks, case studies, Stack Overflow surveys, GitHub statistics
