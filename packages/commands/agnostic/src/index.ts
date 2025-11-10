@@ -42,8 +42,7 @@ export const commands: Commands = {
     filePath: './auto-spec.md',
   },
   'claude-docs': {
-    description:
-      'Initialize or update CLAUDE.md documentation files based on context and changes',
+    description: 'Initialize or update CLAUDE.md documentation files based on context and changes',
     filePath: './claude-docs.md',
   },
   'create-pr': {
