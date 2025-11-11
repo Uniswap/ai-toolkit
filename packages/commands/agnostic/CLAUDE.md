@@ -113,6 +113,7 @@ Invoke **agent-name** with parameters
 - **review-code**: Multi-agent code review for architecture, security, performance, and style
 - **review-pr**: Review pull requests for quality
 - **review-plan**: Review implementation plans for quality
+- **work-through-pr-comments**: Methodically work through PR comments in a conversational workflow, presenting solution options and implementing approved changes
 
 ### Planning & Implementation Commands
 
