@@ -246,7 +246,7 @@ Every CLAUDE.md file MUST start with a timestamp header as the very first line:
 <!-- CUSTOM:END -->
 ```
 
-#### For Package/Module CLAUDE.md:
+#### For Package/Module CLAUDE.md
 
 ```markdown
 > **Last Updated:** YYYY-MM-DD
@@ -286,7 +286,7 @@ Every CLAUDE.md file MUST start with a timestamp header as the very first line:
 <!-- CUSTOM:END -->
 ```
 
-#### For Feature/Component CLAUDE.md:
+#### For Feature/Component CLAUDE.md
 
 ```markdown
 # CLAUDE.md - [Feature/Component Name]

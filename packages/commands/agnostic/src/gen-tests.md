@@ -58,7 +58,7 @@ For complex test generation (multiple files or --type all), use orchestration:
 
 ## Delegation
 
-### Simple Case (single file, unit tests):
+### Simple Case (single file, unit tests)
 
 Invoke **test-writer** with:
 
@@ -69,7 +69,7 @@ Invoke **test-writer** with:
 - `requirements`: from `--requirements` if provided
 - `context`: dependency information if needed
 
-### Complex Case (multiple files or integration/e2e):
+### Complex Case (multiple files or integration/e2e)
 
 Invoke **agent-orchestrator** to coordinate:
 

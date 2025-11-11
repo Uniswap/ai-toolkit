@@ -466,7 +466,7 @@ Key Features:
 When implementing a complex feature, multiple agents coordinate automatically:
 
 ```bash
-$ ai-toolkit agent execute "Implement shopping cart with payment processing"
+ai-toolkit agent execute "Implement shopping cart with payment processing"
 ```
 
 **Agent Coordination Timeline**:
@@ -495,7 +495,7 @@ Tests added: 38
 Agents can work in parallel when tasks are independent:
 
 ```bash
-$ ai-toolkit agent execute "Optimize application performance"
+ai-toolkit agent execute "Optimize application performance"
 ```
 
 **Parallel Execution Graph**:
@@ -537,7 +537,7 @@ $ ai-toolkit agent execute "Optimize application performance"
 Agents automatically handle dependencies between tasks:
 
 ```bash
-$ ai-toolkit agent execute "Migrate database from MySQL to PostgreSQL"
+ai-toolkit agent execute "Migrate database from MySQL to PostgreSQL"
 ```
 
 **Dependency Chain**:
@@ -990,6 +990,7 @@ Continue? [Y/n/skip]
    ```
 
 5. **Profile agent execution**
+
    ```bash
    ai-toolkit agent execute --profile "Complex task"
    Agent timing:
