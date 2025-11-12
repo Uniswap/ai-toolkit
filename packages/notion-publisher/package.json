@@ -1,0 +1,38 @@
+{
+  "name": "@uniswap/notion-publisher",
+  "version": "0.0.1",
+  "private": false,
+  "type": "module",
+  "description": "CLI tool to publish release notes to Notion databases with markdown support",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "notion-publisher": "./dist/cli.js"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@ai-toolkit/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "dependencies": {
+    "@notionhq/client": "^2.2.15",
+    "@tryfabric/martian": "^1.2.4",
+    "minimist": "^1.2.8",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/minimist": "^1.2.5"
+  }
+}

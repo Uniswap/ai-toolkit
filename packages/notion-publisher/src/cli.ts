@@ -32,7 +32,6 @@ const { title, content, fromRef, toRef, branch } = args;
 // Color codes for output
 const RED = '\x1b[0;31m';
 const GREEN = '\x1b[0;32m';
-const YELLOW = '\x1b[1;33m';
 const NC = '\x1b[0m'; // No Color
 
 // Logging functions

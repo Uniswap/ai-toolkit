@@ -100,12 +100,13 @@
       "@ai-toolkit/utils",
       "@ai-toolkit/agents-agnostic",
       "@ai-toolkit/commands-agnostic",
-      "@ai-toolkit/commands-typescript"
+      "@ai-toolkit/commands-typescript",
+      "@uniswap/notion-publisher"
     ],
     "projectsRelationship": "independent",
     "version": {
-      "conventionalCommits": true,
       "preVersionCommand": "npx nx affected -t build",
+      "conventionalCommits": true,
       "fallbackCurrentVersionResolver": "disk",
       "git": {
         "commit": true,
