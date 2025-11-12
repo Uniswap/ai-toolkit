@@ -82,7 +82,6 @@ on:
           Format: https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
         required: false
 
-      # NOTE: Notion integration is currently disabled but configuration is kept for future use
       NOTION_API_KEY:
         description: |
           Notion integration API key with write access to target database.
@@ -269,37 +268,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
-      - name: Setup Node.js
+      - name: Setup Node.js for Notion publishing
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
           node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
+          registry-url: 'https://registry.npmjs.org'
+          scope: '@uniswap'
 
       - name: Publish to Notion
         id: notion-publish
         continue-on-error: true
+        run: |
+          PAGE_URL=$(npx @uniswap/notion-publisher \
+            --title "${{ needs.prepare.outputs.final_title }}" \
+            --content "${{ needs.prepare.outputs.changelog_for_notion }}" \
+            --from-ref "${{ inputs.from_ref }}" \
+            --to-ref "${{ inputs.to_ref }}" \
+            --branch "${{ inputs.branch }}")
+          echo "page-url=$PAGE_URL" >> $GITHUB_OUTPUT
         env:
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
           RELEASE_NOTES_NOTION_DATABASE_ID: ${{ secrets.RELEASE_NOTES_NOTION_DATABASE_ID }}
-          INPUT_TITLE: ${{ needs.prepare.outputs.final_title }}
-          INPUT_CONTENT: ${{ needs.prepare.outputs.changelog_for_notion }}
-          INPUT_FROM_REF: ${{ inputs.from_ref }}
-          INPUT_TO_REF: ${{ inputs.to_ref }}
-          INPUT_BRANCH: ${{ inputs.branch }}
-        run: |
-          # Call the TypeScript Notion publishing script with flags
-          PAGE_URL=$(npx tsx .github/scripts/notion-publish.ts \
-            --title "$INPUT_TITLE" \
-            --content "$INPUT_CONTENT" \
-            --from-ref "$INPUT_FROM_REF" \
-            --to-ref "$INPUT_TO_REF" \
-            --branch "$INPUT_BRANCH")
-
-          echo "✅ Notion page created: $PAGE_URL"
-          echo "page_url=$PAGE_URL" >> $GITHUB_OUTPUT
 
       - name: Add Notion URL to summary
         if: steps.notion-publish.outcome == 'success'
@@ -307,9 +296,9 @@ jobs:
           cat <<SUMMARY_EOF >> $GITHUB_STEP_SUMMARY
           ## 📄 Notion Page Created
 
-          **Page URL**: ${{ steps.notion-publish.outputs.page_url }}
+          **Page URL**: ${{ steps.notion-publish.outputs.page-url }}
 
-          [View in Notion](${{ steps.notion-publish.outputs.page_url }})
+          [View in Notion](${{ steps.notion-publish.outputs.page-url }})
           SUMMARY_EOF
 
       - name: Notion publishing failed

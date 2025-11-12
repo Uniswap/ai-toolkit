@@ -362,14 +362,38 @@ jobs:
 
 ## Implementation Details
 
-### TypeScript Script Architecture
+### Published npm Package Architecture
 
-The notification workflows leverage a TypeScript script (`.github/scripts/notion-publish.ts`) for Notion integration instead of bash scripts. This approach provides:
+The notification workflows leverage the **@uniswap/notion-publisher** npm package for Notion integration. This CLI tool provides:
 
+- **CI/CD Agnostic**: Works in GitHub Actions, GitLab CI, CircleCI, Jenkins, and locally
 - **Type Safety**: Full TypeScript type checking for API interactions
 - **Better Error Handling**: Structured error handling with detailed error messages
-- **Direct Execution**: Uses `tsx` for direct TypeScript execution without build steps
-- **Maintainability**: Easier to test, debug, and maintain than shell scripts
+- **External Reusability**: Other teams and projects can use the same tool
+- **Maintainability**: Tested and versioned independently from workflows
+- **No Build Steps**: Direct execution via `npx` without local builds
+
+### Package Structure
+
+The Notion publisher is organized as an Nx library:
+
+```
+packages/notion-publisher/
+├── package.json       # Package configuration with CLI bin field
+├── README.md          # User-facing documentation
+├── CLAUDE.md          # Developer documentation
+└── src/
+    └── cli.ts         # Main CLI implementation
+```
+
+**Key Characteristics**:
+
+- **Published to npm**: Available as `@uniswap/notion-publisher` with restricted access
+- **CLI Tool**: Executable via `npx @uniswap/notion-publisher`
+- **Environment Variables**: Secrets passed via env vars (secure, no process listing exposure)
+- **Node.js 22**: Requires Node.js 22+ for execution
+
+For complete usage documentation, see `packages/notion-publisher/README.md`.
 
 ### Community-First Development Principle
 
@@ -383,7 +407,7 @@ The notification workflows leverage a TypeScript script (`.github/scripts/notion
 - Reduced technical debt and maintenance burden
 
 **Example - Argument Parsing**:
-Instead of custom argument parsing logic, the script uses **minimist** (~62.5M weekly downloads):
+Instead of custom argument parsing logic, the action uses **minimist** (~62.5M weekly downloads):
 
 ```typescript
 import minimist from 'minimist';
@@ -397,14 +421,12 @@ const args = minimist(process.argv.slice(2), {
     'from-ref',
     'to-ref',
     'branch',
-    'npm-tag',
   ],
   alias: {
     'api-key': 'apiKey',
     'database-id': 'databaseId',
     'from-ref': 'fromRef',
     'to-ref': 'toRef',
-    'npm-tag': 'npmTag',
   },
 });
 ```
@@ -418,7 +440,7 @@ const args = minimist(process.argv.slice(2), {
 
 ### Dependencies
 
-The Notion publishing script relies on these community-maintained libraries:
+The `@uniswap/notion-publisher` package relies on these community-maintained libraries:
 
 #### Core Dependencies
 
@@ -442,46 +464,22 @@ The Notion publishing script relies on these community-maintained libraries:
    - Zero dependencies
    - [npm](https://www.npmjs.com/package/minimist)
 
-#### Script Features
+These dependencies are managed in the package's `package.json` and installed automatically when using `npx`.
 
-The `notion-publish.ts` script provides:
+#### CLI Features
 
-- **Flag-Based Arguments**: Clean CLI interface with kebab-case flags
-- **Structured Logging**: Color-coded output for info/error messages
+The `@uniswap/notion-publisher` CLI provides:
+
+- **Simple Interface**: Clean flag-based inputs with environment variable support
+- **Structured Logging**: Color-coded output for info/error messages (to stderr)
 - **Error Context**: Detailed error messages with API response bodies
-- **Metadata Support**: Automatically adds commit range, branch, and npm tag properties
+- **Metadata Support**: Automatically adds commit range, branch, and date properties
+- **Output Capture**: Returns Notion page URL to stdout for easy capture
 - **Exit Codes**: Proper exit codes for CI/CD integration (0 = success, 1 = failure)
-
-#### TypeScript Configuration
-
-The scripts directory has its own TypeScript configuration (`.github/scripts/tsconfig.json`) with settings optimized for Node.js execution:
-
-```json
-{
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "Node16",
-    "moduleResolution": "Node16",
-    "lib": ["ES2022"],
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "strict": true,
-    "resolveJsonModule": true,
-    "declaration": false,
-    "outDir": "../../dist/.github/scripts"
-  }
-}
-```
-
-**Key Settings**:
-
-- **skipLibCheck**: Required for handling type incompatibilities between third-party libraries
-- **Node16 module system**: Ensures proper ESM/CommonJS interop
-- **Strict mode**: Enforces type safety throughout the script
 
 #### Type Handling for Third-Party Libraries
 
-The script handles a known type incompatibility between `@tryfabric/martian` and `@notionhq/client` using a **JSON serialization approach**:
+The CLI's TypeScript implementation handles a known type incompatibility between `@tryfabric/martian` and `@notionhq/client` using a **JSON serialization approach**:
 
 ```typescript
 // Convert markdown to Notion blocks
@@ -513,11 +511,16 @@ When modifying or extending these workflows:
    - Active maintenance (recent updates)
    - Good documentation
    - Stable version history
-3. **Type Safety**: Use TypeScript for all new scripts
+3. **Type Safety**: Use TypeScript for all new scripts and actions
    - Avoid `as any` type assertions
    - Prefer structural solutions for type incompatibilities
    - Document why type handling is necessary
 4. **Dependencies**: Keep dependencies minimal but don't reinvent the wheel
+5. **Composite Actions**: For complex logic or reusable operations:
+   - Create composite actions in `.github/actions/`
+   - Include comprehensive README.md documentation
+   - Manage dependencies separately from root
+   - Use npm caching for performance
 
 ## Real-World Examples
 

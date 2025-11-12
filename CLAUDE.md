@@ -231,7 +231,7 @@ When working with GitHub Actions workflows (`.github/workflows/*.yml`), follow t
 
 1. **Complex Logic Extraction**: If a workflow step contains complex bash scripting (50+ lines, multiple functions, intricate logic, API integrations, etc.), it MUST be extracted to a separate script file in the `.github/scripts/` directory.
 
-2. **Script Location**: All standalone scripts should be placed in `.github/scripts/` with descriptive, kebab-case names (e.g., `notion-publish.ts`, `notion-publish.sh`, `update-changelog.sh`).
+2. **Script Location**: All standalone scripts should be placed in `.github/scripts/` with descriptive, kebab-case names (e.g., `update-changelog.sh`, `process-coverage.ts`). For reusable tools intended for external use, publish as npm packages (e.g., `@uniswap/notion-publisher`).
 
 3. **Script Requirements**: Each script file should:
 
@@ -300,32 +300,31 @@ When working with GitHub Actions workflows (`.github/workflows/*.yml`), follow t
     # ... (massive inline script)
 ```
 
-**✅ GOOD - External TypeScript script with flags:**
+**✅ GOOD - Published npm package:**
 
 ```yaml
 - name: Setup Node.js
   uses: actions/setup-node@v4
   with:
     node-version: '22'
-    cache: 'npm'
-
-- name: Install dependencies
-  run: npm ci
+    registry-url: 'https://registry.npmjs.org'
+    scope: '@uniswap'
 
 - name: Publish to Notion
   run: |
-    npx tsx .github/scripts/notion-publish.ts \
-      --api-key "${{ secrets.NOTION_API_KEY }}" \
-      --database-id "${{ secrets.RELEASE_NOTES_NOTION_DATABASE_ID }}" \
+    npx @uniswap/notion-publisher \
       --title "${{ inputs.title }}" \
       --content "${{ inputs.content }}"
+  env:
+    NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+    RELEASE_NOTES_NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
 ```
 
 #### Current Examples
 
 See the following for reference implementations:
 
-- `.github/scripts/notion-publish.ts` - Notion API integration using TypeScript with community libraries (~120 lines)
+- `@uniswap/notion-publisher` package - Notion API integration published as CLI tool (see `packages/notion-publisher/`)
 
 #### When Inline Scripts Are Acceptable
 

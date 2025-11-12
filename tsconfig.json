@@ -23,6 +23,9 @@
     },
     {
       "path": "./packages/claude-mcp-helper"
+    },
+    {
+      "path": "./packages/notion-publisher"
     }
   ]
 }
