@@ -38,7 +38,7 @@ npm install --save-dev @uniswap/notion-publisher
 
 ### 1. Create a Notion Integration
 
-1. Go to https://www.notion.so/my-integrations
+1. Go to <https://www.notion.so/my-integrations>
 2. Click "New integration"
 3. Give it a name (e.g., "Release Notes Publisher")
 4. Select the workspace
@@ -75,6 +75,7 @@ notion-publisher \
 ```
 
 Required environment variables:
+
 - `NOTION_API_KEY` - Your Notion integration token
 - `RELEASE_NOTES_NOTION_DATABASE_ID` - Target database ID
 
@@ -168,11 +169,11 @@ publish_to_notion:
   image: node:22
   script:
     - npx @uniswap/notion-publisher
-        --title "Release $CI_COMMIT_TAG"
-        --content "$(cat CHANGELOG.md)"
-        --from-ref "$CI_COMMIT_BEFORE_SHA"
-        --to-ref "$CI_COMMIT_SHA"
-        --branch "$CI_COMMIT_BRANCH"
+      --title "Release $CI_COMMIT_TAG"
+      --content "$(cat CHANGELOG.md)"
+      --from-ref "$CI_COMMIT_BEFORE_SHA"
+      --to-ref "$CI_COMMIT_SHA"
+      --branch "$CI_COMMIT_BRANCH"
   variables:
     NOTION_API_KEY: $NOTION_API_KEY
     RELEASE_NOTES_NOTION_DATABASE_ID: $NOTION_DATABASE_ID
@@ -239,15 +240,15 @@ pipeline {
 
 ## CLI Arguments
 
-| Argument | Environment Variable | Required | Description |
-|----------|---------------------|----------|-------------|
-| `--api-key` | `NOTION_API_KEY` | Yes | Notion integration token |
-| `--database-id` | `RELEASE_NOTES_NOTION_DATABASE_ID` | Yes | Target Notion database ID (32-char hex) |
-| `--title` | - | Yes | Page title for the release notes |
-| `--content` | - | Yes | Page content in markdown format |
-| `--from-ref` | - | No | Starting git reference (e.g., previous version tag) |
-| `--to-ref` | - | No | Ending git reference (e.g., current version tag) |
-| `--branch` | - | No | Branch name where the release was made |
+| Argument        | Environment Variable               | Required | Description                                         |
+| --------------- | ---------------------------------- | -------- | --------------------------------------------------- |
+| `--api-key`     | `NOTION_API_KEY`                   | Yes      | Notion integration token                            |
+| `--database-id` | `RELEASE_NOTES_NOTION_DATABASE_ID` | Yes      | Target Notion database ID (32-char hex)             |
+| `--title`       | -                                  | Yes      | Page title for the release notes                    |
+| `--content`     | -                                  | Yes      | Page content in markdown format                     |
+| `--from-ref`    | -                                  | No       | Starting git reference (e.g., previous version tag) |
+| `--to-ref`      | -                                  | No       | Ending git reference (e.g., current version tag)    |
+| `--branch`      | -                                  | No       | Branch name where the release was made              |
 
 **Note**: Environment variables take precedence over CLI flags for API key and database ID.
 
@@ -256,7 +257,7 @@ pipeline {
 The tool uses [@tryfabric/martian](https://github.com/tryfabric/martian) to convert markdown to Notion blocks. Supported markdown features include:
 
 - Headers (H1, H2, H3)
-- **Bold**, *italic*, ~~strikethrough~~ text
+- **Bold**, _italic_, ~~strikethrough~~ text
 - Lists (ordered and unordered)
 - Code blocks with syntax highlighting
 - Links
@@ -318,6 +319,7 @@ export RELEASE_NOTES_NOTION_DATABASE_ID="32-char-hex-id"
 **Cause**: Database doesn't exist or integration doesn't have access
 
 **Solution**:
+
 1. Verify the database ID is correct
 2. Share the database with your integration:
    - Open the database in Notion
@@ -329,6 +331,7 @@ export RELEASE_NOTES_NOTION_DATABASE_ID="32-char-hex-id"
 **Cause**: Database schema doesn't match expected properties
 
 **Solution**: Ensure your database has these properties:
+
 - **Name** (Title type)
 - **Date** (Date type)
 - **Commit Range** (Text type) - if using `--from-ref` or `--to-ref`
@@ -403,13 +406,13 @@ This package is automatically published via the repository's CI/CD workflow usin
 
 Existing GitHub Actions for Notion have limitations:
 
-| Feature | @uniswap/notion-publisher | tryfabric/markdown-to-notion | push-markdown-to-notion |
-|---------|---------------------------|------------------------------|-------------------------|
-| **Create new pages** | ✅ Yes | ❌ No (updates only) | ❌ No (updates only) |
-| **Write to databases** | ✅ Yes | ❌ No | ❌ No |
-| **Custom properties** | ✅ Yes | ❌ No | ❌ No |
-| **Maintenance** | 🆕 Active (2024) | ⚠️ Stale (2022) | ⚠️ Low activity |
-| **CI agnostic** | ✅ Yes (CLI tool) | ❌ GitHub only | ❌ GitHub only |
+| Feature                | @uniswap/notion-publisher | tryfabric/markdown-to-notion | push-markdown-to-notion |
+| ---------------------- | ------------------------- | ---------------------------- | ----------------------- |
+| **Create new pages**   | ✅ Yes                    | ❌ No (updates only)         | ❌ No (updates only)    |
+| **Write to databases** | ✅ Yes                    | ❌ No                        | ❌ No                   |
+| **Custom properties**  | ✅ Yes                    | ❌ No                        | ❌ No                   |
+| **Maintenance**        | 🆕 Active (2024)          | ⚠️ Stale (2022)              | ⚠️ Low activity         |
+| **CI agnostic**        | ✅ Yes (CLI tool)         | ❌ GitHub only               | ❌ GitHub only          |
 
 This tool was created to fill the gap: **creating new Notion database entries with structured metadata**, which is essential for release notes and changelog tracking.
 
