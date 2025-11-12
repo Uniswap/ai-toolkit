@@ -13,6 +13,7 @@ This package fills a critical gap in the Notion integration ecosystem. Existing 
 ### Core Components
 
 #### 1. **cli.ts** (Entry Point)
+
 - Executable CLI script with shebang (`#!/usr/bin/env node`)
 - Uses `minimist` for argument parsing (supports both flags and environment variables)
 - Environment variables take precedence over CLI flags for security (prevents secrets in process listings)
@@ -20,11 +21,13 @@ This package fills a critical gap in the Notion integration ecosystem. Existing 
 - Outputs Notion page URL to stdout for capture in CI/CD pipelines
 
 #### 2. **Notion API Integration**
+
 - Uses `@notionhq/client` (official Notion SDK)
 - Creates pages in databases (not standalone pages)
 - Supports custom database properties
 
 #### 3. **Markdown Conversion**
+
 - Uses `@tryfabric/martian` library for markdown-to-Notion-blocks conversion
 - Implements JSON serialization workaround for type incompatibility between martian and Notion SDK
 
@@ -33,11 +36,13 @@ This package fills a critical gap in the Notion integration ecosystem. Existing 
 #### Why @tryfabric/martian?
 
 **Chosen over**:
+
 - `markdown-to-notion` - Less maintained, fewer features
 - Custom parser - Too much complexity, reinventing the wheel
 - `notion-md-gen` - Doesn't support database creation
 
 **Reasons**:
+
 1. ✅ Well-maintained by Fabric team
 2. ✅ Comprehensive markdown support (headers, lists, code blocks, tables, etc.)
 3. ✅ Generates proper Notion block structures
@@ -47,11 +52,13 @@ This package fills a critical gap in the Notion integration ecosystem. Existing 
 #### Why minimist for CLI parsing?
 
 **Chosen over**:
+
 - `commander` - Too heavyweight for simple use case
 - `yargs` - Excessive features not needed
 - Built-in `process.argv` parsing - No alias support, manual validation
 
 **Reasons**:
+
 1. ✅ Lightweight (~1KB)
 2. ✅ Simple API for our use case
 3. ✅ Supports aliases (`--api-key` → `apiKey`)
@@ -66,6 +73,7 @@ const notionBlocks = JSON.parse(JSON.stringify(blocks));
 ```
 
 **Why this is necessary**:
+
 - `@tryfabric/martian` generates block types that are structurally compatible with `@notionhq/client`
 - However, TypeScript sees them as incompatible types at compile time
 - Runtime behavior is correct—types are structurally identical
@@ -73,6 +81,7 @@ const notionBlocks = JSON.parse(JSON.stringify(blocks));
 - Alternative would be extensive type assertions, which are less safe
 
 **Trade-offs**:
+
 - ✅ Type-safe at compile time
 - ✅ Works correctly at runtime
 - ⚠️ Minor performance overhead (negligible for typical use)
@@ -88,6 +97,7 @@ const databaseId = process.env.RELEASE_NOTES_NOTION_DATABASE_ID || args.database
 ```
 
 **Reasoning**:
+
 - CLI flags appear in `ps aux` output and process listings
 - Environment variables are hidden from process listings
 - Follows 12-factor app principles
@@ -102,6 +112,7 @@ const logInfo = (message: string) => {
 ```
 
 **Why stderr for logs**:
+
 - stdout is reserved for the Notion page URL (captures in CI/CD)
 - stderr is the standard stream for diagnostic messages
 - Allows clean piping: `PAGE_URL=$(notion-publisher ...)`
@@ -110,29 +121,29 @@ const logInfo = (message: string) => {
 
 ### Production Dependencies
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `@notionhq/client` | ^2.2.15 | Official Notion API SDK |
-| `@tryfabric/martian` | ^1.2.4 | Markdown to Notion blocks converter |
-| `minimist` | ^1.2.8 | CLI argument parser |
-| `tslib` | ^2.3.0 | TypeScript runtime helpers |
+| Package              | Version | Purpose                             |
+| -------------------- | ------- | ----------------------------------- |
+| `@notionhq/client`   | ^2.2.15 | Official Notion API SDK             |
+| `@tryfabric/martian` | ^1.2.4  | Markdown to Notion blocks converter |
+| `minimist`           | ^1.2.8  | CLI argument parser                 |
+| `tslib`              | ^2.3.0  | TypeScript runtime helpers          |
 
 ### Development Dependencies
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `@types/minimist` | ^1.2.5 | Type definitions for minimist |
+| Package           | Version | Purpose                       |
+| ----------------- | ------- | ----------------------------- |
+| `@types/minimist` | ^1.2.5  | Type definitions for minimist |
 
 ## Database Schema Requirements
 
 The target Notion database MUST have these properties:
 
-| Property Name | Type | Required | Description |
-|--------------|------|----------|-------------|
-| **Name** | Title | Yes | Page title (automatically created) |
-| **Date** | Date | Yes | Timestamp of page creation |
-| **Commit Range** | Rich Text | No | Git reference range (e.g., "v1.0.0 → v1.1.0") |
-| **Branch** | Rich Text | No | Git branch name |
+| Property Name    | Type      | Required | Description                                   |
+| ---------------- | --------- | -------- | --------------------------------------------- |
+| **Name**         | Title     | Yes      | Page title (automatically created)            |
+| **Date**         | Date      | Yes      | Timestamp of page creation                    |
+| **Commit Range** | Rich Text | No       | Git reference range (e.g., "v1.0.0 → v1.1.0") |
+| **Branch**       | Rich Text | No       | Git branch name                               |
 
 **Note**: The property names are hardcoded in cli.ts:90-116. If users need different property names, they must create database views or modify the code.
 
@@ -217,6 +228,7 @@ describe('notion-publisher', () => {
 ```
 
 **Mock Strategy**:
+
 - Mock `@notionhq/client` for API tests
 - Mock `@tryfabric/martian` for markdown conversion tests
 - Use real implementations for integration tests
@@ -226,6 +238,7 @@ describe('notion-publisher', () => {
 ### 1. Fixed Database Schema
 
 The tool expects specific property names:
+
 - "Name" (Title)
 - "Date" (Date)
 - "Commit Range" (Rich Text)
@@ -293,6 +306,7 @@ if (!apiKey) {
 ```
 
 **Exit Codes**:
+
 - `0` - Success
 - `1` - Validation error or API failure
 
@@ -312,6 +326,7 @@ catch (error) {
 ```
 
 **Common API Errors**:
+
 - `404` - Database not found or no access
 - `400` - Invalid request (missing/invalid properties)
 - `401` - Invalid API key
@@ -360,6 +375,7 @@ catch (error) {
 ### Deprecation Strategy
 
 If changes are needed:
+
 1. Add new option with new name
 2. Mark old option as deprecated (add warning)
 3. Support both for 2-3 versions
