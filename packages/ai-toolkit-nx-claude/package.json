@@ -1,6 +1,6 @@
 {
   "name": "@uniswap/ai-toolkit-nx-claude",
-  "version": "0.5.12-next.16",
+  "version": "0.5.12-next.17",
   "private": false,
   "main": "./dist/index.cjs",
   "module": "./dist/index.cjs",
