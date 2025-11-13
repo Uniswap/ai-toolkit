@@ -63,7 +63,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
-          fetch-depth: 0  # Full history needed for changelog generation
+          fetch-depth: 0 # Full history needed for changelog generation
 
       # === YOUR EXISTING BUILD STEPS GO HERE ===
       # Example:
@@ -225,9 +225,9 @@ jobs:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
       # Required if 'notion' in destinations
+      # NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
       # NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
       # RELEASE_NOTES_NOTION_DATABASE_ID: ${{ secrets.RELEASE_NOTES_NOTION_DATABASE_ID }}
-
 # =============================================================================
 # INTEGRATION PATTERNS AND TIPS
 # =============================================================================
