@@ -1,6 +1,10 @@
-# Reusable Changelog & Notification Workflows
+# Reusable GitHub Actions Workflows
 
-This repository provides two reusable GitHub Actions workflows for generating AI-powered changelogs and sending notifications to multiple destinations (Slack, Notion).
+This repository provides reusable GitHub Actions workflows for AI-powered development workflows, including:
+
+- Claude PR welcome messages
+- AI-powered changelog generation
+- Release notifications to multiple destinations (Slack, Notion)
 
 ## Table of Contents
 
@@ -8,6 +12,7 @@ This repository provides two reusable GitHub Actions workflows for generating AI
 - [Prerequisites](#prerequisites)
 - [Architecture](#architecture)
 - [Workflows Reference](#workflows-reference)
+  - [\_claude-welcome.yml](#_claude-welcomeyml)
   - [\_generate-changelog.yml](#_generate-changelogyml)
   - [\_notify-release.yml](#_notify-releaseyml)
 - [Implementation Details](#implementation-details)
@@ -190,6 +195,248 @@ Notify Release (_notify-release.yml)
 ```
 
 ## Workflows Reference
+
+### \_claude-welcome.yml
+
+**Purpose**: Automatically post a welcome message from Claude to newly opened pull requests, introducing Claude's capabilities and helping teams adopt AI-assisted code review.
+
+#### Inputs
+
+| Input                      | Required | Default     | Description                                                                       |
+| -------------------------- | -------- | ----------- | --------------------------------------------------------------------------------- |
+| `welcome_message`          | No       | (See below) | Custom welcome message body (supports markdown)                                   |
+| `workflow_deployment_date` | Yes      | -           | Date workflow was deployed (YYYY-MM-DD format, used for expiration calculation)   |
+| `expiration_months`        | No       | `3`         | Number of months the welcome should remain active (0 disables expiration)         |
+| `documentation_url`        | No       | -           | Optional URL to repository-specific Claude PR guide (appended to welcome message) |
+
+**Default Welcome Message:**
+
+```markdown
+👋 Hi!
+
+I'm Claude, an AI assistant here to help with code reviews and answer questions about your PR. You can tag me anytime with `@claude` followed by your request.
+
+💡 **Tip:** Ask me to explain code, suggest improvements, or review specific changes.
+```
+
+#### Outputs
+
+This workflow does not have outputs (welcome messages are posted directly to PRs).
+
+#### Secrets
+
+| Secret         | Required                     | Description                    |
+| -------------- | ---------------------------- | ------------------------------ |
+| `GITHUB_TOKEN` | Yes (automatically provided) | Built-in token for PR comments |
+
+**Note**: This workflow uses the built-in `GITHUB_TOKEN` which is automatically available. No additional secrets are required.
+
+#### Permissions Required
+
+The calling workflow must grant these permissions:
+
+```yaml
+permissions:
+  pull-requests: write
+  issues: write
+```
+
+#### Features
+
+- **Configurable Expiration**: Set time-limited welcome periods for pilot programs or trials
+- **Date Validation**: Strict YYYY-MM-DD format validation with helpful error messages
+- **Duplicate Detection**: Prevents multiple welcome messages on the same PR
+- **Optional Documentation Link**: Seamlessly append repo-specific Claude guides
+- **Security Built-in**: Bullfrog security scanning integrated into workflow
+- **Zero Maintenance**: Automatically disables after expiration period
+
+#### Quick Start Example
+
+```yaml
+name: Welcome Claude
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  welcome:
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-welcome.yml@main
+    with:
+      workflow_deployment_date: '2025-01-15'
+    permissions:
+      pull-requests: write
+      issues: write
+```
+
+#### Example: Custom Message
+
+```yaml
+jobs:
+  welcome:
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-welcome.yml@main
+    with:
+      welcome_message: |
+        👋 Hello from the Engineering Team!
+
+        Claude is available to help with:
+        - Code review and suggestions
+        - Answering questions about this PR
+        - Explaining complex code changes
+
+        Tag `@claude` in comments to get started!
+      workflow_deployment_date: '2025-01-15'
+      expiration_months: 6
+    permissions:
+      pull-requests: write
+      issues: write
+```
+
+#### Example: With Documentation Link
+
+```yaml
+jobs:
+  welcome:
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-welcome.yml@main
+    with:
+      workflow_deployment_date: '2025-01-15'
+      expiration_months: 3
+      documentation_url: 'https://github.com/your-org/your-repo/blob/main/docs/claude-guide.md'
+    permissions:
+      pull-requests: write
+      issues: write
+```
+
+#### Example: Permanent Welcome (No Expiration)
+
+```yaml
+jobs:
+  welcome:
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-welcome.yml@main
+    with:
+      workflow_deployment_date: '2025-01-15'
+      expiration_months: 0 # 0 = no expiration
+    permissions:
+      pull-requests: write
+      issues: write
+```
+
+#### Troubleshooting
+
+**Issue: Date format error**
+
+```
+Error: Invalid workflow_deployment_date format: '2025-1-15'. Must be YYYY-MM-DD (e.g., '2025-01-15')
+```
+
+**Solution**: Use zero-padded dates (YYYY-MM-DD format)
+
+- ❌ `'2025-1-15'`
+- ✅ `'2025-01-15'`
+
+**Issue: Multiple welcome messages appear**
+
+```
+Multiple welcome comments from Claude on the same PR
+```
+
+**Solution**: This shouldn't happen due to duplicate detection. Check if:
+
+- Multiple workflows are calling this reusable workflow
+- The welcome message text was changed (detection looks for specific text)
+
+**Issue: Welcome message not appearing**
+
+```
+Workflow runs successfully but no comment is posted
+```
+
+**Possible causes**:
+
+1. **Expiration period passed**: Check if current date is beyond `workflow_deployment_date + expiration_months`
+2. **Permissions missing**: Ensure calling workflow has `pull-requests: write` permission
+3. **Already posted**: Duplicate detection may have found an existing message
+
+**Issue: Workflow fails with permission error**
+
+```
+Error: Resource not accessible by integration
+```
+
+**Solution**: Add required permissions to the calling workflow:
+
+```yaml
+jobs:
+  welcome:
+    permissions:
+      pull-requests: write
+      issues: write
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-welcome.yml@main
+    # ...
+```
+
+#### Best Practices
+
+1. **Set Realistic Expiration Dates**:
+
+   - Use 3-6 months for pilot programs
+   - Use 0 (no expiration) for permanent adoption
+   - Update `workflow_deployment_date` when extending trials
+
+2. **Customize the Message**:
+
+   - Keep it concise (3-5 lines)
+   - Link to your repository's Claude documentation
+   - Include specific examples relevant to your codebase
+
+3. **Test Before Rolling Out**:
+
+   - Create a test PR in a feature branch
+   - Verify message appearance and formatting
+   - Confirm links work correctly
+
+4. **Monitor Adoption**:
+   - Track how many PRs receive the welcome
+   - Gather team feedback on message clarity
+   - Update documentation_url as needed
+
+#### Integration with Existing Workflows
+
+This workflow is designed to work alongside other PR automation:
+
+```yaml
+name: PR Automation
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  # Welcome Claude (only on first open)
+  claude-welcome:
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-welcome.yml@main
+    with:
+      workflow_deployment_date: '2025-01-15'
+    permissions:
+      pull-requests: write
+      issues: write
+
+  # Your existing PR checks
+  assign-reviewer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assign reviewer
+        run: gh pr edit ${{ github.event.pull_request.number }} --add-assignee @team-lead
+
+  # Your existing labeling
+  auto-label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add labels
+        run: gh pr edit ${{ github.event.pull_request.number }} --add-label "needs-review"
+```
+
+---
 
 ### \_generate-changelog.yml
 
