@@ -413,15 +413,7 @@ Instead of custom argument parsing logic, the action uses **minimist** (~62.5M w
 import minimist from 'minimist';
 
 const args = minimist(process.argv.slice(2), {
-  string: [
-    'api-key',
-    'database-id',
-    'title',
-    'content',
-    'from-ref',
-    'to-ref',
-    'branch',
-  ],
+  string: ['api-key', 'database-id', 'title', 'content', 'from-ref', 'to-ref', 'branch'],
   alias: {
     'api-key': 'apiKey',
     'database-id': 'databaseId',
@@ -868,7 +860,6 @@ Set up your Notion database with these properties for best compatibility:
 
 - **Commit Range** (Rich Text) - Git reference range
 - **Branch** (Rich Text) - Branch name
-- **NPM Tag** (Rich Text) - Package tag
 - **Date** (Date) - Release timestamp
 - **Status** (Select) - Release status (Optional: "Draft", "Published", "Archived")
 
