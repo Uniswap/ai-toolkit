@@ -17,7 +17,7 @@ export function enableCommand(serverNames: string[]): void {
 
   for (const serverName of serverNames) {
     if (!availableServers.includes(serverName)) {
-      displayError(`Server "${serverName}" is not currently configured.`);
+      displayError(`Server "${serverName}" is not configured.`);
       console.log(`\nAvailable servers: ${availableServers.join(', ') || 'none'}\n`);
       continue;
     }
