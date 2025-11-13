@@ -22,7 +22,8 @@ type CommandName =
   | 'research'
   | 'review-code'
   | 'review-plan'
-  | 'review-pr';
+  | 'review-pr'
+  | 'work-through-pr-comments';
 
 export type Commands = {
   [key in CommandName]: {
@@ -42,8 +43,7 @@ export const commands: Commands = {
     filePath: './auto-spec.md',
   },
   'claude-docs': {
-    description:
-      'Initialize or update CLAUDE.md documentation files based on context and changes',
+    description: 'Initialize or update CLAUDE.md documentation files based on context and changes',
     filePath: './claude-docs.md',
   },
   'create-pr': {
@@ -129,5 +129,10 @@ export const commands: Commands = {
     description:
       'Orchestrate comprehensive pull request review using specialized agents for architecture, security, performance, testing, and maintainability analysis.',
     filePath: './review-pr.md',
+  },
+  'work-through-pr-comments': {
+    description:
+      'Methodically work through GitHub pull request comments in a conversational workflow, analyzing each comment, presenting solution options, gathering your decisions, and implementing approved changes.',
+    filePath: './work-through-pr-comments.md',
   },
 } as const;

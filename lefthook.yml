@@ -35,3 +35,12 @@ pre-commit:
         - merge
         - rebase
       fail_text: 'Typechecking failed. Please fix the issues before committing.'
+
+    lint-markdown:
+      glob: '*.md'
+      run: sh scripts/lefthook/lint-markdown.sh
+      tags: markdown
+      skip:
+        - merge
+        - rebase
+      fail_text: 'Markdown linting failed. Please fix the issues before committing.'

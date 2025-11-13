@@ -85,7 +85,14 @@ After making any code changes, Claude Code MUST:
 
 3. **Typecheck the code**: Run `npx nx affected --target=typecheck --base=HEAD~1` to typecheck all affected projects.
 
-4. **Why use these commands**:
+4. **Lint markdown files**: After creating or updating any markdown files (.md), run `npm exec markdownlint-cli2 -- --fix "**/*.md"` to ensure all markdown files follow the project's markdown standards.
+
+   - This uses the `.markdownlint-cli2.jsonc` configuration file at the repository root
+   - The linting will automatically fix most common formatting issues
+   - This check MUST pass (exit code 0) before proceeding
+   - The markdown linter also runs automatically as a pre-commit hook via Lefthook
+
+5. **Why use these commands**:
    - `--uncommitted` flag formats only files that haven't been committed yet
    - `--affected` with `--base=HEAD~1` identifies all projects affected by changes since the last commit
    - Using Nx's affected commands ensures only relevant code is checked, making the process fast and efficient
@@ -224,7 +231,7 @@ When working with GitHub Actions workflows (`.github/workflows/*.yml`), follow t
 
 1. **Complex Logic Extraction**: If a workflow step contains complex bash scripting (50+ lines, multiple functions, intricate logic, API integrations, etc.), it MUST be extracted to a separate script file in the `.github/scripts/` directory.
 
-2. **Script Location**: All standalone scripts should be placed in `.github/scripts/` with descriptive, kebab-case names (e.g., `notion-publish.ts`, `notion-publish.sh`, `update-changelog.sh`).
+2. **Script Location**: All standalone scripts should be placed in `.github/scripts/` with descriptive, kebab-case names (e.g., `update-changelog.sh`, `process-coverage.ts`). For reusable tools intended for external use, publish as npm packages (e.g., `@uniswap/notion-publisher`).
 
 3. **Script Requirements**: Each script file should:
 
@@ -293,32 +300,31 @@ When working with GitHub Actions workflows (`.github/workflows/*.yml`), follow t
     # ... (massive inline script)
 ```
 
-**✅ GOOD - External TypeScript script with flags:**
+**✅ GOOD - Published npm package:**
 
 ```yaml
 - name: Setup Node.js
   uses: actions/setup-node@v4
   with:
     node-version: '22'
-    cache: 'npm'
-
-- name: Install dependencies
-  run: npm ci
+    registry-url: 'https://registry.npmjs.org'
+    scope: '@uniswap'
 
 - name: Publish to Notion
   run: |
-    npx tsx .github/scripts/notion-publish.ts \
-      --api-key "${{ secrets.NOTION_API_KEY }}" \
-      --database-id "${{ secrets.RELEASE_NOTES_NOTION_DATABASE_ID }}" \
+    npx @uniswap/notion-publisher \
       --title "${{ inputs.title }}" \
       --content "${{ inputs.content }}"
+  env:
+    NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+    RELEASE_NOTES_NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
 ```
 
 #### Current Examples
 
 See the following for reference implementations:
 
-- `.github/scripts/notion-publish.ts` - Notion API integration using TypeScript with community libraries (~120 lines)
+- `@uniswap/notion-publisher` package - Notion API integration published as CLI tool (see `packages/notion-publisher/`)
 
 #### When Inline Scripts Are Acceptable
 

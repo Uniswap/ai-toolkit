@@ -282,11 +282,7 @@ const refactoringWorkflow = {
     {
       agent: 'refactorer',
       strategy: 'incremental',
-      validations: [
-        'maintain_api_compatibility',
-        'preserve_behavior',
-        'improve_performance',
-      ],
+      validations: ['maintain_api_compatibility', 'preserve_behavior', 'improve_performance'],
     },
   ],
 
@@ -756,7 +752,7 @@ class WorkflowMonitor:
 
 ## Best Practices Summary
 
-### Do's:
+### Do's
 
 - ✅ Design workflows with clear stages and dependencies
 - ✅ Implement proper error handling and fallback mechanisms
@@ -767,7 +763,7 @@ class WorkflowMonitor:
 - ✅ Test workflows with various input scenarios
 - ✅ Implement circuit breakers for external dependencies
 
-### Don'ts:
+### Don'ts
 
 - ❌ Create overly complex workflows with too many agents
 - ❌ Ignore agent timeout and resource constraints

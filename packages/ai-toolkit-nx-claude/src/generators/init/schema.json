@@ -133,7 +133,7 @@
     "installAddons": {
       "type": "boolean",
       "description": "Install addons like spec-mcp-workflow",
-      "default": false,
+      "default": true,
       "prompt-when": "installMode === 'custom'",
       "prompt-message": "🔌 Install addons/mcps?",
       "prompt-type": "confirm"

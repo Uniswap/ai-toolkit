@@ -207,7 +207,7 @@ verified_facts:
 
 For each affected CLAUDE.md file, determine content updates:
 
-#### When to Create New CLAUDE.md Files:
+#### When to Create New CLAUDE.md Files
 
 **Create a NEW CLAUDE.md when**:
 
@@ -227,7 +227,7 @@ For each affected CLAUDE.md file, determine content updates:
 - Pure type definition directories
 - Asset/static file directories
 
-#### If Root CLAUDE.md:
+#### If Root CLAUDE.md
 
 Include:
 
@@ -239,7 +239,7 @@ Include:
 - Repository structure overview (immediate subdirectories only)
 - Code quality standards and setup
 
-#### If Package/Module CLAUDE.md:
+#### If Package/Module CLAUDE.md
 
 Include:
 
@@ -251,7 +251,7 @@ Include:
 - Usage patterns and examples
 - Package-specific guidelines
 
-#### If Feature/Component CLAUDE.md:
+#### If Feature/Component CLAUDE.md
 
 Include:
 
@@ -266,7 +266,7 @@ Include:
 
 Process all identified CLAUDE.md files:
 
-#### For Each Affected File:
+#### For Each Affected File
 
 1. **New CLAUDE.md**: Generate complete structure appropriate for that level
 2. **Existing CLAUDE.md**:
@@ -510,7 +510,7 @@ error: # Only if success: false
 
 ## Directory Importance Examples
 
-### ✅ **Deserves CLAUDE.md**:
+### ✅ **Deserves CLAUDE.md**
 
 ```
 /packages/auth              # Package with package.json
@@ -521,7 +521,7 @@ error: # Only if success: false
 /packages/ui/components     # Component library root
 ```
 
-### ❌ **Skip CLAUDE.md**:
+### ❌ **Skip CLAUDE.md**
 
 ```
 /src/utils                  # Just utility functions

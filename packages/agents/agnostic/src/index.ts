@@ -80,8 +80,7 @@ export const agents: Agents = {
     filePath: './claude-docs-initializer.md',
   },
   'claude-docs-manager': {
-    description:
-      'Analyze code changes and update all affected CLAUDE.md documentation files',
+    description: 'Analyze code changes and update all affected CLAUDE.md documentation files',
     filePath: './claude-docs-manager.md',
   },
   'code-explainer': {
@@ -145,8 +144,7 @@ export const agents: Agents = {
     filePath: './plan-reviewer.md',
   },
   planner: {
-    description:
-      'Create clear, actionable implementation plans without writing code',
+    description: 'Create clear, actionable implementation plans without writing code',
     filePath: './planner.md',
   },
   'pr-creator': {

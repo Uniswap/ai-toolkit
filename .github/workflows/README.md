@@ -68,7 +68,7 @@ Workflows designed to be called by other workflows using `workflow_call`. These 
 
 - **notify-release.yml**:
   - Sends rich Slack notifications with formatted changelog
-  - Supports Notion database integration via TypeScript script
+  - Supports Notion database integration via `@uniswap/notion-publisher` npm package
   - Different emoji and styling for production vs. next branch
   - Includes commit range, package list, and workflow run links
   - Uses community-maintained libraries (minimist, @notionhq/client, @tryfabric/martian)
@@ -134,12 +134,14 @@ Workflows designed to be called by other workflows using `workflow_call`. These 
 
 ## Required Secrets
 
-| Secret              | Used By                                     | Purpose                         |
-| ------------------- | ------------------------------------------- | ------------------------------- |
-| `WORKFLOW_PAT`      | publish-packages.yml, update-production.yml | Push commits/tags, create PRs   |
-| `ANTHROPIC_API_KEY` | generate-changelog.yml                      | AI-powered changelog generation |
-| `SLACK_WEBHOOK_URL` | notify-release.yml                          | Send release notifications      |
-| `NODE_AUTH_TOKEN`   | publish-packages.yml                        | Publish to NPM registry         |
+| Secret                             | Used By                                     | Purpose                                         |
+| ---------------------------------- | ------------------------------------------- | ----------------------------------------------- |
+| `WORKFLOW_PAT`                     | publish-packages.yml, update-production.yml | Push commits/tags, create PRs                   |
+| `ANTHROPIC_API_KEY`                | generate-changelog.yml                      | AI-powered changelog generation                 |
+| `SLACK_WEBHOOK_URL`                | notify-release.yml                          | Send Slack release notifications                |
+| `NOTION_API_KEY`                   | notify-release.yml                          | Publish release notes to Notion (optional)      |
+| `RELEASE_NOTES_NOTION_DATABASE_ID` | notify-release.yml                          | Notion database ID for release notes (optional) |
+| `NODE_AUTH_TOKEN`                  | publish-packages.yml                        | Publish to NPM registry                         |
 
 ## Usage Examples
 

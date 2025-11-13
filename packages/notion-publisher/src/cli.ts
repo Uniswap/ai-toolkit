@@ -5,15 +5,7 @@ import minimist from 'minimist';
 
 // Parse CLI arguments with flags using minimist
 const args = minimist(process.argv.slice(2), {
-  string: [
-    'api-key',
-    'database-id',
-    'title',
-    'content',
-    'from-ref',
-    'to-ref',
-    'branch',
-  ],
+  string: ['api-key', 'database-id', 'title', 'content', 'from-ref', 'to-ref', 'branch'],
   alias: {
     'api-key': 'apiKey',
     'database-id': 'databaseId',
@@ -25,15 +17,13 @@ const args = minimist(process.argv.slice(2), {
 // Read from environment variables first, fall back to CLI arguments
 // This prevents secrets from appearing in process listings
 const apiKey = process.env.NOTION_API_KEY || args.apiKey;
-const databaseId =
-  process.env.RELEASE_NOTES_NOTION_DATABASE_ID || args.databaseId;
+const databaseId = process.env.RELEASE_NOTES_NOTION_DATABASE_ID || args.databaseId;
 const { title, content, fromRef, toRef, branch } = args;
 
 // Color codes for output
 const RED = '\x1b[0;31m';
 const GREEN = '\x1b[0;32m';
-const YELLOW = '\x1b[1;33m';
-const NC = '\x1b[0m'; // No Color
+const NC = '\x1b[0m'; // No Color / Colorless
 
 // Logging functions
 const logInfo = (message: string) => {
@@ -46,9 +36,7 @@ const logError = (message: string) => {
 
 // Validate required arguments
 if (!apiKey) {
-  logError(
-    'NOTION_API_KEY is required (via NOTION_API_KEY env var or --api-key flag)'
-  );
+  logError('NOTION_API_KEY is required (via NOTION_API_KEY env var or --api-key flag)');
   process.exit(1);
 }
 

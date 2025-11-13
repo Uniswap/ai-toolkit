@@ -72,6 +72,12 @@ jobs:
       issues: write
     outputs:
       has_affected: ${{ steps.affected.outputs.has_affected }}
+      successful_packages: ${{ steps.publish.outputs.successful_packages }}
+      failed_packages: ${{ steps.publish.outputs.failed_packages }}
+      successful_count: ${{ steps.publish.outputs.successful_count }}
+      failed_count: ${{ steps.publish.outputs.failed_count }}
+      has_failures: ${{ steps.publish.outputs.has_failures }}
+      has_successes: ${{ steps.publish.outputs.has_successes }}
     # Skip the workflow if the commit is a version bump (to prevent loops)
     # Allow workflow to run for merge commits from update-production workflow
     # Skip workflow for branch sync commits
@@ -436,6 +442,7 @@ jobs:
 
       - name: Publish affected packages to NPM
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.affected.outputs.has_affected == 'true'
+        id: publish
         run: |
           # Configure npm authentication for viewing restricted packages
           # The @uniswap packages are restricted and require authentication even for read operations
@@ -491,6 +498,17 @@ jobs:
               if npx nx release publish --projects="$project" --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org; then
                 echo "✅ Successfully published $package"
                 SUCCESS_PACKAGES+=("$package")
+
+                # Immediately push the git tag for this successful publish
+                PACKAGE_TAG=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | sort -V | tail -n 1)
+                if [ -n "$PACKAGE_TAG" ]; then
+                  echo "🏷️  Pushing tag: $PACKAGE_TAG"
+                  if git push origin "$PACKAGE_TAG" 2>/dev/null; then
+                    echo "✅ Successfully pushed tag $PACKAGE_TAG"
+                  else
+                    echo "⚠️  Failed to push tag $PACKAGE_TAG (may already exist on remote)"
+                  fi
+                fi
               else
                 echo "❌ Failed to publish $package"
                 FAILED_PACKAGES+=("$package")
@@ -514,6 +532,17 @@ jobs:
               if npx nx release publish --projects="$project" --first-release --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org; then
                 echo "✅ Successfully published $package (first release)"
                 SUCCESS_PACKAGES+=("$package")
+
+                # Immediately push the git tag for this successful publish
+                PACKAGE_TAG=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | sort -V | tail -n 1)
+                if [ -n "$PACKAGE_TAG" ]; then
+                  echo "🏷️  Pushing tag: $PACKAGE_TAG"
+                  if git push origin "$PACKAGE_TAG" 2>/dev/null; then
+                    echo "✅ Successfully pushed tag $PACKAGE_TAG"
+                  else
+                    echo "⚠️  Failed to push tag $PACKAGE_TAG (may already exist on remote)"
+                  fi
+                fi
               else
                 echo "❌ Failed to publish $package (first release)"
                 FAILED_PACKAGES+=("$package")
@@ -522,6 +551,18 @@ jobs:
 
             echo ""
           done
+
+          # Convert arrays to JSON for outputs
+          SUCCESS_JSON=$(printf '%s\n' "${SUCCESS_PACKAGES[@]}" | jq -R . | jq -s -c .)
+          FAILED_JSON=$(printf '%s\n' "${FAILED_PACKAGES[@]}" | jq -R . | jq -s -c .)
+
+          # Set step outputs
+          echo "successful_packages=$SUCCESS_JSON" >> $GITHUB_OUTPUT
+          echo "failed_packages=$FAILED_JSON" >> $GITHUB_OUTPUT
+          echo "successful_count=${#SUCCESS_PACKAGES[@]}" >> $GITHUB_OUTPUT
+          echo "failed_count=${#FAILED_PACKAGES[@]}" >> $GITHUB_OUTPUT
+          echo "has_failures=$( [ ${#FAILED_PACKAGES[@]} -gt 0 ] && echo 'true' || echo 'false' )" >> $GITHUB_OUTPUT
+          echo "has_successes=$( [ ${#SUCCESS_PACKAGES[@]} -gt 0 ] && echo 'true' || echo 'false' )" >> $GITHUB_OUTPUT
 
           # Report results
           echo "=========================================="
@@ -539,36 +580,168 @@ jobs:
               echo "  ❌ $pkg"
             done
             echo ""
-            echo "❌ Some packages failed to publish. Check the logs above for details."
-            exit 1
+            echo "⚠️  Some packages failed to publish, but workflow will continue for successful packages."
           else
             echo ""
             echo "✅ All packages published successfully!"
           fi
+
+          # Exit successfully even if some packages failed (as long as at least one succeeded)
+          # This allows the workflow to continue and push tags/create releases for successful packages
+          if [ ${#SUCCESS_PACKAGES[@]} -eq 0 ]; then
+            echo ""
+            echo "❌ No packages were successfully published. Failing workflow."
+            exit 1
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
 
-      - name: Push version commits and tags
-        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.affected.outputs.has_affected == 'true'
+      - name: Revert failed package versions
+        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.publish.outputs.has_failures == 'true'
         run: |
-          # Push commits and tags created by Nx
-          git push origin ${{ github.ref_name }} --follow-tags
+          echo "=========================================="
+          echo "Reverting version bumps for failed packages"
+          echo "=========================================="
+          echo ""
+          echo "This ensures git stays in sync with npm - only successfully"
+          echo "published packages will have their versions bumped in git."
+          echo ""
+
+          AFFECTED_PROJECTS="${{ steps.affected.outputs.projects }}"
+          FAILED_PACKAGES='${{ steps.publish.outputs.failed_packages }}'
+
+          # Parse JSON array of failed packages
+          readarray -t FAILED < <(echo "$FAILED_PACKAGES" | jq -r '.[]')
+
+          if [ ${#FAILED[@]} -eq 0 ]; then
+            echo "No failed packages to revert."
+            exit 0
+          fi
+
+          echo "Failed packages to revert: ${#FAILED[@]}"
+          echo ""
+
+          # Convert affected projects to array for mapping
+          IFS=',' read -ra PROJECTS <<< "$AFFECTED_PROJECTS"
+
+          for failed_package in "${FAILED[@]}"; do
+            if [ -z "$failed_package" ]; then
+              continue
+            fi
+
+            echo "Processing: $failed_package"
+
+            # Find the Nx project for this package
+            for project in "${PROJECTS[@]}"; do
+              if [ -z "$project" ]; then
+                continue
+              fi
+
+              # Get project root from Nx
+              PROJECT_ROOT=$(npx nx show project "$project" --json 2>/dev/null | jq -r '.root' || echo "")
+
+              if [ -z "$PROJECT_ROOT" ] || [ ! -f "$PROJECT_ROOT/package.json" ]; then
+                continue
+              fi
+
+              # Check if this is the package we're looking for
+              PACKAGE_NAME=$(jq -r '.name // ""' "$PROJECT_ROOT/package.json")
+
+              if [ "$PACKAGE_NAME" = "$failed_package" ]; then
+                echo "  Found at: $PROJECT_ROOT/package.json"
+
+                # Get the version that was bumped to (but never published)
+                CURRENT_VERSION=$(jq -r '.version' "$PROJECT_ROOT/package.json")
+                echo "  Current version (not published): $CURRENT_VERSION"
+
+                # Delete the local git tag for this unpublished version
+                PACKAGE_NAME_FOR_TAG=$(echo "$failed_package" | sed 's/@[^/]*\///')
+                TAG_TO_DELETE=$(git tag -l "${PACKAGE_NAME_FOR_TAG}@*" "${failed_package}@*" 2>/dev/null | grep "@${CURRENT_VERSION}$" | head -n 1)
+
+                if [ -n "$TAG_TO_DELETE" ]; then
+                  echo "  Deleting local tag: $TAG_TO_DELETE"
+                  git tag -d "$TAG_TO_DELETE" 2>/dev/null || echo "  ⚠️  Tag already deleted"
+                fi
+
+                # Reset package.json to the version before this commit (HEAD~1)
+                echo "  Reverting package.json to previous version..."
+                git checkout HEAD~1 -- "$PROJECT_ROOT/package.json"
+
+                # Verify the revert
+                REVERTED_VERSION=$(jq -r '.version' "$PROJECT_ROOT/package.json")
+                echo "  ✅ Reverted to: $REVERTED_VERSION"
+                echo ""
+
+                break
+              fi
+            done
+          done
+
+          # Stage the reverted files
+          git add -A
+
+          # Check if there are any changes staged
+          if git diff --cached --quiet; then
+            echo "⚠️  No changes staged after reverting."
+            echo "This is unexpected - please review the workflow logs."
+          else
+            echo "=========================================="
+            echo "Amending version commit"
+            echo "=========================================="
+            echo ""
+            echo "Updating the version commit to only include successfully published packages."
+            echo ""
+
+            # Show what's being reverted
+            echo "Changes being committed:"
+            git diff --cached --name-status
+
+            # Amend the commit to include the reverted package.json files
+            git commit --amend --no-edit
+
+            echo "✅ Version commit amended successfully"
+          fi
+
+          echo ""
+          echo "=========================================="
+          echo "Version Revert Complete"
+          echo "=========================================="
+          echo ""
+          echo "Git is now in sync with npm:"
+          echo "  - Successfully published packages: version bumped ✅"
+          echo "  - Failed packages: version reverted to previous ⏮️"
+          echo ""
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+
+      - name: Push version commit
+        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.publish.outputs.has_successes == 'true'
+        run: |
+          # Push the version commit created by Nx (and potentially amended if there were failures)
+          # Tags have already been pushed individually after each successful publish
+          git push origin ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
 
       - name: Create GitHub releases
-        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.affected.outputs.has_affected == 'true'
+        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.publish.outputs.has_successes == 'true'
         run: |
-          # Get the tags that were just pushed (created by Nx release version)
-          # These are the tags created since the previous commit
-          AFFECTED_PACKAGES="${{ steps.affected.outputs.packages }}"
+          # Get only the successfully published packages from the publish step
+          # Parse the JSON array of successful packages
+          SUCCESSFUL_PACKAGES='${{ steps.publish.outputs.successful_packages }}'
 
-          echo "Creating GitHub releases for affected packages..."
-          echo "npm packages: $AFFECTED_PACKAGES"
+          echo "Creating GitHub releases for successfully published packages..."
+          echo "Successful packages JSON: $SUCCESSFUL_PACKAGES"
           echo ""
 
-          # Convert comma-separated list to array
-          IFS=',' read -ra PACKAGES <<< "$AFFECTED_PACKAGES"
+          # Parse JSON array into bash array
+          readarray -t PACKAGES < <(echo "$SUCCESSFUL_PACKAGES" | jq -r '.[]')
+
+          if [ ${#PACKAGES[@]} -eq 0 ]; then
+            echo "⚠️  No successfully published packages to create releases for."
+            exit 0
+          fi
 
           for package in "${PACKAGES[@]}"; do
             if [ -z "$package" ]; then
@@ -618,13 +791,54 @@ jobs:
   generate-changelog:
     name: Generate AI-powered changelog
     needs: publish
-    if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && needs.publish.outputs.has_affected == 'true'
+    if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && needs.publish.outputs.has_successes == 'true'
     uses: ./.github/workflows/_generate-changelog.yml
     with:
       from_ref: ${{ github.event.before }}
       to_ref: ${{ github.sha }}
       output_formats: 'slack,markdown'
-      custom_prompt_file: '.github/prompts/release-changelog.md'
+      custom_prompt_text: |
+        # Release Changelog Generation Prompt
+
+        You are a changelog generator. Based on the following git changes, create a concise, human-readable changelog summary.
+
+        ${{ needs.publish.outputs.has_failures == 'true' && format('**IMPORTANT**: This is a PARTIAL release. Some packages failed to publish.
+
+        **Successfully published packages**:
+        {0}
+
+        **Failed packages** (not published):
+        {1}
+
+        Focus your changelog ONLY on the successfully published packages. Add a note at the end about which packages failed to publish.
+
+        ', join(fromJSON(needs.publish.outputs.successful_packages), ', '), join(fromJSON(needs.publish.outputs.failed_packages), ', ')) || format('All packages were successfully published.
+
+        **Published packages**:
+        {0}
+
+        ', join(fromJSON(needs.publish.outputs.successful_packages), ', ')) }}
+
+        Focus on:
+        - What features were added
+        - What bugs were fixed
+        - What was changed or improved
+
+        Format requirements:
+        - Use bullet points (• or -) for each item, separated by a newline character
+        - Keep it to 3-10 items max
+        - Be concise and clear
+        - Do NOT include commit hashes unless specifically requested
+        - Group related changes together
+
+        Slack formatting requirements (IMPORTANT):
+        - DO NOT use markdown headers (no #, ##, ###)
+        - Use plain text for section titles followed by a colon (e.g., "Features:")
+        - Use _single asterisks_ for bold text (NOT double asterisks)
+        - Use _underscores_ for italic text
+        - Use simple bullet lists with • or - characters
+        - Keep formatting minimal and clean
+        - DO NOT use standard markdown links [text](url) - just use plain URLs or omit them
       max_tokens: 1024
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -632,15 +846,16 @@ jobs:
   notify-release:
     name: Notify release via Slack
     needs: [publish, generate-changelog]
-    if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && needs.publish.outputs.has_affected == 'true'
+    if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && needs.publish.outputs.has_successes == 'true'
     uses: ./.github/workflows/_notify-release.yml
     with:
       changelog_slack: ${{ needs.generate-changelog.outputs.changelog_slack }}
       changelog_markdown: ${{ needs.generate-changelog.outputs.changelog_markdown }}
-      destinations: 'slack'
+      destinations: 'slack,notion'
       from_ref: ${{ github.event.before }}
       to_ref: ${{ github.sha }}
       branch: ${{ github.ref_name }}
+      release_title: ${{ needs.publish.outputs.has_failures == 'true' && format('⚠️ Partial Release - {0} ({1} succeeded, {2} failed)', github.ref_name, needs.publish.outputs.successful_count, needs.publish.outputs.failed_count) || '' }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
