@@ -8,9 +8,7 @@ import { displaySuccess, displayError, displayWarning } from '../utils/display';
 export function enableCommand(serverNames: string[]): void {
   if (serverNames.length === 0) {
     displayError('Please specify at least one server name to enable.');
-    console.log(
-      '\nUsage: claude-mcp-helper enable <server-name> [<server-name>...]'
-    );
+    console.log('\nUsage: claude-mcp-helper enable <server-name> [<server-name>...]');
     console.log('Example: claude-mcp-helper enable github supabase\n');
     return;
   }
@@ -20,9 +18,7 @@ export function enableCommand(serverNames: string[]): void {
   for (const serverName of serverNames) {
     if (!availableServers.includes(serverName)) {
       displayError(`Server "${serverName}" is not configured.`);
-      console.log(
-        `\nAvailable servers: ${availableServers.join(', ') || 'none'}\n`
-      );
+      console.log(`\nAvailable servers: ${availableServers.join(', ') || 'none'}\n`);
       continue;
     }
 

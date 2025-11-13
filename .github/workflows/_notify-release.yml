@@ -98,6 +98,14 @@ on:
           Extract from database URL: notion.so/{workspace}/{database_id}?v=...
         required: false
 
+      NODE_AUTH_TOKEN:
+        description: |
+          npm authentication token for accessing @uniswap scoped packages.
+          Required if "notion" included in destinations (to install @uniswap/notion-publisher).
+          Format: npm_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          Obtain from: https://www.npmjs.com/settings/~/tokens
+        required: false
+
 jobs:
   prepare:
     runs-on: ubuntu-24.04
@@ -118,6 +126,57 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
+
+      - name: Validate required secrets
+        env:
+          INPUT_DESTINATIONS: ${{ inputs.destinations }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          RELEASE_NOTES_NOTION_DATABASE_ID: ${{ secrets.RELEASE_NOTES_NOTION_DATABASE_ID }}
+        run: |
+          MISSING_SECRETS=()
+
+          # Check Slack secrets if Slack destination is configured
+          if [[ "$INPUT_DESTINATIONS" == *"slack"* ]]; then
+            if [[ -z "$SLACK_WEBHOOK_URL" ]]; then
+              MISSING_SECRETS+=("SLACK_WEBHOOK_URL")
+            fi
+          fi
+
+          # Check Notion secrets if Notion destination is configured
+          if [[ "$INPUT_DESTINATIONS" == *"notion"* ]]; then
+            if [[ -z "$NODE_AUTH_TOKEN" ]]; then
+              MISSING_SECRETS+=("NODE_AUTH_TOKEN (required to install @uniswap/notion-publisher)")
+            fi
+            if [[ -z "$NOTION_API_KEY" ]]; then
+              MISSING_SECRETS+=("NOTION_API_KEY")
+            fi
+            if [[ -z "$RELEASE_NOTES_NOTION_DATABASE_ID" ]]; then
+              MISSING_SECRETS+=("RELEASE_NOTES_NOTION_DATABASE_ID")
+            fi
+          fi
+
+          # Fail if any required secrets are missing
+          if [[ ${#MISSING_SECRETS[@]} -gt 0 ]]; then
+            echo "❌ Missing required secrets for destinations: $INPUT_DESTINATIONS"
+            echo ""
+            echo "The following secrets are required but not configured:"
+            for secret in "${MISSING_SECRETS[@]}"; do
+              echo "  - $secret"
+            done
+            echo ""
+            echo "Please configure these secrets in your repository settings:"
+            echo "Settings → Secrets and variables → Actions → New repository secret"
+            echo ""
+            echo "For more information, see:"
+            echo "  - Slack webhook: https://api.slack.com/messaging/webhooks"
+            echo "  - Notion API key: https://www.notion.so/my-integrations"
+            echo "  - npm token: https://www.npmjs.com/settings/~/tokens"
+            exit 1
+          fi
+
+          echo "✅ All required secrets are configured"
 
       - name: Determine notification details
         id: notification
@@ -275,20 +334,59 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           scope: '@uniswap'
 
+      - name: Configure npm authentication for Notion publisher
+        if: contains(inputs.destinations, 'notion')
+        run: |
+          # Configure .npmrc for accessing @uniswap/notion-publisher (private package)
+          # This is only needed for Notion destinations, not Slack
+
+          # Ensure .npmrc exists
+          touch ~/.npmrc
+
+          # Add scoped registry if not already present
+          if ! grep -q "@uniswap:registry" ~/.npmrc; then
+            echo "@uniswap:registry=https://registry.npmjs.org" >> ~/.npmrc
+          fi
+
+          # Add default registry if not already present
+          if ! grep -q "^registry=" ~/.npmrc; then
+            echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
+          fi
+
+          # Add or update auth token
+          if grep -q "//registry.npmjs.org/:_authToken" ~/.npmrc; then
+            # Update existing token line
+            sed -i "s|//registry.npmjs.org/:_authToken=.*|//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}|" ~/.npmrc
+          else
+            # Add new token line
+            echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" >> ~/.npmrc
+          fi
+
+          echo "✅ Configured npm authentication for @uniswap/notion-publisher"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+
       - name: Publish to Notion
         id: notion-publish
         continue-on-error: true
         run: |
-          PAGE_URL=$(npx @uniswap/notion-publisher \
-            --title "${{ needs.prepare.outputs.final_title }}" \
-            --content "${{ needs.prepare.outputs.changelog_for_notion }}" \
-            --from-ref "${{ inputs.from_ref }}" \
-            --to-ref "${{ inputs.to_ref }}" \
-            --branch "${{ inputs.branch }}")
+          # Pass multi-line content via environment variable to avoid command-line escaping issues
+          PAGE_URL=$(npx @uniswap/notion-publisher@latest \
+            --title "$TITLE" \
+            --content "$CONTENT" \
+            --from-ref "$FROM_REF" \
+            --to-ref "$TO_REF" \
+            --branch "$BRANCH")
           echo "page-url=$PAGE_URL" >> $GITHUB_OUTPUT
         env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
           RELEASE_NOTES_NOTION_DATABASE_ID: ${{ secrets.RELEASE_NOTES_NOTION_DATABASE_ID }}
+          TITLE: ${{ needs.prepare.outputs.final_title }}
+          CONTENT: ${{ needs.prepare.outputs.changelog_for_notion }}
+          FROM_REF: ${{ inputs.from_ref }}
+          TO_REF: ${{ inputs.to_ref }}
+          BRANCH: ${{ inputs.branch }}
 
       - name: Add Notion URL to summary
         if: steps.notion-publish.outcome == 'success'
@@ -311,6 +409,7 @@ jobs:
           The Notion page could not be created. Check the workflow logs for details.
 
           Common issues:
+          - Missing or invalid NODE_AUTH_TOKEN secret (required to install @uniswap/notion-publisher)
           - Invalid NOTION_API_KEY secret
           - Invalid RELEASE_NOTES_NOTION_DATABASE_ID secret
           - Notion integration doesn't have access to the database

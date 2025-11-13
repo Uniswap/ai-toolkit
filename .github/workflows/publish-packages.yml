@@ -858,6 +858,9 @@ jobs:
       release_title: ${{ needs.publish.outputs.has_failures == 'true' && format('⚠️ Partial Release - {0} ({1} succeeded, {2} failed)', github.ref_name, needs.publish.outputs.successful_count, needs.publish.outputs.failed_count) || '' }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+      RELEASE_NOTES_NOTION_DATABASE_ID: ${{ secrets.RELEASE_NOTES_NOTION_DATABASE_ID }}
+      NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
   sync-next:
     name: Sync next branch with main
