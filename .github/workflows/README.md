@@ -61,13 +61,27 @@ Workflows that handle versioning, publishing, and production deployments.
 
 Workflows designed to be called by other workflows using `workflow_call`. These provide modular, reusable functionality.
 
-| Workflow                                               | Inputs                                                                                  | Outputs                          | Purpose                                                                             |
-| ------------------------------------------------------ | --------------------------------------------------------------------------------------- | -------------------------------- | ----------------------------------------------------------------------------------- |
-| [`_claude-welcome.yml`](./_claude-welcome.yml)         | `welcome_message`, `workflow_deployment_date`, `expiration_months`, `documentation_url` | None                             | Posts welcome message from Claude to newly opened pull requests                     |
-| [`_generate-changelog.yml`](./_generate-changelog.yml) | `before_sha`, `after_sha`, `custom_prompt_file`, `custom_prompt_text`, `max_tokens`     | `changelog`, `generation_method` | Generates AI-powered changelogs from git commit ranges using Anthropic's Claude API |
-| [`_notify-release.yml`](./_notify-release.yml)         | `branch`, `npm_tag`, `before_sha`, `after_sha`, `changelog`                             | None                             | Sends formatted Slack notifications about package releases                          |
+| Workflow                                               | Inputs                                                                                              | Outputs                          | Purpose                                                                                  |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------- |
+| [`_claude-main.yml`](./_claude-main.yml)               | `model`, `allowed_tools`, `custom_instructions`, `timeout_minutes`, `anthropic_api_key_secret_name` | None                             | Enables Claude Code to respond to @claude mentions in issues, PRs, comments, and reviews |
+| [`_claude-welcome.yml`](./_claude-welcome.yml)         | `welcome_message`, `workflow_deployment_date`, `expiration_months`, `documentation_url`             | None                             | Posts welcome message from Claude to newly opened pull requests                          |
+| [`_generate-changelog.yml`](./_generate-changelog.yml) | `before_sha`, `after_sha`, `custom_prompt_file`, `custom_prompt_text`, `max_tokens`                 | `changelog`, `generation_method` | Generates AI-powered changelogs from git commit ranges using Anthropic's Claude API      |
+| [`_notify-release.yml`](./_notify-release.yml)         | `branch`, `npm_tag`, `before_sha`, `after_sha`, `changelog`                                         | None                             | Sends formatted Slack notifications about package releases                               |
 
 **Key Features:**
+
+- **claude-main.yml**:
+
+  - Interactive AI assistance via @claude mentions
+  - Works in issue comments, PR comments, review comments, and reviews
+  - Configurable models (Sonnet 4.5, Opus 4, Haiku 4.5)
+  - Flexible tool permissions (read-only, read-write, or custom)
+  - Custom instructions for repository-specific standards
+  - Fixed security settings (Bullfrog scanning, immutable permissions)
+  - Bot filtering to prevent loops
+  - Concurrency control to prevent duplicate executions
+  - Configurable timeout for cost management
+  - CI integration (can read and help debug CI failures)
 
 - **claude-welcome.yml**:
 
@@ -116,6 +130,7 @@ Workflows designed to be called by other workflows using `workflow_call`. These 
 ┌─────────────────────────────────────────────────────────────┐
 │                     Reusable Utilities                       │
 ├─────────────────────────────────────────────────────────────┤
+│  _claude-main.yml: Interactive @claude mentions             │
 │  _claude-welcome.yml: PR welcome messages                   │
 │  _generate-changelog.yml: AI changelog generation           │
 │  _notify-release.yml: Slack notifications                   │
