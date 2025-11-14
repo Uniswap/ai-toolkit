@@ -4,6 +4,7 @@ This repository provides reusable GitHub Actions workflows for AI-powered develo
 
 - Claude Code integration for interactive AI assistance (@claude mentions)
 - Claude PR welcome messages
+- Claude automated code reviews with formal review submission
 - AI-powered changelog generation
 - Release notifications to multiple destinations (Slack, Notion)
 
@@ -15,6 +16,7 @@ This repository provides reusable GitHub Actions workflows for AI-powered develo
 - [Workflows Reference](#workflows-reference)
   - [\_claude-main.yml](#_claude-mainyml)
   - [\_claude-welcome.yml](#_claude-welcomeyml)
+  - [\_claude-code-review.yml](#_claude-code-reviewyml)
   - [\_generate-changelog.yml](#_generate-changelogyml)
   - [\_notify-release.yml](#_notify-releaseyml)
 - [Implementation Details](#implementation-details)
@@ -958,6 +960,631 @@ jobs:
       - name: Add labels
         run: gh pr edit ${{ github.event.pull_request.number }} --add-label "needs-review"
 ```
+
+---
+
+### \_claude-code-review.yml
+
+**Purpose**: Automated, iterative PR code reviews using Claude AI with formal GitHub review submission, inline comments, and auto-resolution of fixed issues.
+
+#### Inputs
+
+| Input                           | Required | Default                              | Description                                                                               |
+| ------------------------------- | -------- | ------------------------------------ | ----------------------------------------------------------------------------------------- |
+| `pr_number`                     | Yes      | -                                    | Pull request number to review                                                             |
+| `base_ref`                      | Yes      | -                                    | Base branch name (e.g., main, master)                                                     |
+| `model`                         | No       | `'claude-sonnet-4-5-20250929'`       | Claude model to use for review                                                            |
+| `max_turns`                     | No       | `15`                                 | Maximum conversation turns for Claude                                                     |
+| `custom_prompt`                 | No       | `''`                                 | Custom prompt text (overrides file and default). Verdict logic is automatically appended. |
+| `custom_prompt_path`            | No       | `'.claude/prompts/claude-pr-bot.md'` | Path to custom prompt file in repository                                                  |
+| `timeout_minutes`               | No       | `30`                                 | Job timeout in minutes                                                                    |
+| `allowed_tools`                 | No       | `''` (permissive default)            | Comma-separated list of allowed tools. Leave empty for default set (see below).           |
+| `anthropic_api_key_secret_name` | No       | `'ANTHROPIC_API_KEY'`                | Name of secret containing Anthropic API key                                               |
+
+**Default Allowed Tools** (when `allowed_tools` is empty):
+
+```
+mcp__github__get_pull_request, mcp__github__get_pull_request_files,
+mcp__github__get_pull_request_comments, mcp__github__get_pull_request_reviews,
+mcp__github__create_review_comment, mcp__github__resolve_review_thread,
+mcp__github__list_review_comments, mcp__github_inline_comment__create_inline_comment,
+Read, Grep, Glob, Bash(git log), Bash(git diff), Bash(git show), Bash(git blame),
+Bash(git rev-parse HEAD), Bash(git log --oneline), Write
+```
+
+**Prompt Priority** (when no `custom_prompt` or `custom_prompt_path` provided):
+
+The workflow fetches the default prompt from `Uniswap/ai-toolkit/.github/prompts/default-pr-review.md`.
+If you fork this workflow, use `custom_prompt_path` to specify your own prompt instead.
+
+#### Outputs
+
+This workflow does not have outputs (reviews are submitted directly to GitHub PRs).
+
+#### Secrets
+
+| Secret              | Required | Description                        |
+| ------------------- | -------- | ---------------------------------- |
+| `ANTHROPIC_API_KEY` | Yes      | API key from console.anthropic.com |
+
+**Note**: The secret must be passed explicitly from the calling workflow.
+
+#### Permissions Required (Fixed)
+
+These permissions are **fixed** in the reusable workflow and cannot be overridden:
+
+```yaml
+permissions:
+  id-token: write # Required for OIDC authentication
+  contents: read # Required to read repository code
+  pull-requests: write # Required to comment and submit reviews
+  issues: read # Required to read PR discussions
+  actions: read # Required to check CI status
+```
+
+**Note**: You do NOT need to specify these permissions in your calling workflow - they are automatically set by the reusable workflow.
+
+#### Fixed Settings (Cannot be Overridden)
+
+The following settings are intentionally fixed to ensure consistent security and behavior:
+
+1. **Security Scanning**: Bullfrog security scanning with `egress-policy: audit`
+2. **Patch-ID Caching**: Automatically calculated to skip rebases
+3. **Verdict Injection**: Verdict writing logic always appended to custom prompts
+4. **Formal Review Submission**: Always submits GitHub reviews (APPROVE/REQUEST_CHANGES/COMMENT)
+
+#### Features
+
+- **Formal GitHub Reviews**: Submits APPROVE, REQUEST_CHANGES, or COMMENT reviews for merge protection
+- **Inline Comments**: Creates review comments on specific lines of code
+- **Auto-Resolution**: Automatically resolves comment threads when issues are fixed
+- **Rebase Detection**: Uses patch-ID hashing to skip reviews when only rebased (no new changes)
+- **Iterative Reviews**: Tracks previous comments and updates status on re-review
+- **Custom Prompts**: Supports repository-specific review guidelines
+- **CLAUDE.md Integration**: Automatically respects repository CLAUDE.md files for context-aware reviews
+- **Verdict in Review Body**: Displays review status, verdict, and patch-ID in formal review
+- **Merge Queue Filtering**: Consumers can filter out merge queue PRs
+- **Security Built-in**: Bullfrog security scanning integrated and cannot be disabled
+- **Cost Optimization**: Caching prevents duplicate reviews, reducing API costs
+
+#### Quick Start Example
+
+```yaml
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+jobs:
+  claude-review:
+    # Skip merge queue PRs and draft PRs
+    if: |
+      !contains(github.head_ref, 'gh-readonly-queue/') &&
+      (github.event.pull_request.draft == false || github.event.action == 'ready_for_review')
+
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      base_ref: ${{ github.base_ref }}
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+#### Example: Custom Prompt File
+
+```yaml
+jobs:
+  claude-review:
+    if: |
+      !contains(github.head_ref, 'gh-readonly-queue/') &&
+      (github.event.pull_request.draft == false || github.event.action == 'ready_for_review')
+
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      base_ref: ${{ github.base_ref }}
+      # Use repository-specific review guidelines
+      custom_prompt_path: '.github/prompts/security-focused-review.md'
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+#### Example: Label-Based Model Selection
+
+```yaml
+jobs:
+  claude-review:
+    if: |
+      !contains(github.head_ref, 'gh-readonly-queue/') &&
+      (github.event.pull_request.draft == false || github.event.action == 'ready_for_review')
+
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      base_ref: ${{ github.base_ref }}
+      # Use Opus for PRs with 'claude-opus' label, otherwise Sonnet
+      model: ${{ contains(github.event.pull_request.labels.*.name, 'claude-opus') && 'claude-opus-4-1-20250805' || 'claude-sonnet-4-5-20250929' }}
+      max_turns: 20 # Allow more turns for thorough Opus reviews
+      timeout_minutes: 45 # Longer timeout for complex reviews
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+#### How It Works
+
+**1. Rebase Detection:**
+
+- Calculates a stable "patch-ID" hash of code changes
+- Same code = same patch-ID, even after rebase
+- Checks cache for this patch-ID
+- If cache hit → Skip review (no new changes)
+- If cache miss → Perform review
+
+**2. Review Process:**
+
+- Loads custom prompt (priority: explicit input > repo file > ai-toolkit default)
+- Automatically appends verdict writing instructions
+- Claude analyzes code and creates inline comments
+- Claude checks previous comments and resolves fixed issues
+- Claude writes verdict file (APPROVE/REQUEST_CHANGES/COMMENT)
+- Workflow submits formal GitHub review
+
+**3. Iterative Reviews:**
+
+- On subsequent reviews, Claude:
+  - Lists all previous inline comments
+  - Checks if each issue is fixed, persists, or regressed
+  - Resolves threads for fixed issues
+  - Adds follow-up comments for persistent issues
+  - Creates new comments for new issues
+
+#### Patch-ID Mechanism (Rebase Detection)
+
+**What is Patch-ID?**
+
+- Stable cryptographic hash of code changes using Git's `patch-id` command
+- Content-based hashing: Same code = same ID, regardless of commit SHAs
+- Survives rebases, cherry-picks, and merges
+
+**How It Works:**
+
+1. Calculate merge base: `git merge-base origin/main HEAD`
+2. Generate diff: `git diff <merge-base>..HEAD`
+3. Compute stable hash: `git patch-id --stable`
+4. Cache review results using: `review-pr{number}-patch-{id}`
+5. Skip review if patch-ID matches cached review
+
+**Edge Cases:**
+
+- **Whitespace-only changes**: New patch-ID (triggers review)
+- **Line number shifts** (no code changes): Same patch-ID (skips review)
+- **Cherry-picks**: Same patch-ID as original commit
+- **Comment-only changes**: New patch-ID (triggers review)
+
+**Manual Cache Invalidation:**
+If you need to force a new review despite same code:
+
+1. Option 1: Add/remove a single space in a comment
+2. Option 2: Delete cache manually (Actions → Caches)
+3. Option 3: Use a different branch name and reopen PR
+
+#### Review Submission Script
+
+The workflow uses `.github/scripts/submit-claude-review.sh` to submit formal GitHub reviews.
+
+**What the script does:**
+
+1. Reads `.claude-review-verdict.txt` for verdict (APPROVE/REQUEST_CHANGES/COMMENT)
+2. Reads `.claude-review-summary.md` for review body (markdown)
+3. Validates verdict (must be one of the three allowed values)
+4. Submits formal review via `gh pr review` command
+5. Cleans up temporary files
+
+**Error Handling:**
+
+- Falls back to COMMENT verdict if verdict file is invalid
+- Uses default summary if summary file is missing
+- Comprehensive logging at each step (ℹ️, ✅, ⚠️, ❌ emoji markers)
+
+**Troubleshooting Script Failures:**
+
+- Check workflow logs for "Submit GitHub Review" step
+- Verify verdict file contains only one word (APPROVE/REQUEST_CHANGES/COMMENT)
+- Ensure summary file is valid markdown
+- Confirm `gh` CLI has proper authentication (GITHUB_TOKEN)
+
+#### CLAUDE.md Integration
+
+The workflow is designed to **automatically respect repository CLAUDE.md files** for context-aware reviews.
+
+**How It Works:**
+
+The default review prompt explicitly instructs Claude to check for and follow CLAUDE.md files:
+
+1. **Global guidelines**: `.claude/CLAUDE.md` or `CLAUDE.md` at repository root
+2. **Project-specific guidelines**: `CLAUDE.md` files in package/module directories
+
+**What CLAUDE.md Files Provide:**
+
+- **Coding standards**: Language-specific conventions, naming patterns
+- **Architecture patterns**: Preferred design patterns, file organization
+- **Security requirements**: Domain-specific security concerns
+- **Testing expectations**: Coverage requirements, testing frameworks
+- **Domain knowledge**: Business logic, terminology, edge cases
+- **Tool usage**: Preferred libraries, banned dependencies
+
+**Priority Order:**
+
+1. Repository CLAUDE.md files (highest priority - always respected)
+2. Custom prompts (via `custom_prompt` or `custom_prompt_path`)
+3. Default review prompt (from ai-toolkit repository)
+
+**Example CLAUDE.md File:**
+
+```markdown
+# CLAUDE.md - Project Guidelines
+
+## Code Standards
+
+- Use TypeScript strict mode
+- Prefer functional patterns over classes
+- All exports must have JSDoc comments
+
+## Security
+
+- Never log user PII
+- All API endpoints require authentication
+- Sanitize all user inputs with zod schemas
+
+## Testing
+
+- Minimum 80% code coverage
+- Use Vitest for unit tests
+- Mock external APIs in tests
+```
+
+**Benefits:**
+
+- **Consistent reviews** across the team following your standards
+- **Domain-specific feedback** tailored to your codebase
+- **Reduced false positives** by understanding your patterns
+- **Better suggestions** aligned with your architecture
+
+**Best Practice:**
+
+Create CLAUDE.md files at different levels:
+
+```
+repo/
+├── .claude/
+│   └── CLAUDE.md           # Organization-wide standards
+├── packages/
+│   ├── frontend/
+│   │   └── CLAUDE.md       # Frontend-specific guidelines
+│   └── backend/
+│       └── CLAUDE.md       # Backend-specific guidelines
+```
+
+Claude will read all relevant CLAUDE.md files in the hierarchy when reviewing changes in a specific directory.
+
+#### Review Verdicts
+
+Claude determines the appropriate verdict based on findings. The workflow automatically appends verdict logic to custom prompts.
+
+**APPROVE** - No blocking issues, safe to merge:
+
+- Minor suggestions or improvements that don't affect functionality
+- Code quality improvements that can be addressed later
+- Test coverage could be better but tests exist and pass
+- Documentation could be clearer but is acceptable
+- Style inconsistencies that don't impact readability
+
+**Examples of APPROVE-worthy code:**
+
+- Adding a new feature with comprehensive tests
+- Refactoring with proper test coverage
+- Bug fix with test demonstrating the fix
+- Minor style improvements
+
+**REQUEST_CHANGES** - Critical issues that must be fixed:
+
+- **Bugs**: Logic errors causing incorrect behavior or crashes
+- **Security**: Injection vulnerabilities (SQL, XSS), auth bypasses, exposed secrets
+- **Data Integrity**: Data corruption risks, missing transactions, incorrect deletions
+- **Performance**: N+1 queries, memory leaks on hot paths, blocking operations
+- **Missing Error Handling**: Uncaught exceptions, silent failures on critical paths
+
+**Examples requiring changes:**
+
+```typescript
+// 🔴 SQL Injection
+db.query(`SELECT * FROM users WHERE id = ${userId}`);
+
+// 🔴 Null Reference (will crash)
+const theme = user.preferences.theme; // user could be null
+
+// 🔴 Memory Leak
+useEffect(() => {
+  window.addEventListener('resize', handler);
+  // Missing cleanup!
+});
+
+// 🔴 N+1 Query
+for (const user of users) {
+  await db.getOrders(user.id); // Query in loop!
+}
+```
+
+**COMMENT** - Issues that should be addressed but don't block merge:
+
+- Moderate maintainability concerns (functions mixing responsibilities)
+- Performance improvements for non-critical paths
+- Testing gaps for edge cases (happy path covered)
+- Unclear variable naming or missing comments
+- Duplicated code that could be refactored
+
+**Examples warranting comments:**
+
+```typescript
+// ⚠️ Mixed Responsibilities (but not breaking)
+async function handleCheckout(items) {
+  if (!items.length) throw new Error('Empty'); // Validation
+  const user = await db.getUser(); // Fetching
+  const total = calculateTotal(items); // Business logic
+  await stripe.charge(user, total); // External API
+}
+
+// ⚠️ Missing Error Handling (non-critical path)
+async function loadOptionalData() {
+  const data = await fetch(url);
+  return data.json(); // Could fail, but optional
+}
+```
+
+The verdict is displayed in the formal GitHub review body along with:
+
+- Review status (✅ Completed)
+- Patch-ID for tracking
+- Summary of key findings
+- Count of inline comments created
+- Reference to inline comments
+
+#### Troubleshooting
+
+**Issue: Review runs on every rebase**
+
+```
+Claude reviews the PR even though I only rebased with no code changes
+```
+
+**Solution**: This shouldn't happen due to patch-ID caching. Check:
+
+- Cache is being saved after successful reviews (check workflow logs)
+- PR number hasn't changed (shouldn't happen, but verify)
+- Patch-ID calculation step is running successfully
+
+**Issue: Custom prompt not being used**
+
+```
+Claude doesn't follow my repository-specific guidelines
+```
+
+**Solution**: Verify prompt file path:
+
+1. Check `custom_prompt_path` matches actual file location
+2. File must exist in repository (not in `.gitignore`)
+3. Check workflow logs for "Using custom prompt from repository: ..." message
+
+**Issue: Comments not being resolved**
+
+```
+Claude says issues are fixed but doesn't resolve the comment threads
+```
+
+**Solution**:
+
+- Verify Claude has permission to resolve threads (should be automatic)
+- Check if using the correct MCP tools (workflow provides these automatically)
+- Look for errors in workflow logs during review step
+
+**Issue: Wrong verdict submitted**
+
+```
+Claude submitted APPROVE but there are obvious bugs
+```
+
+**Solution**:
+
+- Review the custom prompt - may need more specific guidance on what's blocking
+- Consider using a more thorough model (Opus instead of Sonnet)
+- Check the review summary to understand Claude's reasoning
+- Update default prompt in ai-toolkit if consistently incorrect
+
+**Issue: Workflow timeout**
+
+```
+Workflow execution exceeded timeout limit (30 minutes)
+```
+
+**Solution**: Increase timeout for large PRs:
+
+```yaml
+with:
+  timeout_minutes: 45 # or higher
+```
+
+**Issue: Multiple reviews on same PR**
+
+```
+Claude submitted multiple reviews instead of updating one
+```
+
+**Solution**: This is expected behavior - Claude creates a new formal review each time. Previous review comments remain visible. To prevent multiple reviews:
+
+- Ensure proper caching is working (patch-ID check)
+- Don't re-run workflow manually unless needed
+
+#### Best Practices
+
+1. **Filtering PRs**:
+
+   - Always filter out merge queue PRs: `!contains(github.head_ref, 'gh-readonly-queue/')`
+   - Consider filtering draft PRs: `github.event.pull_request.draft == false`
+   - Use path filters if you only want reviews on specific directories
+
+2. **Model Selection**:
+
+   - **Sonnet 4.5** (default): Best balance for most PRs (~80% of use cases)
+   - **Opus 4.1**: Reserve for critical code, security-sensitive changes, or complex architectures
+   - Use labels to let developers request deeper reviews when needed
+
+3. **Custom Prompts**:
+
+   - Keep focused on your domain (security, performance, etc.)
+   - Don't repeat universal best practices (default prompt covers these)
+   - Include examples of patterns specific to your codebase
+   - The workflow automatically adds verdict writing logic - don't include it
+
+4. **Branch Protection Setup**:
+
+   To enforce Claude's reviews and ensure quality gates:
+
+   **Step 1: Navigate to Branch Protection**
+
+   - Go to: Settings → Branches → Branch protection rules
+   - Click "Add rule" (or edit existing rule for your main branch)
+   - Branch name pattern: `main` (or `master`, `develop`, etc.)
+
+   **Step 2: Enable Required Reviews**
+
+   ```
+   ✅ Require pull request reviews before merging
+      → Required approving reviews: 1
+      → Dismiss stale pull request approvals when new commits are pushed
+   ```
+
+   **Step 3: Enable Conversation Resolution**
+
+   ```
+   ✅ Require conversation resolution before merging
+   ```
+
+   **Step 4: (Optional) Require Status Checks**
+
+   ```
+   ✅ Require status checks to pass before merging
+      → Search and add: "claude-review" or your workflow job name
+   ```
+
+   **What This Configuration Does:**
+
+   - **REQUEST_CHANGES reviews block merges**: PRs cannot be merged until all blocking comments are resolved
+   - **Human approval still required**: Claude doesn't count toward the "1 required approval" - you still need a human reviewer
+   - **Comment resolution enforced**: All inline comments must be addressed (resolved, fixed, or acknowledged)
+   - **Status checks optional**: If enabled, the workflow itself must complete successfully
+
+   **Workflow Types:**
+
+   - **Advisory Only** (don't enable conversation resolution): Claude provides feedback but doesn't block
+   - **Blocking Reviews** (enable conversation resolution): Claude can block merges with REQUEST_CHANGES
+   - **Strict Mode** (enable status checks + conversation resolution): Workflow must complete AND reviews must pass
+
+5. **Cost Optimization**:
+
+   - Caching automatically reduces costs by skipping rebases
+   - Use Sonnet for most reviews (Opus costs 5x more)
+   - Set reasonable timeouts to prevent runaway costs
+   - Monitor usage at console.anthropic.com
+
+6. **Review Quality**:
+   - Start with default prompt, customize incrementally
+   - Gather team feedback on review quality
+   - Iterate on custom prompt based on common false positives/negatives
+   - Use Opus for initial review of new patterns, then switch back to Sonnet
+
+#### Advanced Patterns
+
+**Pattern 1: Security-Sensitive Paths**
+
+Run thorough Opus reviews on security-critical code:
+
+```yaml
+jobs:
+  standard-review:
+    if: |
+      !contains(github.head_ref, 'gh-readonly-queue/') &&
+      !contains(github.event.pull_request.labels.*.name, 'security-critical')
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      base_ref: ${{ github.base_ref }}
+      model: 'claude-sonnet-4-5-20250929'
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  security-review:
+    if: |
+      !contains(github.head_ref, 'gh-readonly-queue/') &&
+      contains(github.event.pull_request.labels.*.name, 'security-critical')
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      base_ref: ${{ github.base_ref }}
+      model: 'claude-opus-4-1-20250805'
+      custom_prompt_path: '.github/prompts/security-review.md'
+      timeout_minutes: 60
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+**Pattern 2: Path-Based Review Filtering**
+
+Only review specific directories:
+
+```yaml
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+    paths:
+      - 'src/**'
+      - 'packages/**'
+      - '!**/*.md' # Exclude markdown files
+      - '!docs/**' # Exclude documentation
+```
+
+#### Integration with Branch Protection
+
+For the Slack requirements (1 bot reviewer + 1 human reviewer):
+
+1. **Enable branch protection** in repository settings
+2. **Require 1 approval** from human reviewers
+3. **Require conversation resolution** to ensure blocking comments are addressed
+4. **Configure status checks** if you want the workflow itself to be required
+
+This setup ensures:
+
+- Claude's REQUEST_CHANGES reviews block merges (conversation must be resolved)
+- Minimum 1 human approval still required
+- All review comments must be addressed before merging
+
+#### Cost Estimation
+
+Example cost calculation:
+
+- 20 PRs per week
+- Average 2 review iterations per PR (initial + update)
+- Using Sonnet 4.5
+- ~30K tokens per review
+
+```
+40 reviews/week × 30K tokens = 1.2M tokens/week
+Input: 1M × $3 = $3/week
+Output: 0.2M × $15 = $3/week
+Total: ~$6/week = ~$24/month
+```
+
+With patch-ID caching, rebases don't count as reviews, reducing actual costs by ~30-40%.
 
 ---
 

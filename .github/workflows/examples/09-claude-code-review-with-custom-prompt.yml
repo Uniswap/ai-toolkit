@@ -1,0 +1,58 @@
+name: 'Example: Claude Code Review - Custom Prompt'
+
+# Example showing how to use a custom prompt for code reviews
+#
+# This example demonstrates:
+# - Using a repository-specific prompt file
+# - The workflow will automatically append verdict writing logic
+# - Useful when you want domain-specific review guidelines
+#
+# Custom Prompt Priority:
+# 1. Explicit `custom_prompt` input (inline text)
+# 2. `custom_prompt_path` file in your repository
+# 3. Default prompt from ai-toolkit repository
+#
+# To use this:
+# 1. Create your custom prompt at .github/prompts/my-pr-review.md
+# 2. Copy this workflow to .github/workflows/claude-code-review.yml
+# 3. Customize the path if needed
+#
+# Your custom prompt can focus on:
+# - Security-specific concerns
+# - Performance requirements
+# - Testing standards
+# - Team-specific patterns
+#
+# The workflow will automatically add the required verdict logic,
+# so your prompt can focus purely on review guidelines.
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+jobs:
+  claude-review:
+    if: |
+      !contains(github.head_ref, 'gh-readonly-queue/') &&
+      (github.event.pull_request.draft == false || github.event.action == 'ready_for_review')
+
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      base_ref: ${{ github.base_ref }}
+
+      # Use a custom prompt file from your repository
+      # Create this file with your team's specific review guidelines
+      custom_prompt_path: '.github/prompts/my-pr-review.md'
+
+      # Alternative: Use inline prompt (less common, harder to maintain)
+      # custom_prompt: |
+      #   You are reviewing code for a financial application.
+      #   Focus on:
+      #   - Transaction safety and atomicity
+      #   - Precise decimal math (no floating point for money)
+      #   - Audit logging for all financial operations
+      #   - Input validation for all user-provided amounts
+
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
