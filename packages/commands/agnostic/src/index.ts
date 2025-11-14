@@ -23,6 +23,7 @@ type CommandName =
   | 'review-code'
   | 'review-plan'
   | 'review-pr'
+  | 'split-stack'
   | 'work-through-pr-comments';
 
 export type Commands = {
@@ -129,6 +130,11 @@ export const commands: Commands = {
     description:
       'Orchestrate comprehensive pull request review using specialized agents for architecture, security, performance, testing, and maintainability analysis.',
     filePath: './review-pr.md',
+  },
+  'split-stack': {
+    description:
+      'Automatically split a monolithic branch with many changes into a logical, reviewable stack of PRs using semantic analysis and Graphite.',
+    filePath: './split-stack.md',
   },
   'work-through-pr-comments': {
     description:

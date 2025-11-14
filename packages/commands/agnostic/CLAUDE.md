@@ -121,6 +121,7 @@ Invoke **agent-name** with parameters
 - **execute-plan**: Execute implementation plans step-by-step with direct code changes
 - **implement-spec**: Orchestrate spec-workflow task implementation with parallel agent coordination
 - **auto-spec**: Fully autonomous spec-driven development with multi-agent consensus building
+- **split-stack**: Automatically split a monolithic branch into a logical, reviewable stack of PRs using semantic analysis and Graphite
 - **research**: Combine web search with codebase analysis
 
 ### Infrastructure & Operations Commands
