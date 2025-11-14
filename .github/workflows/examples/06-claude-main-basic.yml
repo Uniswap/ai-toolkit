@@ -1,0 +1,294 @@
+name: Claude Code
+
+# PURPOSE:
+# This example demonstrates how to use the _claude-main.yml reusable workflow
+# to enable Claude to respond to @claude mentions in issues, PRs, and reviews.
+#
+# WHAT CLAUDE CAN DO:
+# - Respond to questions in PR/issue comments
+# - Review code changes when tagged
+# - Explain complex code patterns
+# - Suggest improvements and identify issues
+# - Read CI results and help debug failures
+#
+# QUICK START:
+# 1. Copy this workflow to your repository's .github/workflows/ directory
+# 2. Ensure you have ANTHROPIC_API_KEY secret configured
+# 3. Commit and test by mentioning @claude in a PR comment
+# 4. (Optional) Customize model, tools, or instructions
+#
+# CUSTOMIZATION OPTIONS:
+# See the bottom of this file for examples of common customizations including:
+# - Different Claude models (Opus for deeper analysis, Sonnet for speed)
+# - Custom tool permissions (restrict to read-only, etc.)
+# - Custom instructions specific to your codebase
+# - Timeout adjustments
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  # Basic Claude configuration - ready to use!
+  # This is the recommended starting point for most repositories
+  claude:
+    # REQUIRED: Filter for @claude mentions and exclude bot comments
+    # This if condition must be present to trigger Claude appropriately
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.review.user.type != 'Bot') ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) && github.event.issue.user.type != 'Bot')
+
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+    secrets:
+      # REQUIRED: Your Anthropic API key
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    with:
+      # All inputs are optional - sensible defaults are provided
+
+      # OPTIONAL: Claude model to use (default: claude-sonnet-4-5-20250929)
+      # model: 'claude-sonnet-4-5-20250929'
+
+      # OPTIONAL: Maximum execution time in minutes (default: 10)
+      # timeout_minutes: '10'
+
+      # OPTIONAL: Additional instructions for Claude
+      # custom_instructions: 'Be sure to follow rules in all CLAUDE.md files.'
+
+      # OPTIONAL: Custom allowed tools (default: permissive set allowing read/write)
+      # See Example 3 below for restricting to read-only operations
+      # allowed_tools: |
+      #   - read_file
+      #   - list_files
+      #   - Bash(git *)
+# -----------------------------------------------------------------------------
+# CUSTOMIZATION EXAMPLES
+# -----------------------------------------------------------------------------
+#
+# Below are common customizations. Uncomment and modify the sections you need.
+#
+# -------------------
+# Example 1: Use Claude Opus for More Thorough Analysis
+# -------------------
+# Replace the job above with this to use the most capable Claude model:
+#
+#   claude:
+#     if: |
+#       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+#       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+#       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.review.user.type != 'Bot') ||
+#       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) && github.event.issue.user.type != 'Bot')
+#
+#     uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+#     secrets:
+#       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+#     with:
+#       model: 'claude-opus-4-20250514'  # More capable, slower, higher cost
+#       timeout_minutes: '15'  # Opus may need more time
+#
+# -------------------
+# Example 2: Custom Instructions for Your Codebase
+# -------------------
+# Add specific instructions for how Claude should behave in your repository:
+#
+#   claude:
+#     if: |
+#       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+#       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+#       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.review.user.type != 'Bot') ||
+#       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) && github.event.issue.user.type != 'Bot')
+#
+#     uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+#     secrets:
+#       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+#     with:
+#       custom_instructions: |
+#         Be sure to follow rules in all CLAUDE.md files.
+#
+#         When reviewing code in this repository:
+#         - Focus on security vulnerabilities (especially XSS, SQL injection)
+#         - Check for proper error handling
+#         - Ensure all public APIs have TypeScript types
+#         - Verify test coverage for new features
+#         - Follow our style guide in docs/STYLE_GUIDE.md
+#
+# -------------------
+# Example 3: Restricted Read-Only Mode
+# -------------------
+# Limit Claude to read-only operations and specific bash commands:
+#
+#   claude:
+#     if: |
+#       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+#       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+#       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.review.user.type != 'Bot') ||
+#       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) && github.event.issue.user.type != 'Bot')
+#
+#     uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+#     secrets:
+#       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+#     with:
+#       allowed_tools: |
+#         # File operations (read-only)
+#         - read_file
+#         - list_files
+#         - search_files
+#         - search_code
+#         - grep
+#         - glob
+#
+#         # Limited bash commands (read-only operations)
+#         - Bash(git status)
+#         - Bash(git log*)
+#         - Bash(git diff*)
+#         - Bash(npm list)
+#         - Bash(npm outdated)
+#
+# -------------------
+# Example 4: Extended Timeout for Complex Tasks
+# -------------------
+# Increase timeout for repositories with large codebases or complex CI:
+#
+#   claude:
+#     if: |
+#       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+#       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+#       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.review.user.type != 'Bot') ||
+#       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) && github.event.issue.user.type != 'Bot')
+#
+#     uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+#     secrets:
+#       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+#     with:
+#       timeout_minutes: '15'  # Extended from default 10 minutes
+#
+# -------------------
+# Example 5: Multiple Claude Variants (Labels)
+# -------------------
+# Create different Claude configurations based on PR labels:
+#
+# jobs:
+#   # Standard Claude (default)
+#   claude-standard:
+#     if: |
+#       !contains(github.event.pull_request.labels.*.name, 'claude-opus') &&
+#       ((github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+#       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+#       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.review.user.type != 'Bot') ||
+#       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) && github.event.issue.user.type != 'Bot'))
+#
+#     uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+#     secrets:
+#       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+#     with:
+#       model: 'claude-sonnet-4-5-20250929'
+#
+#   # Claude Opus for thorough reviews (when 'claude-opus' label is present)
+#   claude-opus:
+#     if: |
+#       contains(github.event.pull_request.labels.*.name, 'claude-opus') &&
+#       ((github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+#       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+#       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.review.user.type != 'Bot'))
+#
+#     uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+#     secrets:
+#       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+#     with:
+#       model: 'claude-opus-4-20250514'
+#       timeout_minutes: '15'
+#
+
+# -----------------------------------------------------------------------------
+# TROUBLESHOOTING
+# -----------------------------------------------------------------------------
+#
+# Problem: Claude doesn't respond when mentioned
+# Solution: Check these in order:
+#   1. Is ANTHROPIC_API_KEY secret configured? (Settings > Secrets > Actions)
+#   2. Is the @claude mention in the comment body? (not just in code blocks)
+#   3. Was the comment made by a bot? (bot comments are filtered out)
+#   4. Check the Actions tab for workflow execution and errors
+#
+# Problem: "Resource not accessible by integration" error
+# Solution: The workflow automatically sets required permissions. This error
+#   means the workflow file is not being called correctly. Ensure you're using
+#   the `uses:` syntax shown above, not trying to copy the workflow inline.
+#
+# Problem: Claude runs too long and times out
+# Solution: Increase timeout_minutes:
+#   with:
+#     timeout_minutes: '15'  # or higher
+#
+# Problem: Claude makes unwanted file changes
+# Solution: Restrict allowed_tools to read-only operations (see Example 3)
+#
+# Problem: API rate limit or cost concerns
+# Solution:
+#   - Use claude-sonnet-4-5-20250929 (default) instead of Opus for most tasks
+#   - Reduce timeout_minutes to limit execution time
+#   - Add rate limiting via GitHub Actions concurrency groups (already included)
+#
+# Problem: Multiple Claude executions for same comment
+# Solution: The workflow includes concurrency control. If you see duplicates:
+#   - Check that you don't have multiple workflow files calling _claude-main.yml
+#   - Ensure you're using the latest version of the reusable workflow
+#
+# Problem: Claude can't access certain files or run certain commands
+# Solution: Check the allowed_tools configuration. Default is permissive.
+#   If you've customized it, ensure the required tools are included.
+#
+
+# -----------------------------------------------------------------------------
+# DEPLOYMENT CHECKLIST
+# -----------------------------------------------------------------------------
+#
+# Before deploying this workflow:
+# ☐ Configure ANTHROPIC_API_KEY secret in repository settings
+# ☐ Choose appropriate model (Sonnet 4.5 for most cases, Opus for complex analysis)
+# ☐ Set timeout_minutes based on repository size and expected tasks
+# ☐ Decide on tool permissions (default permissive vs restricted read-only)
+# ☐ Add custom_instructions if you have specific coding standards
+# ☐ Test with a simple @claude mention in a draft PR
+# ☐ Monitor first few executions to ensure proper operation
+# ☐ Review costs in Anthropic console after initial usage
+#
+
+# -----------------------------------------------------------------------------
+# MIGRATION FROM UNIVERSE REPOSITORY
+# -----------------------------------------------------------------------------
+#
+# If you're migrating from the universe repository's claude.yml workflow:
+# 1. Replace the old workflow file with this one
+# 2. Update the secret name if different (default: ANTHROPIC_API_KEY)
+# 3. The model has been updated to claude-sonnet-4-5-20250929 (latest)
+# 4. allowed_tools now defaults to a more permissive set (read + write)
+# 5. Security settings (bullfrog, permissions) are now fixed and cannot be overridden
+# 6. Test the new workflow with a @claude mention
+#
+# Key differences from universe:
+# - Reusable workflow pattern (uses: instead of inline)
+# - Updated default model (Sonnet 4.5 by default)
+# - More permissive default tools (includes write_file, edit_file)
+# - Fixed security and permission settings
+# - Centralized in ai-toolkit for organization-wide consistency
+# - Additional model options (Haiku 4.5 for cost-effective usage)
+#
+
+# -----------------------------------------------------------------------------
+# ADDITIONAL RESOURCES
+# -----------------------------------------------------------------------------
+#
+# For more details, see:
+# - Workflow documentation: /.github/REUSABLE_WORKFLOWS.md#_claude-mainyml
+# - README: /.github/workflows/README.md
+# - Claude Code Action: https://github.com/anthropics/claude-code-action
+# - Full documentation: https://github.com/Uniswap/ai-toolkit
+#
