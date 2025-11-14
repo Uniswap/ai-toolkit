@@ -1,0 +1,45 @@
+name: 'Example: Claude Code Review - Basic'
+
+# Basic example of using the Claude Code Review workflow
+#
+# This is the simplest possible configuration - just specify the PR number
+# and base branch. All other settings use defaults.
+#
+# Features:
+# - Automatic rebase detection (skips review if only rebased)
+# - Inline comments on specific lines
+# - Auto-resolution of fixed issues
+# - Formal GitHub review submission
+# - Default prompt from ai-toolkit
+#
+# To use this in your repository:
+# 1. Copy this file to .github/workflows/claude-code-review.yml
+# 2. Add ANTHROPIC_API_KEY secret to your repository
+# 3. That's it! The workflow will run on every PR update
+#
+# Note: This example filters out:
+# - Merge queue PRs (gh-readonly-queue branches)
+# - Draft PRs (unless marked ready_for_review)
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+jobs:
+  claude-review:
+    # Skip merge queue PRs and draft PRs
+    if: |
+      !contains(github.head_ref, 'gh-readonly-queue/') &&
+      (github.event.pull_request.draft == false || github.event.action == 'ready_for_review')
+
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      base_ref: ${{ github.base_ref }}
+      # All other inputs use defaults:
+      # - model: claude-sonnet-4-5-20250929
+      # - max_turns: 15
+      # - timeout_minutes: 30
+      # - custom_prompt: (uses default from ai-toolkit)
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

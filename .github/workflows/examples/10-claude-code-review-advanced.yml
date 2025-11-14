@@ -1,0 +1,81 @@
+name: 'Example: Claude Code Review - Advanced'
+
+# Advanced example showing all available configuration options
+#
+# This example demonstrates:
+# - Label-based model selection (Opus vs Sonnet)
+# - Custom prompt file
+# - Extended timeout for large PRs
+# - More conversation turns for complex reviews
+# - Path filtering (only review specific directories)
+# - Additional PR triggers (labeled/unlabeled)
+#
+# Model Selection:
+# - Default: Claude Sonnet 4.5 (fast, cost-effective)
+# - With 'claude-opus' label: Claude Opus 4.1 (more thorough, slower)
+#
+# Use Cases:
+# - Large PRs that need more time
+# - Complex changes requiring deeper analysis
+# - Specific file paths that need careful review
+# - Using labels to control review thoroughness
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, labeled, unlabeled]
+    # Optional: Only run on specific paths
+    # Uncomment and customize for your needs
+    # paths:
+    #   - 'src/**'
+    #   - 'packages/**'
+    #   - '!**/*.md'
+    #   - '!docs/**'
+
+jobs:
+  claude-review:
+    if: |
+      !contains(github.head_ref, 'gh-readonly-queue/') &&
+      (github.event.pull_request.draft == false || github.event.action == 'ready_for_review')
+
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      base_ref: ${{ github.base_ref }}
+
+      # Model selection based on PR labels
+      # Add 'claude-opus' label to PRs that need more thorough review
+      model: ${{ contains(github.event.pull_request.labels.*.name, 'claude-opus') && 'claude-opus-4-1-20250805' || 'claude-sonnet-4-5-20250929' }}
+
+      # Allow more turns for complex reviews
+      # Default is 15, increase for PRs that need deeper analysis
+      max_turns: 20
+
+      # Extend timeout for large PRs
+      # Default is 30 minutes, increase for repos with many files
+      timeout_minutes: 45
+
+      # Use a security-focused custom prompt
+      # Your prompt can emphasize specific concerns for your domain
+      custom_prompt_path: '.github/prompts/security-focused-review.md'
+
+      # Alternative: Use different API key from non-default secret
+      # Useful if you have team-specific or environment-specific keys
+      # anthropic_api_key_secret_name: 'ANTHROPIC_API_KEY_PROD'
+
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+# Optional: Add a second job that only runs on security-sensitive paths
+# jobs:
+#   security-review:
+#     if: |
+#       !contains(github.head_ref, 'gh-readonly-queue/') &&
+#       (github.event.pull_request.draft == false || github.event.action == 'ready_for_review')
+#
+#     uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+#     with:
+#       pr_number: ${{ github.event.pull_request.number }}
+#       base_ref: ${{ github.base_ref }}
+#       model: 'claude-opus-4-1-20250805'  # Always use Opus for security
+#       custom_prompt_path: '.github/prompts/security-only-review.md'
+#     secrets:
+#       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

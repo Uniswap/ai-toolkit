@@ -1,0 +1,325 @@
+name: '[claude] Claude Code Review'
+
+# Reusable workflow for automated PR code reviews using Claude AI
+#
+# This workflow provides comprehensive code reviews with:
+# - Formal GitHub reviews (APPROVE/REQUEST_CHANGES/COMMENT)
+# - Inline comments on specific lines of code
+# - Auto-resolution of comments when issues are fixed
+# - Patch-ID based caching to skip rebases
+# - Custom prompt support
+#
+# USAGE:
+#   uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+#   with:
+#     pr_number: ${{ github.event.pull_request.number }}
+#     base_ref: ${{ github.base_ref }}
+#   secrets:
+#     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+#
+# FEATURES:
+# - Runs on every push but skips rebases (patch-ID detection)
+# - Creates inline comments like human reviewers
+# - Tracks and resolves previous comments
+# - Submits formal reviews for merge protection
+# - Supports custom prompts
+#
+# PERMISSIONS REQUIRED (calling workflow must grant these):
+#   contents: read
+#   pull-requests: write
+#   issues: read
+#   actions: read
+#   id-token: write
+
+on:
+  workflow_call:
+    inputs:
+      pr_number:
+        description: 'Pull request number to review'
+        required: true
+        type: string
+
+      base_ref:
+        description: 'Base branch name (e.g., main, master)'
+        required: true
+        type: string
+
+      model:
+        description: 'Claude model to use for review'
+        required: false
+        type: string
+        default: 'claude-sonnet-4-5-20250929'
+
+      max_turns:
+        description: 'Maximum conversation turns for Claude'
+        required: false
+        type: number
+        default: 15
+
+      custom_prompt:
+        description: 'Custom prompt text (overrides prompt file and default). Verdict logic will be automatically appended.'
+        required: false
+        type: string
+        default: ''
+
+      custom_prompt_path:
+        description: 'Path to custom prompt file in repository (e.g., .claude/prompts/claude-pr-bot.md)'
+        required: false
+        type: string
+        default: '.claude/prompts/claude-pr-bot.md'
+
+      timeout_minutes:
+        description: 'Job timeout in minutes'
+        required: false
+        type: number
+        default: 30
+
+      anthropic_api_key_secret_name:
+        description: 'Name of the repository secret containing the Anthropic API key'
+        required: false
+        type: string
+        default: 'ANTHROPIC_API_KEY'
+
+      allowed_tools:
+        description: 'Comma-separated list of allowed tools for Claude (e.g., "Read,Grep,Glob,Bash(git log),Write"). Leave empty for default permissive set.'
+        required: false
+        type: string
+        default: ''
+
+    secrets:
+      ANTHROPIC_API_KEY:
+        description: 'Anthropic API key for Claude access'
+        required: true
+
+jobs:
+  claude-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+
+    # Fixed permissions (cannot be overridden by calling workflow)
+    permissions:
+      id-token: write # Required for OIDC
+      contents: read # Required to read repository code
+      pull-requests: write # Required to comment and submit reviews
+      issues: read # Required to read PR discussions
+      actions: read # Required to check CI status
+
+    steps:
+      # Security scanning (required for all workflows)
+      - name: Security Scan
+        uses: bullfrogsec/bullfrog@dcde5841b19b7ef693224207a7fdec67fce604db # v0.8.3
+        with:
+          egress-policy: audit
+
+      # Checkout code with full history for patch-ID calculation
+      - name: Checkout Repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0 # Full history needed for git merge-base
+
+      # Calculate patch-ID (stable hash of code changes, survives rebases)
+      - name: Calculate Patch ID
+        id: patch-id
+        env:
+          BASE_REF: ${{ inputs.base_ref }}
+        run: |
+          # Find the merge base between base branch and HEAD
+          MERGE_BASE=$(git merge-base origin/$BASE_REF HEAD)
+
+          # Calculate stable patch-ID (same code = same ID, even after rebase)
+          PATCH_ID=$(git diff ${MERGE_BASE}..HEAD | git patch-id --stable | cut -d' ' -f1)
+
+          echo "patch_id=$PATCH_ID" >> $GITHUB_OUTPUT
+          echo "📊 Patch-ID: ${PATCH_ID:0:12}... (first 12 chars)"
+          echo "   This ID stays the same across rebases if code hasn't changed"
+
+      # Check cache to see if we've already reviewed this exact code
+      - name: Check Review Cache
+        id: cache-check
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        with:
+          path: .review-cache
+          key: review-pr${{ inputs.pr_number }}-patch-${{ steps.patch-id.outputs.patch_id }}
+          lookup-only: true # Just check, don't restore
+
+      # Early exit if we've already reviewed this code (rebase detected)
+      - name: Skip Review if No Changes
+        if: steps.cache-check.outputs.cache-hit == 'true'
+        run: |
+          echo "✅ Skipping review - no actual code changes detected"
+          echo ""
+          echo "This push appears to be a rebase or merge without new code changes."
+          echo "Patch-ID: ${{ steps.patch-id.outputs.patch_id }}"
+          echo ""
+          echo "We've already reviewed this exact code, so skipping to save API costs."
+          exit 0
+
+      # Build final prompt with custom content + verdict injection
+      - name: Build Review Prompt
+        if: steps.cache-check.outputs.cache-hit != 'true'
+        id: build-prompt
+        env:
+          CUSTOM_PROMPT_INPUT: ${{ inputs.custom_prompt }}
+          CUSTOM_PROMPT_PATH: ${{ inputs.custom_prompt_path }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          BASE_REF: ${{ inputs.base_ref }}
+          PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
+        run: |
+          CUSTOM_PROMPT=""
+
+          # Priority 1: Explicit custom_prompt input
+          if [ -n "$CUSTOM_PROMPT_INPUT" ]; then
+            echo "📝 Using explicit custom prompt from workflow input"
+            CUSTOM_PROMPT="$CUSTOM_PROMPT_INPUT"
+
+          # Priority 2: Custom prompt file in repository
+          elif [ -f "$CUSTOM_PROMPT_PATH" ]; then
+            echo "📝 Using custom prompt from repository: $CUSTOM_PROMPT_PATH"
+            CUSTOM_PROMPT=$(cat "$CUSTOM_PROMPT_PATH")
+
+          # Priority 3: Default prompt from ai-toolkit repository
+          else
+            echo "📝 Fetching default prompt from Uniswap/ai-toolkit repository"
+
+            # Fetch default prompt via GitHub API
+            # -f: Fail on HTTP errors (status >= 400)
+            # -S: Show errors even with -s
+            # -s: Silent mode (no progress bar)
+            if ! curl -fSs -H "Authorization: token $GITHUB_TOKEN" \
+                      -H "Accept: application/vnd.github.v4.raw" \
+                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/prompts/default-pr-review.md" \
+                      -o /tmp/default-prompt.md 2>&1 | tee /tmp/curl-error.log; then
+              echo "❌ Failed to fetch default prompt from Uniswap/ai-toolkit"
+              echo "   Error details:"
+              cat /tmp/curl-error.log | head -5
+              exit 1
+            fi
+
+            CUSTOM_PROMPT=$(cat /tmp/default-prompt.md)
+            echo "✅ Loaded default prompt from Uniswap/ai-toolkit"
+          fi
+
+          # Build final prompt with context and verdict injection
+          cat > /tmp/final-prompt.txt <<'PROMPT_EOF'
+          # Review Context
+
+          **Repository:** $REPO
+          **PR Number:** $PR_NUMBER
+          **Base Branch:** $BASE_REF
+          **Patch ID:** $PATCH_ID
+
+          ---
+
+          PROMPT_EOF
+
+          # Append custom prompt content
+          echo "$CUSTOM_PROMPT" >> /tmp/final-prompt.txt
+
+          # Append verdict writing requirements (always injected)
+          cat >> /tmp/final-prompt.txt <<'VERDICT_EOF'
+
+          ---
+
+          # Required: Review Output
+
+          After completing your review, you **MUST** create these two files:
+
+          ## 1. `.claude-review-verdict.txt`
+
+          Contains ONLY one word (the verdict):
+          - `APPROVE` - No blocking issues, safe to merge
+          - `REQUEST_CHANGES` - Critical issues that must be fixed before merge
+          - `COMMENT` - Moderate issues, non-blocking but should be addressed
+
+          **Example file content:**
+          ```
+          APPROVE
+          ```
+
+          ## 2. `.claude-review-summary.md`
+
+          Your review summary in markdown format:
+
+          ```markdown
+          ## 🤖 Claude Code Review
+
+          **Status:** ✅ Completed
+          **Verdict:** [Your verdict: APPROVE/REQUEST_CHANGES/COMMENT]
+          **Patch ID:** $PATCH_ID
+
+          ### Summary
+          [Brief overview of the PR and your assessment]
+
+          ### Key Findings
+          - [Important issue or observation 1]
+          - [Important issue or observation 2]
+          - [Important issue or observation 3]
+
+          ### Inline Comments
+          I've added [X] inline comments with detailed feedback on specific lines.
+          Please review all comments and address the issues marked.
+
+          [Optional: Any additional context or recommendations]
+          ```
+
+          **These files are required** for the formal GitHub review to be submitted.
+          If you don't create them, the review will fail.
+          VERDICT_EOF
+
+          # Log final prompt length
+          PROMPT_LENGTH=$(wc -c < /tmp/final-prompt.txt)
+          echo "✅ Built final prompt: $PROMPT_LENGTH characters"
+
+          # Export as output for next step
+          {
+            echo "final_prompt<<PROMPT_DELIMITER_EOF"
+            cat /tmp/final-prompt.txt
+            echo "PROMPT_DELIMITER_EOF"
+          } >> $GITHUB_OUTPUT
+
+          # Show first few lines for debugging
+          echo ""
+          echo "📄 Prompt preview (first 10 lines):"
+          head -n 10 /tmp/final-prompt.txt
+
+      # Run Claude Code Action to perform the review
+      - name: Run Claude Code Review
+        if: steps.cache-check.outputs.cache-hit != 'true'
+        id: claude
+        uses: anthropics/claude-code-action@8a1c4371755898f67cd97006ba7c97702d5fc4bf # v1.0.16
+        with:
+          anthropic_api_key: ${{ secrets[inputs.anthropic_api_key_secret_name] }}
+          prompt: ${{ steps.build-prompt.outputs.final_prompt }}
+          track_progress: true
+          claude_args: |
+            --model ${{ inputs.model }}
+            --max-turns ${{ inputs.max_turns }}
+            --allowedTools ${{ inputs.allowed_tools != '' && inputs.allowed_tools || 'mcp__github__get_pull_request,mcp__github__get_pull_request_files,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_reviews,mcp__github__create_review_comment,mcp__github__resolve_review_thread,mcp__github__list_review_comments,mcp__github_inline_comment__create_inline_comment,Read,Grep,Glob,Bash(git log),Bash(git diff),Bash(git show),Bash(git blame),Bash(git rev-parse HEAD),Bash(git log --oneline),Write' }}
+          additional_permissions: |
+            actions: read
+
+      # Submit formal GitHub review using verdict from Claude
+      - name: Submit GitHub Review
+        if: steps.cache-check.outputs.cache-hit != 'true' && always() && steps.claude.conclusion != 'skipped'
+        run: ./.github/scripts/submit-claude-review.sh
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Save successful review to cache
+      - name: Save Review Cache Marker
+        if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        run: |
+          mkdir -p .review-cache
+          echo "${{ steps.patch-id.outputs.patch_id }}" > .review-cache/patch-id
+          echo "Cached review for patch-ID: ${{ steps.patch-id.outputs.patch_id }}"
+
+      # Persist cache for future rebase detection
+      - name: Cache Review State
+        if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        uses: actions/cache/save@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.0
+        with:
+          path: .review-cache
+          key: review-pr${{ inputs.pr_number }}-patch-${{ steps.patch-id.outputs.patch_id }}
