@@ -1,6 +1,12 @@
-# Reusable Changelog & Notification Workflows
+# Reusable GitHub Actions Workflows
 
-This repository provides two reusable GitHub Actions workflows for generating AI-powered changelogs and sending notifications to multiple destinations (Slack, Notion).
+This repository provides reusable GitHub Actions workflows for AI-powered development workflows, including:
+
+- Claude Code integration for interactive AI assistance (@claude mentions)
+- Claude PR welcome messages
+- Claude automated code reviews with formal review submission
+- AI-powered changelog generation
+- Release notifications to multiple destinations (Slack, Notion)
 
 ## Table of Contents
 
@@ -8,6 +14,9 @@ This repository provides two reusable GitHub Actions workflows for generating AI
 - [Prerequisites](#prerequisites)
 - [Architecture](#architecture)
 - [Workflows Reference](#workflows-reference)
+  - [\_claude-main.yml](#_claude-mainyml)
+  - [\_claude-welcome.yml](#_claude-welcomeyml)
+  - [\_claude-code-review.yml](#_claude-code-reviewyml)
   - [\_generate-changelog.yml](#_generate-changelogyml)
   - [\_notify-release.yml](#_notify-releaseyml)
 - [Implementation Details](#implementation-details)
@@ -190,6 +199,1394 @@ Notify Release (_notify-release.yml)
 ```
 
 ## Workflows Reference
+
+### \_claude-main.yml
+
+**Purpose**: Enable Claude Code to respond interactively to `@claude` mentions in issues, pull requests, comments, and reviews. This workflow provides AI-assisted code review, debugging help, and codebase questions directly within GitHub's collaboration interface.
+
+#### Inputs
+
+| Input                           | Required | Default                          | Description                                                                        |
+| ------------------------------- | -------- | -------------------------------- | ---------------------------------------------------------------------------------- |
+| `model`                         | No       | `'claude-sonnet-4-5-20250929'`   | Claude model to use (Sonnet 4.5, Opus 4, or Haiku 4.5)                             |
+| `allowed_tools`                 | No       | (permissive defaults, see below) | YAML string specifying which tools Claude can use (file operations, bash commands) |
+| `custom_instructions`           | No       | `'Be sure to follow rules...'`   | Additional instructions for Claude beyond CLAUDE.md files                          |
+| `timeout_minutes`               | No       | `'10'`                           | Maximum execution time in minutes (prevents runaway costs)                         |
+| `anthropic_api_key_secret_name` | No       | `'ANTHROPIC_API_KEY'`            | Name of the repository secret containing the Anthropic API key                     |
+
+**Default Allowed Tools (Permissive):**
+
+```yaml
+# File operations (read & write)
+- read_file
+- write_file
+- edit_file
+- list_files
+- search_files
+- search_code
+- grep
+- glob
+
+# All bash commands
+- Bash(*)
+```
+
+#### Outputs
+
+This workflow does not have outputs (Claude responds directly in PR/issue comments).
+
+#### Secrets
+
+| Secret              | Required | Description                        |
+| ------------------- | -------- | ---------------------------------- |
+| `ANTHROPIC_API_KEY` | Yes      | API key from console.anthropic.com |
+
+**Note**: The secret must be passed explicitly from the calling workflow.
+
+#### Permissions Required (Fixed)
+
+These permissions are **fixed** in the reusable workflow and cannot be overridden:
+
+```yaml
+permissions:
+  id-token: write # Required for OIDC authentication
+  contents: read # Required to read repository code
+  pull-requests: write # Required to comment on PRs
+  issues: write # Required to comment on issues
+  actions: read # Required to read CI results on PRs
+```
+
+**Note**: You do NOT need to specify these permissions in your calling workflow - they are automatically set by the reusable workflow.
+
+#### Fixed Settings (Cannot be Overridden)
+
+The following settings are intentionally fixed to ensure consistent security and behavior across all repositories:
+
+1. **Security Scanning**: Bullfrog security scanning with `egress-policy: audit`
+2. **Trigger Conditions**: `@claude` mentions with bot filtering
+3. **Checkout Settings**: `fetch-depth: 50` for adequate git history
+4. **Concurrency Control**: Prevents duplicate executions for the same issue/PR
+
+#### Features
+
+- **Interactive AI Assistance**: Respond to `@claude` mentions anywhere in GitHub
+- **Multiple Trigger Points**: Works in issue comments, PR comments, review comments, and reviews
+- **Configurable Model**: Choose between Sonnet 4.5 (balanced), Opus 4 (thorough), or Haiku 4.5 (fast)
+- **Flexible Tool Permissions**: Control what Claude can do (read-only, read-write, or custom)
+- **Custom Instructions**: Add repository-specific guidelines and standards
+- **Bot Filtering**: Automatically excludes bot comments to prevent loops
+- **Concurrency Control**: Prevents multiple simultaneous executions per issue/PR
+- **Security Built-in**: Bullfrog security scanning integrated and cannot be disabled
+- **Cost Controls**: Configurable timeout to manage API costs
+- **CI Integration**: Claude can read and help debug CI failures
+
+#### Quick Start Example
+
+```yaml
+name: Claude Code
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.review.user.type != 'Bot') ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) && github.event.issue.user.type != 'Bot')
+
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+#### Example: Custom Model (Claude Opus for Thorough Analysis)
+
+```yaml
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.review.user.type != 'Bot') ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) && github.event.issue.user.type != 'Bot')
+
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    with:
+      model: 'claude-opus-4-20250514'
+      timeout_minutes: '15' # Opus may need more time
+```
+
+#### Example: Restricted Read-Only Mode
+
+```yaml
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.review.user.type != 'Bot') ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) && github.event.issue.user.type != 'Bot')
+
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    with:
+      allowed_tools: |
+        # File operations (READ-ONLY)
+        - read_file
+        - list_files
+        - search_files
+        - search_code
+        - grep
+        - glob
+
+        # Limited bash commands (read-only)
+        - Bash(git status)
+        - Bash(git log*)
+        - Bash(git diff*)
+        - Bash(npm list)
+```
+
+#### Example: Custom Instructions for Your Codebase
+
+```yaml
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.review.user.type != 'Bot') ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) && github.event.issue.user.type != 'Bot')
+
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    with:
+      custom_instructions: |
+        Be sure to follow rules in all CLAUDE.md files.
+
+        When reviewing code in this repository:
+        - Focus on security vulnerabilities (XSS, SQL injection)
+        - Check for proper error handling
+        - Ensure all public APIs have TypeScript types
+        - Verify test coverage for new features
+        - Follow our style guide in docs/STYLE_GUIDE.md
+```
+
+#### Example: Label-Based Model Selection
+
+```yaml
+jobs:
+  claude-standard:
+    if: |
+      !contains(github.event.pull_request.labels.*.name, 'claude-opus') &&
+      ((github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.review.user.type != 'Bot'))
+
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    with:
+      model: 'claude-sonnet-4-5-20250929'
+
+  claude-opus:
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'claude-opus') &&
+      ((github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.review.user.type != 'Bot'))
+
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    with:
+      model: 'claude-opus-4-20250514'
+      timeout_minutes: '15'
+```
+
+#### Troubleshooting
+
+**Issue: Claude doesn't respond when mentioned**
+
+```
+Tagged @claude in comment but no response appears
+```
+
+**Possible causes & solutions**:
+
+1. **ANTHROPIC_API_KEY not configured**: Go to Settings → Secrets → Actions and add the secret
+2. **Comment from bot**: Bot comments are intentionally filtered out to prevent loops
+3. **@claude not in comment body**: Ensure @claude is in the actual comment text (not just code blocks)
+4. **Workflow not triggered**: Check Actions tab for execution logs and errors
+5. **If condition missing**: The calling workflow must include the if condition shown in examples
+
+**Issue: Resource not accessible by integration**
+
+```
+Error: Resource not accessible by integration
+```
+
+**Solution**: This means you're trying to set permissions in the calling workflow. Don't! The reusable workflow automatically sets all required permissions. Remove any `permissions:` block from your job definition.
+
+❌ **Incorrect**:
+
+```yaml
+jobs:
+  claude:
+    permissions: # DON'T DO THIS
+      contents: read
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+```
+
+✅ **Correct**:
+
+```yaml
+jobs:
+  claude:
+    # No permissions block needed
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+```
+
+**Issue: Claude runs too long and times out**
+
+```
+Workflow execution exceeded timeout limit
+```
+
+**Solution**: Increase `timeout_minutes`:
+
+```yaml
+with:
+  timeout_minutes: '15' # or higher
+```
+
+**Issue: Claude makes unwanted file changes**
+
+```
+Claude modified files when I only wanted analysis
+```
+
+**Solution**: Restrict to read-only tools:
+
+```yaml
+with:
+  allowed_tools: |
+    # Read-only file operations
+    - read_file
+    - list_files
+    - search_files
+    - grep
+
+    # No write_file or edit_file
+```
+
+**Issue: API rate limit or cost concerns**
+
+```
+Worried about Anthropic API costs
+```
+
+**Solutions**:
+
+- Use `claude-sonnet-4-5-20250929` (default) instead of Opus for most tasks (~80% cheaper)
+- Reduce `timeout_minutes` to limit execution time (default: 10)
+- The workflow includes concurrency control to prevent duplicate runs
+- Monitor usage at console.anthropic.com
+
+**Issue: Multiple Claude executions for same comment**
+
+```
+Claude responded multiple times to the same @mention
+```
+
+**Possible causes**:
+
+1. **Multiple workflow files**: Ensure only one workflow calls `_claude-main.yml`
+2. **Concurrency group conflict**: Check for custom concurrency settings in calling workflow
+
+**Issue: Claude can't access certain files or run commands**
+
+```
+Claude says it doesn't have permission to perform action
+```
+
+**Solution**: Check `allowed_tools` configuration. Default is permissive (includes write access). If you've customized it, ensure required tools are included.
+
+#### Best Practices
+
+1. **Start with Defaults**:
+
+   - Use the Quick Start Example initially
+   - The default configuration works well for most repositories
+   - Add customizations incrementally as needed
+
+2. **Choose the Right Model**:
+
+   - **Sonnet 4.5** (default): Best balance of speed, capability, and cost for 90% of use cases
+   - **Opus 4**: Reserve for complex architectural reviews or critical security analysis
+   - **Haiku 4.5**: Fast and cost-effective for simple questions, quick lookups, or high-volume usage
+
+3. **Set Appropriate Timeouts**:
+
+   - **5 minutes**: Simple questions, quick lookups
+   - **10 minutes** (default): Code reviews, moderate debugging
+   - **15+ minutes**: Large codebase analysis, complex CI debugging
+
+4. **Tool Permissions Strategy**:
+
+   - **Start permissive** (defaults): Let Claude edit files, run commands
+   - **Restrict gradually**: If concerns arise, move to read-only
+   - **Use read-only for**: Public repositories, sensitive codebases, or pilot programs
+
+5. **Craft Effective Custom Instructions**:
+
+   - Be specific about your coding standards and patterns
+   - Include links to style guides or architecture docs
+   - Mention critical areas (security, performance, testing requirements)
+   - Keep instructions focused (< 20 lines for best results)
+
+6. **Integrate with CLAUDE.md Files**:
+
+   - Use custom_instructions for organization-wide standards
+   - Use CLAUDE.md files for repository-specific patterns
+   - CLAUDE.md files can provide more detailed context (they're part of the codebase)
+
+7. **Monitor and Optimize**:
+
+   - Track execution times in Actions tab
+   - Monitor API costs in Anthropic console
+   - Gather team feedback on helpfulness
+   - Iterate on custom_instructions based on common requests
+
+8. **Security Considerations**:
+   - The workflow runs in a sandboxed GitHub Actions environment
+   - Bullfrog security scanning is always active (cannot be disabled)
+   - Permissions are fixed and cannot be escalated
+   - API keys should be stored as GitHub Secrets
+   - Consider read-only mode for untrusted contributions
+
+#### Advanced Patterns
+
+**Pattern 1: Different Configs for Issues vs PRs**
+
+Use a faster model for quick issue questions, more capable model for thorough PR reviews:
+
+```yaml
+jobs:
+  claude-issues:
+    if: |
+      github.event_name == 'issues' &&
+      (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) &&
+      github.event.issue.user.type != 'Bot'
+
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    with:
+      model: 'claude-sonnet-4-5-20250929'
+      timeout_minutes: '5'
+
+  claude-pr-reviews:
+    if: |
+      (github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review' || github.event_name == 'issue_comment') &&
+      contains(coalesce(github.event.comment.body, github.event.review.body), '@claude') &&
+      coalesce(github.event.comment.user.type, github.event.review.user.type) != 'Bot'
+
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    with:
+      model: 'claude-opus-4-20250514'
+      timeout_minutes: '15'
+```
+
+**Pattern 2: Repository-Specific Model via Label**
+
+Allow teams to request deeper analysis by adding a label:
+
+```yaml
+# Standard model by default
+claude-standard:
+  if: |
+    !contains(github.event.pull_request.labels.*.name, 'deep-analysis') &&
+    # ... (rest of if condition)
+
+# Opus model when 'deep-analysis' label present
+claude-deep:
+  if: |
+    contains(github.event.pull_request.labels.*.name, 'deep-analysis') &&
+    # ... (rest of if condition)
+  with:
+    model: 'claude-opus-4-20250514'
+```
+
+#### Integration with Other Workflows
+
+This workflow is designed to work alongside other GitHub automation:
+
+```yaml
+name: PR Automation
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request:
+    types: [opened, synchronize]
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  # Claude Code (responds to @mentions)
+  claude:
+    if: contains(github.event.comment.body, '@claude') || contains(github.event.review.body, '@claude')
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  # Your existing CI checks
+  tests:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm test
+
+  # Your existing code quality checks
+  lint:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm run lint
+```
+
+#### Cost Optimization
+
+Tips for managing Claude API costs effectively:
+
+1. **Model Selection Impact**:
+
+   - Haiku 4.5: Most cost-effective for simple tasks
+   - Sonnet 4.5: ~$3 per 1M input tokens, ~$15 per 1M output tokens (default, recommended)
+   - Opus 4: ~$15 per 1M input tokens, ~$75 per 1M output tokens (reserve for complex tasks)
+   - Typical interaction: 5K-50K tokens (mostly input)
+
+2. **Timeout Strategy**:
+
+   - Shorter timeouts prevent runaway costs from stuck executions
+   - Most interactions complete in under 5 minutes
+   - Rarely need more than 15 minutes even for complex analysis
+
+3. **Tool Restrictions Reduce Costs**:
+
+   - Fewer tools = less exploration time = lower token usage
+   - Read-only mode typically uses 20-30% fewer tokens
+   - Restricting bash commands can significantly reduce cost
+
+4. **Concurrency Control** (Built-in):
+
+   - Automatically cancels in-progress runs when new comments arrive
+   - Prevents duplicate executions for same issue/PR
+   - No additional configuration needed
+
+5. **Usage Monitoring**:
+   - Set up budget alerts in Anthropic console
+   - Review monthly costs and adjust strategy
+   - Consider using Sonnet exclusively if costs are a concern
+
+**Example cost calculation**:
+
+- 50 @claude mentions per week
+- Average 20K tokens per interaction
+- Using Sonnet 4.5
+
+```
+50 mentions × 20K tokens = 1M tokens/week
+Input: 1M × $3 = $3/week
+Output: 0.2M × $15 = $3/week
+Total: ~$6/week = ~$24/month
+```
+
+---
+
+### \_claude-welcome.yml
+
+**Purpose**: Automatically post a welcome message from Claude to newly opened pull requests, introducing Claude's capabilities and helping teams adopt AI-assisted code review.
+
+#### Inputs
+
+| Input                      | Required | Default     | Description                                                                       |
+| -------------------------- | -------- | ----------- | --------------------------------------------------------------------------------- |
+| `welcome_message`          | No       | (See below) | Custom welcome message body (supports markdown)                                   |
+| `workflow_deployment_date` | Yes      | -           | Date workflow was deployed (YYYY-MM-DD format, used for expiration calculation)   |
+| `expiration_months`        | No       | `3`         | Number of months the welcome should remain active (0 disables expiration)         |
+| `documentation_url`        | No       | -           | Optional URL to repository-specific Claude PR guide (appended to welcome message) |
+
+**Default Welcome Message:**
+
+```markdown
+👋 Hi!
+
+I'm Claude, an AI assistant here to help with code reviews and answer questions about your PR. You can tag me anytime with `@claude` followed by your request.
+
+💡 **Tip:** Ask me to explain code, suggest improvements, or review specific changes.
+```
+
+#### Outputs
+
+This workflow does not have outputs (welcome messages are posted directly to PRs).
+
+#### Secrets
+
+| Secret         | Required                     | Description                    |
+| -------------- | ---------------------------- | ------------------------------ |
+| `GITHUB_TOKEN` | Yes (automatically provided) | Built-in token for PR comments |
+
+**Note**: This workflow uses the built-in `GITHUB_TOKEN` which is automatically available. No additional secrets are required.
+
+#### Permissions Required
+
+The calling workflow must grant these permissions:
+
+```yaml
+permissions:
+  pull-requests: write
+  issues: write
+```
+
+#### Features
+
+- **Configurable Expiration**: Set time-limited welcome periods for pilot programs or trials
+- **Date Validation**: Strict YYYY-MM-DD format validation with helpful error messages
+- **Duplicate Detection**: Prevents multiple welcome messages on the same PR
+- **Optional Documentation Link**: Seamlessly append repo-specific Claude guides
+- **Security Built-in**: Bullfrog security scanning integrated into workflow
+- **Zero Maintenance**: Automatically disables after expiration period
+
+#### Quick Start Example
+
+```yaml
+name: Welcome Claude
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  welcome:
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-welcome.yml@main
+    with:
+      workflow_deployment_date: '2025-01-15'
+    permissions:
+      pull-requests: write
+      issues: write
+```
+
+#### Example: Custom Message
+
+```yaml
+jobs:
+  welcome:
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-welcome.yml@main
+    with:
+      welcome_message: |
+        👋 Hello from the Engineering Team!
+
+        Claude is available to help with:
+        - Code review and suggestions
+        - Answering questions about this PR
+        - Explaining complex code changes
+
+        Tag `@claude` in comments to get started!
+      workflow_deployment_date: '2025-01-15'
+      expiration_months: 6
+    permissions:
+      pull-requests: write
+      issues: write
+```
+
+#### Example: With Documentation Link
+
+```yaml
+jobs:
+  welcome:
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-welcome.yml@main
+    with:
+      workflow_deployment_date: '2025-01-15'
+      expiration_months: 3
+      documentation_url: 'https://github.com/your-org/your-repo/blob/main/docs/claude-guide.md'
+    permissions:
+      pull-requests: write
+      issues: write
+```
+
+#### Example: Permanent Welcome (No Expiration)
+
+```yaml
+jobs:
+  welcome:
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-welcome.yml@main
+    with:
+      workflow_deployment_date: '2025-01-15'
+      expiration_months: 0 # 0 = no expiration
+    permissions:
+      pull-requests: write
+      issues: write
+```
+
+#### Troubleshooting
+
+**Issue: Date format error**
+
+```
+Error: Invalid workflow_deployment_date format: '2025-1-15'. Must be YYYY-MM-DD (e.g., '2025-01-15')
+```
+
+**Solution**: Use zero-padded dates (YYYY-MM-DD format)
+
+- ❌ `'2025-1-15'`
+- ✅ `'2025-01-15'`
+
+**Issue: Multiple welcome messages appear**
+
+```
+Multiple welcome comments from Claude on the same PR
+```
+
+**Solution**: This shouldn't happen due to duplicate detection. Check if:
+
+- Multiple workflows are calling this reusable workflow
+- The welcome message text was changed (detection looks for specific text)
+
+**Issue: Welcome message not appearing**
+
+```
+Workflow runs successfully but no comment is posted
+```
+
+**Possible causes**:
+
+1. **Expiration period passed**: Check if current date is beyond `workflow_deployment_date + expiration_months`
+2. **Permissions missing**: Ensure calling workflow has `pull-requests: write` permission
+3. **Already posted**: Duplicate detection may have found an existing message
+
+**Issue: Workflow fails with permission error**
+
+```
+Error: Resource not accessible by integration
+```
+
+**Solution**: Add required permissions to the calling workflow:
+
+```yaml
+jobs:
+  welcome:
+    permissions:
+      pull-requests: write
+      issues: write
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-welcome.yml@main
+    # ...
+```
+
+#### Best Practices
+
+1. **Set Realistic Expiration Dates**:
+
+   - Use 3-6 months for pilot programs
+   - Use 0 (no expiration) for permanent adoption
+   - Update `workflow_deployment_date` when extending trials
+
+2. **Customize the Message**:
+
+   - Keep it concise (3-5 lines)
+   - Link to your repository's Claude documentation
+   - Include specific examples relevant to your codebase
+
+3. **Test Before Rolling Out**:
+
+   - Create a test PR in a feature branch
+   - Verify message appearance and formatting
+   - Confirm links work correctly
+
+4. **Monitor Adoption**:
+   - Track how many PRs receive the welcome
+   - Gather team feedback on message clarity
+   - Update documentation_url as needed
+
+#### Integration with Existing Workflows
+
+This workflow is designed to work alongside other PR automation:
+
+```yaml
+name: PR Automation
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  # Welcome Claude (only on first open)
+  claude-welcome:
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-welcome.yml@main
+    with:
+      workflow_deployment_date: '2025-01-15'
+    permissions:
+      pull-requests: write
+      issues: write
+
+  # Your existing PR checks
+  assign-reviewer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assign reviewer
+        run: gh pr edit ${{ github.event.pull_request.number }} --add-assignee @team-lead
+
+  # Your existing labeling
+  auto-label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add labels
+        run: gh pr edit ${{ github.event.pull_request.number }} --add-label "needs-review"
+```
+
+---
+
+### \_claude-code-review.yml
+
+**Purpose**: Automated, iterative PR code reviews using Claude AI with formal GitHub review submission, inline comments, and auto-resolution of fixed issues.
+
+#### Inputs
+
+| Input                           | Required | Default                              | Description                                                                               |
+| ------------------------------- | -------- | ------------------------------------ | ----------------------------------------------------------------------------------------- |
+| `pr_number`                     | Yes      | -                                    | Pull request number to review                                                             |
+| `base_ref`                      | Yes      | -                                    | Base branch name (e.g., main, master)                                                     |
+| `model`                         | No       | `'claude-sonnet-4-5-20250929'`       | Claude model to use for review                                                            |
+| `max_turns`                     | No       | `15`                                 | Maximum conversation turns for Claude                                                     |
+| `custom_prompt`                 | No       | `''`                                 | Custom prompt text (overrides file and default). Verdict logic is automatically appended. |
+| `custom_prompt_path`            | No       | `'.claude/prompts/claude-pr-bot.md'` | Path to custom prompt file in repository                                                  |
+| `timeout_minutes`               | No       | `30`                                 | Job timeout in minutes                                                                    |
+| `allowed_tools`                 | No       | `''` (permissive default)            | Comma-separated list of allowed tools. Leave empty for default set (see below).           |
+| `anthropic_api_key_secret_name` | No       | `'ANTHROPIC_API_KEY'`                | Name of secret containing Anthropic API key                                               |
+
+**Default Allowed Tools** (when `allowed_tools` is empty):
+
+```
+mcp__github__get_pull_request, mcp__github__get_pull_request_files,
+mcp__github__get_pull_request_comments, mcp__github__get_pull_request_reviews,
+mcp__github__create_review_comment, mcp__github__resolve_review_thread,
+mcp__github__list_review_comments, mcp__github_inline_comment__create_inline_comment,
+Read, Grep, Glob, Bash(git log), Bash(git diff), Bash(git show), Bash(git blame),
+Bash(git rev-parse HEAD), Bash(git log --oneline), Write
+```
+
+**Prompt Priority** (when no `custom_prompt` or `custom_prompt_path` provided):
+
+The workflow fetches the default prompt from `Uniswap/ai-toolkit/.github/prompts/default-pr-review.md`.
+If you fork this workflow, use `custom_prompt_path` to specify your own prompt instead.
+
+#### Outputs
+
+This workflow does not have outputs (reviews are submitted directly to GitHub PRs).
+
+#### Secrets
+
+| Secret              | Required | Description                        |
+| ------------------- | -------- | ---------------------------------- |
+| `ANTHROPIC_API_KEY` | Yes      | API key from console.anthropic.com |
+
+**Note**: The secret must be passed explicitly from the calling workflow.
+
+#### Permissions Required (Fixed)
+
+These permissions are **fixed** in the reusable workflow and cannot be overridden:
+
+```yaml
+permissions:
+  id-token: write # Required for OIDC authentication
+  contents: read # Required to read repository code
+  pull-requests: write # Required to comment and submit reviews
+  issues: read # Required to read PR discussions
+  actions: read # Required to check CI status
+```
+
+**Note**: You do NOT need to specify these permissions in your calling workflow - they are automatically set by the reusable workflow.
+
+#### Fixed Settings (Cannot be Overridden)
+
+The following settings are intentionally fixed to ensure consistent security and behavior:
+
+1. **Security Scanning**: Bullfrog security scanning with `egress-policy: audit`
+2. **Patch-ID Caching**: Automatically calculated to skip rebases
+3. **Verdict Injection**: Verdict writing logic always appended to custom prompts
+4. **Formal Review Submission**: Always submits GitHub reviews (APPROVE/REQUEST_CHANGES/COMMENT)
+
+#### Features
+
+- **Formal GitHub Reviews**: Submits APPROVE, REQUEST_CHANGES, or COMMENT reviews for merge protection
+- **Inline Comments**: Creates review comments on specific lines of code
+- **Auto-Resolution**: Automatically resolves comment threads when issues are fixed
+- **Rebase Detection**: Uses patch-ID hashing to skip reviews when only rebased (no new changes)
+- **Iterative Reviews**: Tracks previous comments and updates status on re-review
+- **Custom Prompts**: Supports repository-specific review guidelines
+- **CLAUDE.md Integration**: Automatically respects repository CLAUDE.md files for context-aware reviews
+- **Verdict in Review Body**: Displays review status, verdict, and patch-ID in formal review
+- **Merge Queue Filtering**: Consumers can filter out merge queue PRs
+- **Security Built-in**: Bullfrog security scanning integrated and cannot be disabled
+- **Cost Optimization**: Caching prevents duplicate reviews, reducing API costs
+
+#### Quick Start Example
+
+```yaml
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+jobs:
+  claude-review:
+    # Skip merge queue PRs and draft PRs
+    if: |
+      !contains(github.head_ref, 'gh-readonly-queue/') &&
+      (github.event.pull_request.draft == false || github.event.action == 'ready_for_review')
+
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      base_ref: ${{ github.base_ref }}
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+#### Example: Custom Prompt File
+
+```yaml
+jobs:
+  claude-review:
+    if: |
+      !contains(github.head_ref, 'gh-readonly-queue/') &&
+      (github.event.pull_request.draft == false || github.event.action == 'ready_for_review')
+
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      base_ref: ${{ github.base_ref }}
+      # Use repository-specific review guidelines
+      custom_prompt_path: '.github/prompts/security-focused-review.md'
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+#### Example: Label-Based Model Selection
+
+```yaml
+jobs:
+  claude-review:
+    if: |
+      !contains(github.head_ref, 'gh-readonly-queue/') &&
+      (github.event.pull_request.draft == false || github.event.action == 'ready_for_review')
+
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      base_ref: ${{ github.base_ref }}
+      # Use Opus for PRs with 'claude-opus' label, otherwise Sonnet
+      model: ${{ contains(github.event.pull_request.labels.*.name, 'claude-opus') && 'claude-opus-4-1-20250805' || 'claude-sonnet-4-5-20250929' }}
+      max_turns: 20 # Allow more turns for thorough Opus reviews
+      timeout_minutes: 45 # Longer timeout for complex reviews
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+#### How It Works
+
+**1. Rebase Detection:**
+
+- Calculates a stable "patch-ID" hash of code changes
+- Same code = same patch-ID, even after rebase
+- Checks cache for this patch-ID
+- If cache hit → Skip review (no new changes)
+- If cache miss → Perform review
+
+**2. Review Process:**
+
+- Loads custom prompt (priority: explicit input > repo file > ai-toolkit default)
+- Automatically appends verdict writing instructions
+- Claude analyzes code and creates inline comments
+- Claude checks previous comments and resolves fixed issues
+- Claude writes verdict file (APPROVE/REQUEST_CHANGES/COMMENT)
+- Workflow submits formal GitHub review
+
+**3. Iterative Reviews:**
+
+- On subsequent reviews, Claude:
+  - Lists all previous inline comments
+  - Checks if each issue is fixed, persists, or regressed
+  - Resolves threads for fixed issues
+  - Adds follow-up comments for persistent issues
+  - Creates new comments for new issues
+
+#### Patch-ID Mechanism (Rebase Detection)
+
+**What is Patch-ID?**
+
+- Stable cryptographic hash of code changes using Git's `patch-id` command
+- Content-based hashing: Same code = same ID, regardless of commit SHAs
+- Survives rebases, cherry-picks, and merges
+
+**How It Works:**
+
+1. Calculate merge base: `git merge-base origin/main HEAD`
+2. Generate diff: `git diff <merge-base>..HEAD`
+3. Compute stable hash: `git patch-id --stable`
+4. Cache review results using: `review-pr{number}-patch-{id}`
+5. Skip review if patch-ID matches cached review
+
+**Edge Cases:**
+
+- **Whitespace-only changes**: New patch-ID (triggers review)
+- **Line number shifts** (no code changes): Same patch-ID (skips review)
+- **Cherry-picks**: Same patch-ID as original commit
+- **Comment-only changes**: New patch-ID (triggers review)
+
+**Manual Cache Invalidation:**
+If you need to force a new review despite same code:
+
+1. Option 1: Add/remove a single space in a comment
+2. Option 2: Delete cache manually (Actions → Caches)
+3. Option 3: Use a different branch name and reopen PR
+
+#### Review Submission Script
+
+The workflow uses `.github/scripts/submit-claude-review.sh` to submit formal GitHub reviews.
+
+**What the script does:**
+
+1. Reads `.claude-review-verdict.txt` for verdict (APPROVE/REQUEST_CHANGES/COMMENT)
+2. Reads `.claude-review-summary.md` for review body (markdown)
+3. Validates verdict (must be one of the three allowed values)
+4. Submits formal review via `gh pr review` command
+5. Cleans up temporary files
+
+**Error Handling:**
+
+- Falls back to COMMENT verdict if verdict file is invalid
+- Uses default summary if summary file is missing
+- Comprehensive logging at each step (ℹ️, ✅, ⚠️, ❌ emoji markers)
+
+**Troubleshooting Script Failures:**
+
+- Check workflow logs for "Submit GitHub Review" step
+- Verify verdict file contains only one word (APPROVE/REQUEST_CHANGES/COMMENT)
+- Ensure summary file is valid markdown
+- Confirm `gh` CLI has proper authentication (GITHUB_TOKEN)
+
+#### CLAUDE.md Integration
+
+The workflow is designed to **automatically respect repository CLAUDE.md files** for context-aware reviews.
+
+**How It Works:**
+
+The default review prompt explicitly instructs Claude to check for and follow CLAUDE.md files:
+
+1. **Global guidelines**: `.claude/CLAUDE.md` or `CLAUDE.md` at repository root
+2. **Project-specific guidelines**: `CLAUDE.md` files in package/module directories
+
+**What CLAUDE.md Files Provide:**
+
+- **Coding standards**: Language-specific conventions, naming patterns
+- **Architecture patterns**: Preferred design patterns, file organization
+- **Security requirements**: Domain-specific security concerns
+- **Testing expectations**: Coverage requirements, testing frameworks
+- **Domain knowledge**: Business logic, terminology, edge cases
+- **Tool usage**: Preferred libraries, banned dependencies
+
+**Priority Order:**
+
+1. Repository CLAUDE.md files (highest priority - always respected)
+2. Custom prompts (via `custom_prompt` or `custom_prompt_path`)
+3. Default review prompt (from ai-toolkit repository)
+
+**Example CLAUDE.md File:**
+
+```markdown
+# CLAUDE.md - Project Guidelines
+
+## Code Standards
+
+- Use TypeScript strict mode
+- Prefer functional patterns over classes
+- All exports must have JSDoc comments
+
+## Security
+
+- Never log user PII
+- All API endpoints require authentication
+- Sanitize all user inputs with zod schemas
+
+## Testing
+
+- Minimum 80% code coverage
+- Use Vitest for unit tests
+- Mock external APIs in tests
+```
+
+**Benefits:**
+
+- **Consistent reviews** across the team following your standards
+- **Domain-specific feedback** tailored to your codebase
+- **Reduced false positives** by understanding your patterns
+- **Better suggestions** aligned with your architecture
+
+**Best Practice:**
+
+Create CLAUDE.md files at different levels:
+
+```
+repo/
+├── .claude/
+│   └── CLAUDE.md           # Organization-wide standards
+├── packages/
+│   ├── frontend/
+│   │   └── CLAUDE.md       # Frontend-specific guidelines
+│   └── backend/
+│       └── CLAUDE.md       # Backend-specific guidelines
+```
+
+Claude will read all relevant CLAUDE.md files in the hierarchy when reviewing changes in a specific directory.
+
+#### Review Verdicts
+
+Claude determines the appropriate verdict based on findings. The workflow automatically appends verdict logic to custom prompts.
+
+**APPROVE** - No blocking issues, safe to merge:
+
+- Minor suggestions or improvements that don't affect functionality
+- Code quality improvements that can be addressed later
+- Test coverage could be better but tests exist and pass
+- Documentation could be clearer but is acceptable
+- Style inconsistencies that don't impact readability
+
+**Examples of APPROVE-worthy code:**
+
+- Adding a new feature with comprehensive tests
+- Refactoring with proper test coverage
+- Bug fix with test demonstrating the fix
+- Minor style improvements
+
+**REQUEST_CHANGES** - Critical issues that must be fixed:
+
+- **Bugs**: Logic errors causing incorrect behavior or crashes
+- **Security**: Injection vulnerabilities (SQL, XSS), auth bypasses, exposed secrets
+- **Data Integrity**: Data corruption risks, missing transactions, incorrect deletions
+- **Performance**: N+1 queries, memory leaks on hot paths, blocking operations
+- **Missing Error Handling**: Uncaught exceptions, silent failures on critical paths
+
+**Examples requiring changes:**
+
+```typescript
+// 🔴 SQL Injection
+db.query(`SELECT * FROM users WHERE id = ${userId}`);
+
+// 🔴 Null Reference (will crash)
+const theme = user.preferences.theme; // user could be null
+
+// 🔴 Memory Leak
+useEffect(() => {
+  window.addEventListener('resize', handler);
+  // Missing cleanup!
+});
+
+// 🔴 N+1 Query
+for (const user of users) {
+  await db.getOrders(user.id); // Query in loop!
+}
+```
+
+**COMMENT** - Issues that should be addressed but don't block merge:
+
+- Moderate maintainability concerns (functions mixing responsibilities)
+- Performance improvements for non-critical paths
+- Testing gaps for edge cases (happy path covered)
+- Unclear variable naming or missing comments
+- Duplicated code that could be refactored
+
+**Examples warranting comments:**
+
+```typescript
+// ⚠️ Mixed Responsibilities (but not breaking)
+async function handleCheckout(items) {
+  if (!items.length) throw new Error('Empty'); // Validation
+  const user = await db.getUser(); // Fetching
+  const total = calculateTotal(items); // Business logic
+  await stripe.charge(user, total); // External API
+}
+
+// ⚠️ Missing Error Handling (non-critical path)
+async function loadOptionalData() {
+  const data = await fetch(url);
+  return data.json(); // Could fail, but optional
+}
+```
+
+The verdict is displayed in the formal GitHub review body along with:
+
+- Review status (✅ Completed)
+- Patch-ID for tracking
+- Summary of key findings
+- Count of inline comments created
+- Reference to inline comments
+
+#### Troubleshooting
+
+**Issue: Review runs on every rebase**
+
+```
+Claude reviews the PR even though I only rebased with no code changes
+```
+
+**Solution**: This shouldn't happen due to patch-ID caching. Check:
+
+- Cache is being saved after successful reviews (check workflow logs)
+- PR number hasn't changed (shouldn't happen, but verify)
+- Patch-ID calculation step is running successfully
+
+**Issue: Custom prompt not being used**
+
+```
+Claude doesn't follow my repository-specific guidelines
+```
+
+**Solution**: Verify prompt file path:
+
+1. Check `custom_prompt_path` matches actual file location
+2. File must exist in repository (not in `.gitignore`)
+3. Check workflow logs for "Using custom prompt from repository: ..." message
+
+**Issue: Comments not being resolved**
+
+```
+Claude says issues are fixed but doesn't resolve the comment threads
+```
+
+**Solution**:
+
+- Verify Claude has permission to resolve threads (should be automatic)
+- Check if using the correct MCP tools (workflow provides these automatically)
+- Look for errors in workflow logs during review step
+
+**Issue: Wrong verdict submitted**
+
+```
+Claude submitted APPROVE but there are obvious bugs
+```
+
+**Solution**:
+
+- Review the custom prompt - may need more specific guidance on what's blocking
+- Consider using a more thorough model (Opus instead of Sonnet)
+- Check the review summary to understand Claude's reasoning
+- Update default prompt in ai-toolkit if consistently incorrect
+
+**Issue: Workflow timeout**
+
+```
+Workflow execution exceeded timeout limit (30 minutes)
+```
+
+**Solution**: Increase timeout for large PRs:
+
+```yaml
+with:
+  timeout_minutes: 45 # or higher
+```
+
+**Issue: Multiple reviews on same PR**
+
+```
+Claude submitted multiple reviews instead of updating one
+```
+
+**Solution**: This is expected behavior - Claude creates a new formal review each time. Previous review comments remain visible. To prevent multiple reviews:
+
+- Ensure proper caching is working (patch-ID check)
+- Don't re-run workflow manually unless needed
+
+#### Best Practices
+
+1. **Filtering PRs**:
+
+   - Always filter out merge queue PRs: `!contains(github.head_ref, 'gh-readonly-queue/')`
+   - Consider filtering draft PRs: `github.event.pull_request.draft == false`
+   - Use path filters if you only want reviews on specific directories
+
+2. **Model Selection**:
+
+   - **Sonnet 4.5** (default): Best balance for most PRs (~80% of use cases)
+   - **Opus 4.1**: Reserve for critical code, security-sensitive changes, or complex architectures
+   - Use labels to let developers request deeper reviews when needed
+
+3. **Custom Prompts**:
+
+   - Keep focused on your domain (security, performance, etc.)
+   - Don't repeat universal best practices (default prompt covers these)
+   - Include examples of patterns specific to your codebase
+   - The workflow automatically adds verdict writing logic - don't include it
+
+4. **Branch Protection Setup**:
+
+   To enforce Claude's reviews and ensure quality gates:
+
+   **Step 1: Navigate to Branch Protection**
+
+   - Go to: Settings → Branches → Branch protection rules
+   - Click "Add rule" (or edit existing rule for your main branch)
+   - Branch name pattern: `main` (or `master`, `develop`, etc.)
+
+   **Step 2: Enable Required Reviews**
+
+   ```
+   ✅ Require pull request reviews before merging
+      → Required approving reviews: 1
+      → Dismiss stale pull request approvals when new commits are pushed
+   ```
+
+   **Step 3: Enable Conversation Resolution**
+
+   ```
+   ✅ Require conversation resolution before merging
+   ```
+
+   **Step 4: (Optional) Require Status Checks**
+
+   ```
+   ✅ Require status checks to pass before merging
+      → Search and add: "claude-review" or your workflow job name
+   ```
+
+   **What This Configuration Does:**
+
+   - **REQUEST_CHANGES reviews block merges**: PRs cannot be merged until all blocking comments are resolved
+   - **Human approval still required**: Claude doesn't count toward the "1 required approval" - you still need a human reviewer
+   - **Comment resolution enforced**: All inline comments must be addressed (resolved, fixed, or acknowledged)
+   - **Status checks optional**: If enabled, the workflow itself must complete successfully
+
+   **Workflow Types:**
+
+   - **Advisory Only** (don't enable conversation resolution): Claude provides feedback but doesn't block
+   - **Blocking Reviews** (enable conversation resolution): Claude can block merges with REQUEST_CHANGES
+   - **Strict Mode** (enable status checks + conversation resolution): Workflow must complete AND reviews must pass
+
+5. **Cost Optimization**:
+
+   - Caching automatically reduces costs by skipping rebases
+   - Use Sonnet for most reviews (Opus costs 5x more)
+   - Set reasonable timeouts to prevent runaway costs
+   - Monitor usage at console.anthropic.com
+
+6. **Review Quality**:
+   - Start with default prompt, customize incrementally
+   - Gather team feedback on review quality
+   - Iterate on custom prompt based on common false positives/negatives
+   - Use Opus for initial review of new patterns, then switch back to Sonnet
+
+#### Advanced Patterns
+
+**Pattern 1: Security-Sensitive Paths**
+
+Run thorough Opus reviews on security-critical code:
+
+```yaml
+jobs:
+  standard-review:
+    if: |
+      !contains(github.head_ref, 'gh-readonly-queue/') &&
+      !contains(github.event.pull_request.labels.*.name, 'security-critical')
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      base_ref: ${{ github.base_ref }}
+      model: 'claude-sonnet-4-5-20250929'
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  security-review:
+    if: |
+      !contains(github.head_ref, 'gh-readonly-queue/') &&
+      contains(github.event.pull_request.labels.*.name, 'security-critical')
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      base_ref: ${{ github.base_ref }}
+      model: 'claude-opus-4-1-20250805'
+      custom_prompt_path: '.github/prompts/security-review.md'
+      timeout_minutes: 60
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+**Pattern 2: Path-Based Review Filtering**
+
+Only review specific directories:
+
+```yaml
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+    paths:
+      - 'src/**'
+      - 'packages/**'
+      - '!**/*.md' # Exclude markdown files
+      - '!docs/**' # Exclude documentation
+```
+
+#### Integration with Branch Protection
+
+For the Slack requirements (1 bot reviewer + 1 human reviewer):
+
+1. **Enable branch protection** in repository settings
+2. **Require 1 approval** from human reviewers
+3. **Require conversation resolution** to ensure blocking comments are addressed
+4. **Configure status checks** if you want the workflow itself to be required
+
+This setup ensures:
+
+- Claude's REQUEST_CHANGES reviews block merges (conversation must be resolved)
+- Minimum 1 human approval still required
+- All review comments must be addressed before merging
+
+#### Cost Estimation
+
+Example cost calculation:
+
+- 20 PRs per week
+- Average 2 review iterations per PR (initial + update)
+- Using Sonnet 4.5
+- ~30K tokens per review
+
+```
+40 reviews/week × 30K tokens = 1.2M tokens/week
+Input: 1M × $3 = $3/week
+Output: 0.2M × $15 = $3/week
+Total: ~$6/week = ~$24/month
+```
+
+With patch-ID caching, rebases don't count as reviews, reducing actual costs by ~30-40%.
+
+---
 
 ### \_generate-changelog.yml
 
@@ -413,15 +1810,7 @@ Instead of custom argument parsing logic, the action uses **minimist** (~62.5M w
 import minimist from 'minimist';
 
 const args = minimist(process.argv.slice(2), {
-  string: [
-    'api-key',
-    'database-id',
-    'title',
-    'content',
-    'from-ref',
-    'to-ref',
-    'branch',
-  ],
+  string: ['api-key', 'database-id', 'title', 'content', 'from-ref', 'to-ref', 'branch'],
   alias: {
     'api-key': 'apiKey',
     'database-id': 'databaseId',
@@ -868,7 +2257,6 @@ Set up your Notion database with these properties for best compatibility:
 
 - **Commit Range** (Rich Text) - Git reference range
 - **Branch** (Rich Text) - Branch name
-- **NPM Tag** (Rich Text) - Package tag
 - **Date** (Date) - Release timestamp
 - **Status** (Select) - Release status (Optional: "Draft", "Published", "Archived")
 

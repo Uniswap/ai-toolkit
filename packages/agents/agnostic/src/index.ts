@@ -31,6 +31,7 @@ type Agent =
   | 'refactorer'
   | 'researcher'
   | 'security-analyzer'
+  | 'stack-splitter'
   | 'style-enforcer'
   | 'test-runner'
   | 'test-writer';
@@ -176,6 +177,11 @@ export const agents: Agents = {
     description:
       'Comprehensive security analysis agent for vulnerability assessment, threat modeling, and compliance checking',
     filePath: './security-analyzer.md',
+  },
+  'stack-splitter': {
+    description:
+      'Semantic analysis agent for splitting monolithic branches into logical, reviewable PR stacks. Analyzes git history, file changes, and code semantics to propose optimal split boundaries.',
+    filePath: './stack-splitter.md',
   },
   'style-enforcer': {
     description:

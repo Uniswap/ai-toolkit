@@ -38,6 +38,7 @@ The agent infrastructure implements a sophisticated hierarchical model:
 - **researcher**: Comprehensive research including architectural patterns and technology comparison
 - **security-analyzer**: Comprehensive security analysis for vulnerability assessment and threat modeling
 - **performance-analyzer**: Comprehensive performance analysis with bottleneck identification and optimization strategies
+- **stack-splitter**: Semantic analysis for splitting monolithic branches into logical, reviewable PR stacks using git history, file changes, and code semantics
 - **style-enforcer**: Advanced multi-language style enforcement with pattern detection, automated fixes, and comprehensive reporting
 - **test-writer**: Generate comprehensive tests with scenario generation and edge case identification
 - **test-runner**: Automated agent testing specialist for behavior validation and regression detection

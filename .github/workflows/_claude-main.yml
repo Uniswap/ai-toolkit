@@ -1,0 +1,356 @@
+# Reusable workflow for Claude Code in GitHub Actions
+#
+# This workflow enables Claude to respond to @claude mentions in:
+# - Issue comments
+# - Pull request comments
+# - Pull request review comments
+# - Pull request reviews
+# - New issues
+#
+# It includes:
+# - Security scanning with bullfrog (fixed, cannot be overridden)
+# - Fixed trigger conditions and bot filtering
+# - Fixed permissions for safe operation
+# - Configurable model, tools, and execution parameters
+#
+# USAGE:
+# Call this workflow from your repository's workflow:
+#
+# name: Claude Code
+# on:
+#   issue_comment:
+#     types: [created]
+#   pull_request_review_comment:
+#     types: [created]
+#   issues:
+#     types: [opened, assigned]
+#   pull_request_review:
+#     types: [submitted]
+#
+# jobs:
+#   claude:
+#     if: |
+#       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+#       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+#       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.review.user.type != 'Bot') ||
+#       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) && github.event.issue.user.type != 'Bot')
+#     uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+#     secrets:
+#       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+#     with:
+#       model: 'claude-sonnet-4-5-20250929'
+#
+# INPUTS:
+# - prompt (optional): Direct automation prompt (enables automation mode)
+# - model (optional): Claude model to use (default: claude-sonnet-4-5-20250929)
+# - allowed_tools (optional): Comma-separated list of allowed tools
+# - disallowed_tools (optional): Comma-separated list of disallowed tools
+# - custom_instructions (optional): Additional instructions for Claude (system prompt)
+# - max_turns (optional): Maximum conversation turns
+# - mcp_config (optional): MCP server configuration (JSON)
+# - settings (optional): Additional settings including env vars (JSON)
+# - timeout_minutes (optional): Job timeout in minutes (default: 10)
+# - anthropic_api_key_secret_name (optional): Name of the secret containing the Anthropic API key (default: ANTHROPIC_API_KEY)
+#
+# SECRETS REQUIRED:
+# - ANTHROPIC_API_KEY (or custom secret name via anthropic_api_key_secret_name input)
+#
+# FIXED SETTINGS (cannot be overridden):
+# - Security: bullfrog egress-policy: audit
+# - Permissions: id-token: write, contents: read, pull-requests: write, issues: write, actions: read
+# - Checkout: fetch-depth: 50
+# - Trigger conditions: @claude mentions with bot filtering
+
+name: '[claude] Claude Code'
+
+on:
+  workflow_call:
+    inputs:
+      prompt:
+        description: 'Direct automation prompt for Claude. When provided, Claude runs in automation mode instead of interactive @mention mode. Supports GitHub context variables.'
+        required: false
+        type: string
+        default: ''
+
+      model:
+        description: |
+          Claude model to use for this execution.
+
+          Available models:
+          - claude-sonnet-4-5-20250929 (default, recommended) - Latest Sonnet model with best balance of speed and capability
+          - claude-opus-4-20250514 - Most capable model for complex tasks
+          - claude-haiku-4-5@20251001 - Fast, cost-effective model for simpler tasks
+
+          Default: claude-sonnet-4-5-20250929
+        required: false
+        type: string
+        default: 'claude-sonnet-4-5-20250929'
+
+      allowed_tools:
+        description: |
+          Comma-separated list of tools Claude can use.
+
+          If not provided, uses permissive defaults (all file operations and bash commands).
+
+          Example (restrictive):
+          allowed_tools: "Read,Grep,Glob,Bash"
+
+          Available tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch, etc.
+          See https://github.com/anthropics/claude-code-action for full tool reference.
+        required: false
+        type: string
+        default: ''
+
+      disallowed_tools:
+        description: |
+          Comma-separated list of tools to disable for Claude.
+          Takes precedence over allowed_tools.
+
+          Example:
+          disallowed_tools: "WebSearch,WebFetch"
+
+          Useful when you want to allow most tools but disable specific ones.
+        required: false
+        type: string
+        default: ''
+
+      custom_instructions:
+        description: |
+          Additional instructions for Claude to follow (system prompt).
+          These are appended to the default instructions.
+
+          Default instructions always include:
+          "Be sure to follow rules in all CLAUDE.md files."
+
+          Example:
+          custom_instructions: |
+            When reviewing PRs, focus on:
+            - Security vulnerabilities
+            - Performance implications
+            - Test coverage
+        required: false
+        type: string
+        default: 'Be sure to follow rules in all CLAUDE.md files.'
+
+      max_turns:
+        description: |
+          Maximum number of conversation turns Claude can take.
+          Useful for controlling execution length and costs.
+
+          Default: unlimited
+          Recommended: 10-20 for most tasks
+        required: false
+        type: string
+        default: ''
+
+      mcp_config:
+        description: |
+          MCP (Model Context Protocol) server configuration as JSON string.
+
+          Example:
+          mcp_config: |
+            {
+              "mcpServers": {
+                "my-server": {
+                  "command": "node",
+                  "args": ["server.js"]
+                }
+              }
+            }
+        required: false
+        type: string
+        default: ''
+
+      settings:
+        description: |
+          Additional settings in JSON format, including environment variables.
+
+          Example:
+          settings: |
+            {
+              "env": {
+                "NODE_ENV": "test",
+                "CI": "true"
+              }
+            }
+        required: false
+        type: string
+        default: ''
+
+      timeout_minutes:
+        description: |
+          Maximum execution time for Claude in minutes.
+          Prevents runaway executions and controls costs.
+
+          Default: 10 minutes
+          Recommended range: 5-15 minutes
+
+          Note: This sets the GitHub Actions job timeout, not a Claude CLI argument.
+        required: false
+        type: number
+        default: 10
+
+      anthropic_api_key_secret_name:
+        description: |
+          Name of the repository secret containing the Anthropic API key.
+
+          Default: ANTHROPIC_API_KEY
+
+          Use this if your repository uses a different secret name for the API key.
+        required: false
+        type: string
+        default: 'ANTHROPIC_API_KEY'
+
+    secrets:
+      ANTHROPIC_API_KEY:
+        description: 'Anthropic API key for Claude Code. Must be passed explicitly from the calling workflow.'
+        required: true
+
+jobs:
+  claude:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+
+    # FIXED: These permissions cannot be overridden
+    # They provide the minimum required access for Claude to function safely
+    permissions:
+      id-token: write # Required for OIDC authentication
+      contents: read # Required to read repository code
+      pull-requests: write # Required to comment on PRs
+      issues: write # Required to comment on issues
+      actions: read # Required to read CI results on PRs
+
+    # Prevent concurrent executions for the same issue/PR
+    concurrency:
+      group: claude-main-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: true
+
+    steps:
+      # FIXED: Security scanning with bullfrog
+      # This step cannot be disabled or modified
+      - name: Security scanning
+        uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+        with:
+          egress-policy: audit
+
+      # FIXED: Checkout with consistent fetch depth
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 50
+
+      # Build claude_args with CLI arguments
+      - name: Build Claude CLI arguments
+        id: build-args
+        env:
+          INPUT_MODEL: ${{ inputs.model }}
+          INPUT_ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
+          INPUT_DISALLOWED_TOOLS: ${{ inputs.disallowed_tools }}
+          INPUT_CUSTOM_INSTRUCTIONS: ${{ inputs.custom_instructions }}
+          INPUT_MAX_TURNS: ${{ inputs.max_turns }}
+          INPUT_MCP_CONFIG: ${{ inputs.mcp_config }}
+        run: |
+          ARGS=""
+
+          # Add model
+          if [[ -n "$INPUT_MODEL" ]]; then
+            ARGS="$ARGS--model $INPUT_MODEL"$'\n'
+          fi
+
+          # Add allowed tools (camelCase format)
+          if [[ -n "$INPUT_ALLOWED_TOOLS" ]]; then
+            ARGS="$ARGS--allowedTools $INPUT_ALLOWED_TOOLS"$'\n'
+          fi
+
+          # Add disallowed tools
+          if [[ -n "$INPUT_DISALLOWED_TOOLS" ]]; then
+            ARGS="$ARGS--disallowedTools $INPUT_DISALLOWED_TOOLS"$'\n'
+          fi
+
+          # Add system prompt
+          if [[ -n "$INPUT_CUSTOM_INSTRUCTIONS" ]]; then
+            ARGS="$ARGS--system-prompt \"$INPUT_CUSTOM_INSTRUCTIONS\""$'\n'
+          fi
+
+          # Add max turns
+          if [[ -n "$INPUT_MAX_TURNS" ]]; then
+            ARGS="$ARGS--max-turns $INPUT_MAX_TURNS"$'\n'
+          fi
+
+          # Add MCP config
+          if [[ -n "$INPUT_MCP_CONFIG" ]]; then
+            ARGS="$ARGS--mcp-config '$INPUT_MCP_CONFIG'"$'\n'
+          fi
+
+          echo "claude_args<<EOF" >> $GITHUB_OUTPUT
+          echo "$ARGS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      # Run Claude Code
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@8a1c4371755898f67cd97006ba7c97702d5fc4bf # v1.0.16
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: ${{ inputs.prompt }}
+          claude_args: ${{ steps.build-args.outputs.claude_args }}
+          settings: ${{ inputs.settings }}
+          additional_permissions: |
+            actions: read
+
+      # Create job summary
+      - name: Create job summary
+        if: always()
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            // Build summary
+            let summary = '# 🤖 Claude Code Execution Summary\n\n';
+
+            // Add status
+            const conclusion = '${{ steps.claude.conclusion }}';
+            if (conclusion === 'success') {
+              summary += '✅ **Status:** Completed successfully\n\n';
+            } else if (conclusion === 'failure') {
+              summary += '❌ **Status:** Failed\n\n';
+            } else if (conclusion === 'cancelled') {
+              summary += '⏸️ **Status:** Cancelled\n\n';
+            } else {
+              summary += '⚠️ **Status:** Unknown\n\n';
+            }
+
+            // Add configuration
+            summary += '**Configuration:**\n';
+            summary += `- Model: \`${{ inputs.model }}\`\n`;
+            summary += `- Timeout: ${{ inputs.timeout_minutes }} minutes\n`;
+
+            if ('${{ inputs.prompt }}') {
+              summary += '- Mode: Automation (direct prompt)\n';
+            } else {
+              summary += '- Mode: Interactive (@claude mentions)\n';
+            }
+
+            if ('${{ inputs.allowed_tools }}') {
+              summary += `- Allowed Tools: \`${{ inputs.allowed_tools }}\`\n`;
+            } else {
+              summary += '- Tools: Default (permissive)\n';
+            }
+
+            if ('${{ inputs.disallowed_tools }}') {
+              summary += `- Disallowed Tools: \`${{ inputs.disallowed_tools }}\`\n`;
+            }
+
+            if ('${{ inputs.max_turns }}') {
+              summary += `- Max Turns: ${{ inputs.max_turns }}\n`;
+            }
+
+            // Add context
+            summary += '\n**Context:**\n';
+            summary += `- Event: \`${{ github.event_name }}\`\n`;
+            summary += `- Repository: \`${{ github.repository }}\`\n`;
+            if (context.issue.number) {
+              summary += `- Issue/PR: #${context.issue.number}\n`;
+            }
+
+            // Write summary
+            await core.summary.addRaw(summary).write();

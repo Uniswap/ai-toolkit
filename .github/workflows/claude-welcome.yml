@@ -1,0 +1,24 @@
+name: Welcome Claude to PRs
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  welcome:
+    uses: ./.github/workflows/_claude-welcome.yml
+    with:
+      workflow_deployment_date: "2025-11-14"
+      expiration_months: 3
+      documentation_url: "https://github.com/Uniswap/ai-toolkit/blob/main/packages/ai-toolkit-nx-claude/README.md"
+      welcome_message: |
+        👋 Hi!
+
+        I'm Claude, an AI assistant here to help with code reviews and answer questions about your PR. You can tag me anytime with `@claude` followed by your request.
+
+        💡 **Tip:** Ask me to explain code, suggest improvements, review specific changes, or help with AI Toolkit development patterns.
+
+        This repository contains the AI Toolkit - standardized, one-shot setup for Claude Code AI workflows. When working on changes, make sure to follow the Nx monorepo patterns and update relevant CLAUDE.md files.
+    permissions:
+      pull-requests: write
+      issues: write

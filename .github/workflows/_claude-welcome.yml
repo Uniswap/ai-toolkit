@@ -1,0 +1,345 @@
+# Reusable workflow for welcoming Claude to pull requests
+#
+# This workflow posts a welcome message from Claude to newly opened pull requests.
+# It includes:
+# - Security scanning with bullfrog
+# - Configurable expiration period (with date validation)
+# - Duplicate message detection
+# - Optional repository-specific documentation link
+#
+# USAGE:
+# Call this workflow from your repository's workflow:
+#
+# name: Welcome Claude
+# on:
+#   pull_request:
+#     types: [opened]
+#
+# jobs:
+#   welcome:
+#     uses: Uniswap/ai-toolkit/.github/workflows/_claude-welcome.yml@main
+#     with:
+#       workflow_deployment_date: '2025-01-15'
+#       expiration_months: 3
+#       documentation_url: 'https://github.com/your-org/your-repo/blob/main/docs/claude-pr-guide.md'
+#
+# INPUTS:
+# - welcome_message (optional): Custom welcome message body
+# - workflow_deployment_date (required): Date workflow was deployed (YYYY-MM-DD)
+# - expiration_months (optional): Months until expiration (0 disables, default: 3)
+# - documentation_url (optional): Link to repo-specific Claude PR guide
+#
+# PERMISSIONS REQUIRED:
+# - pull-requests: write
+# - issues: write
+
+name: '[claude] Welcome Claude to PRs'
+
+on:
+  workflow_call:
+    inputs:
+      welcome_message:
+        description: |
+          The welcome message to post to new PRs. Supports markdown formatting.
+          If not provided, uses a sensible default message.
+
+          NOTE: We recommend customizing this message for your repository to include:
+          - Your specific Claude setup (automated reviews, labels, etc.)
+          - Examples relevant to your codebase
+          - Links to repository-specific documentation
+        required: false
+        type: string
+        default: |
+          👋 Hi!
+
+          I'm Claude, an AI assistant here to help with code reviews and answer questions about your PR. You can tag me anytime with `@claude` followed by your request.
+
+          💡 **Tip:** Ask me to explain code, suggest improvements, or review specific changes.
+
+      workflow_deployment_date:
+        description: |
+          The date when this workflow was first deployed to your repository (YYYY-MM-DD format).
+          Used to calculate expiration if expiration_months > 0.
+          Example: '2025-01-15'
+
+          This is NOT the PR creation date, but the date YOU deployed this workflow.
+        required: true
+        type: string
+
+      expiration_months:
+        description: |
+          Number of months the welcome message should remain active.
+          Set to 0 to disable expiration and keep welcoming indefinitely.
+          Default: 3 months
+        required: false
+        type: number
+        default: 3
+
+      documentation_url:
+        description: |
+          Optional URL to repository-specific Claude PR guide documentation.
+          If provided, will be appended to the welcome message.
+          Must be a valid HTTPS URL from GitHub or approved domains.
+          Example: 'https://github.com/your-org/your-repo/blob/main/docs/claude-pr-guide.md'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  welcome-claude:
+    runs-on: ubuntu-latest
+
+    # Prevent concurrent executions for the same PR
+    concurrency:
+      group: claude-welcome-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+
+    permissions:
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Security scanning
+        uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+        with:
+          egress-policy: audit
+
+      - name: Validate workflow deployment date
+        id: validate-date
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          DEPLOYMENT_DATE: ${{ inputs.workflow_deployment_date }}
+        with:
+          script: |
+            const deploymentDate = process.env.DEPLOYMENT_DATE;
+
+            // Validate date format (YYYY-MM-DD)
+            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+            if (!dateRegex.test(deploymentDate)) {
+              core.setFailed(
+                `Invalid workflow_deployment_date format: '${deploymentDate}'. ` +
+                `Must be YYYY-MM-DD (e.g., '2025-01-15')`
+              );
+              return;
+            }
+
+            // Validate that the date is parseable and not in the future
+            const parsed = new Date(deploymentDate + 'T00:00:00Z');
+            if (isNaN(parsed.getTime())) {
+              core.setFailed(
+                `Invalid date value: '${deploymentDate}'. ` +
+                `Please provide a valid date in YYYY-MM-DD format.`
+              );
+              return;
+            }
+
+            const now = new Date();
+            if (parsed > now) {
+              core.setFailed(
+                `Deployment date '${deploymentDate}' is in the future. ` +
+                `Please use today's date or a past date.`
+              );
+              return;
+            }
+
+            console.log(`Date validation successful: ${deploymentDate}`);
+            core.setOutput('validated', 'true');
+
+      - name: Validate documentation URL
+        if: inputs.documentation_url != ''
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          DOCS_URL: ${{ inputs.documentation_url }}
+        with:
+          script: |
+            const docsUrl = process.env.DOCS_URL;
+
+            // Validate URL format
+            let url;
+            try {
+              url = new URL(docsUrl);
+            } catch (error) {
+              core.setFailed(
+                `Invalid documentation_url format: '${docsUrl}'. ` +
+                `Must be a valid HTTPS URL.`
+              );
+              return;
+            }
+
+            // Only allow HTTPS URLs
+            if (url.protocol !== 'https:') {
+              core.setFailed(
+                `Invalid documentation_url protocol: '${url.protocol}'. ` +
+                `Only HTTPS URLs are allowed for security.`
+              );
+              return;
+            }
+
+            // Validate allowed domains (GitHub and common documentation sites)
+            const allowedDomains = [
+              'github.com',
+              'raw.githubusercontent.com',
+              'notion.so',
+              'notion.site',
+              'gitbook.io',
+              'readthedocs.io',
+              'docs.google.com'
+            ];
+
+            const isAllowed = allowedDomains.some(domain =>
+              url.hostname === domain || url.hostname.endsWith(`.${domain}`)
+            );
+
+            if (!isAllowed) {
+              core.setFailed(
+                `Invalid documentation_url domain: '${url.hostname}'. ` +
+                `Allowed domains: ${allowedDomains.join(', ')}`
+              );
+              return;
+            }
+
+            console.log(`URL validation successful: ${docsUrl}`);
+
+      - name: Check if within expiration period
+        id: check-date
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          DEPLOYMENT_DATE: ${{ inputs.workflow_deployment_date }}
+          EXPIRATION_MONTHS: ${{ inputs.expiration_months }}
+        with:
+          script: |
+            const deploymentDateStr = process.env.DEPLOYMENT_DATE;
+            const expirationMonths = parseInt(process.env.EXPIRATION_MONTHS);
+
+            // If expiration is disabled (0 months), always mark as active
+            if (expirationMonths === 0) {
+              console.log('Expiration disabled - welcome message will be posted indefinitely');
+              core.setOutput('active', 'true');
+              return;
+            }
+
+            // Parse deployment date (already validated in previous step)
+            const deployment = new Date(deploymentDateStr + 'T00:00:00Z');
+
+            // Calculate expiration date by adding months
+            const expiration = new Date(deployment);
+            expiration.setUTCMonth(expiration.getUTCMonth() + expirationMonths);
+
+            // Get current date at midnight UTC
+            const now = new Date();
+            now.setUTCHours(0, 0, 0, 0);
+
+            // Format dates for logging (YYYY-MM-DD)
+            const formatDate = (date) => date.toISOString().split('T')[0];
+
+            console.log('Deployment date:', formatDate(deployment));
+            console.log('Expiration date:', formatDate(expiration));
+            console.log('Current date:', formatDate(now));
+
+            // Check if current date is within the active period
+            if (now >= deployment && now < expiration) {
+              console.log('Within active period - welcome message will be posted');
+              core.setOutput('active', 'true');
+            } else {
+              console.log('Outside active period - welcome message will NOT be posted');
+              core.setOutput('active', 'false');
+            }
+
+      - name: Check for existing welcome message
+        if: steps.check-date.outputs.active == 'true'
+        id: check-comment
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            try {
+              // Check if the welcome message has already been posted
+              const comments = await github.rest.issues.listComments({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              });
+
+              // Look for comments from github-actions bot with our marker
+              const WELCOME_MARKER = '<!-- claude-welcome-message -->';
+              const welcomeMessageExists = comments.data.some(comment =>
+                comment.user.type === 'Bot' &&
+                comment.body.includes(WELCOME_MARKER)
+              );
+
+              console.log(`Welcome message already exists: ${welcomeMessageExists}`);
+              return welcomeMessageExists;
+            } catch (error) {
+              console.error('Failed to check for existing welcome message:', error.message);
+              core.setFailed(`Unable to list PR comments: ${error.message}`);
+              throw error;
+            }
+
+      - name: Post welcome message
+        if: steps.check-date.outputs.active == 'true' && steps.check-comment.outputs.result == 'false'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          WELCOME_MESSAGE: ${{ inputs.welcome_message }}
+          DOCS_URL: ${{ inputs.documentation_url }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            try {
+              // Add hidden HTML comment marker for duplicate detection
+              let message = `<!-- claude-welcome-message -->\n${process.env.WELCOME_MESSAGE}`;
+
+              // Append documentation URL if provided
+              const docsUrl = process.env.DOCS_URL;
+              if (docsUrl) {
+                message += `\n\n**[Learn how to use Claude in \`${context.repo.repo}\` PRs](${docsUrl})**`;
+              }
+
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: message
+              });
+
+              console.log('Welcome message posted successfully');
+
+              // Add to workflow summary
+              core.summary
+                .addHeading('✅ Claude Welcome Message Posted')
+                .addRaw(`Successfully posted welcome message to PR #${context.issue.number}`)
+                .write();
+            } catch (error) {
+              console.error('Failed to post welcome message:', error.message);
+              core.setFailed(`Unable to create PR comment: ${error.message}`);
+              throw error;
+            }
+
+      - name: Create job summary
+        if: always()
+        env:
+          CHECK_DATE_ACTIVE: ${{ steps.check-date.outputs.active }}
+          CHECK_COMMENT_RESULT: ${{ steps.check-comment.outputs.result }}
+          DEPLOYMENT_DATE: ${{ inputs.workflow_deployment_date }}
+          EXPIRATION_MONTHS: ${{ inputs.expiration_months }}
+        run: |
+          echo "# Claude Welcome Workflow Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "$CHECK_DATE_ACTIVE" == "true" ]]; then
+            echo "✅ **Status:** Active (within expiration period)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⏸️ **Status:** Inactive (outside expiration period)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Configuration:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Deployment Date: \`$DEPLOYMENT_DATE\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Expiration: $EXPIRATION_MONTHS months" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "$CHECK_COMMENT_RESULT" == "true" ]]; then
+            echo "- Welcome message: Already posted (duplicate detected)" >> $GITHUB_STEP_SUMMARY
+          elif [[ "$CHECK_DATE_ACTIVE" == "true" ]]; then
+            echo "- Welcome message: Posted successfully ✓" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Welcome message: Skipped (expired)" >> $GITHUB_STEP_SUMMARY
+          fi

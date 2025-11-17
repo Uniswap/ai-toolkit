@@ -1,0 +1,45 @@
+name: Claude Code Review
+
+# Automated PR code reviews using Claude AI
+#
+# This workflow provides:
+# - Formal GitHub reviews (APPROVE/REQUEST_CHANGES/COMMENT)
+# - Inline comments on specific lines of code
+# - Auto-resolution of fixed issues on subsequent reviews
+# - Patch-ID based caching to skip rebases (no duplicate reviews)
+# - Iterative review tracking of previous comments
+#
+# The review uses the default prompt from this repository's
+# .github/prompts/default-pr-review.md
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+jobs:
+  claude-review:
+    # Skip merge queue PRs and draft PRs
+    if: |
+      !contains(github.head_ref, 'gh-readonly-queue/') &&
+      (github.event.pull_request.draft == false || github.event.action == 'ready_for_review')
+
+    uses: ./.github/workflows/_claude-code-review.yml
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      base_ref: ${{ github.base_ref }}
+
+      # Use default model (Sonnet 4.5) for cost-effective reviews
+      # Uncomment to use Opus for more thorough reviews:
+      # model: 'claude-opus-4-1-20250805'
+
+      # Allow standard review conversation turns
+      max_turns: 15
+
+      # Standard timeout for most PRs
+      timeout_minutes: 20
+
+      # Optional: Restrict tools for read-only reviews (uncomment to enable)
+      # allowed_tools: 'Read,Grep,Glob,Bash(git log),Bash(git diff),Bash(git show)'
+
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

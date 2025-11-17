@@ -8,16 +8,25 @@ This directory contains GitHub Actions workflows for the AI Toolkit monorepo. Wo
 
 Workflows that run automated checks on pull requests and commits.
 
-| Workflow                                 | Trigger      | Purpose                                                                                      | Status                                                                                   |
-| ---------------------------------------- | ------------ | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| [`ci-pr-checks.yml`](./ci-pr-checks.yml) | Pull Request | Validates installation, builds affected packages, runs linting, formatting checks, and tests | ![PR Checks](https://github.com/owner/repo/actions/workflows/ci-pr-checks.yml/badge.svg) |
+| Workflow                                     | Trigger      | Purpose                                                                                      | Status                                                                                          |
+| -------------------------------------------- | ------------ | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| [`ci-pr-checks.yml`](./ci-pr-checks.yml)     | Pull Request | Validates installation, builds affected packages, runs linting, formatting checks, and tests | ![PR Checks](https://github.com/owner/repo/actions/workflows/ci-pr-checks.yml/badge.svg)        |
+| [`claude-welcome.yml`](./claude-welcome.yml) | PR Opened    | Posts welcome message from Claude to newly opened PRs                                        | ![Claude Welcome](https://github.com/owner/repo/actions/workflows/claude-welcome.yml/badge.svg) |
 
 **Key Features:**
 
-- Verifies `package-lock.json` is up to date
-- Runs affected Nx targets only (build, lint, format, test)
-- Runs tests with coverage in parallel
-- Uses Nx's affected commands for efficiency
+- **ci-pr-checks.yml**:
+
+  - Verifies `package-lock.json` is up to date
+  - Runs affected Nx targets only (build, lint, format, test)
+  - Runs tests with coverage in parallel
+  - Uses Nx's affected commands for efficiency
+
+- **claude-welcome.yml**:
+  - Uses the reusable `_claude-welcome.yml` workflow
+  - Customized welcome message for AI Toolkit development
+  - Links to Claude package documentation
+  - 3-month expiration period
 
 ---
 
@@ -52,12 +61,49 @@ Workflows that handle versioning, publishing, and production deployments.
 
 Workflows designed to be called by other workflows using `workflow_call`. These provide modular, reusable functionality.
 
-| Workflow                                               | Inputs                                                                              | Outputs                          | Purpose                                                                             |
-| ------------------------------------------------------ | ----------------------------------------------------------------------------------- | -------------------------------- | ----------------------------------------------------------------------------------- |
-| [`_generate-changelog.yml`](./_generate-changelog.yml) | `before_sha`, `after_sha`, `custom_prompt_file`, `custom_prompt_text`, `max_tokens` | `changelog`, `generation_method` | Generates AI-powered changelogs from git commit ranges using Anthropic's Claude API |
-| [`_notify-release.yml`](./_notify-release.yml)         | `branch`, `npm_tag`, `before_sha`, `after_sha`, `changelog`                         | None                             | Sends formatted Slack notifications about package releases                          |
+| Workflow                                               | Inputs                                                                                                                                   | Outputs                          | Purpose                                                                                              |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| [`_claude-main.yml`](./_claude-main.yml)               | `model`, `allowed_tools`, `custom_instructions`, `timeout_minutes`, `anthropic_api_key_secret_name`                                      | None                             | Enables Claude Code to respond to @claude mentions in issues, PRs, comments, and reviews             |
+| [`_claude-welcome.yml`](./_claude-welcome.yml)         | `welcome_message`, `workflow_deployment_date`, `expiration_months`, `documentation_url`                                                  | None                             | Posts welcome message from Claude to newly opened pull requests                                      |
+| [`_claude-code-review.yml`](./_claude-code-review.yml) | `pr_number`, `base_ref`, `model`, `max_turns`, `custom_prompt`, `custom_prompt_path`, `timeout_minutes`, `anthropic_api_key_secret_name` | None                             | Automated PR code reviews with formal GitHub review submission, inline comments, and auto-resolution |
+| [`_generate-changelog.yml`](./_generate-changelog.yml) | `before_sha`, `after_sha`, `custom_prompt_file`, `custom_prompt_text`, `max_tokens`                                                      | `changelog`, `generation_method` | Generates AI-powered changelogs from git commit ranges using Anthropic's Claude API                  |
+| [`_notify-release.yml`](./_notify-release.yml)         | `branch`, `npm_tag`, `before_sha`, `after_sha`, `changelog`                                                                              | None                             | Sends formatted Slack notifications about package releases                                           |
 
 **Key Features:**
+
+- **claude-main.yml**:
+
+  - Interactive AI assistance via @claude mentions
+  - Works in issue comments, PR comments, review comments, and reviews
+  - Configurable models (Sonnet 4.5, Opus 4, Haiku 4.5)
+  - Flexible tool permissions (read-only, read-write, or custom)
+  - Custom instructions for repository-specific standards
+  - Fixed security settings (Bullfrog scanning, immutable permissions)
+  - Bot filtering to prevent loops
+  - Concurrency control to prevent duplicate executions
+  - Configurable timeout for cost management
+  - CI integration (can read and help debug CI failures)
+
+- **claude-welcome.yml**:
+
+  - Posts welcome message to new PRs from Claude
+  - Configurable expiration period (default 3 months)
+  - Date format validation with helpful error messages
+  - Duplicate message detection to prevent multiple welcomes
+  - Optional repository-specific documentation link
+  - Bullfrog security scanning integrated
+
+- **claude-code-review.yml**:
+
+  - Formal GitHub reviews (APPROVE/REQUEST_CHANGES/COMMENT) for merge protection
+  - Inline comments on specific lines of code
+  - Auto-resolution of comments when issues are fixed
+  - Patch-ID based caching to skip rebases (no duplicate reviews)
+  - Iterative reviews track previous comments
+  - Custom prompts with automatic verdict injection
+  - Merge queue filtering (skips gh-readonly-queue branches)
+  - Supports model selection (Sonnet/Opus via labels)
+  - Fixed security settings (Bullfrog scanning, immutable permissions)
 
 - **generate-changelog.yml**:
 
@@ -83,21 +129,25 @@ Workflows designed to be called by other workflows using `workflow_call`. These 
 ┌─────────────────────────────────────────────────────────────┐
 │                       CI/Quality Layer                       │
 ├─────────────────────────────────────────────────────────────┤
-│  pr-checks.yml: Validates PRs (build, lint, test)          │
+│  ci-pr-checks.yml: Validates PRs (build, lint, test)       │
+│  claude-welcome.yml: Welcome message for new PRs            │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
 │                    Release/Deploy Layer                      │
 ├─────────────────────────────────────────────────────────────┤
-│  publish-packages.yml: NPM publishing (main/next)           │
-│  update-production.yml: Sync next → main via PR            │
+│  release-publish-packages.yml: NPM publishing (main/next)   │
+│  release-update-production.yml: Sync next → main via PR     │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
 │                     Reusable Utilities                       │
 ├─────────────────────────────────────────────────────────────┤
-│  generate-changelog.yml: AI changelog generation            │
-│  notify-release.yml: Slack notifications                    │
+│  _claude-main.yml: Interactive @claude mentions             │
+│  _claude-welcome.yml: PR welcome messages                   │
+│  _claude-code-review.yml: Automated PR code reviews         │
+│  _generate-changelog.yml: AI changelog generation           │
+│  _notify-release.yml: Slack notifications                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -177,12 +227,23 @@ gh workflow run release-publish-packages.yml -f dryRun=true
 ├── workflows/
 │   ├── README.md (this file)
 │   ├── ci-pr-checks.yml
+│   ├── claude-welcome.yml
 │   ├── release-publish-packages.yml
 │   ├── release-update-production.yml
+│   ├── _claude-main.yml
+│   ├── _claude-welcome.yml
+│   ├── _claude-code-review.yml
 │   ├── _generate-changelog.yml
-│   └── _notify-release.yml
-└── prompts/
-    └── production-release-changelog.md
+│   ├── _notify-release.yml
+│   └── examples/
+│       ├── 08-claude-code-review-basic.yml
+│       ├── 09-claude-code-review-with-custom-prompt.yml
+│       └── 10-claude-code-review-advanced.yml
+├── prompts/
+│   ├── default-pr-review.md
+│   └── production-release-changelog.md
+└── scripts/
+    └── submit-claude-review.sh
 ```
 
 **Note on Flat Structure**: GitHub Actions [does not support subdirectories](https://github.com/orgs/community/discussions/15935) within `.github/workflows/`. All workflow files must be in the root of the workflows directory. We use naming convention prefixes (`ci-`, `release-`, `_`) to categorize workflows instead of subdirectories.

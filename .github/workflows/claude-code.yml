@@ -1,0 +1,46 @@
+name: Claude Code
+
+# This workflow enables Claude to respond to @claude mentions in issues, PRs, comments, and reviews
+# for the ai-toolkit repository itself.
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  claude:
+    # Only run when @claude is mentioned and the comment is not from a bot
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.review.user.type != 'Bot') ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) && github.event.issue.user.type != 'Bot')
+
+    uses: ./.github/workflows/_claude-main.yml
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    with:
+      # Use default Sonnet 4.5 model
+      model: 'claude-sonnet-4-5-20250929'
+
+      # Repository-specific instructions
+      custom_instructions: |
+        Be sure to follow rules in all CLAUDE.md files.
+
+        When working in the ai-toolkit repository:
+        - This is an Nx monorepo - use Nx commands for all operations
+        - Follow the code quality requirements in the root CLAUDE.md
+        - Always run format, lint, and typecheck after making changes
+        - Use the established naming conventions for workflows and packages
+        - Pin external GitHub Actions to commit hashes with version comments
+        - Complex scripts should be in separate files or published packages
+        - Update CLAUDE.md files in affected packages after changes
+
+      # Standard timeout for most interactions
+      timeout_minutes: 10
