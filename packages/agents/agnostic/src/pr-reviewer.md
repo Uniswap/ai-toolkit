@@ -1,7 +1,7 @@
 ---
 name: pr-reviewer
 description: Reviews PRs, addresses comments with plans or code changes, and fixes CI pipeline issues
-model: opus-4.1
+model: sonnet-4.5
 ---
 
 # pr-reviewer Agent
