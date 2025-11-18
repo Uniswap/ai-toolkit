@@ -17,6 +17,7 @@ type CommandName =
   | 'generate-commit-message'
   | 'implement-spec'
   | 'monitor'
+  | 'perf-analyze'
   | 'plan'
   | 'refactor'
   | 'research'
@@ -100,6 +101,11 @@ export const commands: Commands = {
     description:
       'Set up comprehensive monitoring for applications with automated metrics identification, alerting, and dashboard configuration',
     filePath: './monitor.md',
+  },
+  'perf-analyze': {
+    description:
+      'O(1) Chain-of-Thought Performance Analyzer - Systematic complexity analysis with optimization paths, bottleneck identification, and performance proofs',
+    filePath: './perf-analyze.md',
   },
   plan: {
     description:
