@@ -154,6 +154,16 @@ jobs:
           echo "We've already reviewed this exact code, so skipping to save API costs."
           exit 0
 
+      # Create/update PR comment to indicate review has started
+      - name: Post Review Start Comment
+        if: steps.cache-check.outputs.cache-hit != 'true'
+        run: ./.github/scripts/manage-claude-review-comment.sh start
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
       # Build final prompt with custom content + verdict injection
       - name: Build Review Prompt
         if: steps.cache-check.outputs.cache-hit != 'true'
@@ -354,6 +364,26 @@ jobs:
         env:
           PR_NUMBER: ${{ inputs.pr_number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Update PR comment with final results (success case)
+      - name: Post Review Completion Comment
+        if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        run: ./.github/scripts/manage-claude-review-comment.sh finish
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
+      # Update PR comment with error status (failure case)
+      - name: Post Review Error Comment
+        if: steps.cache-check.outputs.cache-hit != 'true' && failure()
+        run: ./.github/scripts/manage-claude-review-comment.sh error
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
 
       # Save successful review to cache
       - name: Save Review Cache Marker
