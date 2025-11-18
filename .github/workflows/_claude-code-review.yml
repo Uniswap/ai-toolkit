@@ -349,7 +349,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets[inputs.anthropic_api_key_secret_name] }}
           prompt: ${{ steps.build-prompt.outputs.final_prompt }}
-          track_progress: true
+          # track_progress removed - using custom comment management to work around Issue #602
           claude_args: |
             --model ${{ inputs.model }}
             --max-turns ${{ inputs.max_turns }}
