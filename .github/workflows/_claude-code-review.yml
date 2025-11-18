@@ -211,11 +211,16 @@ jobs:
             echo "✅ Loaded default prompt from Uniswap/ai-toolkit"
           fi
 
+          # Parse repository owner and name from REPO (format: owner/repo)
+          REPO_OWNER=$(echo "$REPO" | cut -d'/' -f1)
+          REPO_NAME=$(echo "$REPO" | cut -d'/' -f2)
+
           # Build final prompt with context and verdict injection
-          cat > /tmp/final-prompt.txt <<'PROMPT_EOF'
+          cat > /tmp/final-prompt.txt <<PROMPT_EOF
           # Review Context
 
-          **Repository:** $REPO
+          **Repository Owner:** $REPO_OWNER
+          **Repository Name:** $REPO_NAME
           **PR Number:** $PR_NUMBER
           **Base Branch:** $BASE_REF
           **Patch ID:** $PATCH_ID
@@ -313,10 +318,11 @@ jobs:
               "mcp__github__get_pull_request_files"
               "mcp__github__get_pull_request_comments"
               "mcp__github__get_pull_request_reviews"
+              "mcp__github__get_pull_request_review_comments"
               "mcp__github__create_review_comment"
               "mcp__github__resolve_review_thread"
               "mcp__github__list_review_comments"
-              "mcp__github_inline_comment__create_inline_comment"
+              "mcp__github__create_pull_request_review"
 
               # File operations
               "Read"
@@ -349,7 +355,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets[inputs.anthropic_api_key_secret_name] }}
           prompt: ${{ steps.build-prompt.outputs.final_prompt }}
-          track_progress: true
+          # track_progress removed - using custom comment management to work around Issue #602
           claude_args: |
             --model ${{ inputs.model }}
             --max-turns ${{ inputs.max_turns }}

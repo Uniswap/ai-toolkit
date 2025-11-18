@@ -986,10 +986,10 @@ jobs:
 ```
 mcp__github__get_pull_request, mcp__github__get_pull_request_files,
 mcp__github__get_pull_request_comments, mcp__github__get_pull_request_reviews,
-mcp__github__create_review_comment, mcp__github__resolve_review_thread,
-mcp__github__list_review_comments, mcp__github_inline_comment__create_inline_comment,
-Read, Grep, Glob, Bash(git log:*), Bash(git diff:*), Bash(git show:*), Bash(git blame:*),
-Bash(git rev-parse:*), Write
+mcp__github__get_pull_request_review_comments, mcp__github__create_review_comment,
+mcp__github__resolve_review_thread, mcp__github__list_review_comments,
+mcp__github__create_pull_request_review, Read, Grep, Glob, Bash(git log:*),
+Bash(git diff:*), Bash(git show:*), Bash(git blame:*), Bash(git rev-parse:*), Write
 ```
 
 **Prompt Priority** (when no `custom_prompt` or `custom_prompt_path` provided):
@@ -1138,6 +1138,58 @@ jobs:
   - Resolves threads for fixed issues
   - Adds follow-up comments for persistent issues
   - Creates new comments for new issues
+
+#### Review Context Structure
+
+The workflow automatically provides Claude with structured context about the PR being reviewed. This context is prepended to your custom prompt (if provided) or the default prompt.
+
+**Context Format:**
+
+```markdown
+# Review Context
+
+**Repository Owner:** <owner>
+**Repository Name:** <repo>
+**PR Number:** <number>
+**Base Branch:** <branch>
+**Patch ID:** <hash>
+
+---
+```
+
+**Example:**
+
+```markdown
+# Review Context
+
+**Repository Owner:** Uniswap
+**Repository Name:** ai-toolkit
+**PR Number:** 174
+**Base Branch:** next
+**Patch ID:** a1b2c3d4e5f6...
+
+---
+```
+
+**Using This Context in Custom Prompts:**
+
+When writing custom prompts, Claude has access to this context and can extract these values for GitHub MCP tool calls. For example, when creating inline comments:
+
+```typescript
+mcp__github__create_pull_request_review({
+  owner: '<Repository Owner from context>',
+  repo: '<Repository Name from context>',
+  pull_number: <PR Number from context>,
+  // ... rest of parameters
+});
+```
+
+**Important Notes:**
+
+- **Never hardcode** repository owner, name, or PR number in custom prompts
+- Claude will extract these values from the review context automatically
+- The context is always available and consistent across all reviews
+- Custom prompts should reference "the review context" when instructing Claude on tool usage
 
 #### Patch-ID Mechanism (Rebase Detection)
 
