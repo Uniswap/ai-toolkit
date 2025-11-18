@@ -988,8 +988,8 @@ mcp__github__get_pull_request, mcp__github__get_pull_request_files,
 mcp__github__get_pull_request_comments, mcp__github__get_pull_request_reviews,
 mcp__github__create_review_comment, mcp__github__resolve_review_thread,
 mcp__github__list_review_comments, mcp__github_inline_comment__create_inline_comment,
-Read, Grep, Glob, Bash(git log), Bash(git diff), Bash(git show), Bash(git blame),
-Bash(git rev-parse HEAD), Bash(git log --oneline), Write
+Read, Grep, Glob, Bash(git log:*), Bash(git diff:*), Bash(git show:*), Bash(git blame:*),
+Bash(git rev-parse:*), Write
 ```
 
 **Prompt Priority** (when no `custom_prompt` or `custom_prompt_path` provided):

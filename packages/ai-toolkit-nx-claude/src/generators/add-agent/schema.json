@@ -48,7 +48,7 @@
     "model": {
       "type": "string",
       "description": "The AI model to use for this agent",
-      "enum": ["sonnet-4.5", "opus-4.1"],
+      "enum": ["sonnet-4.5", "opus-4.1", "haiku-4.5"],
       "x-prompt": {
         "message": "🧠 Which AI model should this agent use?",
         "type": "list"
