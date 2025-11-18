@@ -57,17 +57,17 @@ readonly COMMENT_MARKER="<!-- claude-pr-review-bot -->"
 # Job URL for linking
 readonly JOB_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
-# Logging functions
+# Logging functions (all output to stderr to avoid polluting function returns)
 log_info() {
-  echo "ℹ️  $1"
+  echo "ℹ️  $1" >&2
 }
 
 log_success() {
-  echo "✅ $1"
+  echo "✅ $1" >&2
 }
 
 log_warning() {
-  echo "⚠️  $1"
+  echo "⚠️  $1" >&2
 }
 
 log_error() {
