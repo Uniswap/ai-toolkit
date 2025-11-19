@@ -154,6 +154,16 @@ jobs:
           echo "We've already reviewed this exact code, so skipping to save API costs."
           exit 0
 
+      # Create/update PR comment to indicate review has started
+      - name: Post Review Start Comment
+        if: steps.cache-check.outputs.cache-hit != 'true'
+        run: ./.github/scripts/manage-claude-review-comment.sh start
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
       # Build final prompt with custom content + verdict injection
       - name: Build Review Prompt
         if: steps.cache-check.outputs.cache-hit != 'true'
@@ -201,11 +211,16 @@ jobs:
             echo "✅ Loaded default prompt from Uniswap/ai-toolkit"
           fi
 
+          # Parse repository owner and name from REPO (format: owner/repo)
+          REPO_OWNER=$(echo "$REPO" | cut -d'/' -f1)
+          REPO_NAME=$(echo "$REPO" | cut -d'/' -f2)
+
           # Build final prompt with context and verdict injection
-          cat > /tmp/final-prompt.txt <<'PROMPT_EOF'
+          cat > /tmp/final-prompt.txt <<PROMPT_EOF
           # Review Context
 
-          **Repository:** $REPO
+          **Repository Owner:** $REPO_OWNER
+          **Repository Name:** $REPO_NAME
           **PR Number:** $PR_NUMBER
           **Base Branch:** $BASE_REF
           **Patch ID:** $PATCH_ID
@@ -291,13 +306,42 @@ jobs:
         env:
           INPUT_ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
         run: |
-          # Use bash variable assignment to preserve parentheses in Bash(...) tool specs
-          # GitHub Actions expression evaluator would strip parentheses if inline
+          # Build allowed tools list programmatically to avoid shell parsing issues
           if [ -n "$INPUT_ALLOWED_TOOLS" ]; then
             ALLOWED_TOOLS="$INPUT_ALLOWED_TOOLS"
           else
-            # Default permissive tool set including git commands with arguments
-            ALLOWED_TOOLS='mcp__github__get_pull_request,mcp__github__get_pull_request_files,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_reviews,mcp__github__create_review_comment,mcp__github__resolve_review_thread,mcp__github__list_review_comments,mcp__github_inline_comment__create_inline_comment,Read,Grep,Glob,Bash(git log),Bash(git diff),Bash(git show),Bash(git blame),Bash(git rev-parse HEAD),Bash(git log --oneline),Write'
+            # Define tools as array for better maintainability and to eliminate
+            # shell string parsing nuances. Each tool is a separate array element.
+            TOOLS=(
+              # GitHub MCP tools for PR interaction
+              "mcp__github__get_pull_request"
+              "mcp__github__get_pull_request_files"
+              "mcp__github__get_pull_request_comments"
+              "mcp__github__get_pull_request_reviews"
+              "mcp__github__get_pull_request_review_comments"
+              "mcp__github__create_review_comment"
+              "mcp__github__resolve_review_thread"
+              "mcp__github__list_review_comments"
+              "mcp__github__create_pull_request_review"
+
+              # File operations
+              "Read"
+              "Grep"
+              "Glob"
+
+              # Git commands (wildcard patterns allow any arguments/flags)
+              "Bash(git log:*)"
+              "Bash(git diff:*)"
+              "Bash(git show:*)"
+              "Bash(git blame:*)"
+              "Bash(git rev-parse:*)"
+
+              # File writing
+              "Write"
+            )
+
+            # Join array elements with commas (no spaces)
+            ALLOWED_TOOLS=$(IFS=,; echo "${TOOLS[*]}")
           fi
 
           echo "allowed_tools=$ALLOWED_TOOLS" >> $GITHUB_OUTPUT
@@ -311,7 +355,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets[inputs.anthropic_api_key_secret_name] }}
           prompt: ${{ steps.build-prompt.outputs.final_prompt }}
-          track_progress: true
+          # track_progress removed - using custom comment management to work around Issue #602
           claude_args: |
             --model ${{ inputs.model }}
             --max-turns ${{ inputs.max_turns }}
@@ -326,6 +370,26 @@ jobs:
         env:
           PR_NUMBER: ${{ inputs.pr_number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Update PR comment with final results (success case)
+      - name: Post Review Completion Comment
+        if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        run: ./.github/scripts/manage-claude-review-comment.sh finish
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
+      # Update PR comment with error status (failure case)
+      - name: Post Review Error Comment
+        if: steps.cache-check.outputs.cache-hit != 'true' && failure()
+        run: ./.github/scripts/manage-claude-review-comment.sh error
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
 
       # Save successful review to cache
       - name: Save Review Cache Marker

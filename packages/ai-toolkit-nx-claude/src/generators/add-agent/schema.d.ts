@@ -5,5 +5,5 @@ export interface AddAgentGeneratorSchema {
   newPackageDescription?: string;
   name: string;
   description?: string;
-  model?: 'sonnet-4.5' | 'opus-4.1';
+  model?: 'sonnet-4.5' | 'opus-4.1' | 'haiku-4.5';
 }

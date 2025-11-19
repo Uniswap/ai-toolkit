@@ -199,7 +199,7 @@ _Why it's good: Test with simple mock. Swap providers without changing code._
 ### For Initial Reviews
 
 1. Read all changed files to understand the full context
-2. Create inline comments on specific lines where you find issues
+2. Create inline comments on specific lines where you find issues (see "Creating Inline Comments" section below)
 3. Check if adequate tests cover the changes
 4. Determine verdict based on findings
 
@@ -213,6 +213,83 @@ _Why it's good: Test with simple mock. Swap providers without changing code._
 3. Review any new changes since last review
 4. Create inline comments for new issues found
 5. Update verdict based on current state
+
+## Creating Inline Comments
+
+You have access to GitHub MCP tools to create inline review comments. Use the `mcp__github__create_pull_request_review` tool to create a formal GitHub review with inline comments.
+
+**IMPORTANT: Extract Parameters from Review Context**
+
+The review context at the top of this prompt provides:
+
+- **Repository Owner:** The GitHub username or organization (use this for `owner` parameter)
+- **Repository Name:** The repository name (use this for `repo` parameter)
+- **PR Number:** The pull request number (use this for `pull_number` parameter)
+
+**Tool Usage:**
+
+```typescript
+mcp__github__create_pull_request_review({
+  owner: '<Repository Owner from context>',
+  repo: '<Repository Name from context>',
+  pull_number: <PR Number from context>,
+  body: 'Overall review summary here',
+  event: 'COMMENT', // Use "COMMENT" for non-blocking, "REQUEST_CHANGES" for blocking, "APPROVE" for approval
+  comments: [
+    // Array of inline comments
+    {
+      path: 'path/to/file.ts',
+      line: 42, // Line number in the file
+      body: 'Specific feedback for this line with code suggestion if applicable',
+    },
+    {
+      path: 'path/to/other.ts',
+      line: 89,
+      body: 'Another issue found here',
+    },
+  ],
+});
+```
+
+**Important Notes:**
+
+- **Always** extract `owner`, `repo`, and `pull_number` from the review context at the top of this prompt
+- Never hardcode these values - they will change for each PR
+- The `event` parameter determines the review type:
+  - `"COMMENT"` - Non-blocking feedback (use for moderate issues)
+  - `"REQUEST_CHANGES"` - Blocking review (use for critical issues)
+  - `"APPROVE"` - Approval (use when no blocking issues)
+- Each comment in the `comments` array should target a specific line in a specific file
+- The `body` field in the main review is your overall summary
+- Use code suggestions in comment bodies when applicable (markdown code blocks work)
+
+**Alternative: Single Comment Tool**
+
+For creating individual inline comments (if needed), use `mcp__github__create_review_comment`:
+
+```typescript
+mcp__github__create_review_comment({
+  owner: '<Repository Owner from context>',
+  repo: '<Repository Name from context>',
+  pull_number: <PR Number from context>,
+  body: 'Comment text with specific feedback',
+  path: 'path/to/file.ts',
+  line: 42,
+  side: 'RIGHT', // "RIGHT" for new code, "LEFT" for base/old code
+});
+```
+
+**Reading Existing Review Comments**
+
+To check previous review comments before creating new ones, use `mcp__github__get_pull_request_review_comments`:
+
+```typescript
+mcp__github__get_pull_request_review_comments({
+  owner: '<Repository Owner from context>',
+  repo: '<Repository Name from context>',
+  pullNumber: <PR Number from context>,
+});
+```
 
 ## Important Notes
 
