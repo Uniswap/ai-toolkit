@@ -363,6 +363,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: ${{ steps.build-prompt.outputs.final_prompt }}
           track_progress: true
+          allowed_bots: dependabot
           claude_args: ${{ steps.build-args.outputs.claude_args }}
           additional_permissions: |
             actions: read
