@@ -51,10 +51,9 @@ on:
         default: 'claude-sonnet-4-5-20250929'
 
       max_turns:
-        description: 'Maximum conversation turns for Claude'
+        description: 'Maximum conversation turns for Claude. Omit to use unlimited turns (may help with track_progress Issue #602).'
         required: false
         type: number
-        default: 15
 
       custom_prompt:
         description: 'Custom prompt text (overrides prompt file and default). Verdict logic will be automatically appended.'
@@ -293,6 +292,8 @@ jobs:
         id: build-args
         env:
           INPUT_ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
+          INPUT_MAX_TURNS: ${{ inputs.max_turns }}
+          INPUT_MODEL: ${{ inputs.model }}
         run: |
           # Build allowed tools list programmatically to avoid shell parsing issues
           if [ -n "$INPUT_ALLOWED_TOOLS" ]; then
@@ -332,7 +333,25 @@ jobs:
             ALLOWED_TOOLS=$(IFS=,; echo "${TOOLS[*]}")
           fi
 
+          # Build claude_args conditionally based on provided inputs
+          CLAUDE_ARGS="--model $INPUT_MODEL"
+
+          # Only add --max-turns if explicitly provided (not empty)
+          if [ -n "$INPUT_MAX_TURNS" ]; then
+            CLAUDE_ARGS="$CLAUDE_ARGS
+            --max-turns $INPUT_MAX_TURNS"
+            echo "ℹ️  Including --max-turns $INPUT_MAX_TURNS"
+          else
+            echo "ℹ️  Omitting --max-turns (unlimited turns)"
+          fi
+
+          CLAUDE_ARGS="$CLAUDE_ARGS
+            --allowedTools $ALLOWED_TOOLS"
+
           echo "allowed_tools=$ALLOWED_TOOLS" >> $GITHUB_OUTPUT
+          echo "claude_args<<CLAUDE_ARGS_EOF" >> $GITHUB_OUTPUT
+          echo "$CLAUDE_ARGS" >> $GITHUB_OUTPUT
+          echo "CLAUDE_ARGS_EOF" >> $GITHUB_OUTPUT
           echo "✅ Configured allowed tools (${#ALLOWED_TOOLS} chars)"
 
       # Run Claude Code Action to perform the review
@@ -344,10 +363,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: ${{ steps.build-prompt.outputs.final_prompt }}
           track_progress: true
-          claude_args: |
-            --model ${{ inputs.model }}
-            --max-turns ${{ inputs.max_turns }}
-            --allowedTools ${{ steps.build-args.outputs.allowed_tools }}
+          claude_args: ${{ steps.build-args.outputs.claude_args }}
           additional_permissions: |
             actions: read
 
