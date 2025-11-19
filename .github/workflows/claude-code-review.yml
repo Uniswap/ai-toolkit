@@ -33,7 +33,7 @@ jobs:
       # model: 'claude-opus-4-1-20250805'
 
       # Allow standard review conversation turns
-      max_turns: 15
+      # max_turns: 15
 
       # Standard timeout for most PRs
       timeout_minutes: 20

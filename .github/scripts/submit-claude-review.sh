@@ -35,8 +35,9 @@ set -euo pipefail
 
 # Configuration
 readonly PR_NUMBER="${PR_NUMBER:?Error: PR_NUMBER environment variable is required}"
-readonly VERDICT_FILE=".claude-review-verdict.txt"
-readonly SUMMARY_FILE=".claude-review-summary.md"
+readonly WORKSPACE_ROOT="${GITHUB_WORKSPACE:-.}"
+readonly VERDICT_FILE="$WORKSPACE_ROOT/.claude-review-verdict.txt"
+readonly SUMMARY_FILE="$WORKSPACE_ROOT/.claude-review-summary.md"
 readonly DEFAULT_VERDICT="COMMENT"
 readonly DEFAULT_SUMMARY="Claude AI completed the code review. See inline comments for detailed feedback."
 
