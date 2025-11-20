@@ -86,15 +86,6 @@ jobs:
     steps:
       - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
 
-      - name: Import GPG key
-        uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec # v6
-        with:
-          gpg_private_key: ${{ secrets.SERVICE_ACCOUNT_GPG_PRIVATE_KEY }}
-          git_user_signingkey: true
-          git_commit_gpgsign: true
-          git_tag_gpgsign: true
-          git_config_global: true
-
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
@@ -127,17 +118,10 @@ jobs:
           fi
           echo "✅ package-lock.json unchanged after npm ci"
 
-      - name: Configure Git identity for service account
+      - name: Configure Git
         run: |
-          git config user.name "Uniswap Labs Service Account"
-          git config user.email "hello-happy-puppy@uniswap.org"
-
-      - name: Verify GPG configuration
-        run: |
-          echo "GPG signing enabled: $(git config commit.gpgsign)"
-          echo "GPG signing key: $(git config user.signingkey)"
-          echo "Git user name: $(git config user.name)"
-          echo "Git user email: $(git config user.email)"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
 
       - name: Determine npm tag
         id: npm-tag
@@ -896,27 +880,6 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.WORKFLOW_PAT }}
 
-      - name: Import GPG key
-        uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec # v6
-        with:
-          gpg_private_key: ${{ secrets.SERVICE_ACCOUNT_GPG_PRIVATE_KEY }}
-          git_user_signingkey: true
-          git_commit_gpgsign: true
-          git_tag_gpgsign: true
-          git_config_global: true
-
-      - name: Configure Git identity for service account
-        run: |
-          git config user.name "Uniswap Labs Service Account"
-          git config user.email "hello-happy-puppy@uniswap.org"
-
-      - name: Verify GPG configuration
-        run: |
-          echo "GPG signing enabled: $(git config commit.gpgsign)"
-          echo "GPG signing key: $(git config user.signingkey)"
-          echo "Git user name: $(git config user.name)"
-          echo "Git user email: $(git config user.email)"
-
       - name: Install Graphite CLI
         run: |
           # Install Graphite CLI using npm (faster than installing Homebrew)
@@ -924,6 +887,11 @@ jobs:
 
           # Verify installation
           gt --version
+
+      - name: Configure Git
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
 
       - name: Sync next branch with main
         env:
