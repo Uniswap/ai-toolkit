@@ -193,6 +193,37 @@ console.log(`\n✅ Updated ${updates.size} CLAUDE.md file(s)`);
 console.log('\nRun "git diff **/*CLAUDE.md" to review changes.');
 ```
 
+## Length Constraints
+
+**CRITICAL: All updated CLAUDE.md files MUST remain concise and focused.**
+
+- **Token Limit**: 500 tokens or less (~2000 characters in English)
+- **Why**: Keeps documentation scannable and focused on essentials
+- **How to achieve**:
+  - Use bullet points instead of paragraphs
+  - Include only essential commands/dependencies
+  - Avoid verbose descriptions (5-10 words max per item)
+  - Skip redundant sections
+  - Use `[TODO]` placeholders instead of long explanations
+
+**When adding updates:**
+
+1. Check current CLAUDE.md size before adding content
+2. If approaching 2000 characters, trim before adding:
+   - Remove outdated sections
+   - Consolidate similar items
+   - Shorten verbose descriptions
+3. After updates, verify file is ≤2000 characters
+4. If exceeded, remove least important content until within limit
+
+**Priority for content retention (when trimming):**
+
+1. Overview/Purpose (always keep)
+2. Commands/Scripts (essential)
+3. Recent changes (current updates)
+4. Key dependencies (top 5-10)
+5. Structure/additional notes (remove first)
+
 ## Update Strategies
 
 ### New Files Added
