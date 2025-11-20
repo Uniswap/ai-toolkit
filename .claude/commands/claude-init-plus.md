@@ -242,6 +242,28 @@ If user selects "review", show details for each file and allow selective skippin
 
 **If ANY checklist item fails → DO NOT auto-apply → Show user for confirmation**
 
+## Length Constraints
+
+**CRITICAL: All generated CLAUDE.md files MUST be concise and focused.**
+
+- **Token Limit**: 500 tokens or less (~2000 characters in English)
+- **Why**: Keeps documentation scannable and focused on essentials
+- **How to achieve**:
+  - Use bullet points instead of paragraphs
+  - Include only essential commands/dependencies
+  - Avoid verbose descriptions (5-10 words max per item)
+  - Skip redundant sections
+  - Use `[TODO]` placeholders instead of long explanations
+
+**Before writing any CLAUDE.md file:**
+
+1. Count approximate characters (use `wc -c` or similar)
+2. If >2000 characters, trim non-essential content:
+   - Remove optional sections (Structure, etc.)
+   - Shorten dependency descriptions
+   - Consolidate similar items
+3. Verify final output is ≤2000 characters
+
 ## Content Template
 
 Use this adaptive template for ALL core nodes:
@@ -320,8 +342,13 @@ to keep this documentation synchronized with the codebase.
      - For working dirs: List files, infer purpose
    - Populate template with gathered info
    - Add dependency descriptions (use standard descriptions for common packages, [TODO] for others)
+   - **Verify length constraint**: Check character count is ≤2000 characters
+   - If too long, trim by:
+     - Limiting dependency list to top 5-10 most important
+     - Using shorter descriptions (5-10 words max)
+     - Removing optional sections
    - Write file using Write tool
-   - Report: "✅ Created {path}/CLAUDE.md"
+   - Report: "✅ Created {path}/CLAUDE.md ({n} chars)"
 
 3. **If file exists:**
 
@@ -358,6 +385,8 @@ to keep this documentation synchronized with the codebase.
    - For packages: All commands/scripts/tasks from manifest documented
    - No placeholder text like "[Project Name]" remains
    - All dependency entries have descriptions (even if [TODO])
+   - **File size**: Must be ≤2000 characters (verify with `wc -c`)
+   - If >2000 characters, file is TOO VERBOSE and must be trimmed
 
 3. **Required Sections Present**
 
@@ -377,6 +406,7 @@ to keep this documentation synchronized with the codebase.
 
 - ANY Write/Edit operation failed
 - File size is 0 bytes
+- File size exceeds 2000 characters (too verbose)
 - Required sections missing
 - Cannot parse as valid Markdown
 
