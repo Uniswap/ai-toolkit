@@ -194,25 +194,127 @@ async function processPayment(amount: number, gateway: PaymentGateway) {
 
 _Why it's good: Test with simple mock. Swap providers without changing code._
 
+## Review Output Requirements
+
+**CRITICAL: Your review MUST include inline comments on specific lines of code.**
+
+This is not optional - every code review must have inline comments using the GitHub MCP tools. Your review output must include:
+
+1. **Inline Comments (REQUIRED)**:
+
+   - Use `mcp__github__create_pull_request_review` to create a formal review WITH inline comments
+   - Comment on specific lines where you find issues, improvements, or noteworthy patterns
+   - Minimum 1 inline comment per review (even if just acknowledging clean code)
+   - If no issues found, create positive inline comments like: "Line X: Good error handling here"
+
+2. **Review Summary (REQUIRED)**:
+   - Overall assessment in the review body
+   - Verdict (APPROVE/REQUEST_CHANGES/COMMENT)
+   - Summary files (.claude-review-verdict.txt and .claude-review-summary.md)
+
+**Reviews without inline comments are incomplete and will be rejected.**
+
 ## Review Process
 
 ### For Initial Reviews
 
 1. Read all changed files to understand the full context
-2. Create inline comments on specific lines where you find issues
-3. Check if adequate tests cover the changes
-4. Determine verdict based on findings
+2. **BEFORE creating comments**: Use `mcp__github__get_pull_request_review_comments` to check for existing review comments from previous runs or human reviewers
+3. **Create inline comments** on specific lines where you find issues, improvements, or positive patterns (see "Creating Inline Comments" section below)
+4. Check if adequate tests cover the changes
+5. Determine verdict based on findings
 
 ### For Updated PRs (Re-reviews)
 
-1. Check your previous inline comments
-2. For each previous comment:
-   - If issue is **fixed**: Resolve the comment thread
-   - If issue **persists**: Add follow-up explaining current state
+1. **Fetch all previous review comments** using `mcp__github__get_pull_request_review_comments`
+2. **Read human reviewer comments** from `mcp__github__get_pull_request_comments` to avoid duplication
+3. For each previous Claude comment thread:
+   - Read the code that was commented on
+   - Compare with current code at that line
+   - If issue is **fixed**: Use `mcp__github__resolve_review_thread` to auto-resolve with explanation
+   - If issue **persists**: Add follow-up comment explaining current state
    - If issue is **worse**: Note the regression
-3. Review any new changes since last review
-4. Create inline comments for new issues found
-5. Update verdict based on current state
+4. Review any new changes since last review
+5. Create inline comments for new issues found (avoiding duplication with existing comments)
+6. Update verdict based on current state
+
+## Creating Inline Comments
+
+You have access to GitHub MCP tools to create inline review comments. **You MUST use these tools for every review.**
+
+**IMPORTANT: Extract Parameters from Review Context**
+
+The review context at the top of this prompt provides:
+
+- **Repository Owner:** The GitHub username or organization (use for `owner` parameter)
+- **Repository Name:** The repository name (use for `repo` parameter)
+- **PR Number:** The pull request number (use for `pull_number` parameter)
+
+**Primary Method: Create Full Review with Inline Comments**
+
+Use `mcp__github__create_pull_request_review` to create a formal GitHub review with inline comments:
+
+```typescript
+mcp__github__create_pull_request_review({
+  owner: '<Repository Owner from context>',
+  repo: '<Repository Name from context>',
+  pull_number: <PR Number from context>,
+  body: 'Overall review summary here',
+  event: 'COMMENT', // Use "COMMENT" for non-blocking, "REQUEST_CHANGES" for blocking, "APPROVE" for approval
+  comments: [
+    {
+      path: 'path/to/file.ts',
+      line: 42,
+      body: 'Specific feedback for this line with code suggestion if applicable',
+    },
+    {
+      path: 'path/to/other.ts',
+      line: 89,
+      body: 'Another issue found here',
+    },
+  ],
+});
+```
+
+**Alternative: Individual Review Comments**
+
+For creating single inline comments, use `mcp__github__create_review_comment`:
+
+```typescript
+mcp__github__create_review_comment({
+  owner: '<Repository Owner from context>',
+  repo: '<Repository Name from context>',
+  pull_number: <PR Number from context>,
+  body: 'Comment text with specific feedback',
+  path: 'path/to/file.ts',
+  line: 42,
+  side: 'RIGHT', // "RIGHT" for new code, "LEFT" for base/old code
+});
+```
+
+**Reading Existing Comments (Do This First)**
+
+Before creating new comments, check what's already been said:
+
+```typescript
+// Get previous review comments from Claude
+mcp__github__get_pull_request_review_comments({
+  owner: '<Repository Owner from context>',
+  repo: '<Repository Name from context>',
+  pullNumber: <PR Number from context>,
+});
+
+// Get all PR comments (including human reviewers)
+mcp__github__get_pull_request_comments({
+  owner: '<Repository Owner from context>',
+  repo: '<Repository Name from context>',
+  pull_number: <PR Number from context>,
+});
+```
+
+**Resolving Fixed Issues**
+
+When re-reviewing and an issue has been fixed, resolve the thread automatically (if the tool is available in your toolkit).
 
 ## Important Notes
 
@@ -280,3 +382,5 @@ Your review should make developers:
 4. **Move faster** - Better structure means less debugging time
 
 Keep it high-signal. Every comment should prevent a real problem or teach something genuinely useful.
+
+Post a summary for each of the sections found in the `Review Priorities` section above.
