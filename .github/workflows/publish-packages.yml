@@ -10,8 +10,8 @@ name: Publish Packages
 # 2. ANTHROPIC_API_KEY: API key for AI-powered changelog generation
 #    - Required to generate intelligent release changelogs
 #    - Create at: https://console.anthropic.com/settings/keys
-# 3. SLACK_WEBHOOK_URL: Incoming webhook URL for release notifications
-#    - Required to send notifications to #ai-internal Slack channel
+# 3. SLACK_WEBHOOK_URL: Incoming webhook URL for release and error notifications
+#    - Required to send success and error notifications to Slack channel
 #    - Create at: https://api.slack.com/apps > Incoming Webhooks
 # 4. NODE_AUTH_TOKEN: NPM authentication token
 #    - Required to publish packages to NPM registry
@@ -32,9 +32,15 @@ name: Publish Packages
 # 2. generate-changelog: Generates AI-powered changelog using reusable workflow
 # 3. notify-release: Sends Slack notification with changelog using reusable workflow
 # 4. sync-next: Syncs 'next' branch with 'main' after production releases
+# 5. notify-error: Sends Slack error notification if any jobs fail
 #
 # The changelog generation and notification are separated into reusable workflows
 # for better maintainability and reusability across different workflows.
+#
+# ERROR HANDLING:
+# - All job failures trigger Slack notifications via the notify-error job
+# - Error notifications include failed job names, commit details, and workflow run link
+# - Ensures the team is immediately notified of any publishing issues
 
 on:
   push:
@@ -988,3 +994,49 @@ jobs:
           else
             echo "⚠️ Graphite sync also failed. Manual intervention required."
           fi
+
+  notify-error:
+    name: Notify workflow errors via Slack
+    runs-on: ubuntu-24.04
+    needs: [publish, generate-changelog, notify-release, sync-next]
+    if: always() && contains(needs.*.result, 'failure')
+    permissions:
+      contents: read
+
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Build error notification
+        id: build-message
+        run: |
+          # Build list of failed jobs
+          FAILED=""
+          [[ "${{ needs.publish.result }}" == "failure" ]] && FAILED="${FAILED}publish, "
+          [[ "${{ needs.generate-changelog.result }}" == "failure" ]] && FAILED="${FAILED}generate-changelog, "
+          [[ "${{ needs.notify-release.result }}" == "failure" ]] && FAILED="${FAILED}notify-release, "
+          [[ "${{ needs.sync-next.result }}" == "failure" ]] && FAILED="${FAILED}sync-next, "
+          FAILED="${FAILED%, }"  # Remove trailing comma
+
+          echo "failed_jobs=$FAILED" >> $GITHUB_OUTPUT
+
+      - name: Send Slack error notification
+        continue-on-error: true
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            text: "🚨 Publish Packages Workflow Failed"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "🚨 *Publish Packages Workflow Failed*\n\nBranch: `${{ github.ref_name }}`\nFailed: ${{ steps.build-message.outputs.failed_jobs }}"
+              - type: "actions"
+                elements:
+                  - type: "button"
+                    text:
+                      type: "plain_text"
+                      text: "View Workflow"
+                    url: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    style: "danger"

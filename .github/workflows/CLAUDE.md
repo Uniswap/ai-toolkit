@@ -13,7 +13,7 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 
 ### Release & Deployment (2 workflows)
 
-- `publish-packages.yml` - Versions and publishes packages to NPM
+- `publish-packages.yml` - Versions and publishes packages to NPM with Slack error notifications
 - `release-update-production.yml` - Creates production sync PRs with AI changelogs
 
 ### Code Review & PR Management (2 workflows)
@@ -50,7 +50,7 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 - `claude-code.yml` - Enables @claude mentions
 - `claude-code-review.yml` - Automated code reviews
 - `claude-welcome.yml` - New PR welcomes
-- `publish-packages.yml` - Package release automation
+- `publish-packages.yml` - Package release automation with error notifications to Slack
 - `release-update-production.yml` - Production sync automation
 
 ## Subdirectories
@@ -81,7 +81,7 @@ Common secrets referenced:
 
 - `ANTHROPIC_API_KEY` - Claude AI API authentication
 - `NPM_TOKEN` - NPM registry publishing
-- `SLACK_WEBHOOK_URL` - Slack notifications
+- `SLACK_WEBHOOK_URL` - Slack notifications (success and error alerts)
 - `GITHUB_TOKEN` - Built-in token (automatic)
 
 ## Usage Patterns
@@ -105,6 +105,20 @@ jobs:
 - **On Push to main/next**: `publish-packages.yml`
 - **On Issue Comment**: `claude-code.yml` (when @claude mentioned)
 - **Manual Dispatch**: `release-update-production.yml`, `claude-code-review.yml`
+
+### Error Handling & Notifications
+
+The `publish-packages.yml` workflow includes comprehensive error handling:
+
+- **Automatic Slack Notifications**: Any job failure triggers an error notification to Slack
+- **Detailed Error Context**: Notifications include:
+  - Failed job names (publish, generate-changelog, notify-release, sync-next)
+  - Branch and commit information
+  - Direct links to workflow run and commit
+- **Non-blocking Notifications**: Error notification failures won't prevent workflow completion
+- **Multi-job Monitoring**: The `notify-error` job tracks all dependent jobs and reports any failures
+
+This ensures the team is immediately alerted when publishing issues occur, enabling fast response to critical failures.
 
 ## Development Guidelines
 
