@@ -99,6 +99,16 @@ Invoke **agent-name** with parameters
   - Automatically detects mode based on keywords or defaults to update
   - Leverages claude-docs-initializer for discovery-driven initialization
   - Leverages claude-docs-manager for change-driven updates
+- **claude-init-plus**: Intelligent CLAUDE.md generation at all core nodes in the workspace
+  - Scans Nx workspace to identify core nodes (packages/apps with package.json, working directories)
+  - Generates comprehensive CLAUDE.md files with appropriate templates
+  - Supports both creation and updates with preservation rules
+  - Includes auto-update instructions for self-maintaining documentation
+- **update-claude-md**: Fast CLAUDE.md synchronization based on git changes
+  - Auto-detects staged changes and updates affected CLAUDE.md files
+  - Groups changes by nearest CLAUDE.md for efficient updates
+  - Simple heuristics for determining update necessity
+  - 95% faster than previous implementation (~1-3 seconds vs 10-60 seconds)
 
 ### Core Development Commands
 
