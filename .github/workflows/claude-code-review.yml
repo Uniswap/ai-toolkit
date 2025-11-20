@@ -16,6 +16,12 @@ on:
   pull_request:
     types: [opened, synchronize, ready_for_review]
 
+# Ensure only one review runs at a time per PR
+# New reviews wait for the current one to complete before starting
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
 jobs:
   claude-review:
     # Skip merge queue PRs and draft PRs
