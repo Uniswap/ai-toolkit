@@ -45,3 +45,22 @@ jobs:
 
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  # Auto-merge Dependabot security updates after successful review
+  auto-merge-dependabot:
+    needs: claude-review
+    if: |
+      github.actor == 'dependabot[bot]' &&
+      (contains(github.event.pull_request.title, 'security') || contains(github.event.pull_request.title, 'Bump')) &&
+      needs.claude-review.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Enable auto-merge for Dependabot updates
+        run: gh pr merge --auto --squash "$PR_NUMBER"
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
