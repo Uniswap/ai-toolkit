@@ -126,6 +126,35 @@ jobs:
           echo "📊 Patch-ID: ${PATCH_ID:0:12}... (first 12 chars)"
           echo "   This ID stays the same across rebases if code hasn't changed"
 
+      # Detect trivial PRs for fast-path review
+      - name: Detect Trivial PR
+        id: pr-size
+        env:
+          BASE_REF: ${{ inputs.base_ref }}
+        run: |
+          # Find the merge base between base branch and HEAD
+          MERGE_BASE=$(git merge-base origin/$BASE_REF HEAD)
+
+          # Count lines changed (additions + deletions)
+          STATS=$(git diff --shortstat ${MERGE_BASE}..HEAD)
+
+          # Extract insertions and deletions, default to 0 if not present
+          INSERTIONS=$(echo "$STATS" | grep -oP '\d+(?= insertion)' || echo "0")
+          DELETIONS=$(echo "$STATS" | grep -oP '\d+(?= deletion)' || echo "0")
+          TOTAL_CHANGES=$((INSERTIONS + DELETIONS))
+
+          echo "lines_changed=$TOTAL_CHANGES" >> $GITHUB_OUTPUT
+          echo "📊 Total lines changed: $TOTAL_CHANGES"
+
+          # Determine if this is a trivial PR (< 20 lines changed)
+          if [ "$TOTAL_CHANGES" -lt 20 ]; then
+            echo "is_trivial=true" >> $GITHUB_OUTPUT
+            echo "✨ Trivial PR detected (< 20 lines) - will use fast review mode"
+          else
+            echo "is_trivial=false" >> $GITHUB_OUTPUT
+            echo "📝 Standard PR - will use comprehensive review mode"
+          fi
+
       # Check cache to see if we've already reviewed this exact code
       - name: Check Review Cache
         id: cache-check
@@ -214,6 +243,28 @@ jobs:
 
           # Append custom prompt content
           echo "$CUSTOM_PROMPT" >> /tmp/final-prompt.txt
+
+          # Append fast-review mode instructions for trivial PRs
+          IS_TRIVIAL="${{ steps.pr-size.outputs.is_trivial }}"
+          if [ "$IS_TRIVIAL" = "true" ]; then
+            cat >> /tmp/final-prompt.txt <<TRIVIAL_MODE_EOF
+
+          ---
+
+          # 🚀 Fast Review Mode (Trivial PR)
+
+          This PR has fewer than 20 lines of changes. Use an expedited review process:
+
+          1. **Quick scan**: Review changed files briefly
+          2. **Focus on critical issues only**: Bugs, security vulnerabilities, breaking changes
+          3. **Skip comprehensive analysis**: Don't need detailed maintainability or improvement suggestions
+          4. **Minimal inline comments**: If the PR only modifies auto-generated files (lockfiles, snapshots), skip inline comments entirely and just acknowledge in summary
+          5. **Fast verdict**: Create verdict files and complete quickly
+
+          **Goal**: Provide value while minimizing review cost for small changes.
+          TRIVIAL_MODE_EOF
+            echo "✨ Added fast-review mode instructions for trivial PR"
+          fi
 
           # Append verdict writing requirements (always injected)
           cat >> /tmp/final-prompt.txt <<VERDICT_EOF
@@ -305,6 +356,7 @@ jobs:
               # GitHub MCP tools for PR interaction
               "mcp__github__get_pull_request"
               "mcp__github__get_pull_request_files"
+              "mcp__github__get_pull_request_diff"
               "mcp__github__get_pull_request_comments"
               "mcp__github__get_pull_request_reviews"
               "mcp__github__get_pull_request_review_comments"
@@ -371,30 +423,288 @@ jobs:
       # Submit formal GitHub review using verdict from Claude
       - name: Submit GitHub Review
         if: steps.cache-check.outputs.cache-hit != 'true' && success()
-        run: ./.github/scripts/submit-claude-review.sh
         env:
           PR_NUMBER: ${{ inputs.pr_number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # Configuration
+          WORKSPACE_ROOT="${GITHUB_WORKSPACE:-.}"
+          VERDICT_FILE="$WORKSPACE_ROOT/.claude-review-verdict.txt"
+          SUMMARY_FILE="$WORKSPACE_ROOT/.claude-review-summary.md"
+          DEFAULT_VERDICT="COMMENT"
+          DEFAULT_SUMMARY="Claude AI completed the code review. See inline comments for detailed feedback."
+
+          echo "ℹ️  Starting GitHub review submission for PR #$PR_NUMBER"
+
+          # Read verdict from file or use default
+          VERDICT="$DEFAULT_VERDICT"
+          if [ -f "$VERDICT_FILE" ]; then
+            VERDICT=$(cat "$VERDICT_FILE" | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')
+            echo "ℹ️  Read verdict from file: $VERDICT"
+          else
+            echo "⚠️  No verdict file found at $VERDICT_FILE, using default: $DEFAULT_VERDICT"
+          fi
+
+          # Validate verdict
+          case "$VERDICT" in
+            APPROVE|REQUEST_CHANGES|COMMENT)
+              echo "✅ Valid verdict: $VERDICT"
+              ;;
+            *)
+              echo "❌ Invalid verdict '$VERDICT', must be APPROVE, REQUEST_CHANGES, or COMMENT"
+              echo "⚠️  Falling back to default: $DEFAULT_VERDICT"
+              VERDICT="$DEFAULT_VERDICT"
+              ;;
+          esac
+
+          # Read summary from file or use default
+          SUMMARY="$DEFAULT_SUMMARY"
+          if [ -f "$SUMMARY_FILE" ]; then
+            SUMMARY=$(cat "$SUMMARY_FILE")
+            echo "ℹ️  Read review summary from file (${#SUMMARY} chars)"
+          else
+            echo "⚠️  No summary file found at $SUMMARY_FILE, using default message"
+          fi
+
+          # Submit GitHub review using gh CLI
+          echo "ℹ️  Submitting GitHub review for PR #$PR_NUMBER..."
+          case "$VERDICT" in
+            APPROVE)
+              gh pr review "$PR_NUMBER" --approve --body "$SUMMARY"
+              echo "✅ Submitted APPROVE review"
+              echo "✨ PR approved - no blocking issues found"
+              ;;
+            REQUEST_CHANGES)
+              gh pr review "$PR_NUMBER" --request-changes --body "$SUMMARY"
+              echo "✅ Submitted REQUEST_CHANGES review (blocking)"
+              echo "🔴 Changes requested - critical issues must be addressed before merge"
+              ;;
+            COMMENT)
+              gh pr review "$PR_NUMBER" --comment --body "$SUMMARY"
+              echo "✅ Submitted COMMENT review (non-blocking)"
+              echo "💬 Review completed - see comments for feedback"
+              ;;
+          esac
+
+          # Cleanup temporary files
+          if [ -f "$VERDICT_FILE" ]; then
+            rm -f "$VERDICT_FILE"
+            echo "ℹ️  Cleaned up $VERDICT_FILE"
+          fi
+          if [ -f "$SUMMARY_FILE" ]; then
+            rm -f "$SUMMARY_FILE"
+            echo "ℹ️  Cleaned up $SUMMARY_FILE"
+          fi
+
+          echo "✅ Review submission completed successfully"
 
       # Update PR comment with final results (success case)
       - name: Post Review Completion Comment
         if: steps.cache-check.outputs.cache-hit != 'true' && success()
-        run: ./.github/scripts/manage-claude-review-comment.sh finish
         env:
           PR_NUMBER: ${{ inputs.pr_number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # Configuration
+          COMMENT_ID_FILE=".claude-review-comment-id"
+          VERDICT_FILE=".claude-review-verdict.txt"
+          SUMMARY_FILE=".claude-review-summary.md"
+          COMMENT_MARKER="<!-- claude-pr-review-bot -->"
+          JOB_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          echo "ℹ️  Preparing to post review completion comment" >&2
+
+          # Get existing comment ID for this PR
+          COMMENT_ID=""
+          if [ -f "$COMMENT_ID_FILE" ]; then
+            COMMENT_ID=$(cat "$COMMENT_ID_FILE")
+            echo "ℹ️  Found cached comment ID: $COMMENT_ID" >&2
+          else
+            echo "ℹ️  Searching for existing Claude review comment..." >&2
+            COMMENT_ID=$(gh api "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              --jq ".[] | select(.body | contains(\"${COMMENT_MARKER}\")) | .id" | head -1 || echo "")
+            if [ -n "$COMMENT_ID" ]; then
+              echo "ℹ️  Found existing comment ID: $COMMENT_ID" >&2
+              echo "$COMMENT_ID" > "$COMMENT_ID_FILE"
+            else
+              echo "ℹ️  No existing comment found" >&2
+            fi
+          fi
+
+          # Read verdict and summary
+          VERDICT="COMMENT"
+          VERDICT_EMOJI="💬"
+          VERDICT_TEXT="Review Completed"
+          VERDICT_COLOR="⚪"
+
+          if [ -f "$VERDICT_FILE" ]; then
+            VERDICT=$(cat "$VERDICT_FILE" | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')
+            echo "ℹ️  Read verdict: $VERDICT" >&2
+          else
+            echo "⚠️  No verdict file found, using default: COMMENT" >&2
+          fi
+
+          # Set emoji and text based on verdict
+          case "$VERDICT" in
+            APPROVE)
+              VERDICT_EMOJI="✅"
+              VERDICT_TEXT="Approved"
+              VERDICT_COLOR="🟢"
+              ;;
+            REQUEST_CHANGES)
+              VERDICT_EMOJI="🔴"
+              VERDICT_TEXT="Changes Requested"
+              VERDICT_COLOR="🔴"
+              ;;
+            COMMENT)
+              VERDICT_EMOJI="💬"
+              VERDICT_TEXT="Review Completed"
+              VERDICT_COLOR="⚪"
+              ;;
+          esac
+
+          # Read summary if available
+          if [ -f "$SUMMARY_FILE" ]; then
+            SUMMARY=$(cat "$SUMMARY_FILE")
+            echo "ℹ️  Read summary (${#SUMMARY} chars)" >&2
+          else
+            echo "⚠️  No summary file found, using default" >&2
+            SUMMARY="Claude AI completed the code review. See inline comments for detailed feedback."
+          fi
+
+          # Generate comment body
+          COMMENT_BODY=$(cat <<EOF
+          ${COMMENT_MARKER}
+          ## 🤖 Claude Code Review
+
+          **Status:** ✅ Completed
+          **Verdict:** ${VERDICT_COLOR} ${VERDICT_EMOJI} **${VERDICT_TEXT}**
+          **Job:** [View workflow run](${JOB_URL})
+
+          ---
+
+          ${SUMMARY}
+
+          ---
+
+          <details>
+          <summary>Review Details</summary>
+
+          **Verdict:** \`${VERDICT}\`
+          **Completed:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          </details>
+          EOF
+          )
+
+          # Create or update comment
+          if [ -n "$COMMENT_ID" ]; then
+            echo "ℹ️  Updating comment ID: $COMMENT_ID..." >&2
+            gh api "/repos/${GITHUB_REPOSITORY}/issues/comments/${COMMENT_ID}" \
+              -X PATCH \
+              -f body="$COMMENT_BODY" \
+              > /dev/null
+            echo "✅ Updated comment ID: $COMMENT_ID" >&2
+          else
+            echo "ℹ️  Creating new PR comment..." >&2
+            COMMENT_ID=$(gh api "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              -X POST \
+              -f body="$COMMENT_BODY" \
+              --jq '.id')
+            echo "$COMMENT_ID" > "$COMMENT_ID_FILE"
+            echo "✅ Created comment with ID: $COMMENT_ID" >&2
+          fi
+
+          echo "✅ Review completion comment posted" >&2
 
       # Update PR comment with error status (failure case)
       - name: Post Review Error Comment
         if: steps.cache-check.outputs.cache-hit != 'true' && failure()
-        run: ./.github/scripts/manage-claude-review-comment.sh error
         env:
           PR_NUMBER: ${{ inputs.pr_number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # Configuration
+          COMMENT_ID_FILE=".claude-review-comment-id"
+          COMMENT_MARKER="<!-- claude-pr-review-bot -->"
+          JOB_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          echo "ℹ️  Preparing to post review error comment" >&2
+
+          # Get existing comment ID for this PR
+          COMMENT_ID=""
+          if [ -f "$COMMENT_ID_FILE" ]; then
+            COMMENT_ID=$(cat "$COMMENT_ID_FILE")
+            echo "ℹ️  Found cached comment ID: $COMMENT_ID" >&2
+          else
+            echo "ℹ️  Searching for existing Claude review comment..." >&2
+            COMMENT_ID=$(gh api "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              --jq ".[] | select(.body | contains(\"${COMMENT_MARKER}\")) | .id" | head -1 || echo "")
+            if [ -n "$COMMENT_ID" ]; then
+              echo "ℹ️  Found existing comment ID: $COMMENT_ID" >&2
+              echo "$COMMENT_ID" > "$COMMENT_ID_FILE"
+            else
+              echo "ℹ️  No existing comment found" >&2
+            fi
+          fi
+
+          # Generate error comment body
+          COMMENT_BODY=$(cat <<EOF
+          ${COMMENT_MARKER}
+          ## 🤖 Claude Code Review
+
+          **Status:** ❌ Error
+          **Job:** [View workflow run](${JOB_URL})
+
+          ---
+
+          ### ⚠️ Review Failed
+
+          The automated code review encountered an error and could not complete.
+
+          **Next Steps:**
+          1. Check the [workflow logs](${JOB_URL}) for details
+          2. Verify the GitHub Actions configuration
+          3. Ensure the Anthropic API key is valid
+          4. Check for any permission issues
+
+          If the problem persists, please contact your repository administrator.
+
+          ---
+
+          *You can manually re-trigger the review by pushing a new commit or re-running the workflow.*
+          EOF
+          )
+
+          # Create or update comment
+          if [ -n "$COMMENT_ID" ]; then
+            echo "ℹ️  Updating comment ID: $COMMENT_ID..." >&2
+            gh api "/repos/${GITHUB_REPOSITORY}/issues/comments/${COMMENT_ID}" \
+              -X PATCH \
+              -f body="$COMMENT_BODY" \
+              > /dev/null
+            echo "✅ Updated comment ID: $COMMENT_ID" >&2
+          else
+            echo "ℹ️  Creating new PR comment..." >&2
+            COMMENT_ID=$(gh api "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              -X POST \
+              -f body="$COMMENT_BODY" \
+              --jq '.id')
+            echo "$COMMENT_ID" > "$COMMENT_ID_FILE"
+            echo "✅ Created comment with ID: $COMMENT_ID" >&2
+          fi
+
+          echo "✅ Error comment posted" >&2
 
       # Save successful review to cache
       - name: Save Review Cache Marker

@@ -1221,11 +1221,11 @@ If you need to force a new review despite same code:
 2. Option 2: Delete cache manually (Actions → Caches)
 3. Option 3: Use a different branch name and reopen PR
 
-#### Review Submission Script
+#### Review Submission Logic
 
-The workflow uses `.github/scripts/submit-claude-review.sh` to submit formal GitHub reviews.
+The workflow includes inlined bash logic to submit formal GitHub reviews (no external scripts required).
 
-**What the script does:**
+**What the submission step does:**
 
 1. Reads `.claude-review-verdict.txt` for verdict (APPROVE/REQUEST_CHANGES/COMMENT)
 2. Reads `.claude-review-summary.md` for review body (markdown)
@@ -1239,7 +1239,7 @@ The workflow uses `.github/scripts/submit-claude-review.sh` to submit formal Git
 - Uses default summary if summary file is missing
 - Comprehensive logging at each step (ℹ️, ✅, ⚠️, ❌ emoji markers)
 
-**Troubleshooting Script Failures:**
+**Troubleshooting Submission Failures:**
 
 - Check workflow logs for "Submit GitHub Review" step
 - Verify verdict file contains only one word (APPROVE/REQUEST_CHANGES/COMMENT)
