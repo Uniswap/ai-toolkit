@@ -6,6 +6,7 @@ type CommandName =
   | 'address-pr-issues'
   | 'auto-spec'
   | 'claude-docs'
+  | 'claude-init-plus'
   | 'create-pr'
   | 'daily-standup'
   | 'deploy'
@@ -25,6 +26,7 @@ type CommandName =
   | 'review-plan'
   | 'review-pr'
   | 'split-stack'
+  | 'update-claude-md'
   | 'work-through-pr-comments';
 
 export type Commands = {
@@ -47,6 +49,10 @@ export const commands: Commands = {
   'claude-docs': {
     description: 'Initialize or update CLAUDE.md documentation files based on context and changes',
     filePath: './claude-docs.md',
+  },
+  'claude-init-plus': {
+    description: 'Initialize or update CLAUDE.md files at all core nodes in the workspace',
+    filePath: './claude-init-plus.md',
   },
   'create-pr': {
     description:
@@ -141,6 +147,10 @@ export const commands: Commands = {
     description:
       'Automatically split a monolithic branch with many changes into a logical, reviewable stack of PRs using semantic analysis and Graphite.',
     filePath: './split-stack.md',
+  },
+  'update-claude-md': {
+    description: 'Intelligently update CLAUDE.md files based on detected code changes',
+    filePath: './update-claude-md.md',
   },
   'work-through-pr-comments': {
     description:
