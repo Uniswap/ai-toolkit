@@ -65,3 +65,7 @@ apps/slack-oauth-backend/.env.local
 .eslintcache
 
 .claude-output/
+
+# Plans
+
+.collab-plans

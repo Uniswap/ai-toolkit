@@ -18,6 +18,18 @@ Developer guides and tutorials for the AI Toolkit. Provides in-depth documentati
   - Testing and validation
   - Best practices
 
+### Claude Integration
+
+- **File**: `claude-integration.md`
+- **Purpose**: Complete guide to Claude AI integration in the AI Toolkit
+- **Topics**:
+  - CLAUDE.md auto-generation system (`/claude-init-plus`, `/update-claude-md`)
+  - Why CLAUDE.md files are important for AI context
+  - Using Claude Code locally for development
+  - Claude-powered GitHub Actions workflows
+  - Best practices and troubleshooting
+  - Security considerations
+
 ### Expected Content Structure
 
 Each guide should follow this structure:
