@@ -26,6 +26,9 @@
     },
     {
       "path": "./packages/notion-publisher"
+    },
+    {
+      "path": "./packages/linear-task-utils"
     }
   ]
 }

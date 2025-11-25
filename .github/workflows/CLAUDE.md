@@ -25,11 +25,17 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 
 - `ci-check-pr-title.yml` - Validates PR titles follow conventional commit format
 
-### Reusable Workflows (5 workflows, prefixed with `_`)
+### Autonomous Task Processing (2 workflows)
+
+- `claude-auto-tasks.yml` - Scheduled autonomous task processing from Linear
+- `_claude-task-worker.yml` - Reusable worker for processing individual Linear tasks
+
+### Reusable Workflows (6 workflows, prefixed with `_`)
 
 - `_claude-main.yml` - Core Claude AI interaction engine
 - `_claude-welcome.yml` - Reusable welcome message poster
 - `_claude-code-review.yml` - Reusable PR review automation
+- `_claude-task-worker.yml` - Autonomous task execution from Linear issues
 - `_generate-changelog.yml` - AI-powered changelog generation
 - `_notify-release.yml` - Slack release notifications
 
@@ -39,6 +45,7 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 
 - `_claude-main.yml` - Claude AI assistant for GitHub interactions
 - `_claude-code-review.yml` - Formal GitHub PR reviews with inline comments
+- `_claude-task-worker.yml` - Process single Linear task autonomously
 - `_claude-welcome.yml` - Welcome messages for new contributors
 - `_generate-changelog.yml` - AI-generated release notes
 - `_notify-release.yml` - Slack notification dispatcher
@@ -47,6 +54,7 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 
 - `ci-pr-checks.yml` - Main PR validation pipeline
 - `ci-check-pr-title.yml` - PR title format validation
+- `claude-auto-tasks.yml` - Autonomous task processing from Linear (scheduled)
 - `claude-code.yml` - Enables @claude mentions
 - `claude-code-review.yml` - Automated code reviews
 - `claude-welcome.yml` - New PR welcomes
@@ -55,7 +63,7 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 
 ## Subdirectories
 
-- `examples/` - Example implementations of workflows (10 numbered files)
+- `examples/` - Example implementations of workflows (11 numbered files)
 
 ## Conventions
 
@@ -80,6 +88,7 @@ All workflows follow consistent patterns:
 Common secrets referenced:
 
 - `ANTHROPIC_API_KEY` - Claude AI API authentication
+- `LINEAR_API_KEY` - Linear API authentication (for autonomous tasks)
 - `NPM_TOKEN` - NPM registry publishing
 - `SLACK_WEBHOOK_URL` - Slack notifications
 - `GITHUB_TOKEN` - Built-in token (automatic)
@@ -104,7 +113,8 @@ jobs:
 - **On PR**: `ci-pr-checks.yml`, `claude-welcome.yml`, `ci-check-pr-title.yml`
 - **On Push to main/next**: `publish-packages.yml`
 - **On Issue Comment**: `claude-code.yml` (when @claude mentioned)
-- **Manual Dispatch**: `release-update-production.yml`, `claude-code-review.yml`
+- **On Schedule**: `claude-auto-tasks.yml` (daily at 5am EST)
+- **Manual Dispatch**: `release-update-production.yml`, `claude-code-review.yml`, `claude-auto-tasks.yml`
 
 ## Development Guidelines
 
