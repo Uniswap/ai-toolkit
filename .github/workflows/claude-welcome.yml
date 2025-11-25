@@ -10,7 +10,7 @@ jobs:
     with:
       workflow_deployment_date: "2025-11-14"
       expiration_months: 3
-      documentation_url: "https://github.com/Uniswap/ai-toolkit/blob/main/packages/ai-toolkit-nx-claude/README.md"
+      documentation_url: "https://github.com/Uniswap/ai-toolkit/docs/guides/claude-integration.md"
       welcome_message: |
         👋 Hi!
 

@@ -44,3 +44,11 @@ pre-commit:
         - merge
         - rebase
       fail_text: 'Markdown linting failed. Please fix the issues before committing.'
+    # Update CLAUDE.md files based on changed files
+    update-claude-docs:
+      run: sh scripts/lefthook/update-claude-docs.sh
+      tags: claude-docs
+      skip:
+        - merge
+        - rebase
+      fail_text: 'Failed to update CLAUDE.md files. Please run `claude -p "/update-claude-md"` manually.'

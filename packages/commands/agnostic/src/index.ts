@@ -6,6 +6,7 @@ type CommandName =
   | 'address-pr-issues'
   | 'auto-spec'
   | 'claude-docs'
+  | 'claude-init-plus'
   | 'create-pr'
   | 'daily-standup'
   | 'deploy'
@@ -17,6 +18,7 @@ type CommandName =
   | 'generate-commit-message'
   | 'implement-spec'
   | 'monitor'
+  | 'perf-analyze'
   | 'plan'
   | 'refactor'
   | 'research'
@@ -24,6 +26,7 @@ type CommandName =
   | 'review-plan'
   | 'review-pr'
   | 'split-stack'
+  | 'update-claude-md'
   | 'work-through-pr-comments';
 
 export type Commands = {
@@ -46,6 +49,10 @@ export const commands: Commands = {
   'claude-docs': {
     description: 'Initialize or update CLAUDE.md documentation files based on context and changes',
     filePath: './claude-docs.md',
+  },
+  'claude-init-plus': {
+    description: 'Initialize or update CLAUDE.md files at all core nodes in the workspace',
+    filePath: './claude-init-plus.md',
   },
   'create-pr': {
     description:
@@ -101,6 +108,11 @@ export const commands: Commands = {
       'Set up comprehensive monitoring for applications with automated metrics identification, alerting, and dashboard configuration',
     filePath: './monitor.md',
   },
+  'perf-analyze': {
+    description:
+      'O(1) Chain-of-Thought Performance Analyzer - Systematic complexity analysis with optimization paths, bottleneck identification, and performance proofs',
+    filePath: './perf-analyze.md',
+  },
   plan: {
     description:
       'Create clear, actionable implementation plans for any task, feature, refactor, or architectural change through collaborative multi-agent refinement',
@@ -135,6 +147,10 @@ export const commands: Commands = {
     description:
       'Automatically split a monolithic branch with many changes into a logical, reviewable stack of PRs using semantic analysis and Graphite.',
     filePath: './split-stack.md',
+  },
+  'update-claude-md': {
+    description: 'Intelligently update CLAUDE.md files based on detected code changes',
+    filePath: './update-claude-md.md',
   },
   'work-through-pr-comments': {
     description:

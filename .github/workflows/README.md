@@ -239,11 +239,9 @@ gh workflow run release-publish-packages.yml -f dryRun=true
 │       ├── 08-claude-code-review-basic.yml
 │       ├── 09-claude-code-review-with-custom-prompt.yml
 │       └── 10-claude-code-review-advanced.yml
-├── prompts/
-│   ├── default-pr-review.md
-│   └── production-release-changelog.md
-└── scripts/
-    └── submit-claude-review.sh
+└── prompts/
+    ├── default-pr-review.md
+    └── production-release-changelog.md
 ```
 
 **Note on Flat Structure**: GitHub Actions [does not support subdirectories](https://github.com/orgs/community/discussions/15935) within `.github/workflows/`. All workflow files must be in the root of the workflows directory. We use naming convention prefixes (`ci-`, `release-`, `_`) to categorize workflows instead of subdirectories.

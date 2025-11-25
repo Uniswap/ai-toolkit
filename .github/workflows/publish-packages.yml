@@ -86,6 +86,15 @@ jobs:
     steps:
       - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
 
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec # v6
+        with:
+          gpg_private_key: ${{ secrets.SERVICE_ACCOUNT_GPG_PRIVATE_KEY }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+          git_tag_gpgsign: true
+          git_config_global: true
+
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
@@ -118,10 +127,17 @@ jobs:
           fi
           echo "✅ package-lock.json unchanged after npm ci"
 
-      - name: Configure Git
+      - name: Configure Git identity for service account
         run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
+          git config user.name "Uniswap Labs Service Account"
+          git config user.email "hello-happy-puppy@uniswap.org"
+
+      - name: Verify GPG configuration
+        run: |
+          echo "GPG signing enabled: $(git config commit.gpgsign)"
+          echo "GPG signing key: $(git config user.signingkey)"
+          echo "Git user name: $(git config user.name)"
+          echo "Git user email: $(git config user.email)"
 
       - name: Determine npm tag
         id: npm-tag
@@ -370,6 +386,36 @@ jobs:
             echo ""
           done
 
+          # Push any newly created tags to remote
+          PUSHED_TAGS=()
+          FAILED_PUSH_TAGS=()
+
+          if [ ${#CREATED_TAGS[@]} -gt 0 ]; then
+            echo "=========================================="
+            echo "Pushing missing tags to remote"
+            echo "=========================================="
+            echo ""
+
+            for tag in "${CREATED_TAGS[@]}"; do
+              echo "  🏷️  Pushing tag: $tag"
+              if git push origin "$tag" 2>/dev/null; then
+                echo "  ✅ Successfully pushed $tag"
+                PUSHED_TAGS+=("$tag")
+              else
+                # Check if tag already exists on remote (not a real failure)
+                if git ls-remote --tags origin | grep -q "refs/tags/$tag$"; then
+                  echo "  ✅ Tag $tag already exists on remote"
+                  PUSHED_TAGS+=("$tag")
+                else
+                  echo "  ❌ Failed to push $tag"
+                  FAILED_PUSH_TAGS+=("$tag")
+                fi
+              fi
+            done
+
+            echo ""
+          fi
+
           # Summary
           echo "=========================================="
           echo "Git/npm Sync Summary"
@@ -388,15 +434,24 @@ jobs:
 
           echo ""
 
-          if [ ${#CREATED_TAGS[@]} -gt 0 ]; then
-            echo "Missing Tags Created: ${#CREATED_TAGS[@]}"
-            for tag in "${CREATED_TAGS[@]}"; do
-              echo "  🏷️  $tag"
+          if [ ${#PUSHED_TAGS[@]} -gt 0 ]; then
+            echo "Missing Tags Created and Pushed: ${#PUSHED_TAGS[@]}"
+            for tag in "${PUSHED_TAGS[@]}"; do
+              echo "  ✅ $tag"
             done
             echo "  → Nx will now use these as base for version bumps"
           else
-            echo "Missing Tags Created: 0"
-            echo "  ✅ Git tags in sync with npm versions"
+            echo "Missing Tags Synced: 0"
+            echo "  ✅ Git tags already in sync with npm versions"
+          fi
+
+          if [ ${#FAILED_PUSH_TAGS[@]} -gt 0 ]; then
+            echo ""
+            echo "⚠️  Failed to Push Tags: ${#FAILED_PUSH_TAGS[@]}"
+            for tag in "${FAILED_PUSH_TAGS[@]}"; do
+              echo "  ❌ $tag"
+            done
+            echo "  → These tags exist locally but not on remote. Manual push may be required."
           fi
 
           echo ""
@@ -415,32 +470,16 @@ jobs:
             echo "Using prerelease versioning for next branch"
             npx nx release version prerelease --preid=next --dry-run
           else
-            echo "Using standard versioning for main branch"
-            npx nx release version --specifier=patch --dry-run
+            echo "Using conventional commits to determine version bump for main branch"
+            # Let Nx use conventional commits (configured in nx.json) to determine version bump
+            # This analyzes commit messages since the last release tag to determine patch/minor/major
+            npx nx release version --dry-run
           fi
           npx nx release publish --dry-run --tag=${{ steps.npm-tag.outputs.tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Version affected packages
-        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.affected.outputs.has_affected == 'true'
-        id: version
-        run: |
-          AFFECTED_PROJECTS="${{ steps.affected.outputs.projects }}"
-          echo "Versioning affected packages: $AFFECTED_PROJECTS"
-
-          if [[ "${{ github.ref_name }}" == "next" ]]; then
-            echo "Using prerelease versioning for next branch"
-            npx nx release version prerelease --preid=next --projects="$AFFECTED_PROJECTS"
-          else
-            echo "Using standard versioning for main branch"
-            npx nx release version --specifier=patch --projects="$AFFECTED_PROJECTS"
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-
-      - name: Publish affected packages to NPM
+      - name: Version, publish, and push packages (atomic per package)
         if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.affected.outputs.has_affected == 'true'
         id: publish
         run: |
@@ -452,9 +491,20 @@ jobs:
 
           AFFECTED_PROJECTS="${{ steps.affected.outputs.projects }}"
           AFFECTED_PACKAGES="${{ steps.affected.outputs.packages }}"
-          echo "Publishing affected packages with tag: ${{ steps.npm-tag.outputs.tag }} to NPM"
+          echo "Processing affected packages with tag: ${{ steps.npm-tag.outputs.tag }}"
           echo "Nx projects: $AFFECTED_PROJECTS"
           echo "npm packages: $AFFECTED_PACKAGES"
+          echo ""
+          echo "=========================================="
+          echo "ATOMIC PUBLISH STRATEGY"
+          echo "=========================================="
+          echo "For each package, we will:"
+          echo "  1. Version the package (update package.json, create commit + tag)"
+          echo "  2. Publish to npm"
+          echo "  3. If successful: immediately push commit + tag to remote"
+          echo "  4. If failed: revert local changes and continue"
+          echo ""
+          echo "This ensures git and npm stay in sync after each publish."
           echo ""
 
           # Convert comma-separated lists to arrays
@@ -465,8 +515,7 @@ jobs:
           FAILED_PACKAGES=()
           SUCCESS_PACKAGES=()
 
-          # Publish each package individually with appropriate flags
-          # Loop through both arrays using indices
+          # Process each package atomically: version → publish → push
           for i in "${!PROJECTS[@]}"; do
             project="${PROJECTS[$i]}"
             package="${PACKAGES[$i]}"
@@ -479,39 +528,53 @@ jobs:
             echo "Processing: $project → $package"
             echo "=========================================="
 
-            # Extract the package name without scope for debugging
+            # Extract the package name without scope
             PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
 
-            # Check if package exists on npm registry (not just Git tags)
-            # Git tags can exist even if npm publishing failed, so we need to check npm directly
-            echo "Checking if package exists on npm registry..."
+            # Step 1: Version this specific package
+            echo ""
+            echo "Step 1: Versioning package..."
+            if [[ "${{ github.ref_name }}" == "next" ]]; then
+              echo "Using prerelease versioning for next branch"
+              if ! npx nx release version prerelease --preid=next --projects="$project"; then
+                echo "❌ Failed to version $package"
+                FAILED_PACKAGES+=("$package")
+                echo ""
+                continue
+              fi
+            else
+              echo "Using conventional commits to determine version bump for main branch"
+              # Let Nx use conventional commits (configured in nx.json) to determine version bump
+              # This analyzes commit messages since the last release tag to determine patch/minor/major
+              if ! npx nx release version --projects="$project"; then
+                echo "❌ Failed to version $package"
+                FAILED_PACKAGES+=("$package")
+                echo ""
+                continue
+              fi
+            fi
+            echo "✅ Versioning complete"
 
-            # Query npm registry to check if package exists
-            # Returns 0 if package exists, non-zero if it doesn't
+            # Get the new version from package.json
+            PROJECT_ROOT=$(npx nx show project "$project" --json 2>/dev/null | jq -r '.root' || echo "")
+            NEW_VERSION=$(jq -r '.version' "$PROJECT_ROOT/package.json")
+            echo "New version: $NEW_VERSION"
+
+            # Step 2: Check if package exists on npm and publish
+            echo ""
+            echo "Step 2: Publishing to npm..."
+
+            # Check if package exists on npm registry
             if npm view "$package" version --registry=https://registry.npmjs.org &>/dev/null; then
               # Package exists on npm
               NPM_VERSION=$(npm view "$package" version --registry=https://registry.npmjs.org 2>/dev/null || echo "unknown")
               echo "📦 Status: EXISTING package on npm (current version: $NPM_VERSION)"
               echo "Publishing without --first-release flag..."
 
-              # Use Nx PROJECT NAME for the --projects flag
               if npx nx release publish --projects="$project" --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org; then
-                echo "✅ Successfully published $package"
-                SUCCESS_PACKAGES+=("$package")
-
-                # Immediately push the git tag for this successful publish
-                PACKAGE_TAG=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | sort -V | tail -n 1)
-                if [ -n "$PACKAGE_TAG" ]; then
-                  echo "🏷️  Pushing tag: $PACKAGE_TAG"
-                  if git push origin "$PACKAGE_TAG" 2>/dev/null; then
-                    echo "✅ Successfully pushed tag $PACKAGE_TAG"
-                  else
-                    echo "⚠️  Failed to push tag $PACKAGE_TAG (may already exist on remote)"
-                  fi
-                fi
+                PUBLISH_SUCCESS=true
               else
-                echo "❌ Failed to publish $package"
-                FAILED_PACKAGES+=("$package")
+                PUBLISH_SUCCESS=false
               fi
             else
               # Package does NOT exist on npm (truly a first release)
@@ -528,25 +591,90 @@ jobs:
 
               echo "Publishing with --first-release flag..."
 
-              # Use Nx PROJECT NAME for the --projects flag
               if npx nx release publish --projects="$project" --first-release --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org; then
-                echo "✅ Successfully published $package (first release)"
-                SUCCESS_PACKAGES+=("$package")
+                PUBLISH_SUCCESS=true
+              else
+                PUBLISH_SUCCESS=false
+              fi
+            fi
 
-                # Immediately push the git tag for this successful publish
-                PACKAGE_TAG=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | sort -V | tail -n 1)
-                if [ -n "$PACKAGE_TAG" ]; then
-                  echo "🏷️  Pushing tag: $PACKAGE_TAG"
-                  if git push origin "$PACKAGE_TAG" 2>/dev/null; then
-                    echo "✅ Successfully pushed tag $PACKAGE_TAG"
+            if [ "$PUBLISH_SUCCESS" = true ]; then
+              echo "✅ Successfully published $package@$NEW_VERSION to npm"
+
+              # Step 3: Immediately push commit AND tag to remote
+              # CRITICAL: This must succeed to keep git in sync with npm
+              echo ""
+              echo "Step 3: Pushing commit and tag to remote..."
+
+              PUSH_FAILED=false
+
+              # Push the version commit first
+              echo "📤 Pushing version commit to ${{ github.ref_name }}..."
+              if git push origin ${{ github.ref_name }}; then
+                echo "✅ Successfully pushed version commit"
+              else
+                # Check if the failure is because we're already up to date (not a real failure)
+                if git fetch origin ${{ github.ref_name }} && git diff --quiet HEAD origin/${{ github.ref_name }}; then
+                  echo "✅ Branch already up to date (no push needed)"
+                else
+                  echo "❌ CRITICAL: Failed to push version commit after npm publish!"
+                  echo "   npm has $package@$NEW_VERSION but git doesn't have the commit."
+                  echo "   This requires manual intervention to sync git with npm."
+                  PUSH_FAILED=true
+                fi
+              fi
+
+              # Push the git tag
+              PACKAGE_TAG=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | sort -V | tail -n 1)
+              if [ -n "$PACKAGE_TAG" ]; then
+                echo "🏷️  Pushing tag: $PACKAGE_TAG"
+                if git push origin "$PACKAGE_TAG"; then
+                  echo "✅ Successfully pushed tag $PACKAGE_TAG"
+                else
+                  # Check if tag already exists on remote (not a real failure)
+                  if git ls-remote --tags origin | grep -q "refs/tags/$PACKAGE_TAG$"; then
+                    echo "✅ Tag $PACKAGE_TAG already exists on remote"
                   else
-                    echo "⚠️  Failed to push tag $PACKAGE_TAG (may already exist on remote)"
+                    echo "❌ CRITICAL: Failed to push tag $PACKAGE_TAG after npm publish!"
+                    echo "   npm has $package@$NEW_VERSION but git doesn't have the tag."
+                    PUSH_FAILED=true
                   fi
                 fi
-              else
-                echo "❌ Failed to publish $package (first release)"
-                FAILED_PACKAGES+=("$package")
               fi
+
+              if [ "$PUSH_FAILED" = true ]; then
+                echo ""
+                echo "⚠️  Package $package was published to npm but git sync failed!"
+                echo "    Manual intervention required to push commit/tag to git."
+                # Still count as success for npm purposes, but note the git sync issue
+                SUCCESS_PACKAGES+=("$package")
+                echo ""
+                echo "⚠️  Package $package published to npm (git sync incomplete)"
+              else
+                SUCCESS_PACKAGES+=("$package")
+                echo ""
+                echo "✅ Package $package fully published and synced!"
+              fi
+            else
+              echo "❌ Failed to publish $package"
+
+              # Step 3 (failure): Revert local changes
+              echo ""
+              echo "Step 3: Reverting local changes..."
+
+              # Delete the local git tag for this unpublished version
+              TAG_TO_DELETE=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | grep "@${NEW_VERSION}$" | head -n 1)
+              if [ -n "$TAG_TO_DELETE" ]; then
+                echo "  Deleting local tag: $TAG_TO_DELETE"
+                git tag -d "$TAG_TO_DELETE" 2>/dev/null || echo "  ⚠️  Tag already deleted"
+              fi
+
+              # Reset to before the version commit
+              echo "  Resetting to previous commit..."
+              git reset --hard HEAD~1
+
+              FAILED_PACKAGES+=("$package")
+              echo "⏮️  Reverted local changes for $package"
             fi
 
             echo ""
@@ -580,14 +708,15 @@ jobs:
               echo "  ❌ $pkg"
             done
             echo ""
-            echo "⚠️  Some packages failed to publish, but workflow will continue for successful packages."
+            echo "⚠️  Some packages failed to publish."
+            echo "    Successfully published packages are fully synced to git."
+            echo "    Failed packages have been reverted locally (no orphaned state)."
           else
             echo ""
-            echo "✅ All packages published successfully!"
+            echo "✅ All packages published and synced successfully!"
           fi
 
           # Exit successfully even if some packages failed (as long as at least one succeeded)
-          # This allows the workflow to continue and push tags/create releases for successful packages
           if [ ${#SUCCESS_PACKAGES[@]} -eq 0 ]; then
             echo ""
             echo "❌ No packages were successfully published. Failing workflow."
@@ -595,133 +724,6 @@ jobs:
           fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
-
-      - name: Revert failed package versions
-        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.publish.outputs.has_failures == 'true'
-        run: |
-          echo "=========================================="
-          echo "Reverting version bumps for failed packages"
-          echo "=========================================="
-          echo ""
-          echo "This ensures git stays in sync with npm - only successfully"
-          echo "published packages will have their versions bumped in git."
-          echo ""
-
-          AFFECTED_PROJECTS="${{ steps.affected.outputs.projects }}"
-          FAILED_PACKAGES='${{ steps.publish.outputs.failed_packages }}'
-
-          # Parse JSON array of failed packages
-          readarray -t FAILED < <(echo "$FAILED_PACKAGES" | jq -r '.[]')
-
-          if [ ${#FAILED[@]} -eq 0 ]; then
-            echo "No failed packages to revert."
-            exit 0
-          fi
-
-          echo "Failed packages to revert: ${#FAILED[@]}"
-          echo ""
-
-          # Convert affected projects to array for mapping
-          IFS=',' read -ra PROJECTS <<< "$AFFECTED_PROJECTS"
-
-          for failed_package in "${FAILED[@]}"; do
-            if [ -z "$failed_package" ]; then
-              continue
-            fi
-
-            echo "Processing: $failed_package"
-
-            # Find the Nx project for this package
-            for project in "${PROJECTS[@]}"; do
-              if [ -z "$project" ]; then
-                continue
-              fi
-
-              # Get project root from Nx
-              PROJECT_ROOT=$(npx nx show project "$project" --json 2>/dev/null | jq -r '.root' || echo "")
-
-              if [ -z "$PROJECT_ROOT" ] || [ ! -f "$PROJECT_ROOT/package.json" ]; then
-                continue
-              fi
-
-              # Check if this is the package we're looking for
-              PACKAGE_NAME=$(jq -r '.name // ""' "$PROJECT_ROOT/package.json")
-
-              if [ "$PACKAGE_NAME" = "$failed_package" ]; then
-                echo "  Found at: $PROJECT_ROOT/package.json"
-
-                # Get the version that was bumped to (but never published)
-                CURRENT_VERSION=$(jq -r '.version' "$PROJECT_ROOT/package.json")
-                echo "  Current version (not published): $CURRENT_VERSION"
-
-                # Delete the local git tag for this unpublished version
-                PACKAGE_NAME_FOR_TAG=$(echo "$failed_package" | sed 's/@[^/]*\///')
-                TAG_TO_DELETE=$(git tag -l "${PACKAGE_NAME_FOR_TAG}@*" "${failed_package}@*" 2>/dev/null | grep "@${CURRENT_VERSION}$" | head -n 1)
-
-                if [ -n "$TAG_TO_DELETE" ]; then
-                  echo "  Deleting local tag: $TAG_TO_DELETE"
-                  git tag -d "$TAG_TO_DELETE" 2>/dev/null || echo "  ⚠️  Tag already deleted"
-                fi
-
-                # Reset package.json to the version before this commit (HEAD~1)
-                echo "  Reverting package.json to previous version..."
-                git checkout HEAD~1 -- "$PROJECT_ROOT/package.json"
-
-                # Verify the revert
-                REVERTED_VERSION=$(jq -r '.version' "$PROJECT_ROOT/package.json")
-                echo "  ✅ Reverted to: $REVERTED_VERSION"
-                echo ""
-
-                break
-              fi
-            done
-          done
-
-          # Stage the reverted files
-          git add -A
-
-          # Check if there are any changes staged
-          if git diff --cached --quiet; then
-            echo "⚠️  No changes staged after reverting."
-            echo "This is unexpected - please review the workflow logs."
-          else
-            echo "=========================================="
-            echo "Amending version commit"
-            echo "=========================================="
-            echo ""
-            echo "Updating the version commit to only include successfully published packages."
-            echo ""
-
-            # Show what's being reverted
-            echo "Changes being committed:"
-            git diff --cached --name-status
-
-            # Amend the commit to include the reverted package.json files
-            git commit --amend --no-edit
-
-            echo "✅ Version commit amended successfully"
-          fi
-
-          echo ""
-          echo "=========================================="
-          echo "Version Revert Complete"
-          echo "=========================================="
-          echo ""
-          echo "Git is now in sync with npm:"
-          echo "  - Successfully published packages: version bumped ✅"
-          echo "  - Failed packages: version reverted to previous ⏮️"
-          echo ""
-        env:
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
-
-      - name: Push version commit
-        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.publish.outputs.has_successes == 'true'
-        run: |
-          # Push the version commit created by Nx (and potentially amended if there were failures)
-          # Tags have already been pushed individually after each successful publish
-          git push origin ${{ github.ref_name }}
-        env:
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
 
       - name: Create GitHub releases
@@ -880,6 +882,27 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.WORKFLOW_PAT }}
 
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec # v6
+        with:
+          gpg_private_key: ${{ secrets.SERVICE_ACCOUNT_GPG_PRIVATE_KEY }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+          git_tag_gpgsign: true
+          git_config_global: true
+
+      - name: Configure Git identity for service account
+        run: |
+          git config user.name "Uniswap Labs Service Account"
+          git config user.email "hello-happy-puppy@uniswap.org"
+
+      - name: Verify GPG configuration
+        run: |
+          echo "GPG signing enabled: $(git config commit.gpgsign)"
+          echo "GPG signing key: $(git config user.signingkey)"
+          echo "Git user name: $(git config user.name)"
+          echo "Git user email: $(git config user.email)"
+
       - name: Install Graphite CLI
         run: |
           # Install Graphite CLI using npm (faster than installing Homebrew)
@@ -887,11 +910,6 @@ jobs:
 
           # Verify installation
           gt --version
-
-      - name: Configure Git
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
 
       - name: Sync next branch with main
         env:
