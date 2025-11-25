@@ -24,9 +24,11 @@ concurrency:
 
 jobs:
   claude-review:
-    # Skip merge queue PRs and draft PRs
+    # Skip merge queue PRs, draft PRs, and release promotion PRs
+    # DEV-131 requirement #6: Skip workflow for production promotion PRs
     if: |
       !contains(github.head_ref, 'gh-readonly-queue/') &&
+      !startsWith(github.head_ref, 'release/next-to-main-') &&
       (github.event.pull_request.draft == false || github.event.action == 'ready_for_review')
 
     uses: ./.github/workflows/_claude-code-review.yml
