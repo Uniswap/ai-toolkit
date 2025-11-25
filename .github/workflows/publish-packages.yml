@@ -470,8 +470,10 @@ jobs:
             echo "Using prerelease versioning for next branch"
             npx nx release version prerelease --preid=next --dry-run
           else
-            echo "Using graduate versioning for main branch (prerelease → stable)"
-            npx nx release version --specifier=graduate --dry-run
+            echo "Using conventional commits to determine version bump for main branch"
+            # Let Nx use conventional commits (configured in nx.json) to determine version bump
+            # This analyzes commit messages since the last release tag to determine patch/minor/major
+            npx nx release version --dry-run
           fi
           npx nx release publish --dry-run --tag=${{ steps.npm-tag.outputs.tag }}
         env:
@@ -541,8 +543,10 @@ jobs:
                 continue
               fi
             else
-              echo "Using graduate versioning for main branch (prerelease → stable)"
-              if ! npx nx release version --specifier=graduate --projects="$project"; then
+              echo "Using conventional commits to determine version bump for main branch"
+              # Let Nx use conventional commits (configured in nx.json) to determine version bump
+              # This analyzes commit messages since the last release tag to determine patch/minor/major
+              if ! npx nx release version --projects="$project"; then
                 echo "❌ Failed to version $package"
                 FAILED_PACKAGES+=("$package")
                 echo ""
