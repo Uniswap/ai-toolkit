@@ -1,0 +1,625 @@
+name: '[claude] Generate PR Title & Description'
+
+# Reusable workflow for generating PR titles and descriptions using Claude AI
+#
+# This workflow automatically generates conventional commit-style PR titles
+# and comprehensive descriptions by:
+# - Analyzing the code changes (diff) in the PR
+# - Learning from recent commit history to establish patterns
+# - Learning from recent merged PR descriptions to establish templates
+# - Using Claude AI to generate appropriate titles and descriptions
+#
+# USAGE:
+#   uses: Uniswap/ai-toolkit/.github/workflows/_generate-pr-metadata.yml@main
+#   with:
+#     pr_number: ${{ github.event.pull_request.number }}
+#     base_ref: ${{ github.base_ref }}
+#   secrets:
+#     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+#
+# FEATURES:
+# - Patch-ID based caching to skip rebases (no actual code changes)
+# - Conventional commit title format (feat, fix, chore, etc.)
+# - Pattern learning from repository history
+# - Custom prompt support
+#
+# PERMISSIONS REQUIRED (calling workflow must grant these):
+#   contents: read
+#   pull-requests: write
+#   id-token: write
+
+on:
+  workflow_call:
+    inputs:
+      pr_number:
+        description: 'Pull request number to update'
+        required: true
+        type: string
+
+      base_ref:
+        description: 'Base branch name (e.g., main, master)'
+        required: true
+        type: string
+
+      model:
+        description: 'Claude model to use for generation'
+        required: false
+        type: string
+        default: 'claude-sonnet-4-5-20250929'
+
+      max_turns:
+        description: 'Maximum conversation turns for Claude. Omit to use unlimited turns.'
+        required: false
+        type: number
+
+      custom_prompt:
+        description: 'Custom prompt text (overrides prompt file and default). Output instructions will be automatically appended.'
+        required: false
+        type: string
+        default: ''
+
+      custom_prompt_path:
+        description: 'Path to custom prompt file in repository (e.g., .github/prompts/generate-pr-metadata.md)'
+        required: false
+        type: string
+        default: '.github/prompts/generate-pr-title-description.md'
+
+      timeout_minutes:
+        description: 'Job timeout in minutes'
+        required: false
+        type: number
+        default: 15
+
+      allowed_tools:
+        description: 'Comma-separated list of allowed tools for Claude. Leave empty for default read-only set.'
+        required: false
+        type: string
+        default: ''
+
+      commit_history_count:
+        description: 'Number of recent commits to analyze for title patterns'
+        required: false
+        type: number
+        default: 30
+
+      pr_history_count:
+        description: 'Number of recent merged PRs to analyze for description patterns'
+        required: false
+        type: number
+        default: 10
+
+    secrets:
+      ANTHROPIC_API_KEY:
+        description: 'Anthropic API key for Claude access'
+        required: true
+
+jobs:
+  generate-metadata:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+
+    # Fixed permissions (cannot be overridden by calling workflow)
+    permissions:
+      id-token: write # Required for OIDC
+      contents: read # Required to read repository code
+      pull-requests: write # Required to update PR title and description
+
+    steps:
+      # Security scanning (required for all workflows)
+      - name: Security Scan
+        uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+        with:
+          egress-policy: audit
+
+      # Checkout code with full history for pattern analysis
+      - name: Checkout Repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0 # Full history needed for git merge-base and history analysis
+
+      # Calculate patch-ID (stable hash of code changes, survives rebases)
+      - name: Calculate Patch ID
+        id: patch-id
+        env:
+          BASE_REF: ${{ inputs.base_ref }}
+        run: |
+          set -euo pipefail
+
+          # Find the merge base between base branch and HEAD
+          MERGE_BASE=$(git merge-base "origin/${BASE_REF}" HEAD)
+
+          # Validate MERGE_BASE is a valid commit SHA (40 hex chars)
+          if ! echo "$MERGE_BASE" | grep -qE '^[0-9a-f]{40}$'; then
+            echo "::error::Invalid merge base SHA: $MERGE_BASE"
+            exit 1
+          fi
+
+          # Calculate stable patch-ID (same code = same ID, even after rebase)
+          PATCH_ID=$(git diff "${MERGE_BASE}..HEAD" | git patch-id --stable | cut -d' ' -f1)
+
+          echo "patch_id=$PATCH_ID" >> $GITHUB_OUTPUT
+          echo "merge_base=$MERGE_BASE" >> $GITHUB_OUTPUT
+          echo "📊 Patch-ID: ${PATCH_ID:0:12}... (first 12 chars)"
+          echo "   This ID stays the same across rebases if code hasn't changed"
+
+      # Check cache to see if we've already processed this exact code
+      - name: Check Generation Cache
+        id: cache-check
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .pr-metadata-cache
+          key: pr-metadata-pr${{ inputs.pr_number }}-patch-${{ steps.patch-id.outputs.patch_id }}
+          lookup-only: true # Just check, don't restore
+
+      # Early exit if we've already processed this code (rebase detected)
+      - name: Skip Generation if No Changes
+        if: steps.cache-check.outputs.cache-hit == 'true'
+        run: |
+          echo "Skipping generation - no actual code changes detected"
+          echo ""
+          echo "This push appears to be a rebase or merge without new code changes."
+          echo "Patch-ID: ${{ steps.patch-id.outputs.patch_id }}"
+          echo ""
+          echo "We've already generated metadata for this exact code, so skipping to save API costs."
+          exit 0
+
+      # Gather commit history for pattern learning
+      - name: Gather Commit History
+        if: steps.cache-check.outputs.cache-hit != 'true'
+        id: commit-history
+        env:
+          COMMIT_COUNT: ${{ inputs.commit_history_count }}
+        run: |
+          set -euo pipefail
+
+          echo "📝 Gathering last $COMMIT_COUNT commit messages for pattern analysis..."
+
+          # Get recent commits with conventional commit format
+          COMMITS=$(git log --oneline -n "$COMMIT_COUNT" --format="%s" | head -"$COMMIT_COUNT")
+
+          # Save to file for the prompt
+          echo "$COMMITS" > /tmp/recent-commits.txt
+
+          # Count commits gathered
+          ACTUAL_COUNT=$(echo "$COMMITS" | wc -l | tr -d ' ')
+          echo "✅ Gathered $ACTUAL_COUNT commit messages"
+
+          # Preview first few
+          echo ""
+          echo "Sample commits:"
+          head -5 /tmp/recent-commits.txt
+
+      # Gather PR description history for template learning
+      - name: Gather PR Description History
+        if: steps.cache-check.outputs.cache-hit != 'true'
+        id: pr-history
+        env:
+          PR_COUNT: ${{ inputs.pr_history_count }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          echo "📝 Gathering last $PR_COUNT merged PR descriptions for template analysis..."
+
+          # Get recent merged PRs with their titles and bodies
+          gh pr list --limit "$PR_COUNT" --state merged --json title,body > /tmp/recent-prs.json
+
+          # Count PRs gathered
+          ACTUAL_COUNT=$(jq 'length' /tmp/recent-prs.json)
+          echo "✅ Gathered $ACTUAL_COUNT PR descriptions"
+
+          # Preview titles
+          echo ""
+          echo "Sample PR titles:"
+          jq -r '.[0:5] | .[].title' /tmp/recent-prs.json
+
+      # Get current PR information
+      - name: Get Current PR Info
+        if: steps.cache-check.outputs.cache-hit != 'true'
+        id: pr-info
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          echo "ℹ️  Fetching current PR information..."
+
+          # Get PR details
+          PR_DATA=$(gh pr view "$PR_NUMBER" --json title,body,headRefName,baseRefName,files)
+
+          # Extract current values
+          CURRENT_TITLE=$(echo "$PR_DATA" | jq -r '.title')
+          CURRENT_BODY=$(echo "$PR_DATA" | jq -r '.body // ""')
+          HEAD_BRANCH=$(echo "$PR_DATA" | jq -r '.headRefName')
+          BASE_BRANCH=$(echo "$PR_DATA" | jq -r '.baseRefName')
+          FILES_CHANGED=$(echo "$PR_DATA" | jq -r '.files | length')
+
+          echo "current_title=$CURRENT_TITLE" >> $GITHUB_OUTPUT
+          echo "head_branch=$HEAD_BRANCH" >> $GITHUB_OUTPUT
+          echo "base_branch=$BASE_BRANCH" >> $GITHUB_OUTPUT
+          echo "files_changed=$FILES_CHANGED" >> $GITHUB_OUTPUT
+
+          echo ""
+          echo "Current PR:"
+          echo "  Title: $CURRENT_TITLE"
+          echo "  Branch: $HEAD_BRANCH -> $BASE_BRANCH"
+          echo "  Files changed: $FILES_CHANGED"
+
+          # Save current body to file
+          echo "$CURRENT_BODY" > /tmp/current-pr-body.txt
+
+      # Build final prompt with context and output injection
+      - name: Build Generation Prompt
+        if: steps.cache-check.outputs.cache-hit != 'true'
+        id: build-prompt
+        env:
+          CUSTOM_PROMPT_INPUT: ${{ inputs.custom_prompt }}
+          CUSTOM_PROMPT_PATH: ${{ inputs.custom_prompt_path }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          BASE_REF: ${{ inputs.base_ref }}
+          PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
+          MERGE_BASE: ${{ steps.patch-id.outputs.merge_base }}
+          CURRENT_TITLE: ${{ steps.pr-info.outputs.current_title }}
+          HEAD_BRANCH: ${{ steps.pr-info.outputs.head_branch }}
+          BASE_BRANCH: ${{ steps.pr-info.outputs.base_branch }}
+          FILES_CHANGED: ${{ steps.pr-info.outputs.files_changed }}
+        run: |
+          set -euo pipefail
+
+          CUSTOM_PROMPT=""
+
+          # Priority 1: Explicit custom_prompt input
+          if [ -n "$CUSTOM_PROMPT_INPUT" ]; then
+            echo "📝 Using explicit custom prompt from workflow input"
+            CUSTOM_PROMPT="$CUSTOM_PROMPT_INPUT"
+
+          # Priority 2: Custom prompt file in repository
+          elif [ -f "$CUSTOM_PROMPT_PATH" ]; then
+            echo "📝 Using custom prompt from repository: $CUSTOM_PROMPT_PATH"
+            CUSTOM_PROMPT=$(cat "$CUSTOM_PROMPT_PATH")
+
+          # Priority 3: Default prompt from ai-toolkit repository
+          else
+            echo "📝 Fetching default prompt from Uniswap/ai-toolkit repository"
+
+            # Fetch default prompt via GitHub API
+            if ! curl -fSs --max-time 30 --max-redirs 3 \
+                      -H "Authorization: token $GITHUB_TOKEN" \
+                      -H "Accept: application/vnd.github.v4.raw" \
+                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/prompts/generate-pr-title-description.md" \
+                      -o /tmp/default-prompt.md 2>&1 | tee /tmp/curl-error.log; then
+              echo "❌ Failed to fetch default prompt from Uniswap/ai-toolkit"
+              echo "   Error details:"
+              cat /tmp/curl-error.log | head -5
+              exit 1
+            fi
+
+            CUSTOM_PROMPT=$(cat /tmp/default-prompt.md)
+            echo "✅ Loaded default prompt from Uniswap/ai-toolkit"
+          fi
+
+          # Parse repository owner and name from REPO (format: owner/repo)
+          REPO_OWNER=$(echo "$REPO" | cut -d'/' -f1)
+          REPO_NAME=$(echo "$REPO" | cut -d'/' -f2)
+
+          # Read gathered context files
+          RECENT_COMMITS=$(cat /tmp/recent-commits.txt)
+          RECENT_PRS=$(cat /tmp/recent-prs.json)
+          CURRENT_BODY=$(cat /tmp/current-pr-body.txt)
+
+          # Build final prompt with context and output injection
+          cat > /tmp/final-prompt.txt <<PROMPT_EOF
+          # PR Metadata Generation Context
+
+          **Repository Owner:** $REPO_OWNER
+          **Repository Name:** $REPO_NAME
+          **PR Number:** $PR_NUMBER
+          **Base Branch:** $BASE_REF
+          **Head Branch:** $HEAD_BRANCH
+          **Merge Base:** $MERGE_BASE
+          **Patch ID:** $PATCH_ID
+          **Files Changed:** $FILES_CHANGED
+
+          **Current PR Title:** $CURRENT_TITLE
+          **Current PR Description:**
+          \`\`\`
+          $CURRENT_BODY
+          \`\`\`
+
+          ---
+
+          ## Recent Commit Messages (for title pattern learning)
+
+          These are the most recent commit messages in this repository. Analyze them to understand the conventional commit patterns and scoping conventions used:
+
+          \`\`\`
+          $RECENT_COMMITS
+          \`\`\`
+
+          ---
+
+          ## Recent Merged PR Descriptions (for description template learning)
+
+          These are recent merged PRs. Analyze them to understand the description template patterns used in this repository:
+
+          \`\`\`json
+          $RECENT_PRS
+          \`\`\`
+
+          ---
+
+          PROMPT_EOF
+
+          # Append custom prompt content
+          echo "$CUSTOM_PROMPT" >> /tmp/final-prompt.txt
+
+          # Append output writing requirements (always injected)
+          cat >> /tmp/final-prompt.txt <<OUTPUT_EOF
+
+          ---
+
+          # Required: Output Files
+
+          After analyzing the PR and generating the title and description, you **MUST** create these two files in the GitHub workspace root directory:
+
+          ## 1. \`\$GITHUB_WORKSPACE/.claude-pr-title.txt\`
+
+          **IMPORTANT:** Write this file to the full path: \`\$GITHUB_WORKSPACE/.claude-pr-title.txt\`
+
+          Contains ONLY the generated PR title (single line, no quotes, no markdown):
+          - Must follow conventional commit format: \`<type>(<scope>): <description>\`
+          - Types: feat, fix, chore, docs, style, refactor, perf, test, build, ci
+          - Scope should be derived from the primary area of change
+          - Description should be concise but descriptive (max 72 characters total)
+
+          **Example file content:**
+          \`\`\`
+          feat(workflows): add automated PR title and description generation
+          \`\`\`
+
+          ## 2. \`\$GITHUB_WORKSPACE/.claude-pr-description.md\`
+
+          **IMPORTANT:** Write this file to the full path: \`\$GITHUB_WORKSPACE/.claude-pr-description.md\`
+
+          Contains the full PR description in markdown format. Include:
+          - Summary of changes
+          - Key modifications listed as bullet points
+          - Any breaking changes or important notes
+          - Follow the template patterns observed from recent PRs
+
+          **These files are required** for the PR to be updated.
+          If you don't create them, the workflow will fail.
+          OUTPUT_EOF
+
+          # Log final prompt length
+          PROMPT_LENGTH=$(wc -c < /tmp/final-prompt.txt)
+          echo "✅ Built final prompt: $PROMPT_LENGTH characters"
+
+          # Export as output for next step
+          {
+            echo "final_prompt<<PROMPT_DELIMITER_EOF"
+            cat /tmp/final-prompt.txt
+            echo "PROMPT_DELIMITER_EOF"
+          } >> $GITHUB_OUTPUT
+
+          # Show first few lines for debugging
+          echo ""
+          echo "Prompt preview (first 20 lines):"
+          head -n 20 /tmp/final-prompt.txt
+
+      # Build Claude arguments with proper escaping for tool specifications
+      - name: Build Claude Arguments
+        if: steps.cache-check.outputs.cache-hit != 'true'
+        id: build-args
+        env:
+          INPUT_ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
+          INPUT_MAX_TURNS: ${{ inputs.max_turns }}
+          INPUT_MODEL: ${{ inputs.model }}
+        run: |
+          set -euo pipefail
+
+          # Build allowed tools list programmatically
+          if [ -n "$INPUT_ALLOWED_TOOLS" ]; then
+            ALLOWED_TOOLS="$INPUT_ALLOWED_TOOLS"
+          else
+            # Define tools as array for better maintainability
+            TOOLS=(
+              # GitHub MCP tools for PR information
+              "mcp__github__get_pull_request"
+              "mcp__github__get_pull_request_files"
+
+              # File operations (read-only for analysis)
+              "Read"
+              "Grep"
+              "Glob"
+
+              # Git commands (read-only for analysis)
+              "Bash(git log:*)"
+              "Bash(git diff:*)"
+              "Bash(git show:*)"
+              "Bash(git rev-parse:*)"
+
+              # File writing (for output files only)
+              "Write"
+            )
+
+            # Join array elements with commas (no spaces)
+            ALLOWED_TOOLS=$(IFS=,; echo "${TOOLS[*]}")
+          fi
+
+          # Build claude_args conditionally based on provided inputs
+          CLAUDE_ARGS="--model $INPUT_MODEL"
+
+          # Only add --max-turns if explicitly provided (not empty)
+          if [ -n "$INPUT_MAX_TURNS" ]; then
+            CLAUDE_ARGS="$CLAUDE_ARGS
+            --max-turns $INPUT_MAX_TURNS"
+            echo "ℹ️  Including --max-turns $INPUT_MAX_TURNS"
+          else
+            echo "ℹ️  Omitting --max-turns (unlimited turns)"
+          fi
+
+          CLAUDE_ARGS="$CLAUDE_ARGS
+            --allowedTools $ALLOWED_TOOLS"
+
+          echo "allowed_tools=$ALLOWED_TOOLS" >> $GITHUB_OUTPUT
+          echo "claude_args<<CLAUDE_ARGS_EOF" >> $GITHUB_OUTPUT
+          echo "$CLAUDE_ARGS" >> $GITHUB_OUTPUT
+          echo "CLAUDE_ARGS_EOF" >> $GITHUB_OUTPUT
+          echo "✅ Configured allowed tools (${#ALLOWED_TOOLS} chars)"
+
+      # Run Claude Code Action to generate the metadata
+      - name: Run Claude Code Generation
+        if: steps.cache-check.outputs.cache-hit != 'true'
+        id: claude
+        uses: anthropics/claude-code-action@a7e4c51380c42dd89b127f5e5f9be7b54020bc6b # v1.0.21
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: ${{ steps.build-prompt.outputs.final_prompt }}
+          track_progress: false # Disable to avoid PR comments
+          allowed_bots: dependabot
+          claude_args: ${{ steps.build-args.outputs.claude_args }}
+
+      # Update PR title and description using generated files
+      - name: Update PR Metadata
+        if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # Configuration
+          WORKSPACE_ROOT="${GITHUB_WORKSPACE:-.}"
+          TITLE_FILE="$WORKSPACE_ROOT/.claude-pr-title.txt"
+          DESCRIPTION_FILE="$WORKSPACE_ROOT/.claude-pr-description.md"
+          DEFAULT_TITLE="chore: update PR"
+          DEFAULT_DESCRIPTION="*This PR description was auto-generated but the generation process encountered an issue.*"
+
+          echo "Starting PR metadata update for PR #$PR_NUMBER"
+
+          # Read title from file or use default
+          NEW_TITLE="$DEFAULT_TITLE"
+          if [ -f "$TITLE_FILE" ]; then
+            NEW_TITLE=$(cat "$TITLE_FILE" | tr -d '\n' | head -c 200)
+            echo "Read title from file: $NEW_TITLE"
+          else
+            echo "No title file found at $TITLE_FILE, using default: $DEFAULT_TITLE"
+          fi
+
+          # Validate title format (should start with conventional commit type)
+          if ! echo "$NEW_TITLE" | grep -qE '^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\(.+\))?:'; then
+            echo "Warning: Title doesn't follow conventional commit format"
+            echo "   Expected: <type>(<scope>): <description>"
+            echo "   Got: $NEW_TITLE"
+            echo "   Proceeding anyway..."
+          fi
+
+          # Read description from file or use default
+          NEW_DESCRIPTION="$DEFAULT_DESCRIPTION"
+          if [ -f "$DESCRIPTION_FILE" ]; then
+            NEW_DESCRIPTION=$(cat "$DESCRIPTION_FILE")
+            echo "Read description from file (${#NEW_DESCRIPTION} chars)"
+          else
+            echo "No description file found at $DESCRIPTION_FILE, using default message"
+          fi
+
+          # Update PR using gh CLI
+          echo "Updating PR #$PR_NUMBER..."
+          gh pr edit "$PR_NUMBER" --title "$NEW_TITLE" --body "$NEW_DESCRIPTION"
+
+          echo "PR updated successfully!"
+          echo "   New title: $NEW_TITLE"
+
+          # Cleanup temporary files
+          if [ -f "$TITLE_FILE" ]; then
+            rm -f "$TITLE_FILE"
+            echo "Cleaned up $TITLE_FILE"
+          fi
+          if [ -f "$DESCRIPTION_FILE" ]; then
+            rm -f "$DESCRIPTION_FILE"
+            echo "Cleaned up $DESCRIPTION_FILE"
+          fi
+
+          echo "PR metadata update completed successfully"
+
+      # Save successful generation to cache
+      - name: Save Generation Cache Marker
+        if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        run: |
+          mkdir -p .pr-metadata-cache
+          echo "${{ steps.patch-id.outputs.patch_id }}" > .pr-metadata-cache/patch-id
+          echo "Cached generation for patch-ID: ${{ steps.patch-id.outputs.patch_id }}"
+
+      # Persist cache for future rebase detection
+      - name: Cache Generation State
+        if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .pr-metadata-cache
+          key: pr-metadata-pr${{ inputs.pr_number }}-patch-${{ steps.patch-id.outputs.patch_id }}
+
+      # Post error comment if workflow fails (failure case)
+      - name: Post Generation Error Comment
+        if: steps.cache-check.outputs.cache-hit != 'true' && failure()
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          COMMENT_MARKER="<!-- claude-pr-metadata-bot -->"
+          JOB_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          echo "ℹ️  Preparing to post generation error comment" >&2
+
+          # Check for existing comment to update
+          COMMENT_ID=$(gh api "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+            --jq ".[] | select(.body | contains(\"${COMMENT_MARKER}\")) | .id" | head -1 || echo "")
+
+          # Generate error comment body
+          COMMENT_BODY=$(cat <<EOF
+          ${COMMENT_MARKER}
+          ## 🤖 Claude PR Metadata Generation
+
+          **Status:** ❌ Error
+          **Job:** [View workflow run](${JOB_URL})
+
+          ---
+
+          ### ⚠️ Generation Failed
+
+          The automated PR title and description generation encountered an error.
+
+          **Next Steps:**
+          1. Check the [workflow logs](${JOB_URL}) for details
+          2. Verify the GitHub Actions configuration
+          3. Ensure the Anthropic API key is valid
+
+          ---
+
+          *You can manually set the PR title and description, or re-trigger by pushing a new commit.*
+          EOF
+          )
+
+          # Create or update comment
+          if [ -n "$COMMENT_ID" ]; then
+            echo "ℹ️  Updating comment ID: $COMMENT_ID..." >&2
+            gh api "/repos/${GITHUB_REPOSITORY}/issues/comments/${COMMENT_ID}" \
+              -X PATCH \
+              -f body="$COMMENT_BODY" \
+              > /dev/null
+            echo "✅ Updated error comment" >&2
+          else
+            echo "ℹ️  Creating new PR comment..." >&2
+            gh api "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              -X POST \
+              -f body="$COMMENT_BODY" \
+              > /dev/null
+            echo "✅ Created error comment" >&2
+          fi
