@@ -395,3 +395,21 @@ Your review should make developers:
 Keep it high-signal. Every comment should prevent a real problem or teach something genuinely useful.
 
 Post a summary for each of the sections found in the `Review Priorities` section above.
+
+---
+
+## FINAL REMINDER: Inline Comments Are Mandatory
+
+**⚠️ STOP AND CHECK BEFORE FINISHING YOUR REVIEW ⚠️**
+
+Before creating the verdict files, you MUST have created at least one inline comment using `mcp__github__create_pull_request_review` with the `comments` array populated.
+
+**Checklist before completing:**
+
+- [ ] I have called `mcp__github__create_pull_request_review` with inline comments
+- [ ] The `comments` array in my review contains at least 1 comment
+- [ ] Each comment has `path`, `line`, and `body` properties
+
+**If you haven't created inline comments yet, do so NOW before proceeding to verdict files.**
+
+This is NOT optional. Reviews without inline comments are incomplete.

@@ -36,11 +36,12 @@ jobs:
       pr_number: ${{ github.event.pull_request.number }}
       base_ref: ${{ github.base_ref }}
 
-      # Use default model (Sonnet 4.5) for cost-effective reviews
+      # Use Opus 4.5 for comprehensive reviews with reliable inline comments
+      # Opus is more capable at following complex multi-step instructions
       # Uncomment one of these to use a different model for reviews:
-      model: 'claude-haiku-4-5'
+      # model: 'claude-haiku-4-5'
       # model: 'claude-sonnet-4-5'
-      # model: 'claude-opus-4-1'
+      model: 'claude-opus-4-5'
 
       # Allow standard review conversation turns
       # max_turns: 15
