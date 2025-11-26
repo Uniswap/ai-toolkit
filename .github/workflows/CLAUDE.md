@@ -83,6 +83,27 @@ All workflows follow consistent patterns:
 4. **Caching**: NPM dependencies, Nx computation cache
 5. **Artifacts**: Store important outputs
 
+### Repository Variables
+
+Version pinning is centralized using GitHub repository variables (`vars.*`):
+
+| Variable | Value | Purpose |
+|----------|-------|---------|
+| `NODE_VERSION` | `22.21.1` | Node.js version for all workflows |
+| `NPM_VERSION` | `11.6.2` | npm version (required for OIDC publishing) |
+
+**Usage in workflows:**
+
+```yaml
+- uses: actions/setup-node@...
+  with:
+    node-version: ${{ vars.NODE_VERSION }}
+
+- run: npm install -g npm@${{ vars.NPM_VERSION }}
+```
+
+**To update versions:** Change the repository variables in GitHub Settings > Secrets and variables > Actions > Variables. All workflows will automatically use the new values.
+
 ### Secrets
 
 Common secrets referenced:
