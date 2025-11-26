@@ -11,9 +11,10 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 - `ci-pr-checks.yml` - Validates PRs with build, lint, format, and test checks
 - `claude-welcome.yml` - Posts welcome messages from Claude to new PRs
 
-### Release & Deployment (2 workflows)
+### Release & Deployment (3 workflows)
 
-- `publish-packages.yml` - Versions and publishes packages to NPM
+- `publish-packages.yml` - Versions and publishes packages to NPM (automatic on push)
+- `force-publish-packages.yml` - Manually force-publishes packages to NPM with `next` tag (for new packages or failed releases)
 - `release-update-production.yml` - Creates production sync PRs with AI changelogs
 
 ### Code Review & PR Management (2 workflows)
@@ -51,6 +52,7 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 - `claude-code-review.yml` - Automated code reviews
 - `claude-welcome.yml` - New PR welcomes
 - `publish-packages.yml` - Package release automation
+- `force-publish-packages.yml` - Manual force-publish for new/failed packages
 - `release-update-production.yml` - Production sync automation
 
 ## Subdirectories
@@ -80,7 +82,9 @@ All workflows follow consistent patterns:
 Common secrets referenced:
 
 - `ANTHROPIC_API_KEY` - Claude AI API authentication
-- `NPM_TOKEN` - NPM registry publishing
+- `NPM_TOKEN` / `NODE_AUTH_TOKEN` - NPM registry publishing
+- `WORKFLOW_PAT` - Personal Access Token for pushing commits/tags (force-publish)
+- `SERVICE_ACCOUNT_GPG_PRIVATE_KEY` - GPG key for signed commits/tags
 - `SLACK_WEBHOOK_URL` - Slack notifications
 - `GITHUB_TOKEN` - Built-in token (automatic)
 
@@ -104,7 +108,36 @@ jobs:
 - **On PR**: `ci-pr-checks.yml`, `claude-welcome.yml`, `ci-check-pr-title.yml`
 - **On Push to main/next**: `publish-packages.yml`
 - **On Issue Comment**: `claude-code.yml` (when @claude mentioned)
-- **Manual Dispatch**: `release-update-production.yml`, `claude-code-review.yml`
+- **Manual Dispatch**: `release-update-production.yml`, `claude-code-review.yml`, `force-publish-packages.yml`
+
+### Force Publishing Packages
+
+Use `force-publish-packages.yml` to manually publish packages when:
+
+- New packages haven't had code changes detected by Nx release
+- A previous release partially failed
+- You need to republish a specific package
+
+```bash
+# Publish a single package
+gh workflow run force-publish-packages.yml \
+  -f packages="@uniswap/ai-toolkit-nx-claude"
+
+# Publish multiple packages
+gh workflow run force-publish-packages.yml \
+  -f packages="@uniswap/ai-toolkit-nx-claude,@ai-toolkit/utils"
+
+# Publish all release-configured packages
+gh workflow run force-publish-packages.yml \
+  -f packages="all"
+
+# Dry run (no actual publish)
+gh workflow run force-publish-packages.yml \
+  -f packages="all" \
+  -f dryRun="true"
+```
+
+**Note**: This workflow only runs on the `next` branch and publishes with the `next` npm tag.
 
 ## Development Guidelines
 
