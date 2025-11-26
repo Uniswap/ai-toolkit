@@ -38,7 +38,7 @@
           "{options.outputPath}"
         ],
         "dependsOn": [
-          "types"
+          "generate-types"
         ],
         "options": {
           "outputPath": "packages/ai-toolkit-nx-claude/dist",
@@ -93,7 +93,7 @@
           ]
         }
       },
-      "types": {
+      "generate-types": {
         "executor": "@nx/js:tsc",
         "outputs": [
           "{options.outputPath}"
