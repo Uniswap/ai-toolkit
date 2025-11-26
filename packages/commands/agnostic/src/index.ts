@@ -16,6 +16,7 @@ type CommandName =
   | 'fix-bug'
   | 'gen-tests'
   | 'generate-commit-message'
+  | 'git-worktree-orchestrator'
   | 'implement-spec'
   | 'monitor'
   | 'perf-analyze'
@@ -97,6 +98,11 @@ export const commands: Commands = {
     description:
       'Generate a structured git commit message based on current changes and repository patterns',
     filePath: './generate-commit-message.md',
+  },
+  'git-worktree-orchestrator': {
+    description:
+      'Create and manage a git worktree based on the current directory and a branch name, with optional spec-workflow setup and Linear task automation.',
+    filePath: './git-worktree-orchestrator.md',
   },
   'implement-spec': {
     description:
