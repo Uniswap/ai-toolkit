@@ -12,8 +12,16 @@
     "npm:automation"
   ],
   "targets": {
+    "sync-version": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node -e \"const pkg = require('./package.json'); const fs = require('fs'); fs.writeFileSync('./src/version.ts', '// Auto-generated from package.json - DO NOT EDIT\\nexport const VERSION = \\'' + pkg.version + '\\';\\n')\"",
+        "cwd": "packages/linear-task-utils"
+      }
+    },
     "build": {
       "executor": "@nx/esbuild:esbuild",
+      "dependsOn": ["sync-version"],
       "outputs": ["{options.outputPath}"],
       "options": {
         "outputPath": "packages/linear-task-utils/dist",

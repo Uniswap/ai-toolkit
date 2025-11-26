@@ -2,6 +2,7 @@ import minimist from 'minimist';
 import { createLinearClient, queryIssues, parseQueryConfig } from './query-issues.js';
 import { ensureLabel, parseEnsureLabelConfig } from './ensure-label.js';
 import { updateIssue, parseUpdateIssueConfig } from './update-issue.js';
+import { VERSION } from './version.js';
 
 // Color codes for output
 const RED = '\x1b[0;31m';
@@ -93,15 +94,14 @@ ENVIRONMENT VARIABLES:
 
 async function main() {
   try {
+    if (args.version) {
+      console.log(VERSION);
+      process.exit(0);
+    }
+
     if (args.help || !command) {
       console.log(HELP_TEXT);
       process.exit(args.help ? 0 : 1);
-    }
-
-    if (args.version) {
-      // Read version from package.json at runtime
-      console.log('0.0.1');
-      process.exit(0);
     }
 
     // Create Linear client
