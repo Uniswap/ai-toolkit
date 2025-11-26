@@ -36,6 +36,14 @@ pre-commit:
         - rebase
       fail_text: 'Typechecking failed. Please fix the issues before committing.'
 
+    test:
+      run: npx nx affected --target=test --base=HEAD~1
+      tags: test
+      skip:
+        - merge
+        - rebase
+      fail_text: 'Tests failed. Please fix the failing tests before committing.'
+
     lint-markdown:
       glob: '*.md'
       run: sh scripts/lefthook/lint-markdown.sh
@@ -45,10 +53,12 @@ pre-commit:
         - rebase
       fail_text: 'Markdown linting failed. Please fix the issues before committing.'
     # Update CLAUDE.md files based on changed files
+    # Skip with: SKIP_CLAUDE=1 git commit -m "message"
     update-claude-docs:
       run: sh scripts/lefthook/update-claude-docs.sh
       tags: claude-docs
       skip:
         - merge
         - rebase
+        - run: '[ "$SKIP_CLAUDE" = "1" ]'
       fail_text: 'Failed to update CLAUDE.md files. Please run `claude -p "/update-claude-md"` manually.'
