@@ -397,11 +397,16 @@ jobs:
         if: inputs.dry_run
         env:
           INPUT_PROJECTS: ${{ inputs.projects }}
+          INPUT_PACKAGES: ${{ inputs.packages }}
           INPUT_NPM_TAG: ${{ inputs.npm_tag }}
           INPUT_VERSION_STRATEGY: ${{ inputs.version_strategy }}
           INPUT_PREID: ${{ inputs.preid }}
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
         run: |
+          # Configure npm authentication for viewing restricted packages
+          echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+
           echo "=========================================="
           echo "DRY RUN - Publishing Preview"
           echo "=========================================="
@@ -410,25 +415,111 @@ jobs:
           echo "Version strategy: $INPUT_VERSION_STRATEGY"
           echo ""
 
+          # Helper function for smart prerelease version calculation (same as live)
+          calculate_prerelease_version() {
+            local package="$1"
+            local preid="$2"
+
+            echo "  Calculating prerelease version for $package with preid '$preid'..." >&2
+
+            local latest_version
+            latest_version=$(npm view "$package" dist-tags.latest --registry=https://registry.npmjs.org 2>/dev/null || echo "")
+
+            if [ -z "$latest_version" ]; then
+              latest_version="0.0.0"
+              echo "  📦 Package not yet published to npm, using base 0.0.0" >&2
+            else
+              echo "  📦 Latest version on npm: $latest_version" >&2
+            fi
+
+            local major minor patch
+            IFS='.' read -r major minor patch <<< "$latest_version"
+            patch="${patch%%-*}"
+            local base_version="${major}.${minor}.$((patch + 1))"
+            echo "  📐 Base version for prerelease: $base_version" >&2
+
+            local npm_prerelease=-1
+            local npm_versions
+            npm_versions=$(npm view "$package" versions --json --registry=https://registry.npmjs.org 2>/dev/null || echo "[]")
+
+            if [ "$npm_versions" != "[]" ]; then
+              local highest_npm
+              highest_npm=$(echo "$npm_versions" | jq -r --arg base "$base_version" --arg preid "$preid" '
+                .[] |
+                select(startswith($base + "-" + $preid + ".")) |
+                split("-" + $preid + ".")[1] |
+                tonumber
+              ' 2>/dev/null | sort -n | tail -1)
+
+              if [ -n "$highest_npm" ]; then
+                npm_prerelease=$highest_npm
+                echo "  🔍 Highest prerelease on npm: ${base_version}-${preid}.${npm_prerelease}" >&2
+              else
+                echo "  🔍 No existing prereleases on npm for ${base_version}-${preid}.*" >&2
+              fi
+            fi
+
+            local git_prerelease=-1
+            local git_tags
+            git_tags=$(git tag -l "${package}@${base_version}-${preid}.*" 2>/dev/null || echo "")
+
+            if [ -n "$git_tags" ]; then
+              local highest_git
+              highest_git=$(echo "$git_tags" | sed "s|${package}@${base_version}-${preid}\.||" | sort -n | tail -1)
+              if [ -n "$highest_git" ] && [[ "$highest_git" =~ ^[0-9]+$ ]]; then
+                git_prerelease=$highest_git
+                echo "  🏷️  Highest prerelease in git tags: ${base_version}-${preid}.${git_prerelease}" >&2
+              fi
+            else
+              echo "  🏷️  No existing git tags for ${package}@${base_version}-${preid}.*" >&2
+            fi
+
+            local max_prerelease
+            if [ "$npm_prerelease" -gt "$git_prerelease" ]; then
+              max_prerelease=$npm_prerelease
+            else
+              max_prerelease=$git_prerelease
+            fi
+
+            local new_prerelease=$((max_prerelease + 1))
+            local new_version="${base_version}-${preid}.${new_prerelease}"
+
+            echo "  ✨ Calculated new version: $new_version" >&2
+            echo "$new_version"
+          }
+
           IFS=',' read -ra PROJECT_ARRAY <<< "$INPUT_PROJECTS"
-          for project in "${PROJECT_ARRAY[@]}"; do
+          IFS=',' read -ra PACKAGE_ARRAY <<< "$INPUT_PACKAGES"
+
+          for i in "${!PROJECT_ARRAY[@]}"; do
+            project="${PROJECT_ARRAY[$i]}"
+            package="${PACKAGE_ARRAY[$i]}"
+
             echo "-------------------------------------------"
-            echo "Processing: $project"
+            echo "Processing: $project → $package"
             echo "-------------------------------------------"
 
             echo "Versioning (dry run)..."
             if [[ "$INPUT_VERSION_STRATEGY" == "prerelease" ]]; then
-              npx nx release version prerelease --preid="$INPUT_PREID" --projects="$project" --dry-run
+              echo "Using smart prerelease versioning (Option A: base = latest + 0.0.1)"
+              CALCULATED_VERSION=$(calculate_prerelease_version "$package" "$INPUT_PREID")
+              echo ""
+              echo "📋 WOULD SET VERSION TO: $CALCULATED_VERSION"
+              echo "📋 WOULD CREATE TAG: ${package}@${CALCULATED_VERSION}"
             else
               npx nx release version --projects="$project" --dry-run
             fi
 
             echo ""
             echo "Publishing (dry run)..."
-            npx nx release publish --projects="$project" --tag="$INPUT_NPM_TAG" --dry-run
+            echo "📋 WOULD PUBLISH: $package with tag '$INPUT_NPM_TAG'"
 
             echo ""
           done
+
+          echo "=========================================="
+          echo "DRY RUN COMPLETE - No changes made"
+          echo "=========================================="
 
       - name: Version, publish, and push packages
         if: '!inputs.dry_run'
@@ -464,6 +555,95 @@ jobs:
           echo "This ensures git and npm stay in sync after each publish."
           echo ""
 
+          # ============================================================
+          # Helper function: Calculate correct prerelease version
+          # ============================================================
+          # Algorithm (Option A):
+          # 1. Get 'latest' from npm (default 0.0.1 if not published)
+          # 2. Calculate base = latest + 0.0.1 (bump patch)
+          # 3. Find highest base-{preid}.* on npm
+          # 4. Find highest base-{preid}.* git tag
+          # 5. Use MAX(npm_prerelease, git_tag_prerelease) + 1 as new prerelease number
+          # ============================================================
+          calculate_prerelease_version() {
+            local package="$1"
+            local preid="$2"
+
+            echo "  Calculating prerelease version for $package with preid '$preid'..." >&2
+
+            # Step 1: Get latest version from npm
+            local latest_version
+            latest_version=$(npm view "$package" dist-tags.latest --registry=https://registry.npmjs.org 2>/dev/null || echo "")
+
+            if [ -z "$latest_version" ]; then
+              latest_version="0.0.0"
+              echo "  📦 Package not yet published to npm, using base 0.0.0" >&2
+            else
+              echo "  📦 Latest version on npm: $latest_version" >&2
+            fi
+
+            # Step 2: Calculate base version (latest + 0.0.1 = bump patch)
+            local major minor patch
+            IFS='.' read -r major minor patch <<< "$latest_version"
+            # Remove any prerelease suffix from patch if present
+            patch="${patch%%-*}"
+            local base_version="${major}.${minor}.$((patch + 1))"
+            echo "  📐 Base version for prerelease: $base_version" >&2
+
+            # Step 3: Find highest prerelease number on npm for this base
+            local npm_prerelease=-1
+            local npm_versions
+            npm_versions=$(npm view "$package" versions --json --registry=https://registry.npmjs.org 2>/dev/null || echo "[]")
+
+            if [ "$npm_versions" != "[]" ]; then
+              # Extract prerelease numbers matching base-preid.N pattern
+              local highest_npm
+              highest_npm=$(echo "$npm_versions" | jq -r --arg base "$base_version" --arg preid "$preid" '
+                .[] |
+                select(startswith($base + "-" + $preid + ".")) |
+                split("-" + $preid + ".")[1] |
+                tonumber
+              ' 2>/dev/null | sort -n | tail -1)
+
+              if [ -n "$highest_npm" ]; then
+                npm_prerelease=$highest_npm
+                echo "  🔍 Highest prerelease on npm: ${base_version}-${preid}.${npm_prerelease}" >&2
+              else
+                echo "  🔍 No existing prereleases on npm for ${base_version}-${preid}.*" >&2
+              fi
+            fi
+
+            # Step 4: Find highest prerelease number in git tags for this base
+            local git_prerelease=-1
+            local git_tags
+            git_tags=$(git tag -l "${package}@${base_version}-${preid}.*" 2>/dev/null || echo "")
+
+            if [ -n "$git_tags" ]; then
+              local highest_git
+              highest_git=$(echo "$git_tags" | sed "s|${package}@${base_version}-${preid}\.||" | sort -n | tail -1)
+              if [ -n "$highest_git" ] && [[ "$highest_git" =~ ^[0-9]+$ ]]; then
+                git_prerelease=$highest_git
+                echo "  🏷️  Highest prerelease in git tags: ${base_version}-${preid}.${git_prerelease}" >&2
+              fi
+            else
+              echo "  🏷️  No existing git tags for ${package}@${base_version}-${preid}.*" >&2
+            fi
+
+            # Step 5: Calculate new prerelease number as MAX + 1
+            local max_prerelease
+            if [ "$npm_prerelease" -gt "$git_prerelease" ]; then
+              max_prerelease=$npm_prerelease
+            else
+              max_prerelease=$git_prerelease
+            fi
+
+            local new_prerelease=$((max_prerelease + 1))
+            local new_version="${base_version}-${preid}.${new_prerelease}"
+
+            echo "  ✨ Calculated new version: $new_version" >&2
+            echo "$new_version"
+          }
+
           # Convert comma-separated lists to arrays
           IFS=',' read -ra PROJECTS <<< "$INPUT_PROJECTS"
           IFS=',' read -ra PACKAGES <<< "$INPUT_PACKAGES"
@@ -488,17 +668,44 @@ jobs:
             # Extract the package name without scope
             PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
 
+            # Get project root for package.json updates
+            PROJECT_ROOT=$(npx nx show project "$project" --json 2>/dev/null | jq -r '.root' || echo "")
+            if [ -z "$PROJECT_ROOT" ] || [ ! -f "$PROJECT_ROOT/package.json" ]; then
+              echo "❌ Could not find package.json for $project"
+              FAILED_PACKAGES+=("$package")
+              continue
+            fi
+
             # Step 1: Version this specific package
             echo ""
             echo "Step 1: Versioning package..."
             if [[ "$INPUT_VERSION_STRATEGY" == "prerelease" ]]; then
-              echo "Using prerelease versioning with preid: $INPUT_PREID"
-              if ! npx nx release version prerelease --preid="$INPUT_PREID" --projects="$project"; then
-                echo "❌ Failed to version $package"
+              echo "Using smart prerelease versioning (Option A: base = latest + 0.0.1)"
+
+              # Calculate the correct version using our custom algorithm
+              NEW_VERSION=$(calculate_prerelease_version "$package" "$INPUT_PREID")
+
+              if [ -z "$NEW_VERSION" ]; then
+                echo "❌ Failed to calculate version for $package"
                 FAILED_PACKAGES+=("$package")
                 echo ""
                 continue
               fi
+
+              echo "  Setting version to: $NEW_VERSION"
+
+              # Update package.json with the new version
+              jq --arg version "$NEW_VERSION" '.version = $version' "$PROJECT_ROOT/package.json" > "$PROJECT_ROOT/package.json.tmp"
+              mv "$PROJECT_ROOT/package.json.tmp" "$PROJECT_ROOT/package.json"
+
+              # Create git commit for the version bump
+              git add "$PROJECT_ROOT/package.json"
+              git commit -m "chore(release): $package@$NEW_VERSION"
+
+              # Create git tag
+              git tag "${package}@${NEW_VERSION}"
+
+              echo "✅ Versioning complete (version: $NEW_VERSION)"
             else
               echo "Using conventional commits to determine version bump"
               if ! npx nx release version --projects="$project"; then
@@ -507,12 +714,10 @@ jobs:
                 echo ""
                 continue
               fi
+              # Get the new version from package.json (set by Nx)
+              NEW_VERSION=$(jq -r '.version' "$PROJECT_ROOT/package.json")
+              echo "✅ Versioning complete"
             fi
-            echo "✅ Versioning complete"
-
-            # Get the new version from package.json
-            PROJECT_ROOT=$(npx nx show project "$project" --json 2>/dev/null | jq -r '.root' || echo "")
-            NEW_VERSION=$(jq -r '.version' "$PROJECT_ROOT/package.json")
             echo "New version: $NEW_VERSION"
 
             # Step 2: Check if package exists on npm and publish

@@ -94,7 +94,7 @@ Example usage in workflow:
 ```yaml
 - name: Publish to Notion
   run: |
-    npx @uniswap/notion-publisher \
+    npx @uniswap/ai-toolkit-notion-publisher \
       --title "${{ inputs.title }}" \
       --content "${{ inputs.content }}"
   env:

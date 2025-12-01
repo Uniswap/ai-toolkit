@@ -263,7 +263,7 @@ When working with GitHub Actions workflows (`.github/workflows/*.yml`), follow t
 
 1. **Complex Logic Extraction**: If a workflow step contains complex bash scripting (50+ lines, multiple functions, intricate logic, API integrations, etc.), it MUST be extracted to a separate script file in the `.github/scripts/` directory.
 
-2. **Script Location**: All standalone scripts should be placed in `.github/scripts/` with descriptive, kebab-case names (e.g., `update-changelog.sh`, `process-coverage.ts`). For reusable tools intended for external use, publish as npm packages (e.g., `@uniswap/notion-publisher`).
+2. **Script Location**: All standalone scripts should be placed in `.github/scripts/` with descriptive, kebab-case names (e.g., `update-changelog.sh`, `process-coverage.ts`). For reusable tools intended for external use, publish as npm packages (e.g., `@uniswap/ai-toolkit-notion-publisher`).
 
 3. **Script Requirements**: Each script file should:
 
@@ -344,7 +344,7 @@ When working with GitHub Actions workflows (`.github/workflows/*.yml`), follow t
 
 - name: Publish to Notion
   run: |
-    npx @uniswap/notion-publisher \
+    npx @uniswap/ai-toolkit-notion-publisher \
       --title "${{ inputs.title }}" \
       --content "${{ inputs.content }}"
   env:
@@ -356,7 +356,7 @@ When working with GitHub Actions workflows (`.github/workflows/*.yml`), follow t
 
 See the following for reference implementations:
 
-- `@uniswap/notion-publisher` package - Notion API integration published as CLI tool (see `packages/notion-publisher/`)
+- `@uniswap/ai-toolkit-notion-publisher` package - Notion API integration published as CLI tool (see `packages/notion-publisher/`)
 
 #### When Inline Scripts Are Acceptable
 

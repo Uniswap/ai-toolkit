@@ -60,7 +60,7 @@ These workflows are prefixed with `_` and may be called from other repositories:
 
 These workflows are prefixed with two `__` and are only used within this repository:
 
-- `publish-packages.yml` - Core package publishing logic (build, version, publish, push)
+- `__publish-packages.yml` - Core package publishing logic (build, version, publish, push)
   - Extracted from `ci-publish-packages.yml` and `force-publish-packages.yml` to avoid code duplication
   - Handles atomic versioning, npm publish, git commit/tag push, and GitHub release creation
   - Used by both automatic publishing (on push) and manual force-publishing workflows
@@ -74,8 +74,8 @@ These workflows are prefixed with two `__` and are only used within this reposit
 - `claude-code-review.yml` - Automated code reviews
 - `claude-welcome.yml` - New PR welcomes
 - `generate-pr-title-description.yml` - Auto-generated PR titles and descriptions
-- `ci-publish-packages.yml` - Package release automation (uses `publish-packages.yml`)
-- `force-publish-packages.yml` - Manual force-publish for new/failed packages (uses `publish-packages.yml`)
+- `ci-publish-packages.yml` - Package release automation (uses `__publish-packages.yml`)
+- `force-publish-packages.yml` - Manual force-publish for new/failed packages (uses `__publish-packages.yml`)
 - `release-update-production.yml` - Production sync automation
 
 ## Subdirectories
@@ -157,7 +157,7 @@ Internal shared workflows (prefixed with `__`):
 ```yaml
 jobs:
   publish:
-    uses: ./.github/workflows/publish-packages.yml
+    uses: ./.github/workflows/__publish-packages.yml
     with:
       projects: ${{ needs.detect.outputs.projects }}
       packages: ${{ needs.detect.outputs.packages }}
@@ -255,6 +255,43 @@ The publishing functionality is split into three workflows for maintainability:
 | `base_sha`            | string  | Base SHA for affected build             |
 | `is_prerelease`       | boolean | Mark GitHub releases as prereleases     |
 
+### Smart Prerelease Versioning Algorithm
+
+When `version_strategy` is set to `prerelease`, the workflow uses a **smart versioning algorithm** that ensures `next` versions are always properly aligned with `latest` versions. This prevents version misalignment issues (e.g., `latest=0.5.0` but `next=0.3.0-next.5`).
+
+**Algorithm (Option A: base = latest + patch bump):**
+
+1. **Get `latest` from npm**: Query npm for the package's `latest` dist-tag version. Default to `0.0.0` if the package hasn't been published yet.
+
+2. **Calculate base version**: Bump the patch version by 1. For example:
+   - `latest = 0.5.0` → `base = 0.5.1`
+   - `latest = 1.2.3` → `base = 1.2.4`
+   - Not published → `base = 0.0.1`
+
+3. **Find highest existing prerelease on npm**: Query npm for all versions matching `{base}-{preid}.*` pattern and find the highest prerelease number.
+
+4. **Find highest existing prerelease in git tags**: Search git tags for `{package}@{base}-{preid}.*` and find the highest prerelease number.
+
+5. **Calculate new version**: `MAX(npm_prerelease, git_prerelease) + 1`
+
+**Example:**
+
+```text
+Package: @uniswap/my-package
+Latest on npm: 0.5.0
+Existing next versions: 0.5.1-next.0, 0.5.1-next.1, 0.5.1-next.2
+Git tags: @uniswap/my-package@0.5.1-next.0, @uniswap/my-package@0.5.1-next.1
+
+Result: 0.5.1-next.3
+```
+
+**Why this approach?**
+
+- **Prevents misalignment**: `next` versions always build on top of `latest`, never behind it
+- **Handles orphaned versions**: Considers both npm and git tags to avoid version conflicts
+- **Resilient to failures**: Even if a publish fails partway, the next attempt will calculate the correct version
+- **Semver compliant**: Follows semantic versioning rules for prereleases
+
 ## Development Guidelines
 
 ### Script Separation Policy (CRITICAL)
@@ -264,7 +301,7 @@ Complex bash scripting (50+ lines, API calls, etc.) MUST be extracted to `.githu
 ❌ **BAD**: 200 lines of inline bash in YAML
 ✅ **GOOD**: Call standalone script: `./.github/scripts/my-script.sh`
 
-For reusable tools, publish as npm packages (e.g., `@uniswap/notion-publisher`).
+For reusable tools, publish as npm packages (e.g., `@uniswap/ai-toolkit-notion-publisher`).
 
 ### Action Pinning (CRITICAL)
 
