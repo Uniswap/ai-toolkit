@@ -214,7 +214,7 @@ The publishing functionality is split into three workflows for maintainability:
 
 ```text
 ┌─────────────────────────┐     ┌─────────────────────────────┐
-│  __publish-packages.yml   │     │ force-publish-packages.yml  │
+│  ci-publish-packages.yml│     │ force-publish-packages.yml  │
 │  (automatic on push)    │     │ (manual trigger)            │
 │                         │     │                             │
 │  - Detects affected     │     │  - Validates branch (next)  │
@@ -240,7 +240,7 @@ The publishing functionality is split into three workflows for maintainability:
             └───────────────────────────────┘
 ```
 
-### __publish-packages.yml Inputs
+### \_\_publish-packages.yml Inputs
 
 | Input                 | Type    | Description                             |
 | --------------------- | ------- | --------------------------------------- |
@@ -264,6 +264,7 @@ When `version_strategy` is set to `prerelease`, the workflow uses a **smart vers
 1. **Get `latest` from npm**: Query npm for the package's `latest` dist-tag version. Default to `0.0.0` if the package hasn't been published yet.
 
 2. **Calculate base version**: Bump the patch version by 1. For example:
+
    - `latest = 0.5.0` → `base = 0.5.1`
    - `latest = 1.2.3` → `base = 1.2.4`
    - Not published → `base = 0.0.1`
@@ -312,6 +313,35 @@ Always pin external actions to **specific commit hashes** with version comments:
 ```
 
 Never use tags or branch names directly.
+
+### Reusable Workflow Permissions (CRITICAL)
+
+When calling reusable workflows via `uses:`, permissions defined in the reusable workflow's job are **NOT automatically inherited**. The **caller workflow** must explicitly define all required permissions.
+
+**This is especially critical for npm OIDC trusted publishing**, which requires `id-token: write`:
+
+```yaml
+jobs:
+  publish:
+    name: Publish packages
+    permissions:
+      id-token: write # Required for npm OIDC trusted publishing
+      contents: write
+      packages: write
+      pull-requests: write
+      issues: write
+    uses: ./.github/workflows/__publish-packages.yml
+    with:
+      # ... inputs
+```
+
+Without `id-token: write` in the caller, npm publish will fail with:
+
+```text
+403 Forbidden - You may not perform that action with these credentials.
+```
+
+**Key rule**: Any workflow that calls `__publish-packages.yml` must include `id-token: write` in its permissions block.
 
 ## Testing Workflows
 
