@@ -21,15 +21,15 @@ on:
   workflow_call:
     inputs:
       projects:
-        description: "Comma-separated list of Nx project names to publish"
+        description: 'Comma-separated list of Nx project names to publish'
         required: true
         type: string
       packages:
-        description: "Comma-separated list of npm package names (must match projects order)"
+        description: 'Comma-separated list of npm package names (must match projects order)'
         required: true
         type: string
       npm_tag:
-        description: "npm tag to publish with (latest or next)"
+        description: 'npm tag to publish with (latest or next)'
         required: true
         type: string
       version_strategy:
@@ -40,49 +40,49 @@ on:
         description: 'Prerelease identifier (e.g., "next"). Only used when version_strategy is "prerelease"'
         required: false
         type: string
-        default: "next"
+        default: 'next'
       branch:
-        description: "Branch to push commits/tags to"
+        description: 'Branch to push commits/tags to'
         required: true
         type: string
       dry_run:
-        description: "If true, only simulate publishing without making changes"
+        description: 'If true, only simulate publishing without making changes'
         required: false
         type: boolean
         default: false
       clean_orphaned_tags:
-        description: "If true, clean up orphaned git tags before publishing"
+        description: 'If true, clean up orphaned git tags before publishing'
         required: false
         type: boolean
         default: false
       base_sha:
-        description: "Base SHA for affected detection (used for building). If empty, builds all specified projects."
+        description: 'Base SHA for affected detection (used for building). If empty, builds all specified projects.'
         required: false
         type: string
-        default: ""
+        default: ''
       is_prerelease:
-        description: "If true, GitHub releases are marked as prereleases"
+        description: 'If true, GitHub releases are marked as prereleases'
         required: false
         type: boolean
         default: false
     outputs:
       successful_packages:
-        description: "JSON array of successfully published package names"
+        description: 'JSON array of successfully published package names'
         value: ${{ jobs.publish.outputs.successful_packages }}
       failed_packages:
-        description: "JSON array of failed package names"
+        description: 'JSON array of failed package names'
         value: ${{ jobs.publish.outputs.failed_packages }}
       successful_count:
-        description: "Number of successfully published packages"
+        description: 'Number of successfully published packages'
         value: ${{ jobs.publish.outputs.successful_count }}
       failed_count:
-        description: "Number of failed packages"
+        description: 'Number of failed packages'
         value: ${{ jobs.publish.outputs.failed_count }}
       has_failures:
-        description: "true if any packages failed to publish"
+        description: 'true if any packages failed to publish'
         value: ${{ jobs.publish.outputs.has_failures }}
       has_successes:
-        description: "true if any packages were successfully published"
+        description: 'true if any packages were successfully published'
         value: ${{ jobs.publish.outputs.has_successes }}
     secrets:
       WORKFLOW_PAT:
@@ -132,8 +132,8 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
           node-version: ${{ vars.NODE_VERSION }}
-          registry-url: "https://registry.npmjs.org"
-          scope: "@uniswap"
+          registry-url: 'https://registry.npmjs.org'
+          scope: '@uniswap'
 
       - name: Install npm
         # IMPORTANT: Pinning npm version for two reasons:
@@ -431,7 +431,7 @@ jobs:
           done
 
       - name: Version, publish, and push packages
-        if: "!inputs.dry_run"
+        if: '!inputs.dry_run'
         id: publish
         env:
           INPUT_PROJECTS: ${{ inputs.projects }}

@@ -58,9 +58,9 @@ These workflows are prefixed with `_` and may be called from other repositories:
 
 ### Shared Internal Workflows
 
-These workflows are in `shared-internal/` and are only used within this repository:
+These workflows are prefixed with two `__` and are only used within this repository:
 
-- `shared-internal/publish-packages.yml` - Core package publishing logic (build, version, publish, push)
+- `__publish-packages.yml` - Core package publishing logic (build, version, publish, push)
   - Extracted from `ci-publish-packages.yml` and `force-publish-packages.yml` to avoid code duplication
   - Handles atomic versioning, npm publish, git commit/tag push, and GitHub release creation
   - Used by both automatic publishing (on push) and manual force-publishing workflows
@@ -74,21 +74,20 @@ These workflows are in `shared-internal/` and are only used within this reposito
 - `claude-code-review.yml` - Automated code reviews
 - `claude-welcome.yml` - New PR welcomes
 - `generate-pr-title-description.yml` - Auto-generated PR titles and descriptions
-- `ci-publish-packages.yml` - Package release automation (uses `shared-internal/publish-packages.yml`)
-- `force-publish-packages.yml` - Manual force-publish for new/failed packages (uses `shared-internal/publish-packages.yml`)
+- `ci-publish-packages.yml` - Package release automation (uses `__publish-packages.yml`)
+- `force-publish-packages.yml` - Manual force-publish for new/failed packages (uses `__publish-packages.yml`)
 - `release-update-production.yml` - Production sync automation
 
 ## Subdirectories
 
 - `examples/` - Example implementations of workflows (13 numbered files)
-- `shared-internal/` - Reusable workflows only used within this repository (not externally)
 
 ## Conventions
 
 ### Naming
 
 - **External reusable workflows**: Prefix with `_` (underscore) - may be called from other repos
-- **Internal shared workflows**: Place in `shared-internal/` directory (no underscore prefix)
+- **Internal shared workflows**: Prefix with `__` (double underscore prefix)
 - **Consumer workflows**: No prefix, descriptive kebab-case names
 - **Example workflows**: Numbered prefix (e.g., `01-`, `02-`)
 
@@ -153,12 +152,12 @@ jobs:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-Internal shared workflows (in `shared-internal/`):
+Internal shared workflows (prefixed with `__`):
 
 ```yaml
 jobs:
   publish:
-    uses: ./.github/workflows/shared-internal/publish-packages.yml
+    uses: ./.github/workflows/__publish-packages.yml
     with:
       projects: ${{ needs.detect.outputs.projects }}
       packages: ${{ needs.detect.outputs.packages }}
@@ -222,14 +221,14 @@ The publishing functionality is split into three workflows for maintainability:
 │    packages via Nx      │     │  - Resolves user-specified  │
 │  - Determines version   │     │    packages                 │
 │    strategy by branch   │     │  - Always uses prerelease   │
-└───────────┬─────────────┘     └──────────────┬──────────────┘
+└───────────┬─────────────┘     └───────────────┬─────────────┘
             │                                   │
             └───────────────┬───────────────────┘
                             │
                             ▼
             ┌───────────────────────────────┐
-            │ shared-internal/              │
-            │   publish-packages.yml            │
+            │                               │
+            │   __publish-packages.yml      │
             │                               │
             │ - Build packages              │
             │ - Clean orphaned tags (opt)   │
@@ -319,7 +318,7 @@ ACTIONS_RUNNER_DEBUG=true
 ## Related Documentation
 
 - See `examples/` subdirectory for working implementations
-- See `shared-internal/` for internal reusable workflows
+- See workflows prefixed with `__` for internal reusable workflows
 - See `.github/prompts/` for Claude AI prompt templates
 - See root `CLAUDE.md` for project-level documentation
 
