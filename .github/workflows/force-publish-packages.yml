@@ -84,9 +84,10 @@ jobs:
 
       - name: Resolve packages to publish
         id: resolve-packages
+        env:
+          INPUT_PACKAGES: ${{ github.event.inputs.packages }}
         run: |
-          INPUT_PACKAGES="${{ github.event.inputs.packages }}"
-          echo "Input packages: $INPUT_PACKAGES"
+          echo "Input packages: \"$INPUT_PACKAGES\""
 
           # Get all release-configured packages from nx.json
           ALL_PACKAGES=$(npx nx show projects --json 2>/dev/null | jq -r '.[]' | while read project; do
@@ -478,38 +479,46 @@ jobs:
 
       - name: Summary
         if: always()
+        env:
+          DRY_RUN: ${{ github.event.inputs.dryRun }}
+          BRANCH_NAME: ${{ github.ref_name }}
+          PACKAGE_COUNT: ${{ needs.validate.outputs.package_count }}
+          SUCCESSFUL_COUNT: ${{ steps.publish.outputs.successful_count || '0' }}
+          FAILED_COUNT: ${{ steps.publish.outputs.failed_count || '0' }}
+          SUCCESSFUL_PACKAGES: ${{ steps.publish.outputs.successful_packages }}
+          FAILED_PACKAGES: ${{ steps.publish.outputs.failed_packages }}
         run: |
           echo "## 🚀 Force Publish Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ github.event.inputs.dryRun }}" = "true" ]; then
+          if [ "$DRY_RUN" = "true" ]; then
             echo "**Mode:** Dry Run (no changes made)" >> $GITHUB_STEP_SUMMARY
           else
             echo "**Mode:** Live Publish" >> $GITHUB_STEP_SUMMARY
           fi
 
-          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Packages requested:** ${{ needs.validate.outputs.package_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** $BRANCH_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "**Packages requested:** $PACKAGE_COUNT" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ github.event.inputs.dryRun }}" != "true" ]; then
+          if [ "$DRY_RUN" != "true" ]; then
             echo "### Results" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "- **Successful:** ${{ steps.publish.outputs.successful_count || '0' }}" >> $GITHUB_STEP_SUMMARY
-            echo "- **Failed:** ${{ steps.publish.outputs.failed_count || '0' }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Successful:** $SUCCESSFUL_COUNT" >> $GITHUB_STEP_SUMMARY
+            echo "- **Failed:** $FAILED_COUNT" >> $GITHUB_STEP_SUMMARY
 
-            if [ -n "${{ steps.publish.outputs.successful_packages }}" ]; then
+            if [ -n "$SUCCESSFUL_PACKAGES" ]; then
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "#### Successfully Published" >> $GITHUB_STEP_SUMMARY
-              echo '${{ steps.publish.outputs.successful_packages }}' | jq -r '.[]' | while read pkg; do
+              echo "$SUCCESSFUL_PACKAGES" | jq -r '.[]' | while read pkg; do
                 echo "- ✅ $pkg" >> $GITHUB_STEP_SUMMARY
               done
             fi
 
-            if [ "${{ steps.publish.outputs.failed_count }}" != "0" ]; then
+            if [ "$FAILED_COUNT" != "0" ]; then
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "#### Failed" >> $GITHUB_STEP_SUMMARY
-              echo '${{ steps.publish.outputs.failed_packages }}' | jq -r '.[]' | while read pkg; do
+              echo "$FAILED_PACKAGES" | jq -r '.[]' | while read pkg; do
                 echo "- ❌ $pkg" >> $GITHUB_STEP_SUMMARY
               done
             fi
