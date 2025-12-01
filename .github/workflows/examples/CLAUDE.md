@@ -26,6 +26,11 @@ Example workflow implementations demonstrating AI Toolkit patterns and best prac
 
 11. **11-autonomous-linear-tasks.yml** - Autonomous Claude Code task processing from Linear issues
 
+### PR Metadata Generation (Examples 12-13)
+
+12. **12-generate-pr-metadata-basic.yml** - Basic auto-generated PR titles and descriptions
+13. **13-generate-pr-metadata-custom.yml** - Advanced PR metadata with custom prompts
+
 ## Usage
 
 These examples serve as:
@@ -111,6 +116,20 @@ All examples demonstrate:
 **Key Features:**
 
 - **11**: Full autonomous task processing from Linear with `@uniswap/ai-toolkit-linear-task-utils`
+
+### PR Metadata Generation Examples (12-13)
+
+**Patterns:**
+
+- Automatic PR title and description generation
+- Conventional commit format enforcement
+- Pattern learning from repository history
+- Template adaptation from recent merged PRs
+
+**Key Features:**
+
+- **12**: Basic auto-generated PR titles and descriptions with defaults
+- **13**: Advanced configuration with custom prompts and history counts
 
 ## Configuration Reference
 
