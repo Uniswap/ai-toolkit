@@ -1,6 +1,6 @@
 {
   "name": "@uniswap/notion-publisher",
-  "version": "0.0.5",
+  "version": "0.0.2-next.1",
   "private": false,
   "type": "module",
   "description": "CLI tool to publish release notes to Notion databases with markdown support",
