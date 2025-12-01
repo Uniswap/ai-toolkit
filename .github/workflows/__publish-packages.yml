@@ -96,6 +96,7 @@ jobs:
   publish:
     runs-on:
       group: npm-deploy
+    environment: Production
     permissions:
       id-token: write
       contents: write
