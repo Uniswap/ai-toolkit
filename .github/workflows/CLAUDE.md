@@ -60,7 +60,7 @@ These workflows are prefixed with `_` and may be called from other repositories:
 
 These workflows are prefixed with two `__` and are only used within this repository:
 
-- `publish-packages.yml` - Core package publishing logic (build, version, publish, push)
+- `__publish-packages.yml` - Core package publishing logic (build, version, publish, push)
   - Extracted from `ci-publish-packages.yml` and `force-publish-packages.yml` to avoid code duplication
   - Handles atomic versioning, npm publish, git commit/tag push, and GitHub release creation
   - Used by both automatic publishing (on push) and manual force-publishing workflows
@@ -74,8 +74,8 @@ These workflows are prefixed with two `__` and are only used within this reposit
 - `claude-code-review.yml` - Automated code reviews
 - `claude-welcome.yml` - New PR welcomes
 - `generate-pr-title-description.yml` - Auto-generated PR titles and descriptions
-- `ci-publish-packages.yml` - Package release automation (uses `publish-packages.yml`)
-- `force-publish-packages.yml` - Manual force-publish for new/failed packages (uses `publish-packages.yml`)
+- `ci-publish-packages.yml` - Package release automation (uses `__publish-packages.yml`)
+- `force-publish-packages.yml` - Manual force-publish for new/failed packages (uses `__publish-packages.yml`)
 - `release-update-production.yml` - Production sync automation
 
 ## Subdirectories
@@ -157,7 +157,7 @@ Internal shared workflows (prefixed with `__`):
 ```yaml
 jobs:
   publish:
-    uses: ./.github/workflows/publish-packages.yml
+    uses: ./.github/workflows/__publish-packages.yml
     with:
       projects: ${{ needs.detect.outputs.projects }}
       packages: ${{ needs.detect.outputs.packages }}
@@ -214,7 +214,7 @@ The publishing functionality is split into three workflows for maintainability:
 
 ```text
 ┌─────────────────────────┐     ┌─────────────────────────────┐
-│  publish-packages.yml   │     │ force-publish-packages.yml  │
+│  __publish-packages.yml   │     │ force-publish-packages.yml  │
 │  (automatic on push)    │     │ (manual trigger)            │
 │                         │     │                             │
 │  - Detects affected     │     │  - Validates branch (next)  │
@@ -228,7 +228,7 @@ The publishing functionality is split into three workflows for maintainability:
                             ▼
             ┌───────────────────────────────┐
             │                               │
-            │   publish-packages.yml      │
+            │   __publish-packages.yml      │
             │                               │
             │ - Build packages              │
             │ - Clean orphaned tags (opt)   │
@@ -240,7 +240,7 @@ The publishing functionality is split into three workflows for maintainability:
             └───────────────────────────────┘
 ```
 
-### publish-packages.yml Inputs
+### __publish-packages.yml Inputs
 
 | Input                 | Type    | Description                             |
 | --------------------- | ------- | --------------------------------------- |

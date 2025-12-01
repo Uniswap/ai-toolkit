@@ -25,9 +25,9 @@ name: Force Publish Packages
 # - Creates git commits and tags for version bumps
 #
 # ARCHITECTURE:
-# This workflow uses the publish-packages.yml reusable workflow
+# This workflow uses the __publish-packages.yml reusable workflow
 # to handle the actual publishing logic, avoiding code duplication with
-# publish-packages.yml.
+# __publish-packages.yml.
 
 on:
   workflow_dispatch:
@@ -175,7 +175,7 @@ jobs:
   publish:
     name: Force publish packages
     needs: validate
-    uses: ./.github/workflows/publish-packages.yml
+    uses: ./.github/workflows/__publish-packages.yml
     with:
       projects: ${{ needs.validate.outputs.projects }}
       packages: ${{ needs.validate.outputs.packages }}

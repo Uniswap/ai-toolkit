@@ -186,12 +186,12 @@ Workflows designed to be called by other workflows using `workflow_call`. These 
 
 | Secret                             | Used By                                     | Purpose                                         |
 | ---------------------------------- | ------------------------------------------- | ----------------------------------------------- |
-| `WORKFLOW_PAT`                     | publish-packages.yml, update-production.yml | Push commits/tags, create PRs                   |
+| `WORKFLOW_PAT`                     | __publish-packages.yml, update-production.yml | Push commits/tags, create PRs                   |
 | `ANTHROPIC_API_KEY`                | generate-changelog.yml                      | AI-powered changelog generation                 |
 | `SLACK_WEBHOOK_URL`                | notify-release.yml                          | Send Slack release notifications                |
 | `NOTION_API_KEY`                   | notify-release.yml                          | Publish release notes to Notion (optional)      |
 | `RELEASE_NOTES_NOTION_DATABASE_ID` | notify-release.yml                          | Notion database ID for release notes (optional) |
-| `NODE_AUTH_TOKEN`                  | publish-packages.yml                        | Publish to NPM registry                         |
+| `NODE_AUTH_TOKEN`                  | __publish-packages.yml                        | Publish to NPM registry                         |
 
 ## Usage Examples
 
@@ -216,7 +216,7 @@ jobs:
 # Trigger update-production workflow
 gh workflow run release-update-production.yml
 
-# Trigger publish-packages in dry-run mode
+# Trigger __publish-packages in dry-run mode
 gh workflow run release-publish-packages.yml -f dryRun=true
 ```
 

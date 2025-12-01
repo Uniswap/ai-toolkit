@@ -247,7 +247,7 @@ jobs:
     name: Build and publish packages
     needs: detect
     if: needs.detect.outputs.has_affected == 'true'
-    uses: ./.github/workflows/publish-packages.yml
+    uses: ./.github/workflows/__publish-packages.yml
     with:
       projects: ${{ needs.detect.outputs.projects }}
       packages: ${{ needs.detect.outputs.packages }}
@@ -453,7 +453,7 @@ jobs:
               git push origin next --force-with-lease
               \`\`\`
 
-              This issue was automatically created by the publish-packages workflow." \
+              This issue was automatically created by the __publish-packages workflow." \
               --label "automated,needs-attention"
 
             echo "## ⚠️ Branch Sync Failed" >> $GITHUB_STEP_SUMMARY
