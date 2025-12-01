@@ -160,7 +160,7 @@ npx nx build package-name --watch
 
 ### GitHub Actions Workflow
 
-Our CI/CD uses `.github/workflows/publish-packages.yml`:
+Our CI/CD uses `.github/workflows/ci-publish-packages.yml`:
 
 ```yaml
 Workflow Triggers:

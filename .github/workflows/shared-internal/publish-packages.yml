@@ -1,69 +1,101 @@
 name: Publish Packages
 
-# This workflow handles versioning, building, and publishing packages to NPM for both
-# production (main branch) and pre-release (next branch) deployments.
+# Reusable workflow that handles the core package publishing logic.
+# This workflow is called by both publish-packages.yml and force-publish-packages.yml
+# to avoid code duplication.
 #
-# REQUIRED SECRETS:
-# 1. WORKFLOW_PAT: Personal Access Token with 'repo' and 'workflow' scopes
-#    - Required to push version commits and tags back to the repository
-#    - Create at: GitHub Settings > Developer settings > Personal access tokens
-# 2. ANTHROPIC_API_KEY: API key for AI-powered changelog generation
-#    - Required to generate intelligent release changelogs
-#    - Create at: https://console.anthropic.com/settings/keys
-# 3. SLACK_WEBHOOK_URL: Incoming webhook URL for release notifications
-#    - Required to send notifications to #ai-internal Slack channel
-#    - Create at: https://api.slack.com/apps > Incoming Webhooks
-# 4. NODE_AUTH_TOKEN: NPM authentication token
-#    - Required to publish packages to NPM registry
-#    - Create at: https://www.npmjs.com/settings/your-username/tokens
+# RESPONSIBILITIES:
+# - Building specified packages
+# - Cleaning up orphaned git tags (optional)
+# - Versioning packages (conventional commits or prerelease)
+# - Publishing to npm with specified tag
+# - Pushing version commits and tags to remote
+# - Creating GitHub releases
 #
-# WORKFLOW BEHAVIOR:
-# - Triggered on push to 'main' or 'next' branches
-# - Can be manually triggered with optional dry-run mode
-# - Versions packages based on conventional commits
-# - Publishes to NPM with appropriate tags (latest for main, next for next branch)
-# - Generates AI-powered changelog for release notes
-# - Sends Slack notification with changelog
-# - Syncs 'next' branch with 'main' after production releases
-#
-# ARCHITECTURE:
-# This workflow uses a multi-job orchestration pattern:
-# 1. publish: Builds, versions, and publishes packages to NPM
-# 2. generate-changelog: Generates AI-powered changelog using reusable workflow
-# 3. notify-release: Sends Slack notification with changelog using reusable workflow
-# 4. sync-next: Syncs 'next' branch with 'main' after production releases
-#
-# The changelog generation and notification are separated into reusable workflows
-# for better maintainability and reusability across different workflows.
+# REQUIRED SECRETS (passed from caller):
+# - WORKFLOW_PAT: For pushing commits/tags
+# - NODE_AUTH_TOKEN: For npm publishing
+# - SERVICE_ACCOUNT_GPG_PRIVATE_KEY: For signing commits/tags
 
 on:
-  push:
-    branches:
-      - main
-      - next
-  workflow_dispatch:
+  workflow_call:
     inputs:
-      dryRun:
-        description: 'Perform a dry run without publishing'
+      projects:
+        description: "Comma-separated list of Nx project names to publish"
+        required: true
+        type: string
+      packages:
+        description: "Comma-separated list of npm package names (must match projects order)"
+        required: true
+        type: string
+      npm_tag:
+        description: "npm tag to publish with (latest or next)"
+        required: true
+        type: string
+      version_strategy:
+        description: 'Version strategy: "conventional" (uses commit history) or "prerelease" (bumps prerelease)'
+        required: true
+        type: string
+      preid:
+        description: 'Prerelease identifier (e.g., "next"). Only used when version_strategy is "prerelease"'
         required: false
-        default: 'false'
-        type: choice
-        options:
-          - 'true'
-          - 'false'
-
-# Ensure only one publish workflow runs at a time per branch
-# If a new run is triggered while one is in progress, it will be queued
-# Setting cancel-in-progress to false ensures queued runs execute sequentially
-concurrency:
-  group: publish-${{ github.ref }}
-  cancel-in-progress: false
+        type: string
+        default: "next"
+      branch:
+        description: "Branch to push commits/tags to"
+        required: true
+        type: string
+      dry_run:
+        description: "If true, only simulate publishing without making changes"
+        required: false
+        type: boolean
+        default: false
+      clean_orphaned_tags:
+        description: "If true, clean up orphaned git tags before publishing"
+        required: false
+        type: boolean
+        default: false
+      base_sha:
+        description: "Base SHA for affected detection (used for building). If empty, builds all specified projects."
+        required: false
+        type: string
+        default: ""
+      is_prerelease:
+        description: "If true, GitHub releases are marked as prereleases"
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      successful_packages:
+        description: "JSON array of successfully published package names"
+        value: ${{ jobs.publish.outputs.successful_packages }}
+      failed_packages:
+        description: "JSON array of failed package names"
+        value: ${{ jobs.publish.outputs.failed_packages }}
+      successful_count:
+        description: "Number of successfully published packages"
+        value: ${{ jobs.publish.outputs.successful_count }}
+      failed_count:
+        description: "Number of failed packages"
+        value: ${{ jobs.publish.outputs.failed_count }}
+      has_failures:
+        description: "true if any packages failed to publish"
+        value: ${{ jobs.publish.outputs.has_failures }}
+      has_successes:
+        description: "true if any packages were successfully published"
+        value: ${{ jobs.publish.outputs.has_successes }}
+    secrets:
+      WORKFLOW_PAT:
+        required: true
+      NODE_AUTH_TOKEN:
+        required: true
+      SERVICE_ACCOUNT_GPG_PRIVATE_KEY:
+        required: true
 
 jobs:
   publish:
     runs-on:
       group: npm-deploy
-    environment: ${{ github.event_name == 'push' && 'Production' || null }}
     permissions:
       id-token: write
       contents: write
@@ -71,17 +103,12 @@ jobs:
       pull-requests: write
       issues: write
     outputs:
-      has_affected: ${{ steps.affected.outputs.has_affected }}
       successful_packages: ${{ steps.publish.outputs.successful_packages }}
       failed_packages: ${{ steps.publish.outputs.failed_packages }}
       successful_count: ${{ steps.publish.outputs.successful_count }}
       failed_count: ${{ steps.publish.outputs.failed_count }}
       has_failures: ${{ steps.publish.outputs.has_failures }}
       has_successes: ${{ steps.publish.outputs.has_successes }}
-    # Skip the workflow if the commit is a version bump (to prevent loops)
-    # Allow workflow to run for merge commits from update-production workflow
-    # Skip workflow for branch sync commits
-    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') && !startsWith(github.event.head_commit.message, 'chore(sync):') }}
 
     steps:
       - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
@@ -105,14 +132,15 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
           node-version: ${{ vars.NODE_VERSION }}
-          registry-url: 'https://registry.npmjs.org'
-          scope: '@uniswap'
+          registry-url: "https://registry.npmjs.org"
+          scope: "@uniswap"
 
       - name: Install npm
         # IMPORTANT: Pinning npm version for two reasons:
         # 1. OIDC trusted publishing requires npm >= 11.5.1
         # 2. Using a pinned version prevents lockfile format changes in CI
         run: npm install -g npm@${{ vars.NPM_VERSION }}
+
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
 
@@ -138,131 +166,39 @@ jobs:
           echo "Git user name: $(git config user.name)"
           echo "Git user email: $(git config user.email)"
 
-      - name: Determine npm tag
-        id: npm-tag
+      - name: Build packages
+        env:
+          INPUT_PROJECTS: ${{ inputs.projects }}
+          INPUT_BASE_SHA: ${{ inputs.base_sha }}
         run: |
-          if [[ "${{ github.ref_name }}" == "next" ]]; then
-            echo "tag=next" >> $GITHUB_OUTPUT
-            echo "Using 'next' tag for npm publish"
+          echo "Building packages: $INPUT_PROJECTS"
+
+          if [ -n "$INPUT_BASE_SHA" ]; then
+            # Use affected build if base SHA is provided
+            echo "Using affected build with base: $INPUT_BASE_SHA"
+            npx nx affected --target=build --base="$INPUT_BASE_SHA" --head=HEAD
           else
-            echo "tag=latest" >> $GITHUB_OUTPUT
-            echo "Using 'latest' tag for npm publish"
+            # Build each project individually
+            IFS=',' read -ra PROJECT_ARRAY <<< "$INPUT_PROJECTS"
+            for project in "${PROJECT_ARRAY[@]}"; do
+              echo "Building $project..."
+              npx nx build "$project"
+            done
           fi
-
-      - name: Determine base SHA for affected detection
-        id: base-sha
-        run: |
-          # For push events, use the commit before the push
-          # For manual triggers, fall back to HEAD~1
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            BASE_SHA="${{ github.event.before }}"
-
-            # Handle edge case: first push to a new branch (null SHA)
-            if [[ "$BASE_SHA" == "0000000000000000000000000000000000000000" ]]; then
-              echo "First push to branch - using HEAD~1 as base"
-              echo "base=HEAD~1" >> $GITHUB_OUTPUT
-            else
-              echo "Using commit before push: $BASE_SHA"
-              echo "base=$BASE_SHA" >> $GITHUB_OUTPUT
-            fi
-          else
-            # Manual workflow dispatch - use previous commit
-            echo "Manual trigger - using HEAD~1 as base"
-            echo "base=HEAD~1" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Determine affected packages
-        id: affected
-        run: |
-          # Get affected projects using Nx
-          echo "Running: npx nx show projects --affected --base=${{ steps.base-sha.outputs.base }} --head=HEAD --type=lib --json"
-
-          # Capture output and check if it's valid JSON
-          # Suppress Node.js deprecation warnings and npm warnings to avoid polluting JSON output
-          RAW_OUTPUT=$(NODE_NO_WARNINGS=1 npx nx show projects --affected --base=${{ steps.base-sha.outputs.base }} --head=HEAD --type=lib --json 2>&1 || echo "[]")
-
-          # Filter out npm warnings (lines starting with "npm warn")
-          AFFECTED_OUTPUT=$(echo "$RAW_OUTPUT" | grep -v '^npm warn' || echo "[]")
-
-          echo "AFFECTED_OUTPUT: $AFFECTED_OUTPUT"
-
-          # Check if output is valid JSON
-          if echo "$AFFECTED_OUTPUT" | jq empty 2>/dev/null; then
-            AFFECTED_JSON="$AFFECTED_OUTPUT"
-          else
-            echo "⚠️  Nx output is not valid JSON. Output:"
-            echo "$AFFECTED_OUTPUT"
-            echo "Using empty array as fallback"
-            AFFECTED_JSON="[]"
-          fi
-
-          # Extract project names and filter out private packages
-          # Read each project and check if it has "private": true in package.json
-          echo "Filtering out private packages..."
-          PUBLISHABLE_PROJECTS=()
-          PACKAGE_NAMES=()
-
-          for project in $(echo "$AFFECTED_JSON" | jq -r '.[]'); do
-            # Find the package.json for this project
-            # Use nx show project to get the project root
-            PROJECT_ROOT=$(npx nx show project "$project" --json 2>/dev/null | jq -r '.root' || echo "")
-
-            if [ -n "$PROJECT_ROOT" ] && [ -f "$PROJECT_ROOT/package.json" ]; then
-              # Check if package is private
-              IS_PRIVATE=$(jq -r '.private // false' "$PROJECT_ROOT/package.json")
-
-              if [ "$IS_PRIVATE" = "true" ]; then
-                echo "  ⏭️  Skipping $project (private: true)"
-              else
-                PACKAGE_NAME=$(jq -r '.name // ""' "$PROJECT_ROOT/package.json")
-                if [ -n "$PACKAGE_NAME" ]; then
-                  echo "  ✅ Including $project → $PACKAGE_NAME (publishable)"
-                  PUBLISHABLE_PROJECTS+=("$project")  # Store Nx project name
-                  PACKAGE_NAMES+=("$PACKAGE_NAME")    # Store npm package name
-                else
-                  echo "  ⚠️  Skipping $project (no package name found)"
-                fi
-              fi
-            else
-              echo "  ⚠️  Skipping $project (no package.json found)"
-            fi
-          done
-
-          # Join arrays with commas
-          AFFECTED_PROJECTS=$(IFS=,; echo "${PUBLISHABLE_PROJECTS[*]}")
-          AFFECTED_PACKAGES=$(IFS=,; echo "${PACKAGE_NAMES[*]}")
-
-          echo "Publishable affected projects (Nx names): $AFFECTED_PROJECTS"
-          echo "Publishable affected packages (npm names): $AFFECTED_PACKAGES"
-
-          echo "projects=$AFFECTED_PROJECTS" >> $GITHUB_OUTPUT
-          echo "packages=$AFFECTED_PACKAGES" >> $GITHUB_OUTPUT
-
-          # Set a flag indicating if any packages are affected
-          if [ -z "$AFFECTED_PROJECTS" ] || [ "$AFFECTED_PROJECTS" = "null" ]; then
-            echo "has_affected=false" >> $GITHUB_OUTPUT
-            echo "No publishable affected packages found - skipping release"
-          else
-            echo "has_affected=true" >> $GITHUB_OUTPUT
-            echo "Found ${#PUBLISHABLE_PROJECTS[@]} publishable package(s)"
-          fi
-
-      - name: Build affected packages
-        if: steps.affected.outputs.has_affected == 'true'
-        run: |
-          echo "Building affected packages: ${{ steps.affected.outputs.projects }}"
-          npx nx affected --target=build --base=${{ steps.base-sha.outputs.base }} --head=HEAD
 
       - name: Clean up orphaned tags
-        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.affected.outputs.has_affected == 'true'
+        if: inputs.clean_orphaned_tags && !inputs.dry_run
+        env:
+          INPUT_PACKAGES: ${{ inputs.packages }}
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          INPUT_BRANCH: ${{ inputs.branch }}
+          INPUT_NPM_TAG: ${{ inputs.npm_tag }}
         run: |
           # Configure npm authentication for viewing restricted packages
-          # The @uniswap packages are restricted and require authentication even for read operations
           echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
           echo "Configured npm authentication for restricted package queries"
           echo ""
-
-          AFFECTED_PACKAGES="${{ steps.affected.outputs.packages }}"
 
           echo "=========================================="
           echo "Checking for orphaned Git tags"
@@ -274,7 +210,7 @@ jobs:
           echo ""
 
           # Convert comma-separated list to array
-          IFS=',' read -ra PACKAGES <<< "$AFFECTED_PACKAGES"
+          IFS=',' read -ra PACKAGES <<< "$INPUT_PACKAGES"
 
           CLEANED_TAGS=()
 
@@ -348,7 +284,7 @@ jobs:
             echo "Checking package: $package"
 
             # Get latest version from npm for the appropriate dist-tag
-            if [[ "${{ github.ref_name }}" == "next" ]]; then
+            if [[ "$INPUT_NPM_TAG" == "next" ]]; then
               LATEST_NPM=$(npm view "$package" dist-tags.next --registry=https://registry.npmjs.org 2>/dev/null || echo "")
               echo "  Querying npm dist-tag 'next'..."
             else
@@ -373,7 +309,6 @@ jobs:
               echo "  🏷️  Creating tag: $EXPECTED_TAG"
 
               # Create tag at current HEAD
-              # (Assumes HEAD is at or past the commit where this version was published)
               if git tag "$EXPECTED_TAG" HEAD 2>/dev/null; then
                 echo "  ✅ Created local tag at HEAD"
                 CREATED_TAGS+=("$EXPECTED_TAG")
@@ -457,42 +392,65 @@ jobs:
           echo "✅ Git/npm synchronization complete."
           echo "   Nx versioning will now use accurate base versions."
           echo ""
-        env:
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
       - name: Version and publish packages (dry run)
-        if: github.event.inputs.dryRun == 'true' || github.event_name == 'workflow_dispatch'
-        run: |
-          echo "Running dry-run for affected packages with tag: ${{ steps.npm-tag.outputs.tag }}"
-          if [[ "${{ github.ref_name }}" == "next" ]]; then
-            echo "Using prerelease versioning for next branch"
-            npx nx release version prerelease --preid=next --dry-run
-          else
-            echo "Using conventional commits to determine version bump for main branch"
-            # Let Nx use conventional commits (configured in nx.json) to determine version bump
-            # This analyzes commit messages since the last release tag to determine patch/minor/major
-            npx nx release version --dry-run
-          fi
-          npx nx release publish --dry-run --tag=${{ steps.npm-tag.outputs.tag }}
+        if: inputs.dry_run
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_PROJECTS: ${{ inputs.projects }}
+          INPUT_NPM_TAG: ${{ inputs.npm_tag }}
+          INPUT_VERSION_STRATEGY: ${{ inputs.version_strategy }}
+          INPUT_PREID: ${{ inputs.preid }}
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+        run: |
+          echo "=========================================="
+          echo "DRY RUN - Publishing Preview"
+          echo "=========================================="
+          echo "Projects: $INPUT_PROJECTS"
+          echo "npm tag: $INPUT_NPM_TAG"
+          echo "Version strategy: $INPUT_VERSION_STRATEGY"
+          echo ""
 
-      - name: Version, publish, and push packages (atomic per package)
-        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.affected.outputs.has_affected == 'true'
+          IFS=',' read -ra PROJECT_ARRAY <<< "$INPUT_PROJECTS"
+          for project in "${PROJECT_ARRAY[@]}"; do
+            echo "-------------------------------------------"
+            echo "Processing: $project"
+            echo "-------------------------------------------"
+
+            echo "Versioning (dry run)..."
+            if [[ "$INPUT_VERSION_STRATEGY" == "prerelease" ]]; then
+              npx nx release version prerelease --preid="$INPUT_PREID" --projects="$project" --dry-run
+            else
+              npx nx release version --projects="$project" --dry-run
+            fi
+
+            echo ""
+            echo "Publishing (dry run)..."
+            npx nx release publish --projects="$project" --tag="$INPUT_NPM_TAG" --dry-run
+
+            echo ""
+          done
+
+      - name: Version, publish, and push packages
+        if: "!inputs.dry_run"
         id: publish
+        env:
+          INPUT_PROJECTS: ${{ inputs.projects }}
+          INPUT_PACKAGES: ${{ inputs.packages }}
+          INPUT_NPM_TAG: ${{ inputs.npm_tag }}
+          INPUT_VERSION_STRATEGY: ${{ inputs.version_strategy }}
+          INPUT_PREID: ${{ inputs.preid }}
+          INPUT_BRANCH: ${{ inputs.branch }}
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
         run: |
           # Configure npm authentication for viewing restricted packages
-          # The @uniswap packages are restricted and require authentication even for read operations
           echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
           echo "Configured npm authentication for restricted package queries"
           echo ""
 
-          AFFECTED_PROJECTS="${{ steps.affected.outputs.projects }}"
-          AFFECTED_PACKAGES="${{ steps.affected.outputs.packages }}"
-          echo "Processing affected packages with tag: ${{ steps.npm-tag.outputs.tag }}"
-          echo "Nx projects: $AFFECTED_PROJECTS"
-          echo "npm packages: $AFFECTED_PACKAGES"
+          echo "Processing packages with tag: $INPUT_NPM_TAG"
+          echo "Nx projects: $INPUT_PROJECTS"
+          echo "npm packages: $INPUT_PACKAGES"
           echo ""
           echo "=========================================="
           echo "ATOMIC PUBLISH STRATEGY"
@@ -507,8 +465,8 @@ jobs:
           echo ""
 
           # Convert comma-separated lists to arrays
-          IFS=',' read -ra PROJECTS <<< "$AFFECTED_PROJECTS"
-          IFS=',' read -ra PACKAGES <<< "$AFFECTED_PACKAGES"
+          IFS=',' read -ra PROJECTS <<< "$INPUT_PROJECTS"
+          IFS=',' read -ra PACKAGES <<< "$INPUT_PACKAGES"
 
           # Track publishing results
           FAILED_PACKAGES=()
@@ -533,18 +491,16 @@ jobs:
             # Step 1: Version this specific package
             echo ""
             echo "Step 1: Versioning package..."
-            if [[ "${{ github.ref_name }}" == "next" ]]; then
-              echo "Using prerelease versioning for next branch"
-              if ! npx nx release version prerelease --preid=next --projects="$project"; then
+            if [[ "$INPUT_VERSION_STRATEGY" == "prerelease" ]]; then
+              echo "Using prerelease versioning with preid: $INPUT_PREID"
+              if ! npx nx release version prerelease --preid="$INPUT_PREID" --projects="$project"; then
                 echo "❌ Failed to version $package"
                 FAILED_PACKAGES+=("$package")
                 echo ""
                 continue
               fi
             else
-              echo "Using conventional commits to determine version bump for main branch"
-              # Let Nx use conventional commits (configured in nx.json) to determine version bump
-              # This analyzes commit messages since the last release tag to determine patch/minor/major
+              echo "Using conventional commits to determine version bump"
               if ! npx nx release version --projects="$project"; then
                 echo "❌ Failed to version $package"
                 FAILED_PACKAGES+=("$package")
@@ -570,7 +526,7 @@ jobs:
               echo "📦 Status: EXISTING package on npm (current version: $NPM_VERSION)"
               echo "Publishing without --first-release flag..."
 
-              if npx nx release publish --projects="$project" --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org; then
+              if npx nx release publish --projects="$project" --tag="$INPUT_NPM_TAG" --registry=https://registry.npmjs.org; then
                 PUBLISH_SUCCESS=true
               else
                 PUBLISH_SUCCESS=false
@@ -590,7 +546,7 @@ jobs:
 
               echo "Publishing with --first-release flag..."
 
-              if npx nx release publish --projects="$project" --first-release --tag=${{ steps.npm-tag.outputs.tag }} --registry=https://registry.npmjs.org; then
+              if npx nx release publish --projects="$project" --first-release --tag="$INPUT_NPM_TAG" --registry=https://registry.npmjs.org; then
                 PUBLISH_SUCCESS=true
               else
                 PUBLISH_SUCCESS=false
@@ -608,12 +564,12 @@ jobs:
               PUSH_FAILED=false
 
               # Push the version commit first
-              echo "📤 Pushing version commit to ${{ github.ref_name }}..."
-              if git push origin ${{ github.ref_name }}; then
+              echo "📤 Pushing version commit to $INPUT_BRANCH..."
+              if git push origin "$INPUT_BRANCH"; then
                 echo "✅ Successfully pushed version commit"
               else
                 # Check if the failure is because we're already up to date (not a real failure)
-                if git fetch origin ${{ github.ref_name }} && git diff --quiet HEAD origin/${{ github.ref_name }}; then
+                if git fetch origin "$INPUT_BRANCH" && git diff --quiet HEAD "origin/$INPUT_BRANCH"; then
                   echo "✅ Branch already up to date (no push needed)"
                 else
                   echo "❌ CRITICAL: Failed to push version commit after npm publish!"
@@ -721,17 +677,14 @@ jobs:
             echo "❌ No packages were successfully published. Failing workflow."
             exit 1
           fi
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
 
       - name: Create GitHub releases
-        if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && steps.publish.outputs.has_successes == 'true'
+        if: "!inputs.dry_run && steps.publish.outputs.has_successes == 'true'"
+        env:
+          SUCCESSFUL_PACKAGES: ${{ steps.publish.outputs.successful_packages }}
+          INPUT_IS_PRERELEASE: ${{ inputs.is_prerelease }}
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
         run: |
-          # Get only the successfully published packages from the publish step
-          # Parse the JSON array of successful packages
-          SUCCESSFUL_PACKAGES='${{ steps.publish.outputs.successful_packages }}'
-
           echo "Creating GitHub releases for successfully published packages..."
           echo "Successful packages JSON: $SUCCESSFUL_PACKAGES"
           echo ""
@@ -755,8 +708,6 @@ jobs:
             PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
 
             # Get the latest tag for this package
-            # Nx creates tags in the format: package-name@version or @scope/package-name@version
-            # Use git tag glob patterns for precise matching without escaping issues
             LATEST_TAG=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | sort -V | tail -n 1)
 
             if [ -n "$LATEST_TAG" ]; then
@@ -769,13 +720,16 @@ jobs:
               else
                 echo "Creating GitHub release for $LATEST_TAG"
 
-                # Create the release with a basic changelog
-                # The AI-generated changelog will be added to Slack/Notion notifications
-                gh release create "$LATEST_TAG" \
-                  --title "$package $VERSION" \
-                  --notes "Release $VERSION of $package. See [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details." \
-                  --verify-tag
+                # Build release command
+                RELEASE_CMD="gh release create \"$LATEST_TAG\" --title \"$package $VERSION\" --verify-tag"
 
+                if [ "$INPUT_IS_PRERELEASE" = "true" ]; then
+                  RELEASE_CMD="$RELEASE_CMD --prerelease --notes \"Prerelease $VERSION of $package.\""
+                else
+                  RELEASE_CMD="$RELEASE_CMD --notes \"Release $VERSION of $package. See workflow run for details.\""
+                fi
+
+                eval "$RELEASE_CMD"
                 echo "✅ Created release for $LATEST_TAG"
               fi
             else
@@ -786,222 +740,3 @@ jobs:
           done
 
           echo "GitHub releases creation complete."
-        env:
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
-
-  generate-changelog:
-    name: Generate AI-powered changelog
-    needs: publish
-    if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && needs.publish.outputs.has_successes == 'true'
-    uses: ./.github/workflows/_generate-changelog.yml
-    with:
-      from_ref: ${{ github.event.before }}
-      to_ref: ${{ github.sha }}
-      output_formats: 'slack,markdown'
-      custom_prompt_text: |
-        # Release Changelog Generation Prompt
-
-        You are a changelog generator. Based on the following git changes, create a concise, human-readable changelog summary.
-
-        ${{ needs.publish.outputs.has_failures == 'true' && format('**IMPORTANT**: This is a PARTIAL release. Some packages failed to publish.
-
-        **Successfully published packages**:
-        {0}
-
-        **Failed packages** (not published):
-        {1}
-
-        Focus your changelog ONLY on the successfully published packages. Add a note at the end about which packages failed to publish.
-
-        ', join(fromJSON(needs.publish.outputs.successful_packages), ', '), join(fromJSON(needs.publish.outputs.failed_packages), ', ')) || format('All packages were successfully published.
-
-        **Published packages**:
-        {0}
-
-        ', join(fromJSON(needs.publish.outputs.successful_packages), ', ')) }}
-
-        Focus on:
-        - What features were added
-        - What bugs were fixed
-        - What was changed or improved
-
-        Format requirements:
-        - Use bullet points (• or -) for each item, separated by a newline character
-        - Keep it to 3-10 items max
-        - Be concise and clear
-        - Do NOT include commit hashes unless specifically requested
-        - Group related changes together
-
-        Slack formatting requirements (IMPORTANT):
-        - DO NOT use markdown headers (no #, ##, ###)
-        - Use plain text for section titles followed by a colon (e.g., "Features:")
-        - Use _single asterisks_ for bold text (NOT double asterisks)
-        - Use _underscores_ for italic text
-        - Use simple bullet lists with • or - characters
-        - Keep formatting minimal and clean
-        - DO NOT use standard markdown links [text](url) - just use plain URLs or omit them
-      max_tokens: 1024
-    secrets:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-
-  notify-release:
-    name: Notify release via Slack
-    needs: [publish, generate-changelog]
-    if: github.event.inputs.dryRun != 'true' && github.event_name == 'push' && needs.publish.outputs.has_successes == 'true'
-    uses: ./.github/workflows/_notify-release.yml
-    with:
-      changelog_slack: ${{ needs.generate-changelog.outputs.changelog_slack }}
-      changelog_markdown: ${{ needs.generate-changelog.outputs.changelog_markdown }}
-      destinations: 'slack,notion'
-      from_ref: ${{ github.event.before }}
-      to_ref: ${{ github.sha }}
-      branch: ${{ github.ref_name }}
-      release_title: ${{ needs.publish.outputs.has_failures == 'true' && format('⚠️ Partial Release - {0} ({1} succeeded, {2} failed)', github.ref_name, needs.publish.outputs.successful_count, needs.publish.outputs.failed_count) || '' }}
-    secrets:
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
-      RELEASE_NOTES_NOTION_DATABASE_ID: ${{ secrets.RELEASE_NOTES_NOTION_DATABASE_ID }}
-      NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-
-  sync-next:
-    name: Sync next branch with main
-    runs-on: ubuntu-24.04
-    needs: publish
-    # Only run when main branch is updated (not on next branch pushes)
-    if: github.ref_name == 'main' && github.event_name == 'push'
-    permissions:
-      contents: write
-
-    steps:
-      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
-
-      - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.WORKFLOW_PAT }}
-
-      - name: Import GPG key
-        uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec # v6
-        with:
-          gpg_private_key: ${{ secrets.SERVICE_ACCOUNT_GPG_PRIVATE_KEY }}
-          git_user_signingkey: true
-          git_commit_gpgsign: true
-          git_tag_gpgsign: true
-          git_config_global: true
-
-      - name: Configure Git identity for service account
-        run: |
-          git config user.name "Uniswap Labs Service Account"
-          git config user.email "hello-happy-puppy@uniswap.org"
-
-      - name: Verify GPG configuration
-        run: |
-          echo "GPG signing enabled: $(git config commit.gpgsign)"
-          echo "GPG signing key: $(git config user.signingkey)"
-          echo "Git user name: $(git config user.name)"
-          echo "Git user email: $(git config user.email)"
-
-      - name: Install Graphite CLI
-        run: |
-          # Install Graphite CLI using npm (faster than installing Homebrew)
-          npm install -g @withgraphite/graphite-cli
-
-          # Verify installation
-          gt --version
-
-      - name: Sync next branch with main
-        env:
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
-        run: |
-          echo "Starting sync of next branch with main..."
-
-          # Fetch all remote branches
-          git fetch origin
-
-          # Check if next branch exists on remote
-          if ! git show-ref --verify --quiet refs/remotes/origin/next; then
-            echo "Next branch does not exist on remote. Skipping sync."
-            exit 0
-          fi
-
-          # Switch to next branch (tracking origin/next)
-          git checkout -B next origin/next
-
-          # Attempt to rebase next onto main
-          echo "Rebasing next onto main..."
-
-          # Try to rebase onto origin/main
-          if git rebase origin/main; then
-            echo "✅ Rebase successful!"
-
-            # Create an empty commit to mark this as a sync operation
-            # This prevents the publish workflow from triggering on the next branch
-            git commit --allow-empty -m "chore(sync): [skip ci] sync next with main"
-
-            # Force push the rebased next branch
-            git push origin next --force-with-lease
-
-            echo "✅ Successfully synced next branch with main"
-
-            # Create summary
-            echo "## 🔄 Branch Sync Complete" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "The \`next\` branch has been successfully rebased onto \`main\`." >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "- **Main branch**: $(git rev-parse --short origin/main)" >> $GITHUB_STEP_SUMMARY
-            echo "- **Next branch**: $(git rev-parse --short next)" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ Rebase failed due to conflicts"
-
-            # Abort the rebase
-            git rebase --abort
-
-            # Create an issue for manual intervention
-            gh issue create \
-              --title "Manual intervention required: next branch sync failed" \
-              --body "The automatic sync of the \`next\` branch with \`main\` has failed due to conflicts.
-
-              ## Action Required
-              Please manually resolve the conflicts by:
-              1. Checking out the \`next\` branch locally
-              2. Rebasing it onto \`main\`
-              3. Resolving any conflicts
-              4. Force pushing the resolved branch
-
-              ## Commands
-              \`\`\`bash
-              git checkout next
-              git fetch origin
-              git rebase origin/main
-              # Resolve conflicts
-              git push origin next --force-with-lease
-              \`\`\`
-
-              This issue was automatically created by the publish-packages workflow." \
-              --label "automated,needs-attention"
-
-            echo "## ⚠️ Branch Sync Failed" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "The \`next\` branch could not be automatically rebased onto \`main\` due to conflicts." >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "An issue has been created for manual intervention." >> $GITHUB_STEP_SUMMARY
-
-            exit 1
-          fi
-
-      - name: Alternative sync with Graphite (if available)
-        if: failure()
-        continue-on-error: true
-        run: |
-          echo "Attempting alternative sync method with Graphite CLI..."
-
-          # Initialize Graphite if needed
-          gt init --trunk main --no-interactive || true
-
-          # Try to sync using Graphite
-          if gt sync --force --no-interactive; then
-            echo "✅ Successfully synced using Graphite CLI"
-          else
-            echo "⚠️ Graphite sync also failed. Manual intervention required."
-          fi
