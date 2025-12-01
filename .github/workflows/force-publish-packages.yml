@@ -23,6 +23,11 @@ name: Force Publish Packages
 # - Increments the prerelease version (e.g., 0.5.5-next.10 → 0.5.5-next.11)
 # - Publishes to npm with the 'next' tag
 # - Creates git commits and tags for version bumps
+#
+# ARCHITECTURE:
+# This workflow uses the shared-internal/publish-packages.yml reusable workflow
+# to handle the actual publishing logic, avoiding code duplication with
+# publish-packages.yml.
 
 on:
   workflow_dispatch:
@@ -30,16 +35,16 @@ on:
       packages:
         description: 'Packages to publish (single name, comma-separated list, or "all")'
         required: true
-        default: 'all'
+        default: "all"
         type: string
       dryRun:
-        description: 'Perform a dry run without publishing'
+        description: "Perform a dry run without publishing"
         required: false
-        default: 'false'
+        default: "false"
         type: choice
         options:
-          - 'true'
-          - 'false'
+          - "true"
+          - "false"
 
 # Ensure only one force-publish workflow runs at a time
 concurrency:
@@ -48,19 +53,23 @@ concurrency:
 
 jobs:
   validate:
+    name: Validate and resolve packages
     runs-on: ubuntu-24.04
     outputs:
       packages: ${{ steps.resolve-packages.outputs.packages }}
       projects: ${{ steps.resolve-packages.outputs.projects }}
       package_count: ${{ steps.resolve-packages.outputs.package_count }}
+
     steps:
       - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
 
       - name: Validate branch
+        env:
+          BRANCH_NAME: ${{ github.ref_name }}
         run: |
-          if [[ "${{ github.ref_name }}" != "next" ]]; then
+          if [[ "$BRANCH_NAME" != "next" ]]; then
             echo "❌ ERROR: Force publish is only allowed on the 'next' branch"
-            echo "Current branch: ${{ github.ref_name }}"
+            echo "Current branch: $BRANCH_NAME"
             echo "This workflow publishes with the 'next' npm tag and should only run on the next branch."
             exit 1
           fi
@@ -72,12 +81,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version: '22.21.1'
-          registry-url: 'https://registry.npmjs.org'
-          scope: '@uniswap'
+          node-version: ${{ vars.NODE_VERSION }}
+          registry-url: "https://registry.npmjs.org"
+          scope: "@uniswap"
 
       - name: Install npm
-        run: npm install -g npm@11.6.2
+        run: npm install -g npm@${{ vars.NPM_VERSION }}
 
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
@@ -163,330 +172,41 @@ jobs:
 
           echo "✅ Resolved $PACKAGE_COUNT package(s) for publishing"
 
-  force-publish:
+  publish:
+    name: Force publish packages
     needs: validate
-    runs-on:
-      group: npm-deploy
-    permissions:
-      id-token: write
-      contents: write
-      packages: write
-    outputs:
-      successful_packages: ${{ steps.publish.outputs.successful_packages }}
-      failed_packages: ${{ steps.publish.outputs.failed_packages }}
-      successful_count: ${{ steps.publish.outputs.successful_count }}
-      failed_count: ${{ steps.publish.outputs.failed_count }}
+    uses: ./.github/workflows/shared-internal/publish-packages.yml
+    with:
+      projects: ${{ needs.validate.outputs.projects }}
+      packages: ${{ needs.validate.outputs.packages }}
+      npm_tag: "next"
+      version_strategy: "prerelease"
+      preid: "next"
+      branch: "next"
+      dry_run: ${{ github.event.inputs.dryRun == 'true' }}
+      clean_orphaned_tags: false
+      is_prerelease: true
+    secrets:
+      WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+      NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+      SERVICE_ACCOUNT_GPG_PRIVATE_KEY: ${{ secrets.SERVICE_ACCOUNT_GPG_PRIVATE_KEY }}
+
+  summary:
+    name: Generate summary
+    runs-on: ubuntu-24.04
+    needs: [validate, publish]
+    if: always()
 
     steps:
-      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
-
-      - name: Import GPG key
-        uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec # v6
-        with:
-          gpg_private_key: ${{ secrets.SERVICE_ACCOUNT_GPG_PRIVATE_KEY }}
-          git_user_signingkey: true
-          git_commit_gpgsign: true
-          git_tag_gpgsign: true
-          git_config_global: true
-
-      - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.WORKFLOW_PAT }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
-        with:
-          node-version: '22.21.1'
-          registry-url: 'https://registry.npmjs.org'
-          scope: '@uniswap'
-
-      - name: Install npm
-        run: npm install -g npm@11.6.2
-
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit
-
-      - name: Configure Git identity for service account
-        run: |
-          git config user.name "Uniswap Labs Service Account"
-          git config user.email "hello-happy-puppy@uniswap.org"
-
-      - name: Verify GPG configuration
-        run: |
-          echo "GPG signing enabled: $(git config commit.gpgsign)"
-          echo "GPG signing key: $(git config user.signingkey)"
-          echo "Git user name: $(git config user.name)"
-          echo "Git user email: $(git config user.email)"
-
-      - name: Build selected packages
-        run: |
-          PROJECTS="${{ needs.validate.outputs.projects }}"
-          echo "Building packages: $PROJECTS"
-
-          # Build each project
-          IFS=',' read -ra PROJECT_ARRAY <<< "$PROJECTS"
-          for project in "${PROJECT_ARRAY[@]}"; do
-            echo "Building $project..."
-            npx nx build "$project"
-          done
-
-      - name: Version and publish packages (dry run)
-        if: github.event.inputs.dryRun == 'true'
-        run: |
-          PROJECTS="${{ needs.validate.outputs.projects }}"
-          echo "=========================================="
-          echo "DRY RUN - Force Publish"
-          echo "=========================================="
-          echo "Projects: $PROJECTS"
-          echo ""
-
-          IFS=',' read -ra PROJECT_ARRAY <<< "$PROJECTS"
-          for project in "${PROJECT_ARRAY[@]}"; do
-            echo "-------------------------------------------"
-            echo "Processing: $project"
-            echo "-------------------------------------------"
-
-            echo "Versioning (dry run)..."
-            npx nx release version prerelease --preid=next --projects="$project" --dry-run
-
-            echo ""
-            echo "Publishing (dry run)..."
-            npx nx release publish --projects="$project" --tag=next --dry-run
-
-            echo ""
-          done
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Version and publish packages
-        if: github.event.inputs.dryRun != 'true'
-        id: publish
-        run: |
-          # Configure npm authentication
-          echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
-          echo "Configured npm authentication"
-          echo ""
-
-          PROJECTS="${{ needs.validate.outputs.projects }}"
-          PACKAGES="${{ needs.validate.outputs.packages }}"
-
-          echo "=========================================="
-          echo "FORCE PUBLISH - Prerelease Versions"
-          echo "=========================================="
-          echo "Nx projects: $PROJECTS"
-          echo "npm packages: $PACKAGES"
-          echo ""
-          echo "Strategy:"
-          echo "  1. Version each package (prerelease bump)"
-          echo "  2. Publish to npm with 'next' tag"
-          echo "  3. Push commit + tag to remote"
-          echo ""
-
-          # Convert comma-separated lists to arrays
-          IFS=',' read -ra PROJECT_ARRAY <<< "$PROJECTS"
-          IFS=',' read -ra PACKAGE_ARRAY <<< "$PACKAGES"
-
-          # Track results
-          FAILED_PACKAGES=()
-          SUCCESS_PACKAGES=()
-
-          # Process each package
-          for i in "${!PROJECT_ARRAY[@]}"; do
-            project="${PROJECT_ARRAY[$i]}"
-            package="${PACKAGE_ARRAY[$i]}"
-
-            if [ -z "$project" ] || [ -z "$package" ]; then
-              continue
-            fi
-
-            echo "=========================================="
-            echo "Processing: $project → $package"
-            echo "=========================================="
-
-            # Extract package name without scope
-            PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
-
-            # Step 1: Version the package
-            echo ""
-            echo "Step 1: Versioning package (prerelease)..."
-            if ! npx nx release version prerelease --preid=next --projects="$project"; then
-              echo "❌ Failed to version $package"
-              FAILED_PACKAGES+=("$package")
-              echo ""
-              continue
-            fi
-            echo "✅ Versioning complete"
-
-            # Get the new version
-            PROJECT_ROOT=$(npx nx show project "$project" --json 2>/dev/null | jq -r '.root' || echo "")
-            NEW_VERSION=$(jq -r '.version' "$PROJECT_ROOT/package.json")
-            echo "New version: $NEW_VERSION"
-
-            # Step 2: Publish to npm
-            echo ""
-            echo "Step 2: Publishing to npm..."
-
-            # Check if package exists on npm
-            if npm view "$package" version --registry=https://registry.npmjs.org &>/dev/null; then
-              echo "📦 Status: EXISTING package on npm"
-              PUBLISH_CMD="npx nx release publish --projects=\"$project\" --tag=next --registry=https://registry.npmjs.org"
-            else
-              echo "🆕 Status: NEW package (not found on npm)"
-              PUBLISH_CMD="npx nx release publish --projects=\"$project\" --first-release --tag=next --registry=https://registry.npmjs.org"
-            fi
-
-            if eval "$PUBLISH_CMD"; then
-              echo "✅ Successfully published $package@$NEW_VERSION to npm"
-
-              # Step 3: Push commit and tag
-              echo ""
-              echo "Step 3: Pushing commit and tag to remote..."
-
-              PUSH_FAILED=false
-
-              # Push version commit
-              echo "📤 Pushing version commit to next..."
-              if git push origin next; then
-                echo "✅ Successfully pushed version commit"
-              else
-                if git fetch origin next && git diff --quiet HEAD origin/next; then
-                  echo "✅ Branch already up to date"
-                else
-                  echo "❌ CRITICAL: Failed to push version commit!"
-                  PUSH_FAILED=true
-                fi
-              fi
-
-              # Push git tag
-              PACKAGE_TAG=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | sort -V | tail -n 1)
-              if [ -n "$PACKAGE_TAG" ]; then
-                echo "🏷️  Pushing tag: $PACKAGE_TAG"
-                if git push origin "$PACKAGE_TAG"; then
-                  echo "✅ Successfully pushed tag"
-                else
-                  if git ls-remote --tags origin | grep -q "refs/tags/$PACKAGE_TAG$"; then
-                    echo "✅ Tag already exists on remote"
-                  else
-                    echo "❌ Failed to push tag!"
-                    PUSH_FAILED=true
-                  fi
-                fi
-              fi
-
-              if [ "$PUSH_FAILED" = true ]; then
-                echo "⚠️  Published to npm but git sync incomplete"
-              fi
-
-              SUCCESS_PACKAGES+=("$package")
-              echo ""
-              echo "✅ Package $package@$NEW_VERSION published successfully!"
-
-            else
-              echo "❌ Failed to publish $package"
-
-              # Revert local changes
-              echo ""
-              echo "Step 3: Reverting local changes..."
-
-              TAG_TO_DELETE=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | grep "@${NEW_VERSION}$" | head -n 1)
-              if [ -n "$TAG_TO_DELETE" ]; then
-                echo "  Deleting local tag: $TAG_TO_DELETE"
-                git tag -d "$TAG_TO_DELETE" 2>/dev/null || true
-              fi
-
-              echo "  Resetting to previous commit..."
-              git reset --hard HEAD~1
-
-              FAILED_PACKAGES+=("$package")
-              echo "⏮️  Reverted local changes for $package"
-            fi
-
-            echo ""
-          done
-
-          # Output results
-          SUCCESS_JSON=$(printf '%s\n' "${SUCCESS_PACKAGES[@]}" | jq -R . | jq -s -c .)
-          FAILED_JSON=$(printf '%s\n' "${FAILED_PACKAGES[@]}" | jq -R . | jq -s -c .)
-
-          echo "successful_packages=$SUCCESS_JSON" >> $GITHUB_OUTPUT
-          echo "failed_packages=$FAILED_JSON" >> $GITHUB_OUTPUT
-          echo "successful_count=${#SUCCESS_PACKAGES[@]}" >> $GITHUB_OUTPUT
-          echo "failed_count=${#FAILED_PACKAGES[@]}" >> $GITHUB_OUTPUT
-
-          # Summary
-          echo "=========================================="
-          echo "Force Publish Summary"
-          echo "=========================================="
-          echo "Successful: ${#SUCCESS_PACKAGES[@]} package(s)"
-          for pkg in "${SUCCESS_PACKAGES[@]}"; do
-            echo "  ✅ $pkg"
-          done
-
-          if [ ${#FAILED_PACKAGES[@]} -gt 0 ]; then
-            echo ""
-            echo "Failed: ${#FAILED_PACKAGES[@]} package(s)"
-            for pkg in "${FAILED_PACKAGES[@]}"; do
-              echo "  ❌ $pkg"
-            done
-          fi
-
-          # Fail if no packages published
-          if [ ${#SUCCESS_PACKAGES[@]} -eq 0 ]; then
-            echo ""
-            echo "❌ No packages were successfully published."
-            exit 1
-          fi
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
-
-      - name: Create GitHub releases
-        if: github.event.inputs.dryRun != 'true' && steps.publish.outputs.successful_count != '0'
-        run: |
-          SUCCESSFUL_PACKAGES='${{ steps.publish.outputs.successful_packages }}'
-          echo "Creating GitHub releases for: $SUCCESSFUL_PACKAGES"
-
-          readarray -t PACKAGES < <(echo "$SUCCESSFUL_PACKAGES" | jq -r '.[]')
-
-          for package in "${PACKAGES[@]}"; do
-            if [ -z "$package" ]; then
-              continue
-            fi
-
-            PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
-            LATEST_TAG=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | sort -V | tail -n 1)
-
-            if [ -n "$LATEST_TAG" ]; then
-              VERSION="${LATEST_TAG##*@}"
-
-              if gh release view "$LATEST_TAG" &>/dev/null; then
-                echo "✓ Release $LATEST_TAG already exists"
-              else
-                echo "Creating release for $LATEST_TAG"
-                gh release create "$LATEST_TAG" \
-                  --title "$package $VERSION" \
-                  --notes "Force-published release $VERSION of $package (prerelease)." \
-                  --prerelease \
-                  --verify-tag
-                echo "✅ Created release for $LATEST_TAG"
-              fi
-            fi
-          done
-        env:
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
-
-      - name: Summary
-        if: always()
+      - name: Generate workflow summary
         env:
           DRY_RUN: ${{ github.event.inputs.dryRun }}
           BRANCH_NAME: ${{ github.ref_name }}
           PACKAGE_COUNT: ${{ needs.validate.outputs.package_count }}
-          SUCCESSFUL_COUNT: ${{ steps.publish.outputs.successful_count || '0' }}
-          FAILED_COUNT: ${{ steps.publish.outputs.failed_count || '0' }}
-          SUCCESSFUL_PACKAGES: ${{ steps.publish.outputs.successful_packages }}
-          FAILED_PACKAGES: ${{ steps.publish.outputs.failed_packages }}
+          SUCCESSFUL_COUNT: ${{ needs.publish.outputs.successful_count || '0' }}
+          FAILED_COUNT: ${{ needs.publish.outputs.failed_count || '0' }}
+          SUCCESSFUL_PACKAGES: ${{ needs.publish.outputs.successful_packages }}
+          FAILED_PACKAGES: ${{ needs.publish.outputs.failed_packages }}
         run: |
           echo "## 🚀 Force Publish Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -507,19 +227,23 @@ jobs:
             echo "- **Successful:** $SUCCESSFUL_COUNT" >> $GITHUB_STEP_SUMMARY
             echo "- **Failed:** $FAILED_COUNT" >> $GITHUB_STEP_SUMMARY
 
-            if [ -n "$SUCCESSFUL_PACKAGES" ]; then
+            if [ -n "$SUCCESSFUL_PACKAGES" ] && [ "$SUCCESSFUL_PACKAGES" != "null" ]; then
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "#### Successfully Published" >> $GITHUB_STEP_SUMMARY
-              echo "$SUCCESSFUL_PACKAGES" | jq -r '.[]' | while read pkg; do
-                echo "- ✅ $pkg" >> $GITHUB_STEP_SUMMARY
+              echo "$SUCCESSFUL_PACKAGES" | jq -r '.[]' 2>/dev/null | while read pkg; do
+                if [ -n "$pkg" ]; then
+                  echo "- ✅ $pkg" >> $GITHUB_STEP_SUMMARY
+                fi
               done
             fi
 
-            if [ "$FAILED_COUNT" != "0" ]; then
+            if [ "$FAILED_COUNT" != "0" ] && [ -n "$FAILED_PACKAGES" ] && [ "$FAILED_PACKAGES" != "null" ]; then
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "#### Failed" >> $GITHUB_STEP_SUMMARY
-              echo "$FAILED_PACKAGES" | jq -r '.[]' | while read pkg; do
-                echo "- ❌ $pkg" >> $GITHUB_STEP_SUMMARY
+              echo "$FAILED_PACKAGES" | jq -r '.[]' 2>/dev/null | while read pkg; do
+                if [ -n "$pkg" ]; then
+                  echo "- ❌ $pkg" >> $GITHUB_STEP_SUMMARY
+                fi
               done
             fi
           fi

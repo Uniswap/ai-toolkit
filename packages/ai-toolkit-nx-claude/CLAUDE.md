@@ -555,7 +555,7 @@ The generator provides automatic fallback from curl to npm installation, ensurin
 
 ### Automated Publishing
 
-Publishing is handled through GitHub Actions (`.github/workflows/publish-packages.yml`):
+Publishing is handled through GitHub Actions (`.github/workflows/ci-publish-packages.yml`):
 
 1. **Trigger**: On push to main or next branch
 2. **Detection**: Uses Nx affected to detect changed packages

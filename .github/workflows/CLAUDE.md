@@ -13,7 +13,7 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 
 ### Release & Deployment (3 workflows)
 
-- `publish-packages.yml` - Versions and publishes packages to NPM (automatic on push)
+- `ci-publish-packages.yml` - Versions and publishes packages to NPM (automatic on push)
 - `force-publish-packages.yml` - Manually force-publishes packages to NPM with `next` tag (for new packages or failed releases)
 - `release-update-production.yml` - Creates production sync PRs with AI changelogs
 
@@ -44,7 +44,9 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 
 ## Key Files
 
-### Callable Workflows (Reusable)
+### Callable Workflows (Reusable - External)
+
+These workflows are prefixed with `_` and may be called from other repositories:
 
 - `_claude-main.yml` - Claude AI assistant for GitHub interactions
 - `_claude-code-review.yml` - Formal GitHub PR reviews with inline comments
@@ -53,6 +55,15 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 - `_generate-changelog.yml` - AI-generated release notes
 - `_generate-pr-metadata.yml` - AI-generated PR titles and descriptions
 - `_notify-release.yml` - Slack notification dispatcher
+
+### Shared Internal Workflows
+
+These workflows are in `shared-internal/` and are only used within this repository:
+
+- `shared-internal/publish-packages.yml` - Core package publishing logic (build, version, publish, push)
+  - Extracted from `ci-publish-packages.yml` and `force-publish-packages.yml` to avoid code duplication
+  - Handles atomic versioning, npm publish, git commit/tag push, and GitHub release creation
+  - Used by both automatic publishing (on push) and manual force-publishing workflows
 
 ### Consumer Workflows
 
@@ -63,19 +74,21 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 - `claude-code-review.yml` - Automated code reviews
 - `claude-welcome.yml` - New PR welcomes
 - `generate-pr-title-description.yml` - Auto-generated PR titles and descriptions
-- `publish-packages.yml` - Package release automation
-- `force-publish-packages.yml` - Manual force-publish for new/failed packages
+- `ci-publish-packages.yml` - Package release automation (uses `shared-internal/publish-packages.yml`)
+- `force-publish-packages.yml` - Manual force-publish for new/failed packages (uses `shared-internal/publish-packages.yml`)
 - `release-update-production.yml` - Production sync automation
 
 ## Subdirectories
 
 - `examples/` - Example implementations of workflows (13 numbered files)
+- `shared-internal/` - Reusable workflows only used within this repository (not externally)
 
 ## Conventions
 
 ### Naming
 
-- **Reusable workflows**: Prefix with `_` (underscore)
+- **External reusable workflows**: Prefix with `_` (underscore) - may be called from other repos
+- **Internal shared workflows**: Place in `shared-internal/` directory (no underscore prefix)
 - **Consumer workflows**: No prefix, descriptive kebab-case names
 - **Example workflows**: Numbered prefix (e.g., `01-`, `02-`)
 
@@ -127,6 +140,8 @@ Common secrets referenced:
 
 ### Calling Reusable Workflows
 
+External reusable workflows (prefixed with `_`):
+
 ```yaml
 jobs:
   call-claude:
@@ -138,10 +153,27 @@ jobs:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
+Internal shared workflows (in `shared-internal/`):
+
+```yaml
+jobs:
+  publish:
+    uses: ./.github/workflows/shared-internal/publish-packages.yml
+    with:
+      projects: ${{ needs.detect.outputs.projects }}
+      packages: ${{ needs.detect.outputs.packages }}
+      npm_tag: 'next'
+      version_strategy: 'prerelease'
+    secrets:
+      WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+      NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+      SERVICE_ACCOUNT_GPG_PRIVATE_KEY: ${{ secrets.SERVICE_ACCOUNT_GPG_PRIVATE_KEY }}
+```
+
 ### Triggering Workflows
 
 - **On PR**: `ci-pr-checks.yml`, `claude-welcome.yml`, `ci-check-pr-title.yml`, `generate-pr-title-description.yml`
-- **On Push to main/next**: `publish-packages.yml`
+- **On Push to main/next**: `ci-publish-packages.yml`
 - **On Issue Comment**: `claude-code.yml` (when @claude mentioned)
 - **Manual Dispatch**: `release-update-production.yml`, `claude-code-review.yml`, `force-publish-packages.yml`
 
@@ -173,8 +205,56 @@ gh workflow run force-publish-packages.yml \
 ```
 
 **Note**: This workflow only runs on the `next` branch and publishes with the `next` npm tag.
+
 - **On Schedule**: `claude-auto-tasks.yml` (daily at 5am EST)
 - **Manual Dispatch**: `release-update-production.yml`, `claude-code-review.yml`, `claude-auto-tasks.yml`
+
+## Architecture: Publish Workflows
+
+The publishing functionality is split into three workflows for maintainability:
+
+```text
+┌─────────────────────────┐     ┌─────────────────────────────┐
+│  publish-packages.yml   │     │ force-publish-packages.yml  │
+│  (automatic on push)    │     │ (manual trigger)            │
+│                         │     │                             │
+│  - Detects affected     │     │  - Validates branch (next)  │
+│    packages via Nx      │     │  - Resolves user-specified  │
+│  - Determines version   │     │    packages                 │
+│    strategy by branch   │     │  - Always uses prerelease   │
+└───────────┬─────────────┘     └──────────────┬──────────────┘
+            │                                   │
+            └───────────────┬───────────────────┘
+                            │
+                            ▼
+            ┌───────────────────────────────┐
+            │ shared-internal/              │
+            │   publish-packages.yml            │
+            │                               │
+            │ - Build packages              │
+            │ - Clean orphaned tags (opt)   │
+            │ - Version (conventional or    │
+            │   prerelease)                 │
+            │ - Publish to npm              │
+            │ - Push commits + tags         │
+            │ - Create GitHub releases      │
+            └───────────────────────────────┘
+```
+
+### publish-packages.yml Inputs
+
+| Input                 | Type    | Description                             |
+| --------------------- | ------- | --------------------------------------- |
+| `projects`            | string  | Comma-separated Nx project names        |
+| `packages`            | string  | Comma-separated npm package names       |
+| `npm_tag`             | string  | npm tag (`latest` or `next`)            |
+| `version_strategy`    | string  | `conventional` or `prerelease`          |
+| `preid`               | string  | Prerelease identifier (default: `next`) |
+| `branch`              | string  | Branch to push commits/tags to          |
+| `dry_run`             | boolean | Simulate without publishing             |
+| `clean_orphaned_tags` | boolean | Clean up orphaned git tags              |
+| `base_sha`            | string  | Base SHA for affected build             |
+| `is_prerelease`       | boolean | Mark GitHub releases as prereleases     |
 
 ## Development Guidelines
 
@@ -239,6 +319,7 @@ ACTIONS_RUNNER_DEBUG=true
 ## Related Documentation
 
 - See `examples/` subdirectory for working implementations
+- See `shared-internal/` for internal reusable workflows
 - See `.github/prompts/` for Claude AI prompt templates
 - See root `CLAUDE.md` for project-level documentation
 
