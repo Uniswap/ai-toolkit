@@ -221,6 +221,38 @@ The lefthook configuration is defined in `lefthook.yml` at the root of the repos
 
 ## GitHub Actions Best Practices
 
+### Expression Injection Prevention
+
+**CRITICAL: Never use `${{ }}` expressions directly in bash scripts.**
+
+When using GitHub expressions in workflow bash scripts, always use environment variables instead of direct interpolation to prevent script injection attacks:
+
+**❌ BAD - Direct interpolation (vulnerable to injection):**
+
+```yaml
+- name: Process input
+  run: |
+    INPUT="${{ github.event.inputs.packages }}"
+    echo "Processing: $INPUT"
+```
+
+**✅ GOOD - Environment variable (secure):**
+
+```yaml
+- name: Process input
+  env:
+    INPUT_PACKAGES: ${{ github.event.inputs.packages }}
+  run: |
+    echo "Processing: $INPUT_PACKAGES"
+```
+
+**Why this matters:**
+
+- Direct `${{ }}` interpolation happens before bash parsing, allowing malicious input to escape the intended context
+- Environment variables are properly quoted and sanitized by the shell
+- This prevents command injection where special characters (`;`, `|`, `$()`) could execute arbitrary commands
+- Apply this pattern to ALL untrusted inputs: `github.event.inputs.*`, `github.event.pull_request.title`, `github.event.issue.body`, etc.
+
 ### Script Separation Policy
 
 **CRITICAL: Complex scripts in GitHub Actions workflows MUST be separated into standalone files.**
