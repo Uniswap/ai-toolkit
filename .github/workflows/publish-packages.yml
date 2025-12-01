@@ -702,8 +702,8 @@ jobs:
               git add "$PROJECT_ROOT/package.json"
               git commit -m "chore(release): $package@$NEW_VERSION"
 
-              # Create git tag
-              git tag "${package}@${NEW_VERSION}"
+              # Create git tag (must use -m flag since CI has no terminal for editor)
+              git tag -m "Release ${package}@${NEW_VERSION}" "${package}@${NEW_VERSION}"
 
               echo "✅ Versioning complete (version: $NEW_VERSION)"
             else
