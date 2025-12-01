@@ -4,7 +4,7 @@
 
 Language-agnostic slash command definitions for Claude Code. Each markdown file defines a command's behavior, parameters, and usage. These are the core commands available in the AI Toolkit.
 
-## Command Files (26 total)
+## Command Files (27 total)
 
 ### Core Workflow Commands
 
@@ -35,6 +35,7 @@ Language-agnostic slash command definitions for Claude Code. Each markdown file 
 - `work-through-pr-comments.md` - Methodically work through PR comments
 - `generate-commit-message.md` - Generate structured commit messages
 - `split-stack.md` - Split Graphite PR stacks
+- `git-worktree-orchestrator.md` - Create and manage git worktrees with spec-workflow and Linear integration
 
 ### Documentation
 

@@ -1,0 +1,212 @@
+# Example: Autonomous Claude Code Task Processing from Linear
+#
+# This example demonstrates how to set up autonomous task processing
+# where Claude Code picks up Linear issues and implements them.
+#
+# USAGE FOR EXTERNAL REPOSITORIES:
+# Copy this workflow to your repository and change the `uses:` line from:
+#   uses: ./.github/workflows/_claude-task-worker.yml
+# to:
+#   uses: Uniswap/ai-toolkit/.github/workflows/_claude-task-worker.yml@main
+#
+# PREREQUISITES:
+# 1. ANTHROPIC_API_KEY secret configured
+# 2. LINEAR_API_KEY secret configured
+# 3. Linear issues labeled with "claude" in "Backlog" or "Todo" status
+#
+# FEATURES:
+# - Scheduled daily execution (5am EST)
+# - Manual trigger with configurable inputs
+# - Parallel task processing (up to 3 concurrent)
+# - Automatic PR creation
+# - Linear issue status updates
+#
+# RELATED:
+# - @uniswap/ai-toolkit-linear-task-utils: NPM package for Linear queries
+# - _claude-task-worker.yml: Reusable workflow for task execution
+# - docs/guides/autonomous-claude-tasks.md: Full documentation
+
+name: "[Example 11] Autonomous Linear Tasks"
+
+on:
+  # Run daily at 5am EST (10:00 UTC)
+
+  schedule:
+    - cron: "0 10 * * *"
+
+  # Manual trigger with configuration options
+
+  workflow_dispatch:
+    inputs:
+      linear_team:
+        description: "Linear team name to query for issues"
+        required: false
+        type: string
+        default: "Developer AI"
+
+      linear_label:
+        description: "Label that marks issues for Claude processing"
+        required: false
+        type: string
+        default: "claude"
+
+      max_issues:
+        description: "Maximum number of issues to process per run"
+        required: false
+        type: string
+        default: "3"
+
+      model:
+        description: "Claude model for task execution"
+        required: false
+        type: choice
+        options:
+          - "claude-sonnet-4-5-20250929" # Balanced (recommended)
+          - "claude-opus-4-20250514" # Most capable
+          - "claude-haiku-4-5@20251001" # Fast & economical
+        default: "claude-sonnet-4-5-20250929"
+
+      target_branch:
+        description: "Branch to create PRs against"
+        required: false
+        type: string
+        default: "next"
+
+# Prevent overlapping runs
+
+concurrency:
+  group: claude-auto-tasks-example
+  cancel-in-progress: false
+
+jobs:
+  # ------------------------------------------------------------
+
+  # STEP 1: Query Linear for issues
+
+  # ------------------------------------------------------------
+
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.query.outputs.result }}
+      has_tasks: ${{ steps.query.outputs.has_tasks }}
+
+    steps:
+      - name: Security scanning
+        uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ inputs.target_branch }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: "22.21.1"
+          cache: "npm"
+
+      # Auto-create the label if it doesn't exist
+      - name: Ensure label exists
+        run: |
+          npx @uniswap/ai-toolkit-linear-task-utils ensure-label \
+            --team "${{ inputs.linear_team }}" \
+            --label "${{ inputs.linear_label }}"
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+
+      # Query Linear for matching issues
+      - name: Query issues
+        id: query
+        run: |
+          echo "Querying Linear for issues..."
+
+          RESULT=$(npx @uniswap/ai-toolkit-linear-task-utils query \
+            --team "${{ inputs.linear_team }}" \
+            --label "${{ inputs.linear_label }}" \
+            --statuses "Backlog,Todo" \
+            --max "${{ inputs.max_issues }}")
+
+          echo "result=$RESULT" >> $GITHUB_OUTPUT
+
+          COUNT=$(echo "$RESULT" | jq -r '.count')
+          if [ "$COUNT" -gt 0 ]; then
+            echo "has_tasks=true" >> $GITHUB_OUTPUT
+            echo "Found $COUNT issue(s) to process"
+          else
+            echo "has_tasks=false" >> $GITHUB_OUTPUT
+            echo "No matching issues found"
+          fi
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+
+  # ------------------------------------------------------------
+
+  # STEP 2: Process each task with Claude
+
+  # ------------------------------------------------------------
+
+  process-task:
+    needs: prepare
+    if: needs.prepare.outputs.has_tasks == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+
+    # Reference the shared reusable workflow from AI Toolkit
+    # For external repositories, use: Uniswap/ai-toolkit/.github/workflows/_claude-task-worker.yml@main
+    # For this repository (ai-toolkit itself), use the local path
+    uses: ./.github/workflows/_claude-task-worker.yml
+    with:
+      issue_id: ${{ matrix.issue_id }}
+      issue_identifier: ${{ matrix.issue_identifier }}
+      issue_title: ${{ matrix.issue_title }}
+      issue_description: ${{ matrix.issue_description }}
+      issue_url: ${{ matrix.issue_url }}
+      branch_name: ${{ matrix.branch_name }}
+      target_branch: ${{ inputs.target_branch }}
+      model: ${{ inputs.model }}
+      timeout_minutes: 60
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+
+  # ------------------------------------------------------------
+
+  # STEP 3: Generate summary
+
+  # ------------------------------------------------------------
+
+  summary:
+    needs: [prepare, process-task]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      # Security scanning
+      - name: Security scanning
+        uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+        with:
+          egress-policy: audit
+
+      - name: Create summary
+        run: |
+          echo "# Autonomous Task Processing Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.prepare.outputs.has_tasks }}" == "true" ]; then
+            COUNT=$(echo '${{ needs.prepare.outputs.matrix }}' | jq -r '.count')
+            echo "**Issues Processed:** $COUNT" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Result:** ${{ needs.process-task.result }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No issues were found matching the criteria." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "To add tasks:" >> $GITHUB_STEP_SUMMARY
+            echo "1. Create issues in the configured Linear team" >> $GITHUB_STEP_SUMMARY
+            echo "2. Add the 'claude' label" >> $GITHUB_STEP_SUMMARY
+            echo "3. Set status to 'Backlog' or 'Todo'" >> $GITHUB_STEP_SUMMARY
+          fi

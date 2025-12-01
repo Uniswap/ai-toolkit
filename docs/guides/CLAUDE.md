@@ -30,6 +30,18 @@ Developer guides and tutorials for the AI Toolkit. Provides in-depth documentati
   - Best practices and troubleshooting
   - Security considerations
 
+### Autonomous Claude Tasks
+
+- **File**: `autonomous-claude-tasks.md`
+- **Purpose**: Complete guide for setting up autonomous Claude Code task processing from Linear
+- **Topics**:
+  - Architecture overview (query → process → update)
+  - Using `@uniswap/ai-toolkit-linear-task-utils` CLI package
+  - GitHub Actions workflow setup
+  - Linear configuration (labels, statuses)
+  - Model selection (Sonnet, Opus, Haiku)
+  - Customization and troubleshooting
+
 ### Expected Content Structure
 
 Each guide should follow this structure:

@@ -1,0 +1,331 @@
+# Reusable workflow for processing a single Linear task with Claude Code
+#
+# This workflow is called by claude-auto-tasks.yml for each issue in the matrix.
+# It creates a branch, runs Claude Code to implement the task, creates a PR,
+# and updates the Linear issue status.
+#
+# USAGE:
+# Call this workflow from a matrix job:
+#
+# jobs:
+#   process-task:
+#     strategy:
+#       matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+#     uses: ./.github/workflows/_claude-task-worker.yml
+#     with:
+#       issue_id: ${{ matrix.issue_id }}
+#       issue_identifier: ${{ matrix.issue_identifier }}
+#       issue_title: ${{ matrix.issue_title }}
+#       issue_description: ${{ matrix.issue_description }}
+#       issue_url: ${{ matrix.issue_url }}
+#       branch_name: ${{ matrix.branch_name }}
+#       target_branch: 'next'
+#       model: 'claude-sonnet-4-5-20250929'
+#     secrets:
+#       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+#       LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+#
+# INPUTS:
+# - issue_id: Linear issue UUID
+# - issue_identifier: Linear issue identifier (e.g., "DAI-123")
+# - issue_title: Issue title
+# - issue_description: Full issue description (markdown)
+# - issue_url: Linear issue URL
+# - branch_name: Branch to create (e.g., "claude/dai-123-fix-bug")
+# - target_branch: Branch to create PR against (default: "next")
+# - model: Claude model to use (default: claude-sonnet-4-5-20250929)
+# - timeout_minutes: Execution timeout (default: 60)
+#
+# SECRETS REQUIRED:
+# - ANTHROPIC_API_KEY: Claude API key
+# - LINEAR_API_KEY: Linear API key
+# - WORKFLOW_PAT: (optional) PAT for pushing branches (falls back to GITHUB_TOKEN)
+
+name: '[claude] Task Worker'
+
+on:
+  workflow_call:
+    inputs:
+      issue_id:
+        description: 'Linear issue ID (UUID)'
+        required: true
+        type: string
+
+      issue_identifier:
+        description: 'Linear issue identifier (e.g., DAI-123)'
+        required: true
+        type: string
+
+      issue_title:
+        description: 'Issue title'
+        required: true
+        type: string
+
+      issue_description:
+        description: 'Full issue description (markdown)'
+        required: true
+        type: string
+
+      issue_url:
+        description: 'Linear issue URL'
+        required: true
+        type: string
+
+      branch_name:
+        description: 'Branch name to create (e.g., claude/dai-123-fix-bug)'
+        required: true
+        type: string
+
+      target_branch:
+        description: 'Branch to create PR against'
+        required: false
+        type: string
+        default: 'next'
+
+      model:
+        description: |
+          Claude model to use.
+          Options: claude-sonnet-4-5-20250929, claude-opus-4-20250514, claude-haiku-4-5@20251001
+        required: false
+        type: string
+        default: 'claude-sonnet-4-5-20250929'
+
+      timeout_minutes:
+        description: 'Maximum execution time in minutes'
+        required: false
+        type: number
+        default: 60
+
+    secrets:
+      ANTHROPIC_API_KEY:
+        description: 'Anthropic API key for Claude Code'
+        required: true
+
+      LINEAR_API_KEY:
+        description: 'Linear API key for issue updates'
+        required: true
+
+      WORKFLOW_PAT:
+        description: 'PAT for pushing branches (optional, falls back to GITHUB_TOKEN)'
+        required: false
+
+jobs:
+  process-task:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+
+    # Permissions for Claude Code and PR creation
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: read
+
+    steps:
+      # Security scanning
+      - name: Security scanning
+        uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+        with:
+          egress-policy: audit
+
+      # Checkout the target branch
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ inputs.target_branch }}
+          fetch-depth: 50
+          token: ${{ secrets.WORKFLOW_PAT || github.token }}
+
+      # Setup Node.js for the linear-task-utils CLI
+      - name: Setup Node.js
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: '22.21.1'
+          cache: 'npm'
+
+      # Install npm 11.6.2 (required for this project)
+      - name: Install npm
+        run: npm install -g npm@11.6.2
+
+      # Install dependencies
+      - name: Install dependencies
+        run: npm ci
+
+      # Create and push the feature branch
+      - name: Create feature branch
+        id: create-branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Check if branch already exists remotely
+          if git ls-remote --exit-code --heads origin "${{ inputs.branch_name }}" > /dev/null 2>&1; then
+            echo "Branch ${{ inputs.branch_name }} already exists, checking out"
+            git fetch origin "${{ inputs.branch_name }}"
+            git checkout "${{ inputs.branch_name }}"
+            echo "branch_created=false" >> $GITHUB_OUTPUT
+          else
+            echo "Creating new branch ${{ inputs.branch_name }}"
+            git checkout -b "${{ inputs.branch_name }}"
+            git push -u origin "${{ inputs.branch_name }}"
+            echo "branch_created=true" >> $GITHUB_OUTPUT
+          fi
+
+      # Build the prompt from template
+      - name: Build prompt
+        id: build-prompt
+        run: |
+          # Read the template and substitute variables
+          PROMPT=$(cat << 'PROMPT_EOF'
+          # Autonomous Task Execution
+
+          You are autonomously implementing Linear issue **${{ inputs.issue_identifier }}**: "${{ inputs.issue_title }}"
+
+          ## Task Details
+
+          - **Issue URL:** ${{ inputs.issue_url }}
+          - **Branch:** `${{ inputs.branch_name }}`
+          - **Target Branch:** `${{ inputs.target_branch }}`
+
+          ## Description
+
+          ${{ inputs.issue_description }}
+
+          ---
+
+          ## Your Workflow
+
+          Follow these phases in order. Use sub-agents (Task tool) for complex exploration or planning.
+
+          ### Phase 1: Understand the Task
+
+          Ensure you understand the purpose, scope, and outcome. If completely unclear, use Linear MCP to comment asking for clarification.
+
+          ### Phase 2: Exploration
+
+          - Read relevant CLAUDE.md files
+          - Explore the codebase
+          - Identify files to modify
+          - Understand existing patterns
+
+          ### Phase 3: Planning
+
+          - Design your approach
+          - Consider edge cases
+          - Plan implementation steps
+
+          ### Phase 4: Implementation
+
+          - Implement following existing patterns
+          - Keep changes minimal and focused
+          - Add tests if appropriate
+
+          ### Phase 5: Quality Assurance
+
+          Run these commands:
+          ```bash
+          npx nx format:write --uncommitted
+          npx nx affected --target=lint --base=${{ inputs.target_branch }}
+          npx nx affected --target=typecheck --base=${{ inputs.target_branch }}
+          npx nx affected --target=test --base=${{ inputs.target_branch }}
+          npx nx affected --target=build --base=${{ inputs.target_branch }}
+          ```
+
+          ### Phase 6: Commit and Push
+
+          Create a conventional commit and push:
+          ```bash
+          git add -A
+          git commit -m "type(scope): description"
+          git push origin ${{ inputs.branch_name }}
+          ```
+
+          ### Phase 7: Create Pull Request
+
+          Use gh CLI to create a PR to ${{ inputs.target_branch }}.
+
+          ---
+
+          ## Guidelines
+
+          - Follow all CLAUDE.md instructions
+          - Make reasonable assumptions
+          - Keep changes minimal
+          - Only ask for clarification if task is COMPLETELY unclear
+          - Do NOT push to main or ${{ inputs.target_branch }} directly
+          PROMPT_EOF
+          )
+
+          # Escape for GitHub Actions output
+          echo "prompt<<PROMPT_DELIM" >> $GITHUB_OUTPUT
+          echo "$PROMPT" >> $GITHUB_OUTPUT
+          echo "PROMPT_DELIM" >> $GITHUB_OUTPUT
+
+      # Run Claude Code with Linear MCP configured
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@8a1c4371755898f67cd97006ba7c97702d5fc4bf # v1.0.16
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: ${{ steps.build-prompt.outputs.prompt }}
+          claude_args: |
+            --model ${{ inputs.model }}
+            --max-turns 100
+            --mcp-config '{"mcpServers":{"linear":{"command":"npx","args":["-y","linear-mcp-server"],"env":{"LINEAR_API_KEY":"${{ secrets.LINEAR_API_KEY }}"}}}}'
+          additional_permissions: |
+            actions: read
+
+      # Check if a PR was created by Claude
+      - name: Check for PR
+        id: check-pr
+        run: |
+          # Check if there's an open PR from this branch
+          PR_URL=$(gh pr list --head "${{ inputs.branch_name }}" --base "${{ inputs.target_branch }}" --json url --jq '.[0].url' || echo "")
+
+          if [ -n "$PR_URL" ]; then
+            echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+            echo "pr_exists=true" >> $GITHUB_OUTPUT
+            echo "Found PR: $PR_URL"
+          else
+            echo "pr_exists=false" >> $GITHUB_OUTPUT
+            echo "No PR found for branch ${{ inputs.branch_name }}"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      # Update Linear issue if PR was created
+      - name: Update Linear issue
+        if: steps.check-pr.outputs.pr_exists == 'true'
+        run: |
+          npx @uniswap/ai-toolkit-linear-task-utils update-issue \
+            --issue-id "${{ inputs.issue_id }}" \
+            --status "In Review" \
+            --pr-url "${{ steps.check-pr.outputs.pr_url }}"
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+
+      # Create job summary
+      - name: Create job summary
+        if: always()
+        run: |
+          echo "## Task: ${{ inputs.issue_identifier }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Title:** ${{ inputs.issue_title }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Linear Issue:** [${{ inputs.issue_identifier }}](${{ inputs.issue_url }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ inputs.branch_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Model:** ${{ inputs.model }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.check-pr.outputs.pr_exists }}" == "true" ]; then
+            echo "**PR Created:** [${{ steps.check-pr.outputs.pr_url }}](${{ steps.check-pr.outputs.pr_url }})" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Linear Status:** Updated to 'In Review'" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**PR Created:** No" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Claude did not create a PR. Check the logs for details." >> $GITHUB_STEP_SUMMARY
+          fi
