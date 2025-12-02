@@ -18,6 +18,53 @@ name: Publish Packages
 # - SERVICE_ACCOUNT_GPG_PRIVATE_KEY: For signing commits/tags
 
 on:
+  workflow_dispatch:
+    inputs:
+      projects:
+        description: "Comma-separated list of Nx project names to publish"
+        required: true
+        type: string
+      packages:
+        description: "Comma-separated list of npm package names (must match projects order)"
+        required: true
+        type: string
+      npm_tag:
+        description: "npm tag to publish with (latest or next)"
+        required: true
+        type: string
+      version_strategy:
+        description: 'Version strategy: "conventional" (uses commit history) or "prerelease" (bumps prerelease)'
+        required: true
+        type: string
+      preid:
+        description: 'Prerelease identifier (e.g., "next"). Only used when version_strategy is "prerelease"'
+        required: false
+        type: string
+        default: "next"
+      branch:
+        description: "Branch to push commits/tags to"
+        required: true
+        type: string
+      dry_run:
+        description: "If true, only simulate publishing without making changes"
+        required: false
+        type: boolean
+        default: false
+      clean_orphaned_tags:
+        description: "If true, clean up orphaned git tags before publishing"
+        required: false
+        type: boolean
+        default: false
+      base_sha:
+        description: "Base SHA for affected detection (used for building). If empty, builds all specified projects."
+        required: false
+        type: string
+        default: ""
+      is_prerelease:
+        description: "If true, GitHub releases are marked as prereleases"
+        required: false
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       projects:
