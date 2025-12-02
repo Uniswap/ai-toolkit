@@ -87,6 +87,16 @@ on:
         type: number
         default: 10
 
+      generation_mode:
+        description: |
+          What to generate. Options:
+          - "both" (default): Generate both title and description
+          - "title": Generate only the PR title
+          - "description": Generate only the PR description
+        required: false
+        type: string
+        default: "both"
+
     secrets:
       ANTHROPIC_API_KEY:
         description: "Anthropic API key for Claude access"
@@ -265,6 +275,7 @@ jobs:
           HEAD_BRANCH: ${{ steps.pr-info.outputs.head_branch }}
           BASE_BRANCH: ${{ steps.pr-info.outputs.base_branch }}
           FILES_CHANGED: ${{ steps.pr-info.outputs.files_changed }}
+          GENERATION_MODE: ${{ inputs.generation_mode }}
         run: |
           set -euo pipefail
 
@@ -355,33 +366,46 @@ jobs:
           # Append custom prompt content
           echo "$CUSTOM_PROMPT" >> /tmp/final-prompt.txt
 
-          # Append output writing requirements (always injected)
-          cat >> /tmp/final-prompt.txt <<OUTPUT_EOF
+          # Append output writing requirements based on generation mode
+          echo "📋 Generation mode: $GENERATION_MODE"
+
+          cat >> /tmp/final-prompt.txt <<'OUTPUT_HEADER_EOF'
 
           ---
 
           # Required: Output Files
 
-          After analyzing the PR and generating the title and description, you **MUST** create these two files in the GitHub workspace root directory:
+          After analyzing the PR, you **MUST** create the output file(s) specified below.
 
-          ## 1. \`\$GITHUB_WORKSPACE/.claude-pr-title.txt\`
+          OUTPUT_HEADER_EOF
 
-          **IMPORTANT:** Write this file to the full path: \`\$GITHUB_WORKSPACE/.claude-pr-title.txt\`
+          # Conditionally include title instructions
+          if [ "$GENERATION_MODE" = "both" ] || [ "$GENERATION_MODE" = "title" ]; then
+            cat >> /tmp/final-prompt.txt <<'TITLE_EOF'
+          ## Title Output: `$GITHUB_WORKSPACE/.claude-pr-title.txt`
+
+          **IMPORTANT:** Write this file to the full path: `$GITHUB_WORKSPACE/.claude-pr-title.txt`
 
           Contains ONLY the generated PR title (single line, no quotes, no markdown):
-          - Must follow conventional commit format: \`<type>(<scope>): <description>\`
+          - Must follow conventional commit format: `<type>(<scope>): <description>`
           - Types: feat, fix, chore, docs, style, refactor, perf, test, build, ci
           - Scope should be derived from the primary area of change
           - Description should be concise but descriptive (max 72 characters total)
 
           **Example file content:**
-          \`\`\`
+          ```
           feat(workflows): add automated PR title and description generation
-          \`\`\`
+          ```
 
-          ## 2. \`\$GITHUB_WORKSPACE/.claude-pr-description.md\`
+          TITLE_EOF
+          fi
 
-          **IMPORTANT:** Write this file to the full path: \`\$GITHUB_WORKSPACE/.claude-pr-description.md\`
+          # Conditionally include description instructions
+          if [ "$GENERATION_MODE" = "both" ] || [ "$GENERATION_MODE" = "description" ]; then
+            cat >> /tmp/final-prompt.txt <<'DESC_EOF'
+          ## Description Output: `$GITHUB_WORKSPACE/.claude-pr-description.md`
+
+          **IMPORTANT:** Write this file to the full path: `$GITHUB_WORKSPACE/.claude-pr-description.md`
 
           Contains the full PR description in markdown format. Include:
           - Summary of changes
@@ -389,9 +413,13 @@ jobs:
           - Any breaking changes or important notes
           - Follow the template patterns observed from recent PRs
 
-          **These files are required** for the PR to be updated.
+          DESC_EOF
+          fi
+
+          cat >> /tmp/final-prompt.txt <<'OUTPUT_FOOTER_EOF'
+          **The output file(s) above are required** for the PR to be updated.
           If you don't create them, the workflow will fail.
-          OUTPUT_EOF
+          OUTPUT_FOOTER_EOF
 
           # Log final prompt length
           PROMPT_LENGTH=$(wc -c < /tmp/final-prompt.txt)
@@ -488,6 +516,7 @@ jobs:
         env:
           PR_NUMBER: ${{ inputs.pr_number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GENERATION_MODE: ${{ inputs.generation_mode }}
         run: |
           set -euo pipefail
 
@@ -502,99 +531,118 @@ jobs:
           START_MARKER="<!-- claude-pr-description-start -->"
           END_MARKER="<!-- claude-pr-description-end -->"
 
-          echo "Starting PR metadata update for PR #$PR_NUMBER"
+          echo "Starting PR metadata update for PR #$PR_NUMBER (mode: $GENERATION_MODE)"
 
-          # Read title from file or use default
-          NEW_TITLE="$DEFAULT_TITLE"
-          if [ -f "$TITLE_FILE" ]; then
-            NEW_TITLE=$(cat "$TITLE_FILE" | tr -d '\n' | head -c 200)
-            echo "Read title from file: $NEW_TITLE"
-          else
-            echo "No title file found at $TITLE_FILE, using default: $DEFAULT_TITLE"
-          fi
-
-          # Validate title format (should start with conventional commit type)
-          if ! echo "$NEW_TITLE" | grep -qE '^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\(.+\))?:'; then
-            echo "Warning: Title doesn't follow conventional commit format"
-            echo "   Expected: <type>(<scope>): <description>"
-            echo "   Got: $NEW_TITLE"
-            echo "   Proceeding anyway..."
-          fi
-
-          # Read description from file or use default
-          GENERATED_DESCRIPTION="$DEFAULT_DESCRIPTION"
-          if [ -f "$DESCRIPTION_FILE" ]; then
-            GENERATED_DESCRIPTION=$(cat "$DESCRIPTION_FILE")
-            echo "Read description from file (${#GENERATED_DESCRIPTION} chars)"
-          else
-            echo "No description file found at $DESCRIPTION_FILE, using default message"
-          fi
-
-          # Fetch current PR body to preserve user content outside markers
-          echo "Fetching current PR body to check for user content..."
-          CURRENT_BODY=$(gh pr view "$PR_NUMBER" --json body --jq '.body // ""')
-
-          # Initialize preserved content variables
-          CONTENT_BEFORE=""
-          CONTENT_AFTER=""
-
-          # Check if current body has our markers
-          if echo "$CURRENT_BODY" | grep -q "$START_MARKER"; then
-            echo "Found existing markers in PR body, preserving user content..."
-
-            # Extract content BEFORE the start marker (user's prefix content)
-            CONTENT_BEFORE=$(echo "$CURRENT_BODY" | awk -v marker="$START_MARKER" '
-              BEGIN { found=0 }
-              $0 ~ marker { found=1; exit }
-              { if (!found) print }
-            ')
-
-            # Extract content AFTER the end marker (user's suffix content)
-            CONTENT_AFTER=$(echo "$CURRENT_BODY" | awk -v marker="$END_MARKER" '
-              BEGIN { found=0 }
-              { if (found) print }
-              $0 ~ marker { found=1 }
-            ')
-
-            # Trim trailing/leading whitespace but preserve internal structure
-            CONTENT_BEFORE=$(echo "$CONTENT_BEFORE" | sed -e 's/[[:space:]]*$//')
-            CONTENT_AFTER=$(echo "$CONTENT_AFTER" | sed -e 's/^[[:space:]]*//')
-
-            if [ -n "$CONTENT_BEFORE" ]; then
-              echo "  Preserved ${#CONTENT_BEFORE} chars of user content before markers"
-            fi
-            if [ -n "$CONTENT_AFTER" ]; then
-              echo "  Preserved ${#CONTENT_AFTER} chars of user content after markers"
-            fi
-          else
-            echo "No existing markers found, this appears to be a fresh generation"
-          fi
-
-          # Build final description with markers and preserved content
-          # Using printf to properly handle newlines in YAML
+          # Initialize variables
+          NEW_TITLE=""
           NEW_DESCRIPTION=""
 
-          # Add preserved content before markers (if any)
-          if [ -n "$CONTENT_BEFORE" ]; then
-            NEW_DESCRIPTION="${CONTENT_BEFORE}"$'\n\n'
+          # Read title from file if needed (mode is 'both' or 'title')
+          if [ "$GENERATION_MODE" = "both" ] || [ "$GENERATION_MODE" = "title" ]; then
+            NEW_TITLE="$DEFAULT_TITLE"
+            if [ -f "$TITLE_FILE" ]; then
+              NEW_TITLE=$(cat "$TITLE_FILE" | tr -d '\n' | head -c 200)
+              echo "Read title from file: $NEW_TITLE"
+            else
+              echo "No title file found at $TITLE_FILE, using default: $DEFAULT_TITLE"
+            fi
+
+            # Validate title format (should start with conventional commit type)
+            if ! echo "$NEW_TITLE" | grep -qE '^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\(.+\))?:'; then
+              echo "Warning: Title doesn't follow conventional commit format"
+              echo "   Expected: <type>(<scope>): <description>"
+              echo "   Got: $NEW_TITLE"
+              echo "   Proceeding anyway..."
+            fi
           fi
 
-          # Add the marked generated content
-          NEW_DESCRIPTION="${NEW_DESCRIPTION}${START_MARKER}"$'\n'
-          NEW_DESCRIPTION="${NEW_DESCRIPTION}${GENERATED_DESCRIPTION}"$'\n'
-          NEW_DESCRIPTION="${NEW_DESCRIPTION}${END_MARKER}"
+          # Read and process description if needed (mode is 'both' or 'description')
+          if [ "$GENERATION_MODE" = "both" ] || [ "$GENERATION_MODE" = "description" ]; then
+            # Read description from file or use default
+            GENERATED_DESCRIPTION="$DEFAULT_DESCRIPTION"
+            if [ -f "$DESCRIPTION_FILE" ]; then
+              GENERATED_DESCRIPTION=$(cat "$DESCRIPTION_FILE")
+              echo "Read description from file (${#GENERATED_DESCRIPTION} chars)"
+            else
+              echo "No description file found at $DESCRIPTION_FILE, using default message"
+            fi
 
-          # Add preserved content after markers (if any)
-          if [ -n "$CONTENT_AFTER" ]; then
-            NEW_DESCRIPTION="${NEW_DESCRIPTION}"$'\n\n'"${CONTENT_AFTER}"
+            # Fetch current PR body to preserve user content outside markers
+            echo "Fetching current PR body to check for user content..."
+            CURRENT_BODY=$(gh pr view "$PR_NUMBER" --json body --jq '.body // ""')
+
+            # Initialize preserved content variables
+            CONTENT_BEFORE=""
+            CONTENT_AFTER=""
+
+            # Check if current body has our markers
+            if echo "$CURRENT_BODY" | grep -q "$START_MARKER"; then
+              echo "Found existing markers in PR body, preserving user content..."
+
+              # Extract content BEFORE the start marker (user's prefix content)
+              CONTENT_BEFORE=$(echo "$CURRENT_BODY" | awk -v marker="$START_MARKER" '
+                BEGIN { found=0 }
+                $0 ~ marker { found=1; exit }
+                { if (!found) print }
+              ')
+
+              # Extract content AFTER the end marker (user's suffix content)
+              CONTENT_AFTER=$(echo "$CURRENT_BODY" | awk -v marker="$END_MARKER" '
+                BEGIN { found=0 }
+                { if (found) print }
+                $0 ~ marker { found=1 }
+              ')
+
+              # Trim trailing/leading whitespace but preserve internal structure
+              CONTENT_BEFORE=$(echo "$CONTENT_BEFORE" | sed -e 's/[[:space:]]*$//')
+              CONTENT_AFTER=$(echo "$CONTENT_AFTER" | sed -e 's/^[[:space:]]*//')
+
+              if [ -n "$CONTENT_BEFORE" ]; then
+                echo "  Preserved ${#CONTENT_BEFORE} chars of user content before markers"
+              fi
+              if [ -n "$CONTENT_AFTER" ]; then
+                echo "  Preserved ${#CONTENT_AFTER} chars of user content after markers"
+              fi
+            else
+              echo "No existing markers found, this appears to be a fresh generation"
+            fi
+
+            # Build final description with markers and preserved content
+            NEW_DESCRIPTION=""
+
+            # Add preserved content before markers (if any)
+            if [ -n "$CONTENT_BEFORE" ]; then
+              NEW_DESCRIPTION="${CONTENT_BEFORE}"$'\n\n'
+            fi
+
+            # Add the marked generated content
+            NEW_DESCRIPTION="${NEW_DESCRIPTION}${START_MARKER}"$'\n'
+            NEW_DESCRIPTION="${NEW_DESCRIPTION}${GENERATED_DESCRIPTION}"$'\n'
+            NEW_DESCRIPTION="${NEW_DESCRIPTION}${END_MARKER}"
+
+            # Add preserved content after markers (if any)
+            if [ -n "$CONTENT_AFTER" ]; then
+              NEW_DESCRIPTION="${NEW_DESCRIPTION}"$'\n\n'"${CONTENT_AFTER}"
+            fi
           fi
 
-          # Update PR using gh CLI
+          # Update PR based on generation mode
           echo "Updating PR #$PR_NUMBER..."
-          gh pr edit "$PR_NUMBER" --title "$NEW_TITLE" --body "$NEW_DESCRIPTION"
-
-          echo "PR updated successfully!"
-          echo "   New title: $NEW_TITLE"
+          case "$GENERATION_MODE" in
+            "title")
+              gh pr edit "$PR_NUMBER" --title "$NEW_TITLE"
+              echo "PR title updated: $NEW_TITLE"
+              ;;
+            "description")
+              gh pr edit "$PR_NUMBER" --body "$NEW_DESCRIPTION"
+              echo "PR description updated (${#NEW_DESCRIPTION} chars)"
+              ;;
+            "both"|*)
+              gh pr edit "$PR_NUMBER" --title "$NEW_TITLE" --body "$NEW_DESCRIPTION"
+              echo "PR title and description updated"
+              echo "   Title: $NEW_TITLE"
+              ;;
+          esac
 
           # Cleanup temporary files
           if [ -f "$TITLE_FILE" ]; then

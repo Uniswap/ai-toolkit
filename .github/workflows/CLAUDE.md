@@ -95,6 +95,28 @@ This allows users to add custom notes, disclaimers, or additional context that s
 **Related Issues:** #123, #456
 ```
 
+**Generation Mode:**
+
+The `generation_mode` input controls what the workflow generates:
+
+| Mode          | Description                         | Default |
+| ------------- | ----------------------------------- | ------- |
+| `both`        | Generate both title and description | Yes     |
+| `title`       | Generate only the PR title          | No      |
+| `description` | Generate only the PR description    | No      |
+
+**Usage example:**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_generate-pr-metadata.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  base_ref: ${{ github.base_ref }}
+  generation_mode: 'title' # Only generate title, leave description unchanged
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
 ### Shared Internal Workflows
 
 These workflows are prefixed with two `__` and are only used within this repository:
