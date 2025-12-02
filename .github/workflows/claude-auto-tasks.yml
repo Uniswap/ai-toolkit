@@ -87,7 +87,11 @@ jobs:
   prepare:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.query.outputs.result }}
+      # matrix_json contains only the 'include' array for GitHub Actions matrix strategy
+      # (the 'count' property in the full result is not a valid matrix property)
+      matrix_json: ${{ steps.query.outputs.matrix_json }}
+      # Full result is used for the summary step
+      result: ${{ steps.query.outputs.result }}
       has_tasks: ${{ steps.query.outputs.has_tasks }}
       linear_task_utils_tag: ${{ env.LINEAR_TASK_UTILS_TAG }}
 
@@ -134,7 +138,13 @@ jobs:
             --statuses "Backlog,Todo" \
             --max "$MAX_ISSUES")
 
+          # Store full result for summary step
           echo "result=$RESULT" >> $GITHUB_OUTPUT
+
+          # Extract only the 'include' array for the matrix strategy
+          # GitHub Actions matrix only accepts array values, not scalar properties like 'count'
+          MATRIX_JSON=$(echo "$RESULT" | jq -c '{include: .include}')
+          echo "matrix_json=$MATRIX_JSON" >> $GITHUB_OUTPUT
 
           # Check if we have tasks
           COUNT=$(echo "$RESULT" | jq -r '.count')
@@ -190,7 +200,7 @@ jobs:
     strategy:
       fail-fast: false
       max-parallel: 3
-      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix_json) }}
 
     uses: ./.github/workflows/_claude-task-worker.yml
     with:
@@ -229,7 +239,7 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
           HAS_TASKS: ${{ needs.prepare.outputs.has_tasks }}
-          MATRIX_RESULT: ${{ needs.prepare.outputs.matrix }}
+          QUERY_RESULT: ${{ needs.prepare.outputs.result }}
           TASK_RESULT: ${{ needs.process-task.result }}
           INPUT_LINEAR_TEAM: ${{ inputs.linear_team }}
           INPUT_LINEAR_LABEL: ${{ inputs.linear_label }}
@@ -240,7 +250,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ "$HAS_TASKS" == "true" ]; then
-            TASK_COUNT=$(echo "$MATRIX_RESULT" | jq -r '.count')
+            TASK_COUNT=$(echo "$QUERY_RESULT" | jq -r '.count')
             echo "**Tasks Found:** $TASK_COUNT" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
 
