@@ -708,8 +708,8 @@ jobs:
               npm install --package-lock-only --ignore-scripts
 
               git add "$PROJECT_ROOT/package.json"
-              # Include package-lock.json if it changed
-              if ! git diff --cached --quiet package-lock.json 2>/dev/null; then
+              # Include package-lock.json if it changed (check unstaged changes, not cached)
+              if ! git diff --quiet package-lock.json 2>/dev/null; then
                 git add package-lock.json
                 echo "  Including package-lock.json in commit"
               fi
