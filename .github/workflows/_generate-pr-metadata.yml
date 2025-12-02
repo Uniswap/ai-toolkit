@@ -498,6 +498,10 @@ jobs:
           DEFAULT_TITLE="chore: update PR"
           DEFAULT_DESCRIPTION="*This PR description was auto-generated but the generation process encountered an issue.*"
 
+          # Marker constants for identifying auto-generated content
+          START_MARKER="<!-- claude-pr-description-start -->"
+          END_MARKER="<!-- claude-pr-description-end -->"
+
           echo "Starting PR metadata update for PR #$PR_NUMBER"
 
           # Read title from file or use default
@@ -518,12 +522,71 @@ jobs:
           fi
 
           # Read description from file or use default
-          NEW_DESCRIPTION="$DEFAULT_DESCRIPTION"
+          GENERATED_DESCRIPTION="$DEFAULT_DESCRIPTION"
           if [ -f "$DESCRIPTION_FILE" ]; then
-            NEW_DESCRIPTION=$(cat "$DESCRIPTION_FILE")
-            echo "Read description from file (${#NEW_DESCRIPTION} chars)"
+            GENERATED_DESCRIPTION=$(cat "$DESCRIPTION_FILE")
+            echo "Read description from file (${#GENERATED_DESCRIPTION} chars)"
           else
             echo "No description file found at $DESCRIPTION_FILE, using default message"
+          fi
+
+          # Fetch current PR body to preserve user content outside markers
+          echo "Fetching current PR body to check for user content..."
+          CURRENT_BODY=$(gh pr view "$PR_NUMBER" --json body --jq '.body // ""')
+
+          # Initialize preserved content variables
+          CONTENT_BEFORE=""
+          CONTENT_AFTER=""
+
+          # Check if current body has our markers
+          if echo "$CURRENT_BODY" | grep -q "$START_MARKER"; then
+            echo "Found existing markers in PR body, preserving user content..."
+
+            # Extract content BEFORE the start marker (user's prefix content)
+            CONTENT_BEFORE=$(echo "$CURRENT_BODY" | awk -v marker="$START_MARKER" '
+              BEGIN { found=0 }
+              $0 ~ marker { found=1; exit }
+              { if (!found) print }
+            ')
+
+            # Extract content AFTER the end marker (user's suffix content)
+            CONTENT_AFTER=$(echo "$CURRENT_BODY" | awk -v marker="$END_MARKER" '
+              BEGIN { found=0 }
+              { if (found) print }
+              $0 ~ marker { found=1 }
+            ')
+
+            # Trim trailing/leading whitespace but preserve internal structure
+            CONTENT_BEFORE=$(echo "$CONTENT_BEFORE" | sed -e 's/[[:space:]]*$//')
+            CONTENT_AFTER=$(echo "$CONTENT_AFTER" | sed -e 's/^[[:space:]]*//')
+
+            if [ -n "$CONTENT_BEFORE" ]; then
+              echo "  Preserved ${#CONTENT_BEFORE} chars of user content before markers"
+            fi
+            if [ -n "$CONTENT_AFTER" ]; then
+              echo "  Preserved ${#CONTENT_AFTER} chars of user content after markers"
+            fi
+          else
+            echo "No existing markers found, this appears to be a fresh generation"
+          fi
+
+          # Build final description with markers and preserved content
+          # Using printf to properly handle newlines in YAML
+          NEW_DESCRIPTION=""
+
+          # Add preserved content before markers (if any)
+          if [ -n "$CONTENT_BEFORE" ]; then
+            NEW_DESCRIPTION="${CONTENT_BEFORE}"$'\n\n'
+          fi
+
+          # Add the marked generated content
+          NEW_DESCRIPTION="${NEW_DESCRIPTION}${START_MARKER}"$'\n'
+          NEW_DESCRIPTION="${NEW_DESCRIPTION}${GENERATED_DESCRIPTION}"$'\n'
+          NEW_DESCRIPTION="${NEW_DESCRIPTION}${END_MARKER}"
+
+          # Add preserved content after markers (if any)
+          if [ -n "$CONTENT_AFTER" ]; then
+            NEW_DESCRIPTION="${NEW_DESCRIPTION}"$'\n\n'"${CONTENT_AFTER}"
           fi
 
           # Update PR using gh CLI
