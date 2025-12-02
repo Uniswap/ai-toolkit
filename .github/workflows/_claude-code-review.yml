@@ -326,27 +326,98 @@ jobs:
 
           ---
 
-          # ⚠️ CRITICAL FINAL STEP: Create Inline Comments FIRST
+          # ⚠️ CRITICAL FINAL STEP: Create Review with Inline Comments FIRST
 
-          **BEFORE creating the verdict files above, you MUST:**
+          **BEFORE creating the verdict files above, you MUST submit your PR review with inline comments.**
 
-          1. Call \`mcp__github__create_pull_request_review\` with the \`comments\` array containing at least 1 inline comment
-          2. Each comment needs: \`path\` (file path), \`line\` (line number), \`body\` (your feedback)
-          3. ONLY AFTER inline comments are created, then create the verdict files
+          ## Creating a Review with Inline Comments (Single Call)
 
-          **Example call you MUST make:**
+          Use \`mcp__github__create_pull_request_review\` to submit a formal review with inline comments in one call.
+          This tool runs as \`github-actions[bot]\` and supports inline comments via the \`comments\` array.
+
+          ### Decision Tree - For EACH potential inline comment:
+
+          1. **Check against existing PR comments first:**
+             - Same file and line already commented? → SKIP
+             - Same issue already mentioned elsewhere? → SKIP
+             - Similar pattern already noted in another file? → SKIP
+
+          2. **If not a duplicate, evaluate importance:**
+             - Critical bug or security issue? → ADD TO COMMENTS ARRAY
+             - Clear improvement with obvious fix? → ADD TO COMMENTS ARRAY
+             - Engineering principle opportunity with clear benefit? → ADD TO COMMENTS ARRAY
+             - Minor style preference? → SKIP
+             - Nitpick without real value? → SKIP
+
+          ### Submit Review with Inline Comments:
+
           \`\`\`
           mcp__github__create_pull_request_review({
             owner: "$REPO_OWNER",
             repo: "$REPO_NAME",
             pull_number: $PR_NUMBER,
-            body: "Review summary",
             event: "COMMENT",
+            body: "## Code Review Summary\\n\\n[Your review summary here]",
             comments: [
-              { path: "src/example.ts", line: 42, body: "Your feedback here" }
+              {
+                path: "src/example.ts",
+                line: 42,
+                body: "Issue description with suggestion"
+              },
+              {
+                path: "src/other.ts",
+                line: 15,
+                body: "Another inline comment"
+              }
             ]
           })
           \`\`\`
+
+          **Parameters:**
+          - \`owner\`: Repository owner ("$REPO_OWNER")
+          - \`repo\`: Repository name ("$REPO_NAME")
+          - \`pull_number\`: PR number ($PR_NUMBER)
+          - \`event\`: "COMMENT" (neutral), "APPROVE", or "REQUEST_CHANGES"
+          - \`body\`: Overall review summary (markdown supported)
+          - \`comments\`: Array of inline comments with:
+            - \`path\`: Relative file path (e.g., "src/components/Button.tsx")
+            - \`line\`: Line number in the NEW version of the file
+            - \`body\`: Your comment text (markdown supported)
+
+          **GitHub Suggestion Block Format:**
+          To suggest code changes, use this format in the comment body:
+          \`\`\`suggestion
+          ONLY the replacement code for the commented lines
+          \`\`\`
+          Remember: Suggestion blocks must contain ONLY the replacement lines, not surrounding context.
+
+          ## Useful Tools
+
+          To see what files changed and their line numbers:
+
+          \`\`\`
+          mcp__github__get_pull_request_files({
+            owner: "$REPO_OWNER",
+            repo: "$REPO_NAME",
+            pull_number: $PR_NUMBER
+          })
+          \`\`\`
+
+          To check existing comments (avoid duplicates):
+
+          \`\`\`
+          mcp__github__get_pull_request_comments({
+            owner: "$REPO_OWNER",
+            repo: "$REPO_NAME",
+            pull_number: $PR_NUMBER
+          })
+          \`\`\`
+
+          ## Important Notes
+
+          1. **Submit the review with inline comments FIRST**
+          2. **THEN create verdict files** (.claude-review-verdict.txt and .claude-review-summary.md)
+          3. All comments appear as \`github-actions[bot]\`
 
           **Reviews without inline comments will be flagged as incomplete.**
           INLINE_REMINDER_EOF
@@ -382,20 +453,21 @@ jobs:
           else
             # Define tools as array for better maintainability and to eliminate
             # shell string parsing nuances. Each tool is a separate array element.
+            #
+            # Tools prefixed with "mcp__github__" are built-in to claude-code-action
+            # and run as github-actions[bot]. These include PR review capabilities
+            # with inline comment support via the "comments" array parameter.
             TOOLS=(
-              # GitHub MCP tools for PR interaction
+              # Built-in GitHub MCP tools (from claude-code-action)
+              # These run as github-actions[bot] using GITHUB_TOKEN
               "mcp__github__get_pull_request"
               "mcp__github__get_pull_request_files"
-              "mcp__github__get_pull_request_diff"
               "mcp__github__get_pull_request_comments"
-              "mcp__github__get_pull_request_reviews"
-              "mcp__github__get_pull_request_review_comments"
-              "mcp__github__create_review_comment"
-              "mcp__github__resolve_review_thread"
-              "mcp__github__list_review_comments"
               "mcp__github__create_pull_request_review"
+              "mcp__github__get_file_contents"
+              "mcp__github__list_commits"
 
-              # File operations
+              # File operations (built-in to claude-code-action)
               "Read"
               "Grep"
               "Glob"
@@ -407,7 +479,7 @@ jobs:
               "Bash(git blame:*)"
               "Bash(git rev-parse:*)"
 
-              # File writing
+              # File writing (for verdict files)
               "Write"
             )
 
