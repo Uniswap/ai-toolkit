@@ -55,6 +55,46 @@ These workflows are prefixed with `_` and may be called from other repositories:
 - `_generate-pr-metadata.yml` - AI-generated PR titles and descriptions
 - `_notify-release.yml` - Slack notification dispatcher
 
+### PR Metadata Generation (`_generate-pr-metadata.yml`)
+
+This workflow generates PR titles and descriptions using Claude AI with the following features:
+
+**Content Preservation with Markers:**
+
+The workflow wraps generated descriptions in HTML comment markers to enable selective updates:
+
+```html
+<!-- claude-pr-description-start -->
+... AI-generated content ...
+<!-- claude-pr-description-end -->
+```
+
+When regenerating a PR description:
+
+- Content **before** `<!-- claude-pr-description-start -->` is preserved (user's prefix)
+- Content **after** `<!-- claude-pr-description-end -->` is preserved (user's suffix)
+- Only the content between markers is replaced with new AI-generated content
+
+This allows users to add custom notes, disclaimers, or additional context that survives regeneration.
+
+**Example PR body with user additions:**
+
+```markdown
+> **Note:** This PR requires manual QA testing before merge.
+
+<!-- claude-pr-description-start -->
+
+## Summary
+
+- Added new authentication flow
+- Updated user session handling
+<!-- claude-pr-description-end -->
+
+---
+
+**Related Issues:** #123, #456
+```
+
 ### Shared Internal Workflows
 
 These workflows are prefixed with two `__` and are only used within this repository:
