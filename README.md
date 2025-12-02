@@ -162,7 +162,7 @@ These targets are either [inferred automatically](https://nx.dev/concepts/inferr
 
 This is done automatically in the CI on pushes to `main`.
 
-Checkout the [publish-packages.yml](.github/workflows/publish-packages.yml) workflow file for more information.
+Checkout the [ci-publish-packages.yml](.github/workflows/ci-publish-packages.yml) workflow file for more information.
 
 [Learn more about Nx release &raquo;](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 
@@ -190,7 +190,7 @@ The repository uses sophisticated CI/CD automation for package publishing:
 
 #### Publishing Pipeline
 
-Our automated workflow (`.github/workflows/publish-packages.yml`) handles:
+Our automated workflow (`.github/workflows/ci-publish-packages.yml`) handles:
 
 - **Dual-branch publishing**:
   - `main` → stable releases (`@latest` tag)

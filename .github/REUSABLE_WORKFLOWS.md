@@ -1813,7 +1813,7 @@ jobs:
 
 ### Published npm Package Architecture
 
-The notification workflows leverage the **@uniswap/notion-publisher** npm package for Notion integration. This CLI tool provides:
+The notification workflows leverage the **@uniswap/ai-toolkit-notion-publisher** npm package for Notion integration. This CLI tool provides:
 
 - **CI/CD Agnostic**: Works in GitHub Actions, GitLab CI, CircleCI, Jenkins, and locally
 - **Type Safety**: Full TypeScript type checking for API interactions
@@ -1837,8 +1837,8 @@ packages/notion-publisher/
 
 **Key Characteristics**:
 
-- **Published to npm**: Available as `@uniswap/notion-publisher` with restricted access
-- **CLI Tool**: Executable via `npx @uniswap/notion-publisher`
+- **Published to npm**: Available as `@uniswap/ai-toolkit-notion-publisher` with restricted access
+- **CLI Tool**: Executable via `npx @uniswap/ai-toolkit-notion-publisher`
 - **Environment Variables**: Secrets passed via env vars (secure, no process listing exposure)
 - **Node.js 22**: Requires Node.js 22+ for execution
 
@@ -1881,7 +1881,7 @@ const args = minimist(process.argv.slice(2), {
 
 ### Dependencies
 
-The `@uniswap/notion-publisher` package relies on these community-maintained libraries:
+The `@uniswap/ai-toolkit-notion-publisher` package relies on these community-maintained libraries:
 
 #### Core Dependencies
 
@@ -1909,7 +1909,7 @@ These dependencies are managed in the package's `package.json` and installed aut
 
 #### CLI Features
 
-The `@uniswap/notion-publisher` CLI provides:
+The `@uniswap/ai-toolkit-notion-publisher` CLI provides:
 
 - **Simple Interface**: Clean flag-based inputs with environment variable support
 - **Structured Logging**: Color-coded output for info/error messages (to stderr)

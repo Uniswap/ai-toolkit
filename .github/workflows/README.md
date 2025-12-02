@@ -114,7 +114,7 @@ Workflows designed to be called by other workflows using `workflow_call`. These 
 
 - **notify-release.yml**:
   - Sends rich Slack notifications with formatted changelog
-  - Supports Notion database integration via `@uniswap/notion-publisher` npm package
+  - Supports Notion database integration via `@uniswap/ai-toolkit-notion-publisher` npm package
   - Different emoji and styling for production vs. next branch
   - Includes commit range, package list, and workflow run links
   - Uses community-maintained libraries (minimist, @notionhq/client, @tryfabric/martian)

@@ -10,6 +10,10 @@ Markdown prompt templates used by GitHub Actions workflows to customize Claude A
 
 - **default-pr-review.md** - Default PR review guidelines and focus areas
 
+### PR Metadata Generation
+
+- **generate-pr-title-description.md** - Guidelines for generating PR titles and descriptions
+
 ### Changelog Generation
 
 - **release-changelog.md** - Standard release changelog format
@@ -143,6 +147,15 @@ Considerations:
 - Technical depth
 - Marketing tone (production releases)
 - Urgency indicators (hotfixes)
+
+#### PR Metadata Generation Prompts
+
+Focus areas:
+
+- Conventional commit format for titles
+- Learning patterns from repository commit history
+- Adapting templates from recent merged PR descriptions
+- Scope derivation from affected files/packages
 
 ## Examples
 

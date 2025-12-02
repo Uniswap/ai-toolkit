@@ -13,55 +13,121 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 
 ### Release & Deployment (2 workflows)
 
-- `publish-packages.yml` - Versions and publishes packages to NPM
+- `publish-packages.yml` - Unified package publishing workflow (automatic on push to main/next, manual via workflow_dispatch)
 - `release-update-production.yml` - Creates production sync PRs with AI changelogs
 
-### Code Review & PR Management (2 workflows)
+### Code Review & PR Management (3 workflows)
 
 - `claude-code.yml` - Responds to @claude mentions in issues and PRs
 - `claude-code-review.yml` - Automated PR code reviews with inline comments
+- `generate-pr-title-description.yml` - Auto-generates PR titles and descriptions using Claude
 
 ### PR Title Validation (1 workflow)
 
 - `ci-check-pr-title.yml` - Validates PR titles follow conventional commit format
 
-### Reusable Workflows (5 workflows, prefixed with `_`)
+### Autonomous Task Processing (2 workflows)
+
+- `claude-auto-tasks.yml` - Scheduled autonomous task processing from Linear
+- `_claude-task-worker.yml` - Reusable worker for processing individual Linear tasks
+
+### Reusable Workflows (7 workflows, prefixed with `_`)
 
 - `_claude-main.yml` - Core Claude AI interaction engine
 - `_claude-welcome.yml` - Reusable welcome message poster
 - `_claude-code-review.yml` - Reusable PR review automation
+- `_claude-task-worker.yml` - Autonomous task execution from Linear issues
 - `_generate-changelog.yml` - AI-powered changelog generation
+- `_generate-pr-metadata.yml` - AI-powered PR title and description generation
 - `_notify-release.yml` - Slack release notifications
 
 ## Key Files
 
-### Callable Workflows (Reusable)
+### Callable Workflows (Reusable - External)
+
+These workflows are prefixed with `_` and may be called from other repositories:
 
 - `_claude-main.yml` - Claude AI assistant for GitHub interactions
 - `_claude-code-review.yml` - Formal GitHub PR reviews with inline comments
+- `_claude-task-worker.yml` - Process single Linear task autonomously
 - `_claude-welcome.yml` - Welcome messages for new contributors
 - `_generate-changelog.yml` - AI-generated release notes
+- `_generate-pr-metadata.yml` - AI-generated PR titles and descriptions
 - `_notify-release.yml` - Slack notification dispatcher
+
+### PR Metadata Generation (`_generate-pr-metadata.yml`)
+
+This workflow generates PR titles and descriptions using Claude AI with the following features:
+
+**Content Preservation with Markers:**
+
+The workflow wraps generated descriptions in HTML comment markers to enable selective updates:
+
+```html
+<!-- claude-pr-description-start -->
+... AI-generated content ...
+<!-- claude-pr-description-end -->
+```
+
+When regenerating a PR description:
+
+- Content **before** `<!-- claude-pr-description-start -->` is preserved (user's prefix)
+- Content **after** `<!-- claude-pr-description-end -->` is preserved (user's suffix)
+- Only the content between markers is replaced with new AI-generated content
+
+This allows users to add custom notes, disclaimers, or additional context that survives regeneration.
+
+**Example PR body with user additions:**
+
+```markdown
+> **Note:** This PR requires manual QA testing before merge.
+
+<!-- claude-pr-description-start -->
+
+## Summary
+
+- Added new authentication flow
+- Updated user session handling
+<!-- claude-pr-description-end -->
+
+---
+
+**Related Issues:** #123, #456
+```
+
+### Shared Internal Workflows
+
+These workflows are prefixed with two `__` and are only used within this repository:
+
+- `publish-packages.yml` - **Unified package publishing workflow** (not a reusable workflow)
+  - **Why unified?** npm OIDC trusted publishing validates the `workflow_ref` claim in the OIDC token, which contains the original trigger workflow (not the reusable workflow). This constraint requires all publishing to happen in a single workflow file that npm trusts.
+  - **Two modes of operation:**
+    - **Auto mode** (push to main/next): Detects affected packages via Nx, publishes with conventional/prerelease versioning, generates changelogs, sends Slack notifications
+    - **Force mode** (manual workflow_dispatch): Publishes user-specified packages with prerelease versioning, useful for new packages or failed releases
+  - Handles atomic versioning, npm publish with OIDC, git commit/tag push, and GitHub release creation
+  - **Lockfile sync**: Automatically updates `package-lock.json` when package versions are bumped to keep workspace dependencies in sync
 
 ### Consumer Workflows
 
 - `ci-pr-checks.yml` - Main PR validation pipeline
 - `ci-check-pr-title.yml` - PR title format validation
+- `claude-auto-tasks.yml` - Autonomous task processing from Linear (scheduled)
 - `claude-code.yml` - Enables @claude mentions
 - `claude-code-review.yml` - Automated code reviews
 - `claude-welcome.yml` - New PR welcomes
-- `publish-packages.yml` - Package release automation
+- `generate-pr-title-description.yml` - Auto-generated PR titles and descriptions
 - `release-update-production.yml` - Production sync automation
 
 ## Subdirectories
 
-- `examples/` - Example implementations of workflows (10 numbered files)
+- `examples/` - Example implementations of workflows (13 numbered files)
 
 ## Conventions
 
 ### Naming
 
-- **Reusable workflows**: Prefix with `_` (underscore)
+- **External reusable workflows**: Prefix with `_` (underscore) - may be called from other repos
+- **Internal shared workflows**: Prefix with `__` (double underscore prefix)
 - **Consumer workflows**: No prefix, descriptive kebab-case names
 - **Example workflows**: Numbered prefix (e.g., `01-`, `02-`)
 
@@ -75,11 +141,36 @@ All workflows follow consistent patterns:
 4. **Caching**: NPM dependencies, Nx computation cache
 5. **Artifacts**: Store important outputs
 
+### Repository Variables
+
+Version pinning is centralized using GitHub repository variables (`vars.*`):
+
+| Variable       | Value     | Purpose                                    |
+| -------------- | --------- | ------------------------------------------ |
+| `NODE_VERSION` | `22.21.1` | Node.js version for all workflows          |
+| `NPM_VERSION`  | `11.6.2`  | npm version (required for OIDC publishing) |
+
+**Usage in workflows:**
+
+```yaml
+- uses: actions/setup-node@...
+  with:
+    node-version: ${{ vars.NODE_VERSION }}
+
+- run: npm install -g npm@${{ vars.NPM_VERSION }}
+```
+
+**To update versions:** Change the repository variables in GitHub Settings > Secrets and variables > Actions > Variables. All workflows will automatically use the new values.
+
 ### Secrets
 
 Common secrets referenced:
 
 - `ANTHROPIC_API_KEY` - Claude AI API authentication
+- `NPM_TOKEN` / `NODE_AUTH_TOKEN` - NPM registry publishing
+- `WORKFLOW_PAT` - Personal Access Token for pushing commits/tags (force-publish)
+- `SERVICE_ACCOUNT_GPG_PRIVATE_KEY` - GPG key for signed commits/tags
+- `LINEAR_API_KEY` - Linear API authentication (for autonomous tasks)
 - `NPM_TOKEN` - NPM registry publishing
 - `SLACK_WEBHOOK_URL` - Slack notifications
 - `GITHUB_TOKEN` - Built-in token (automatic)
@@ -87,6 +178,8 @@ Common secrets referenced:
 ## Usage Patterns
 
 ### Calling Reusable Workflows
+
+External reusable workflows (prefixed with `_`):
 
 ```yaml
 jobs:
@@ -99,12 +192,144 @@ jobs:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
+**Note**: `publish-packages.yml` is NOT a reusable workflow. It's a unified workflow triggered directly by push events and workflow_dispatch. See [Architecture: Publish Workflow](#architecture-publish-workflow) for details.
+
 ### Triggering Workflows
 
-- **On PR**: `ci-pr-checks.yml`, `claude-welcome.yml`, `ci-check-pr-title.yml`
-- **On Push to main/next**: `publish-packages.yml`
+- **On PR**: `ci-pr-checks.yml`, `claude-welcome.yml`, `ci-check-pr-title.yml`, `generate-pr-title-description.yml`
+- **On Push to main/next**: `publish-packages.yml` (auto mode)
 - **On Issue Comment**: `claude-code.yml` (when @claude mentioned)
-- **Manual Dispatch**: `release-update-production.yml`, `claude-code-review.yml`
+- **Manual Dispatch**: `release-update-production.yml`, `claude-code-review.yml`, `publish-packages.yml` (force mode)
+
+### Force Publishing Packages
+
+Use `publish-packages.yml` with `workflow_dispatch` to manually publish packages when:
+
+- New packages haven't had code changes detected by Nx release
+- A previous release partially failed
+- You need to republish a specific package
+
+```bash
+# Publish a single package
+gh workflow run publish-packages.yml \
+  -f packages="@uniswap/ai-toolkit-nx-claude"
+
+# Publish multiple packages
+gh workflow run publish-packages.yml \
+  -f packages="@uniswap/ai-toolkit-nx-claude,@ai-toolkit/utils"
+
+# Publish all release-configured packages
+gh workflow run publish-packages.yml \
+  -f packages="all"
+
+# Dry run (no actual publish)
+gh workflow run publish-packages.yml \
+  -f packages="all" \
+  -f dryRun="true"
+```
+
+**Note**: Force publishing only runs on the `next` branch and publishes with the `next` npm tag using prerelease versioning.
+
+- **On Schedule**: `claude-auto-tasks.yml` (daily at 5am EST)
+- **Manual Dispatch**: `release-update-production.yml`, `claude-code-review.yml`, `claude-auto-tasks.yml`
+
+## Architecture: Publish Workflow
+
+The publishing functionality is consolidated into a single unified workflow due to npm OIDC trusted publishing constraints:
+
+```text
+┌───────────────────────────────────────────────────────────────────┐
+│                    publish-packages.yml                         │
+│                                                                   │
+│  Triggers:                                                        │
+│  ├── push (main/next) ──► Auto Mode                              │
+│  └── workflow_dispatch ──► Force Mode                            │
+│                                                                   │
+├───────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  Jobs:                                                            │
+│                                                                   │
+│  1. detect                                                        │
+│     ├── Auto: Detect affected packages via Nx                    │
+│     └── Force: Resolve user-specified packages                   │
+│                                                                   │
+│  2. publish                                                       │
+│     ├── Build packages                                           │
+│     ├── Version (conventional or smart prerelease)               │
+│     ├── Publish to npm (OIDC authentication)                     │
+│     ├── Push commits + tags                                      │
+│     └── Create GitHub releases                                   │
+│                                                                   │
+│  3. generate-changelog (Auto mode only)                          │
+│     └── AI-generated release notes                               │
+│                                                                   │
+│  4. notify-release (Auto mode only)                              │
+│     └── Slack notifications                                      │
+│                                                                   │
+│  5. sync-next (Auto mode, main branch only)                      │
+│     └── Sync main → next branch                                  │
+│                                                                   │
+│  6. summary (Force mode only)                                    │
+│     └── Publish summary                                          │
+│                                                                   │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+### Why a Unified Workflow?
+
+npm OIDC trusted publishing validates the `workflow_ref` claim in the OIDC token. When a reusable workflow is called:
+
+- `workflow_ref` = the **caller** workflow (e.g., `ci-publish-packages.yml`)
+- `job_workflow_ref` = the **reusable** workflow (e.g., `publish-packages.yml`)
+
+npm validates against `workflow_ref`, not `job_workflow_ref`. This means the caller workflow must be configured as a trusted workflow in npm, not the reusable workflow. To avoid configuring multiple workflows in npm, all publishing logic is consolidated into a single workflow file.
+
+### workflow_dispatch Inputs (Force Mode)
+
+| Input      | Type    | Description                                                  |
+| ---------- | ------- | ------------------------------------------------------------ |
+| `packages` | string  | Comma-separated npm package names, or "all" for all packages |
+| `dryRun`   | boolean | Simulate without publishing (default: false)                 |
+
+**Note**: Force mode only works on the `next` branch and always uses prerelease versioning with the `next` npm tag.
+
+### Smart Prerelease Versioning Algorithm
+
+When `version_strategy` is set to `prerelease`, the workflow uses a **smart versioning algorithm** that ensures `next` versions are always properly aligned with `latest` versions. This prevents version misalignment issues (e.g., `latest=0.5.0` but `next=0.3.0-next.5`).
+
+**Algorithm (Option A: base = latest + patch bump):**
+
+1. **Get `latest` from npm**: Query npm for the package's `latest` dist-tag version. Default to `0.0.0` if the package hasn't been published yet.
+
+2. **Calculate base version**: Bump the patch version by 1. For example:
+
+   - `latest = 0.5.0` → `base = 0.5.1`
+   - `latest = 1.2.3` → `base = 1.2.4`
+   - Not published → `base = 0.0.1`
+
+3. **Find highest existing prerelease on npm**: Query npm for all versions matching `{base}-{preid}.*` pattern and find the highest prerelease number.
+
+4. **Find highest existing prerelease in git tags**: Search git tags for `{package}@{base}-{preid}.*` and find the highest prerelease number.
+
+5. **Calculate new version**: `MAX(npm_prerelease, git_prerelease) + 1`
+
+**Example:**
+
+```text
+Package: @uniswap/my-package
+Latest on npm: 0.5.0
+Existing next versions: 0.5.1-next.0, 0.5.1-next.1, 0.5.1-next.2
+Git tags: @uniswap/my-package@0.5.1-next.0, @uniswap/my-package@0.5.1-next.1
+
+Result: 0.5.1-next.3
+```
+
+**Why this approach?**
+
+- **Prevents misalignment**: `next` versions always build on top of `latest`, never behind it
+- **Handles orphaned versions**: Considers both npm and git tags to avoid version conflicts
+- **Resilient to failures**: Even if a publish fails partway, the next attempt will calculate the correct version
+- **Semver compliant**: Follows semantic versioning rules for prereleases
 
 ## Development Guidelines
 
@@ -115,7 +340,7 @@ Complex bash scripting (50+ lines, API calls, etc.) MUST be extracted to `.githu
 ❌ **BAD**: 200 lines of inline bash in YAML
 ✅ **GOOD**: Call standalone script: `./.github/scripts/my-script.sh`
 
-For reusable tools, publish as npm packages (e.g., `@uniswap/notion-publisher`).
+For reusable tools, publish as npm packages (e.g., `@uniswap/ai-toolkit-notion-publisher`).
 
 ### Action Pinning (CRITICAL)
 
@@ -126,6 +351,35 @@ Always pin external actions to **specific commit hashes** with version comments:
 ```
 
 Never use tags or branch names directly.
+
+### Reusable Workflow Permissions (CRITICAL)
+
+When calling reusable workflows via `uses:`, permissions defined in the reusable workflow's job are **NOT automatically inherited**. The **caller workflow** must explicitly define all required permissions.
+
+**This is especially critical for npm OIDC trusted publishing**, which requires `id-token: write`:
+
+```yaml
+jobs:
+  publish:
+    name: Publish packages
+    permissions:
+      id-token: write # Required for npm OIDC trusted publishing
+      contents: write
+      packages: write
+      pull-requests: write
+      issues: write
+    uses: ./.github/workflows/_some-reusable-workflow.yml
+    with:
+      # ... inputs
+```
+
+Without `id-token: write` in the caller, npm publish will fail with:
+
+```text
+403 Forbidden - You may not perform that action with these credentials.
+```
+
+**Note**: `publish-packages.yml` is NOT a reusable workflow—it defines its own permissions directly. This is intentional due to npm OIDC constraints (see [Architecture: Publish Workflow](#architecture-publish-workflow)).
 
 ## Testing Workflows
 
@@ -169,6 +423,7 @@ ACTIONS_RUNNER_DEBUG=true
 ## Related Documentation
 
 - See `examples/` subdirectory for working implementations
+- See workflows prefixed with `__` for internal reusable workflows
 - See `.github/prompts/` for Claude AI prompt templates
 - See root `CLAUDE.md` for project-level documentation
 

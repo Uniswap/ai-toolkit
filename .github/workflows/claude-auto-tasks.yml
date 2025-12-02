@@ -1,0 +1,222 @@
+# Autonomous Claude Code Task Processing
+#
+# This workflow runs daily at 5am EST to pick up Linear issues labeled for Claude
+# and process them autonomously. It queries Linear for issues, generates a matrix,
+# and dispatches parallel jobs to process each task.
+#
+# SETUP:
+# 1. Create a "claude" label in your Linear team (or configure a different label)
+# 2. Add LINEAR_API_KEY secret to your repository
+# 3. Ensure ANTHROPIC_API_KEY secret is configured
+# 4. Add issues with the "claude" label in "Backlog" or "Todo" status
+#
+# USAGE:
+# - Automatic: Runs daily at 5am EST
+# - Manual: Use workflow_dispatch with optional inputs
+#
+# LINEAR REQUIREMENTS:
+# - Issues must have the configured label (default: "claude")
+# - Issues must be in "Backlog" or "Todo" status
+# - Issues are sorted by priority (Urgent > High > Normal > Low > No Priority)
+
+name: Claude Auto Tasks
+
+on:
+  # Run daily at 5am EST (10:00 UTC)
+  schedule:
+    - cron: '0 10 * * *'
+
+  # Manual trigger with inputs
+  workflow_dispatch:
+    inputs:
+      linear_team:
+        description: 'Linear team name to query'
+        required: false
+        type: string
+        default: 'Developer AI'
+
+      linear_label:
+        description: 'Label to filter issues by'
+        required: false
+        type: string
+        default: 'claude'
+
+      max_issues:
+        description: 'Maximum number of issues to process'
+        required: false
+        type: string
+        default: '3'
+
+      model:
+        description: 'Claude model to use'
+        required: false
+        type: choice
+        options:
+          - 'claude-sonnet-4-5-20250929'
+          - 'claude-opus-4-20250514'
+          - 'claude-haiku-4-5@20251001'
+        default: 'claude-sonnet-4-5-20250929'
+
+      target_branch:
+        description: 'Branch to create PRs against'
+        required: false
+        type: string
+        default: 'next'
+
+# Prevent concurrent runs
+concurrency:
+  group: claude-auto-tasks
+  cancel-in-progress: false
+
+jobs:
+  # Job 1: Query Linear and prepare the task matrix
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.query.outputs.result }}
+      has_tasks: ${{ steps.query.outputs.has_tasks }}
+
+    steps:
+      # Security scanning
+      - name: Security scanning
+        uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ inputs.target_branch }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: '22.21.1'
+          cache: 'npm'
+
+      # Ensure the claude label exists
+      - name: Ensure label exists
+        run: |
+          npx @uniswap/ai-toolkit-linear-task-utils ensure-label \
+            --team "${{ inputs.linear_team }}" \
+            --label "${{ inputs.linear_label }}"
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+
+      # Query Linear for issues
+      - name: Query Linear issues
+        id: query
+        run: |
+          RESULT=$(npx @uniswap/ai-toolkit-linear-task-utils query \
+            --team "${{ inputs.linear_team }}" \
+            --label "${{ inputs.linear_label }}" \
+            --statuses "Backlog,Todo" \
+            --max "${{ inputs.max_issues }}")
+
+          echo "result=$RESULT" >> $GITHUB_OUTPUT
+
+          # Check if we have tasks
+          COUNT=$(echo "$RESULT" | jq -r '.count')
+          if [ "$COUNT" -gt 0 ]; then
+            echo "has_tasks=true" >> $GITHUB_OUTPUT
+            echo "Found $COUNT issue(s) to process"
+          else
+            echo "has_tasks=false" >> $GITHUB_OUTPUT
+            echo "No issues found matching criteria"
+          fi
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+
+      # Create summary for prepare job
+      - name: Create prepare summary
+        run: |
+          echo "## Prepare Phase" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Configuration:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Team: ${{ inputs.linear_team }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Label: ${{ inputs.linear_label }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Max Issues: ${{ inputs.max_issues }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Model: ${{ inputs.model }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Target Branch: ${{ inputs.target_branch }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          COUNT=$(echo '${{ steps.query.outputs.result }}' | jq -r '.count')
+          echo "**Issues Found:** $COUNT" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$COUNT" -gt 0 ]; then
+            echo "| Identifier | Title | Priority |" >> $GITHUB_STEP_SUMMARY
+            echo "|------------|-------|----------|" >> $GITHUB_STEP_SUMMARY
+            echo '${{ steps.query.outputs.result }}' | jq -r '.include[] | "| \(.issue_identifier) | \(.issue_title) | \(.priority_label) |"' >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Job 2: Process each task in parallel
+  process-task:
+    needs: prepare
+    if: needs.prepare.outputs.has_tasks == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+
+    uses: ./.github/workflows/_claude-task-worker.yml
+    with:
+      issue_id: ${{ matrix.issue_id }}
+      issue_identifier: ${{ matrix.issue_identifier }}
+      issue_title: ${{ matrix.issue_title }}
+      issue_description: ${{ matrix.issue_description }}
+      issue_url: ${{ matrix.issue_url }}
+      branch_name: ${{ matrix.branch_name }}
+      target_branch: ${{ inputs.target_branch }}
+      model: ${{ inputs.model }}
+      timeout_minutes: 60
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+
+  # Job 3: Summary (always runs)
+  summary:
+    needs: [prepare, process-task]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      # Security scanning
+      - name: Security scanning
+        uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+        with:
+          egress-policy: audit
+
+      - name: Generate final summary
+        run: |
+          echo "# Claude Auto Tasks Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Workflow Run:** [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.prepare.outputs.has_tasks }}" == "true" ]; then
+            echo "**Tasks Found:** $(echo '${{ needs.prepare.outputs.matrix }}' | jq -r '.count')" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            case "${{ needs.process-task.result }}" in
+              "success")
+                echo "**Result:** All tasks completed successfully" >> $GITHUB_STEP_SUMMARY
+                ;;
+              "failure")
+                echo "**Result:** Some tasks failed - check individual job logs" >> $GITHUB_STEP_SUMMARY
+                ;;
+              "cancelled")
+                echo "**Result:** Workflow was cancelled" >> $GITHUB_STEP_SUMMARY
+                ;;
+              *)
+                echo "**Result:** ${{ needs.process-task.result }}" >> $GITHUB_STEP_SUMMARY
+                ;;
+            esac
+          else
+            echo "**Result:** No tasks found matching criteria" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "To add tasks for Claude to process:" >> $GITHUB_STEP_SUMMARY
+            echo "1. Create issues in the **${{ inputs.linear_team }}** team" >> $GITHUB_STEP_SUMMARY
+            echo "2. Add the **${{ inputs.linear_label }}** label" >> $GITHUB_STEP_SUMMARY
+            echo "3. Set status to **Backlog** or **Todo**" >> $GITHUB_STEP_SUMMARY
+          fi

@@ -1,8 +1,8 @@
-# CLAUDE.md - @uniswap/notion-publisher
+# CLAUDE.md - @uniswap/ai-toolkit-notion-publisher
 
 ## Package Overview
 
-The `@uniswap/notion-publisher` package is a TypeScript CLI tool that publishes content (primarily release notes) to Notion databases with full markdown support. It's designed to be CI/CD agnostic and work in any environment where Node.js is available.
+The `@uniswap/ai-toolkit-notion-publisher` package is a TypeScript CLI tool that publishes content (primarily release notes) to Notion databases with full markdown support. It's designed to be CI/CD agnostic and work in any environment where Node.js is available.
 
 ## Purpose
 
@@ -158,7 +158,7 @@ The target Notion database MUST have these properties:
     node-version: '22'
 
 - name: Publish to Notion
-  run: npx @uniswap/notion-publisher \
+  run: npx @uniswap/ai-toolkit-notion-publisher \
     --title "${{ github.event.release.name }}" \
     --content "${{ github.event.release.body }}"
   env:
@@ -186,7 +186,7 @@ notion-publisher \
 
 ```bash
 # Build the package
-npx nx build @uniswap/notion-publisher
+npx nx build @uniswap/ai-toolkit-notion-publisher
 
 # Test with tsx (no build required)
 npx tsx packages/notion-publisher/src/cli.ts \
@@ -390,7 +390,7 @@ If changes are needed:
 rm -rf dist/packages/notion-publisher
 
 # Rebuild
-npx nx build @uniswap/notion-publisher
+npx nx build @uniswap/ai-toolkit-notion-publisher
 ```
 
 ### TypeScript Errors

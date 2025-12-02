@@ -1,4 +1,4 @@
-# @uniswap/notion-publisher
+# @uniswap/ai-toolkit-notion-publisher
 
 A CLI tool to publish release notes and other content to Notion databases with full markdown support. This tool fills a gap in the ecosystem by creating new database entries with custom properties—something existing GitHub Actions don't support.
 
@@ -17,7 +17,7 @@ A CLI tool to publish release notes and other content to Notion databases with f
 ### Global Installation
 
 ```bash
-npm install -g @uniswap/notion-publisher
+npm install -g @uniswap/ai-toolkit-notion-publisher
 ```
 
 ### Using npx (Recommended)
@@ -25,13 +25,13 @@ npm install -g @uniswap/notion-publisher
 No installation required:
 
 ```bash
-npx @uniswap/notion-publisher --title "My Release" --content "..."
+npx @uniswap/ai-toolkit-notion-publisher --title "My Release" --content "..."
 ```
 
 ### Local Installation
 
 ```bash
-npm install --save-dev @uniswap/notion-publisher
+npm install --save-dev @uniswap/ai-toolkit-notion-publisher
 ```
 
 ## Prerequisites
@@ -129,7 +129,7 @@ jobs:
 
       - name: Publish to Notion
         run: |
-          npx @uniswap/notion-publisher \
+          npx @uniswap/ai-toolkit-notion-publisher \
             --title "${{ github.event.release.name }}" \
             --content "${{ github.event.release.body }}" \
             --from-ref "${{ github.event.release.tag_name }}" \
@@ -151,7 +151,7 @@ jobs:
 
 - name: Publish to Notion
   run: |
-    npx @uniswap/notion-publisher \
+    npx @uniswap/ai-toolkit-notion-publisher \
       --title "Release ${{ github.event.release.tag_name }}" \
       --content "${{ steps.changelog.outputs.content }}" \
       --from-ref "${{ github.event.release.target_commitish }}" \
@@ -168,7 +168,7 @@ publish_to_notion:
   stage: deploy
   image: node:22
   script:
-    - npx @uniswap/notion-publisher
+    - npx @uniswap/ai-toolkit-notion-publisher
       --title "Release $CI_COMMIT_TAG"
       --content "$(cat CHANGELOG.md)"
       --from-ref "$CI_COMMIT_BEFORE_SHA"
@@ -194,7 +194,7 @@ jobs:
       - run:
           name: Publish to Notion
           command: |
-            npx @uniswap/notion-publisher \
+            npx @uniswap/ai-toolkit-notion-publisher \
               --title "Release ${CIRCLE_TAG}" \
               --content "$(cat CHANGELOG.md)" \
               --from-ref "${CIRCLE_TAG}" \
@@ -225,7 +225,7 @@ pipeline {
         stage('Publish to Notion') {
             steps {
                 sh '''
-                    npx @uniswap/notion-publisher \
+                    npx @uniswap/ai-toolkit-notion-publisher \
                       --title "Release ${GIT_TAG_NAME}" \
                       --content "$(cat CHANGELOG.md)" \
                       --from-ref "${GIT_PREVIOUS_COMMIT}" \
@@ -363,7 +363,7 @@ In GitHub Actions, capture it as an output:
 - name: Publish to Notion
   id: publish
   run: |
-    PAGE_URL=$(npx @uniswap/notion-publisher \
+    PAGE_URL=$(npx @uniswap/ai-toolkit-notion-publisher \
       --title "..." \
       --content "...")
     echo "page_url=$PAGE_URL" >> $GITHUB_OUTPUT
@@ -378,14 +378,14 @@ In GitHub Actions, capture it as an output:
 ### Build
 
 ```bash
-npx nx build @uniswap/notion-publisher
+npx nx build @uniswap/ai-toolkit-notion-publisher
 ```
 
 ### Test Locally
 
 ```bash
 # Build the package
-npx nx build @uniswap/notion-publisher
+npx nx build @uniswap/ai-toolkit-notion-publisher
 
 # Test with tsx (no build required)
 npx tsx packages/notion-publisher/src/cli.ts \
@@ -406,13 +406,13 @@ This package is automatically published via the repository's CI/CD workflow usin
 
 Existing GitHub Actions for Notion have limitations:
 
-| Feature                | @uniswap/notion-publisher | tryfabric/markdown-to-notion | push-markdown-to-notion |
-| ---------------------- | ------------------------- | ---------------------------- | ----------------------- |
-| **Create new pages**   | ✅ Yes                    | ❌ No (updates only)         | ❌ No (updates only)    |
-| **Write to databases** | ✅ Yes                    | ❌ No                        | ❌ No                   |
-| **Custom properties**  | ✅ Yes                    | ❌ No                        | ❌ No                   |
-| **Maintenance**        | 🆕 Active (2024)          | ⚠️ Stale (2022)              | ⚠️ Low activity         |
-| **CI agnostic**        | ✅ Yes (CLI tool)         | ❌ GitHub only               | ❌ GitHub only          |
+| Feature                | @uniswap/ai-toolkit-notion-publisher | tryfabric/markdown-to-notion | push-markdown-to-notion |
+| ---------------------- | ------------------------------------ | ---------------------------- | ----------------------- |
+| **Create new pages**   | ✅ Yes                               | ❌ No (updates only)         | ❌ No (updates only)    |
+| **Write to databases** | ✅ Yes                               | ❌ No                        | ❌ No                   |
+| **Custom properties**  | ✅ Yes                               | ❌ No                        | ❌ No                   |
+| **Maintenance**        | 🆕 Active (2024)                     | ⚠️ Stale (2022)              | ⚠️ Low activity         |
+| **CI agnostic**        | ✅ Yes (CLI tool)                    | ❌ GitHub only               | ❌ GitHub only          |
 
 This tool was created to fill the gap: **creating new Notion database entries with structured metadata**, which is essential for release notes and changelog tracking.
 

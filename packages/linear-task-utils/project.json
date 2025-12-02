@@ -1,0 +1,94 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "@uniswap/ai-toolkit-linear-task-utils",
+  "projectType": "library",
+  "sourceRoot": "packages/linear-task-utils/src",
+  "tags": [
+    "npm:public",
+    "npm:linear",
+    "npm:claude",
+    "npm:ai-toolkit",
+    "npm:github-actions",
+    "npm:automation"
+  ],
+  "targets": {
+    "sync-version": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node -e \"const pkg = require('./package.json'); const fs = require('fs'); fs.writeFileSync('./src/version.ts', '// Auto-generated from package.json - DO NOT EDIT\\nexport const VERSION = \\'' + pkg.version + '\\';\\n')\"",
+        "cwd": "packages/linear-task-utils"
+      }
+    },
+    "build": {
+      "executor": "@nx/esbuild:esbuild",
+      "dependsOn": ["sync-version"],
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "packages/linear-task-utils/dist",
+        "main": "packages/linear-task-utils/src/cli.ts",
+        "additionalEntryPoints": ["packages/linear-task-utils/src/index.ts"],
+        "tsConfig": "packages/linear-task-utils/tsconfig.lib.json",
+        "format": ["cjs"],
+        "bundle": true,
+        "thirdParty": true,
+        "platform": "node",
+        "target": "node18",
+        "generatePackageJson": false,
+        "esbuildOptions": {
+          "banner": {
+            "js": "#!/usr/bin/env node"
+          }
+        }
+      }
+    },
+    "postbuild": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "chmod +x packages/linear-task-utils/dist/cli.cjs"
+      },
+      "dependsOn": ["build"]
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/linear-task-utils",
+        "command": "eslint ."
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "packages/linear-task-utils",
+        "command": "tsc --build --emitDeclarationOnly"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/packages/linear-task-utils/test-output"],
+      "options": {
+        "passWithNoTests": true,
+        "jestConfig": "packages/linear-task-utils/jest.config.ts",
+        "coverage": false
+      },
+      "configurations": {
+        "ci": {
+          "ci": true,
+          "coverage": true,
+          "codeCoverage": true,
+          "coverageReporters": ["text", "lcov", "html"],
+          "collectCoverageFrom": [
+            "packages/linear-task-utils/src/**/*.ts",
+            "!packages/linear-task-utils/src/**/*.spec.ts",
+            "!packages/linear-task-utils/src/**/*.test.ts",
+            "!packages/linear-task-utils/src/**/index.ts",
+            "!packages/linear-task-utils/src/**/cli.ts"
+          ]
+        },
+        "watch": {
+          "watch": true
+        }
+      }
+    }
+  }
+}

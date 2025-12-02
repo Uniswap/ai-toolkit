@@ -100,13 +100,13 @@ jobs:
     steps:
       # Security scanning (required for all workflows)
       - name: Security Scan
-        uses: bullfrogsec/bullfrog@dcde5841b19b7ef693224207a7fdec67fce604db # v0.8.3
+        uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
         with:
           egress-policy: audit
 
       # Checkout code with full history for patch-ID calculation
       - name: Checkout Repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0 # Full history needed for git merge-base
 
@@ -158,7 +158,7 @@ jobs:
       # Check cache to see if we've already reviewed this exact code
       - name: Check Review Cache
         id: cache-check
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .review-cache
           key: review-pr${{ inputs.pr_number }}-patch-${{ steps.patch-id.outputs.patch_id }}
@@ -321,6 +321,36 @@ jobs:
           If you don't create them, the review will fail.
           VERDICT_EOF
 
+          # Append final inline comment reminder (MUST be last thing in prompt)
+          cat >> /tmp/final-prompt.txt <<INLINE_REMINDER_EOF
+
+          ---
+
+          # ⚠️ CRITICAL FINAL STEP: Create Inline Comments FIRST
+
+          **BEFORE creating the verdict files above, you MUST:**
+
+          1. Call \`mcp__github__create_pull_request_review\` with the \`comments\` array containing at least 1 inline comment
+          2. Each comment needs: \`path\` (file path), \`line\` (line number), \`body\` (your feedback)
+          3. ONLY AFTER inline comments are created, then create the verdict files
+
+          **Example call you MUST make:**
+          \`\`\`
+          mcp__github__create_pull_request_review({
+            owner: "$REPO_OWNER",
+            repo: "$REPO_NAME",
+            pull_number: $PR_NUMBER,
+            body: "Review summary",
+            event: "COMMENT",
+            comments: [
+              { path: "src/example.ts", line: 42, body: "Your feedback here" }
+            ]
+          })
+          \`\`\`
+
+          **Reviews without inline comments will be flagged as incomplete.**
+          INLINE_REMINDER_EOF
+
           # Log final prompt length
           PROMPT_LENGTH=$(wc -c < /tmp/final-prompt.txt)
           echo "✅ Built final prompt: $PROMPT_LENGTH characters"
@@ -410,15 +440,95 @@ jobs:
       - name: Run Claude Code Review
         if: steps.cache-check.outputs.cache-hit != 'true'
         id: claude
-        uses: anthropics/claude-code-action@8a1c4371755898f67cd97006ba7c97702d5fc4bf # v1.0.16
+        uses: anthropics/claude-code-action@a7e4c51380c42dd89b127f5e5f9be7b54020bc6b # v1.0.21
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: ${{ steps.build-prompt.outputs.final_prompt }}
-          track_progress: true
+          # Disable built-in progress tracking to avoid duplicate comments.
+          # We maintain our own single PR comment via the "Post Review Completion Comment" step.
+          # This ensures DEV-131 requirement #2: single PR comment for the lifetime of the PR.
+          track_progress: false
           allowed_bots: dependabot
           claude_args: ${{ steps.build-args.outputs.claude_args }}
           additional_permissions: |
             actions: read
+
+      # Validate that inline comments were created (warning only, not blocking)
+      - name: Validate Inline Comments
+        if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        id: validate-comments
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          IS_TRIVIAL: ${{ steps.pr-size.outputs.is_trivial }}
+        run: |
+          set -euo pipefail
+
+          echo "ℹ️  Checking for inline review comments on PR #$PR_NUMBER"
+
+          # Get all review comments for this PR
+          COMMENTS=$(gh api "/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/comments" --jq 'length')
+
+          echo "inline_comment_count=$COMMENTS" >> $GITHUB_OUTPUT
+
+          if [ "$COMMENTS" -eq 0 ]; then
+            if [ "$IS_TRIVIAL" = "true" ]; then
+              echo "⚠️  No inline comments created, but PR is trivial (< 20 lines)"
+              echo "   This is acceptable for small PRs with only auto-generated files"
+              echo "has_inline_comments=false" >> $GITHUB_OUTPUT
+            else
+              echo "⚠️  WARNING: No inline comments were created for this PR"
+              echo "   The review prompt requires inline comments for comprehensive reviews"
+              echo "   This may indicate a model capability issue or prompt following problem"
+              echo ""
+              echo "   Consider:"
+              echo "   - Re-running the review with a more capable model"
+              echo "   - Checking if the prompt instructions are clear enough"
+              echo "has_inline_comments=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "✅ Found $COMMENTS inline comment(s)"
+            echo "has_inline_comments=true" >> $GITHUB_OUTPUT
+          fi
+
+      # Dismiss previous bot reviews to avoid cluttering PR with multiple reviews
+      - name: Dismiss Previous Bot Reviews
+        if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          echo "ℹ️  Checking for previous bot reviews to dismiss..."
+
+          # Get all reviews on this PR by github-actions[bot]
+          # Filter for reviews that are APPROVED, CHANGES_REQUESTED, or COMMENTED (not DISMISSED or PENDING)
+          REVIEWS=$(gh api "/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews" \
+            --jq '[.[] | select(.user.login == "github-actions[bot]" and (.state == "APPROVED" or .state == "CHANGES_REQUESTED" or .state == "COMMENTED"))]')
+
+          REVIEW_COUNT=$(echo "$REVIEWS" | jq 'length')
+
+          if [ "$REVIEW_COUNT" -eq 0 ]; then
+            echo "ℹ️  No previous bot reviews found to dismiss"
+          else
+            echo "ℹ️  Found $REVIEW_COUNT previous bot review(s) to dismiss"
+
+            # Dismiss each review
+            echo "$REVIEWS" | jq -r '.[].id' | while read -r REVIEW_ID; do
+              echo "   Dismissing review ID: $REVIEW_ID"
+              gh api "/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews/${REVIEW_ID}/dismissals" \
+                -X PUT \
+                -f message="Superseded by new review after PR update" \
+                > /dev/null 2>&1 || {
+                  echo "   ⚠️  Could not dismiss review $REVIEW_ID (may lack permissions or review is not dismissible)"
+                }
+            done
+
+            echo "✅ Previous bot reviews dismissed"
+          fi
 
       # Submit formal GitHub review using verdict from Claude
       - name: Submit GitHub Review
@@ -717,7 +827,7 @@ jobs:
       # Persist cache for future rebase detection
       - name: Cache Review State
         if: steps.cache-check.outputs.cache-hit != 'true' && success()
-        uses: actions/cache/save@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.0
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .review-cache
           key: review-pr${{ inputs.pr_number }}-patch-${{ steps.patch-id.outputs.patch_id }}

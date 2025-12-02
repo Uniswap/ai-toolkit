@@ -97,11 +97,8 @@
     "projects": [
       "@uniswap/ai-toolkit-nx-claude",
       "@uniswap/ai-toolkit-claude-mcp-helper",
-      "@ai-toolkit/utils",
-      "@ai-toolkit/agents-agnostic",
-      "@ai-toolkit/commands-agnostic",
-      "@ai-toolkit/commands-typescript",
-      "@uniswap/notion-publisher"
+      "@uniswap/ai-toolkit-linear-task-utils",
+      "@uniswap/ai-toolkit-notion-publisher"
     ],
     "projectsRelationship": "independent",
     "version": {
