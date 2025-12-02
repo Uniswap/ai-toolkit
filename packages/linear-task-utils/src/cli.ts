@@ -77,13 +77,13 @@ UPDATE-ISSUE OPTIONS:
 
 EXAMPLES:
   # Query issues for Claude to work on
-  npx @uniswap/ai-toolkit-linear-task-utils query --team "Developer AI" --label "claude" --max 3
+  npx @uniswap/ai-toolkit-linear-task-utils@latest query --team "Developer AI" --label "claude" --max 3
 
   # Ensure the claude label exists
-  npx @uniswap/ai-toolkit-linear-task-utils ensure-label --team "Developer AI" --label "claude"
+  npx @uniswap/ai-toolkit-linear-task-utils@latest ensure-label --team "Developer AI" --label "claude"
 
   # Update issue after creating PR
-  npx @uniswap/ai-toolkit-linear-task-utils update-issue \\
+  npx @uniswap/ai-toolkit-linear-task-utils@latest update-issue \\
     --issue-id "abc123" \\
     --status "In Review" \\
     --pr-url "https://github.com/org/repo/pull/123"

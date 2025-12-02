@@ -83,7 +83,7 @@ jobs:
       - name: Query Linear issues
         id: query
         run: |
-          RESULT=$(npx @uniswap/ai-toolkit-linear-task-utils query \
+          RESULT=$(npx @uniswap/ai-toolkit-linear-task-utils@latest query \
             --team "${{ inputs.linear_team }}" \
             --label "${{ inputs.linear_label }}" \
             --max "${{ inputs.max_issues }}")

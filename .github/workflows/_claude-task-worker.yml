@@ -41,46 +41,46 @@
 # - LINEAR_API_KEY: Linear API key
 # - WORKFLOW_PAT: (optional) PAT for pushing branches (falls back to GITHUB_TOKEN)
 
-name: '[claude] Task Worker'
+name: "[claude] Task Worker"
 
 on:
   workflow_call:
     inputs:
       issue_id:
-        description: 'Linear issue ID (UUID)'
+        description: "Linear issue ID (UUID)"
         required: true
         type: string
 
       issue_identifier:
-        description: 'Linear issue identifier (e.g., DAI-123)'
+        description: "Linear issue identifier (e.g., DAI-123)"
         required: true
         type: string
 
       issue_title:
-        description: 'Issue title'
+        description: "Issue title"
         required: true
         type: string
 
       issue_description:
-        description: 'Full issue description (markdown)'
+        description: "Full issue description (markdown)"
         required: true
         type: string
 
       issue_url:
-        description: 'Linear issue URL'
+        description: "Linear issue URL"
         required: true
         type: string
 
       branch_name:
-        description: 'Branch name to create (e.g., claude/dai-123-fix-bug)'
+        description: "Branch name to create (e.g., claude/dai-123-fix-bug)"
         required: true
         type: string
 
       target_branch:
-        description: 'Branch to create PR against'
+        description: "Branch to create PR against"
         required: false
         type: string
-        default: 'next'
+        default: "next"
 
       model:
         description: |
@@ -88,25 +88,25 @@ on:
           Options: claude-sonnet-4-5-20250929, claude-opus-4-20250514, claude-haiku-4-5@20251001
         required: false
         type: string
-        default: 'claude-sonnet-4-5-20250929'
+        default: "claude-sonnet-4-5-20250929"
 
       timeout_minutes:
-        description: 'Maximum execution time in minutes'
+        description: "Maximum execution time in minutes"
         required: false
         type: number
         default: 60
 
     secrets:
       ANTHROPIC_API_KEY:
-        description: 'Anthropic API key for Claude Code'
+        description: "Anthropic API key for Claude Code"
         required: true
 
       LINEAR_API_KEY:
-        description: 'Linear API key for issue updates'
+        description: "Linear API key for issue updates"
         required: true
 
       WORKFLOW_PAT:
-        description: 'PAT for pushing branches (optional, falls back to GITHUB_TOKEN)'
+        description: "PAT for pushing branches (optional, falls back to GITHUB_TOKEN)"
         required: false
 
 jobs:
@@ -141,8 +141,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version: '22.21.1'
-          cache: 'npm'
+          node-version: "22.21.1"
+          cache: "npm"
 
       # Install npm 11.6.2 (required for this project)
       - name: Install npm
@@ -298,7 +298,7 @@ jobs:
       - name: Update Linear issue
         if: steps.check-pr.outputs.pr_exists == 'true'
         run: |
-          npx @uniswap/ai-toolkit-linear-task-utils update-issue \
+          npx @uniswap/ai-toolkit-linear-task-utils@latest update-issue \
             --issue-id "${{ inputs.issue_id }}" \
             --status "In Review" \
             --pr-url "${{ steps.check-pr.outputs.pr_url }}"

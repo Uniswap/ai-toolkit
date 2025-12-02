@@ -24,44 +24,44 @@ name: Claude Auto Tasks
 on:
   # Run daily at 5am EST (10:00 UTC)
   schedule:
-    - cron: '0 10 * * *'
+    - cron: "0 10 * * *"
 
   # Manual trigger with inputs
   workflow_dispatch:
     inputs:
       linear_team:
-        description: 'Linear team name to query'
+        description: "Linear team name to query"
         required: false
         type: string
-        default: 'Developer AI'
+        default: "Developer AI"
 
       linear_label:
-        description: 'Label to filter issues by'
+        description: "Label to filter issues by"
         required: false
         type: string
-        default: 'claude'
+        default: "claude"
 
       max_issues:
-        description: 'Maximum number of issues to process'
+        description: "Maximum number of issues to process"
         required: false
         type: string
-        default: '3'
+        default: "3"
 
       model:
-        description: 'Claude model to use'
+        description: "Claude model to use"
         required: false
         type: choice
         options:
-          - 'claude-sonnet-4-5-20250929'
-          - 'claude-opus-4-20250514'
-          - 'claude-haiku-4-5@20251001'
-        default: 'claude-sonnet-4-5-20250929'
+          - "claude-sonnet-4-5-20250929"
+          - "claude-opus-4-20250514"
+          - "claude-haiku-4-5@20251001"
+        default: "claude-sonnet-4-5-20250929"
 
       target_branch:
-        description: 'Branch to create PRs against'
+        description: "Branch to create PRs against"
         required: false
         type: string
-        default: 'next'
+        default: "next"
 
 # Prevent concurrent runs
 concurrency:
@@ -91,13 +91,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version: '22.21.1'
-          cache: 'npm'
+          node-version: "22.21.1"
+          cache: "npm"
 
       # Ensure the claude label exists
       - name: Ensure label exists
         run: |
-          npx @uniswap/ai-toolkit-linear-task-utils ensure-label \
+          npx @uniswap/ai-toolkit-linear-task-utils@latest ensure-label \
             --team "${{ inputs.linear_team }}" \
             --label "${{ inputs.linear_label }}"
         env:
@@ -107,7 +107,7 @@ jobs:
       - name: Query Linear issues
         id: query
         run: |
-          RESULT=$(npx @uniswap/ai-toolkit-linear-task-utils query \
+          RESULT=$(npx @uniswap/ai-toolkit-linear-task-utils@latest query \
             --team "${{ inputs.linear_team }}" \
             --label "${{ inputs.linear_label }}" \
             --statuses "Backlog,Todo" \
