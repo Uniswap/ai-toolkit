@@ -836,8 +836,10 @@ jobs:
               echo "📦 Status: EXISTING package on npm (current version: $NPM_VERSION)"
               echo "Publishing without --first-release flag..."
 
-              # Remove .npmrc to force npm to use OIDC authentication instead of token
+              # Remove .npmrc files to force npm to use OIDC authentication instead of token
+              # Both user-level (~/.npmrc) and project-level (.npmrc) must be removed
               rm ~/.npmrc || true
+              rm .npmrc || true
 
               if npx nx release publish --projects="$project" --tag="$INPUT_NPM_TAG" --registry=https://registry.npmjs.org --verbose; then
                 PUBLISH_SUCCESS=true
@@ -859,8 +861,10 @@ jobs:
 
               echo "Publishing with --first-release flag..."
 
-              # Remove .npmrc to force npm to use OIDC authentication instead of token
+              # Remove .npmrc files to force npm to use OIDC authentication instead of token
+              # Both user-level (~/.npmrc) and project-level (.npmrc) must be removed
               rm ~/.npmrc || true
+              rm .npmrc || true
 
               if npx nx release publish --projects="$project" --first-release --tag="$INPUT_NPM_TAG" --registry=https://registry.npmjs.org --verbose; then
                 PUBLISH_SUCCESS=true
