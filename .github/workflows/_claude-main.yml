@@ -84,7 +84,7 @@ on:
           Default: claude-sonnet-4-5-20250929
         required: false
         type: string
-        default: "claude-sonnet-4-5-20250929"
+        default: "claude-opus-4-5-20251101"
 
       allowed_tools:
         description: |

@@ -55,7 +55,7 @@ on:
           - "claude-sonnet-4-5-20250929"
           - "claude-opus-4-5-20251101"
           - "claude-haiku-4-5@20251001"
-        default: "claude-sonnet-4-5-20250929"
+        default: "claude-opus-4-5-20251101"
 
       target_branch:
         description: "Branch to create PRs against"

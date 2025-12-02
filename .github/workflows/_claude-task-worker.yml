@@ -88,7 +88,7 @@ on:
           Options: claude-sonnet-4-5-20250929, claude-opus-4-5-20251101, claude-haiku-4-5@20251001
         required: false
         type: string
-        default: "claude-sonnet-4-5-20250929"
+        default: "claude-opus-4-5-20251101"
 
       timeout_minutes:
         description: "Maximum execution time in minutes"
