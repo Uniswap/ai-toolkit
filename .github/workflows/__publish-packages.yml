@@ -167,6 +167,72 @@ jobs:
           echo "Git user name: $(git config user.name)"
           echo "Git user email: $(git config user.email)"
 
+      - name: Debug OIDC token and npm authentication
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+        run: |
+          echo "=========================================="
+          echo "OIDC Token Diagnostics"
+          echo "=========================================="
+          echo ""
+
+          # Check if OIDC token request URL is available
+          if [ -n "$ACTIONS_ID_TOKEN_REQUEST_URL" ]; then
+            echo "✅ ACTIONS_ID_TOKEN_REQUEST_URL is set"
+            echo "   URL prefix: ${ACTIONS_ID_TOKEN_REQUEST_URL:0:50}..."
+          else
+            echo "❌ ACTIONS_ID_TOKEN_REQUEST_URL is NOT set"
+            echo "   This means the workflow does not have id-token: write permission"
+          fi
+
+          if [ -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ]; then
+            echo "✅ ACTIONS_ID_TOKEN_REQUEST_TOKEN is set"
+          else
+            echo "❌ ACTIONS_ID_TOKEN_REQUEST_TOKEN is NOT set"
+          fi
+
+          echo ""
+          echo "=========================================="
+          echo "GitHub Context Information"
+          echo "=========================================="
+          echo "Repository: $GITHUB_REPOSITORY"
+          echo "Workflow: $GITHUB_WORKFLOW"
+          echo "Job: $GITHUB_JOB"
+          echo "Run ID: $GITHUB_RUN_ID"
+          echo "Run Number: $GITHUB_RUN_NUMBER"
+          echo "Ref: $GITHUB_REF"
+          echo "Ref Name: $GITHUB_REF_NAME"
+          echo "SHA: $GITHUB_SHA"
+          echo "Actor: $GITHUB_ACTOR"
+          echo "Event Name: $GITHUB_EVENT_NAME"
+
+          echo ""
+          echo "=========================================="
+          echo "npm Configuration"
+          echo "=========================================="
+          echo "npm version: $(npm --version)"
+          npm config list
+          echo ""
+
+          # Check if NODE_AUTH_TOKEN is set (don't print the actual value)
+          if [ -n "$NODE_AUTH_TOKEN" ]; then
+            echo "✅ NODE_AUTH_TOKEN secret is set (length: ${#NODE_AUTH_TOKEN} chars)"
+          else
+            echo "❌ NODE_AUTH_TOKEN secret is NOT set"
+          fi
+
+          echo ""
+          echo "=========================================="
+          echo "npm whoami (authentication check)"
+          echo "=========================================="
+          # Try to check npm authentication status
+          npm whoami --registry=https://registry.npmjs.org 2>&1 || echo "npm whoami failed (may be expected with OIDC)"
+
+          echo ""
+          echo "=========================================="
+          echo "End of OIDC Diagnostics"
+          echo "=========================================="
+
       - name: Build packages
         env:
           INPUT_PROJECTS: ${{ inputs.projects }}
@@ -725,6 +791,44 @@ jobs:
             echo ""
             echo "Step 2: Publishing to npm..."
 
+            # Debug: Print OIDC availability just before publish
+            echo "----------------------------------------"
+            echo "Pre-publish OIDC check:"
+            if [ -n "$ACTIONS_ID_TOKEN_REQUEST_URL" ]; then
+              echo "  ✅ OIDC token endpoint available"
+
+              # Try to fetch and decode the OIDC token to see claims
+              echo "  Fetching OIDC token to inspect claims..."
+              OIDC_TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+                -H "Accept: application/json; api-version=2.0" \
+                "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=npm" 2>/dev/null | jq -r '.value // empty')
+
+              if [ -n "$OIDC_TOKEN" ]; then
+                echo "  ✅ OIDC token fetched successfully"
+                # Decode JWT payload (base64) - second part of token
+                PAYLOAD=$(echo "$OIDC_TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null || echo "{}")
+                echo "  OIDC Token Claims (relevant for npm):"
+                echo "$PAYLOAD" | jq -r '{
+                  iss: .iss,
+                  sub: .sub,
+                  aud: .aud,
+                  repository: .repository,
+                  repository_owner: .repository_owner,
+                  job_workflow_ref: .job_workflow_ref,
+                  workflow_ref: .workflow_ref,
+                  ref: .ref,
+                  ref_type: .ref_type,
+                  environment: .environment,
+                  runner_environment: .runner_environment
+                }' 2>/dev/null || echo "  Failed to decode token claims"
+              else
+                echo "  ❌ Failed to fetch OIDC token"
+              fi
+            else
+              echo "  ❌ OIDC token endpoint NOT available (missing id-token: write permission)"
+            fi
+            echo "----------------------------------------"
+
             # Check if package exists on npm registry
             if npm view "$package" version --registry=https://registry.npmjs.org &>/dev/null; then
               # Package exists on npm
@@ -732,7 +836,7 @@ jobs:
               echo "📦 Status: EXISTING package on npm (current version: $NPM_VERSION)"
               echo "Publishing without --first-release flag..."
 
-              if npx nx release publish --projects="$project" --tag="$INPUT_NPM_TAG" --registry=https://registry.npmjs.org; then
+              if npx nx release publish --projects="$project" --tag="$INPUT_NPM_TAG" --registry=https://registry.npmjs.org --verbose; then
                 PUBLISH_SUCCESS=true
               else
                 PUBLISH_SUCCESS=false
@@ -752,7 +856,7 @@ jobs:
 
               echo "Publishing with --first-release flag..."
 
-              if npx nx release publish --projects="$project" --first-release --tag="$INPUT_NPM_TAG" --registry=https://registry.npmjs.org; then
+              if npx nx release publish --projects="$project" --first-release --tag="$INPUT_NPM_TAG" --registry=https://registry.npmjs.org --verbose; then
                 PUBLISH_SUCCESS=true
               else
                 PUBLISH_SUCCESS=false
