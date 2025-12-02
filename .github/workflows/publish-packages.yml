@@ -553,6 +553,76 @@ jobs:
             echo "$new_version"
           }
 
+          # Calculate stable version for main branch releases (dry run version)
+          calculate_stable_version() {
+            local package="$1"
+
+            local latest_version
+            latest_version=$(npm view "$package" dist-tags.latest --registry=https://registry.npmjs.org 2>/dev/null || echo "")
+
+            if [ -z "$latest_version" ]; then
+              echo "0.0.1"
+              return
+            fi
+
+            local base_version="${latest_version%%-*}"
+
+            if [[ "$latest_version" == *"-"* ]]; then
+              local npm_versions
+              npm_versions=$(npm view "$package" versions --json --registry=https://registry.npmjs.org 2>/dev/null || echo "[]")
+
+              local base_exists_on_npm=false
+              if echo "$npm_versions" | jq -e --arg v "$base_version" 'index($v)' > /dev/null 2>&1; then
+                base_exists_on_npm=true
+              fi
+
+              local base_exists_as_tag=false
+              if git rev-parse "${package}@${base_version}" >/dev/null 2>&1; then
+                base_exists_as_tag=true
+              fi
+
+              if [ "$base_exists_on_npm" = false ] && [ "$base_exists_as_tag" = false ]; then
+                echo "$base_version"
+                return
+              fi
+            fi
+
+            local major minor patch
+            IFS='.' read -r major minor patch <<< "$base_version"
+
+            local npm_versions
+            npm_versions=$(npm view "$package" versions --json --registry=https://registry.npmjs.org 2>/dev/null || echo "[]")
+
+            local highest_stable_patch=$patch
+            if [ "$npm_versions" != "[]" ]; then
+              local highest_npm_stable
+              highest_npm_stable=$(echo "$npm_versions" | jq -r --arg maj "$major" --arg min "$minor" '
+                .[] |
+                select(test("^" + $maj + "\\." + $min + "\\.[0-9]+$")) |
+                split(".")[2] |
+                tonumber
+              ' 2>/dev/null | sort -n | tail -1)
+
+              if [ -n "$highest_npm_stable" ]; then
+                highest_stable_patch=$highest_npm_stable
+              fi
+            fi
+
+            local git_tags
+            git_tags=$(git tag -l "${package}@${major}.${minor}.*" 2>/dev/null | grep -v '-' || echo "")
+
+            if [ -n "$git_tags" ]; then
+              local highest_git_patch
+              highest_git_patch=$(echo "$git_tags" | sed "s|${package}@${major}\.${minor}\.||" | sort -n | tail -1)
+              if [[ "$highest_git_patch" =~ ^[0-9]+$ ]] && [ "$highest_git_patch" -gt "$highest_stable_patch" ]; then
+                highest_stable_patch=$highest_git_patch
+              fi
+            fi
+
+            local new_version="${major}.${minor}.$((highest_stable_patch + 1))"
+            echo "$new_version"
+          }
+
           IFS=',' read -ra PROJECT_ARRAY <<< "$INPUT_PROJECTS"
           IFS=',' read -ra PACKAGE_ARRAY <<< "$INPUT_PACKAGES"
 
@@ -569,7 +639,9 @@ jobs:
               echo "📋 WOULD SET VERSION TO: $CALCULATED_VERSION"
               echo "📋 WOULD CREATE TAG: ${package}@${CALCULATED_VERSION}"
             else
-              npx nx release version --projects="$project" --dry-run
+              CALCULATED_VERSION=$(calculate_stable_version "$package")
+              echo "📋 WOULD SET VERSION TO: $CALCULATED_VERSION"
+              echo "📋 WOULD CREATE TAG: ${package}@${CALCULATED_VERSION}"
             fi
 
             echo "📋 WOULD PUBLISH: $package with tag '$INPUT_NPM_TAG'"
@@ -663,6 +735,101 @@ jobs:
             echo "$new_version"
           }
 
+          # Calculate stable version for main branch releases
+          # Strategy: Get latest from npm, strip prerelease suffix, check if exists, bump if needed
+          calculate_stable_version() {
+            local package="$1"
+
+            echo "  Calculating stable version for $package..." >&2
+
+            # Get the latest version from npm (could be stable or prerelease due to past bugs)
+            local latest_version
+            latest_version=$(npm view "$package" dist-tags.latest --registry=https://registry.npmjs.org 2>/dev/null || echo "")
+
+            if [ -z "$latest_version" ]; then
+              # Package not yet published, start at 0.0.1
+              echo "  📦 Package not yet published, using 0.0.1" >&2
+              echo "0.0.1"
+              return
+            fi
+
+            echo "  📦 Latest version on npm: $latest_version" >&2
+
+            # Strip prerelease suffix to get base version
+            local base_version="${latest_version%%-*}"
+            echo "  📐 Base version (stripped prerelease): $base_version" >&2
+
+            # If the latest was a prerelease, check if the base version exists as stable
+            if [[ "$latest_version" == *"-"* ]]; then
+              echo "  ℹ️  Latest is a prerelease, checking if base version $base_version exists..." >&2
+
+              # Check if base version exists on npm
+              local npm_versions
+              npm_versions=$(npm view "$package" versions --json --registry=https://registry.npmjs.org 2>/dev/null || echo "[]")
+
+              local base_exists_on_npm=false
+              if echo "$npm_versions" | jq -e --arg v "$base_version" 'index($v)' > /dev/null 2>&1; then
+                base_exists_on_npm=true
+                echo "  🔍 Base version $base_version exists on npm" >&2
+              fi
+
+              # Check if base version exists as git tag
+              local base_exists_as_tag=false
+              if git rev-parse "${package}@${base_version}" >/dev/null 2>&1; then
+                base_exists_as_tag=true
+                echo "  🏷️  Base version $base_version exists as git tag" >&2
+              fi
+
+              if [ "$base_exists_on_npm" = false ] && [ "$base_exists_as_tag" = false ]; then
+                # Base version doesn't exist, use it (graduate from prerelease)
+                echo "  ✨ New version: $base_version (graduating from prerelease)" >&2
+                echo "$base_version"
+                return
+              fi
+            fi
+
+            # Base version exists or latest is stable, need to bump patch
+            local major minor patch
+            IFS='.' read -r major minor patch <<< "$base_version"
+
+            # Find the highest stable version on npm
+            local npm_versions
+            npm_versions=$(npm view "$package" versions --json --registry=https://registry.npmjs.org 2>/dev/null || echo "[]")
+
+            local highest_stable_patch=$patch
+            if [ "$npm_versions" != "[]" ]; then
+              local highest_npm_stable
+              highest_npm_stable=$(echo "$npm_versions" | jq -r --arg maj "$major" --arg min "$minor" '
+                .[] |
+                select(test("^" + $maj + "\\." + $min + "\\.[0-9]+$")) |
+                split(".")[2] |
+                tonumber
+              ' 2>/dev/null | sort -n | tail -1)
+
+              if [ -n "$highest_npm_stable" ]; then
+                highest_stable_patch=$highest_npm_stable
+                echo "  🔍 Highest stable patch on npm: ${major}.${minor}.${highest_stable_patch}" >&2
+              fi
+            fi
+
+            # Also check git tags for stable versions
+            local git_tags
+            git_tags=$(git tag -l "${package}@${major}.${minor}.*" 2>/dev/null | grep -v '-' || echo "")
+
+            if [ -n "$git_tags" ]; then
+              local highest_git_patch
+              highest_git_patch=$(echo "$git_tags" | sed "s|${package}@${major}\.${minor}\.||" | sort -n | tail -1)
+              if [[ "$highest_git_patch" =~ ^[0-9]+$ ]] && [ "$highest_git_patch" -gt "$highest_stable_patch" ]; then
+                highest_stable_patch=$highest_git_patch
+                echo "  🏷️  Highest stable patch in git: ${major}.${minor}.${highest_stable_patch}" >&2
+              fi
+            fi
+
+            local new_version="${major}.${minor}.$((highest_stable_patch + 1))"
+            echo "  ✨ New version: $new_version" >&2
+            echo "$new_version"
+          }
+
           IFS=',' read -ra PROJECTS <<< "$INPUT_PROJECTS"
           IFS=',' read -ra PACKAGES <<< "$INPUT_PACKAGES"
 
@@ -691,6 +858,7 @@ jobs:
             echo ""
             echo "Step 1: Versioning package..."
             if [[ "$INPUT_VERSION_STRATEGY" == "prerelease" ]]; then
+              # Prerelease versioning (next branch)
               NEW_VERSION=$(calculate_prerelease_version "$package" "$INPUT_PREID")
 
               if [ -z "$NEW_VERSION" ]; then
@@ -698,46 +866,35 @@ jobs:
                 FAILED_PACKAGES+=("$package")
                 continue
               fi
-
-              echo "  Setting version to: $NEW_VERSION"
-              jq --arg version "$NEW_VERSION" '.version = $version' "$PROJECT_ROOT/package.json" > "$PROJECT_ROOT/package.json.tmp"
-              mv "$PROJECT_ROOT/package.json.tmp" "$PROJECT_ROOT/package.json"
-
-              # Update package-lock.json to reflect workspace dependency changes
-              echo "  Updating package-lock.json..."
-              npm install --package-lock-only --ignore-scripts
-
-              git add "$PROJECT_ROOT/package.json"
-              # Include package-lock.json if it changed (check unstaged changes, not cached)
-              if ! git diff --quiet package-lock.json 2>/dev/null; then
-                git add package-lock.json
-                echo "  Including package-lock.json in commit"
-              fi
-              git commit -m "chore(release): $package@$NEW_VERSION"
-              git tag -m "Release ${package}@${NEW_VERSION}" "${package}@${NEW_VERSION}"
-
-              echo "✅ Versioning complete"
             else
-              if ! npx nx release version --projects="$project"; then
-                echo "❌ Failed to version $package"
+              # Stable versioning (main branch) - use smart calculation instead of nx release version
+              NEW_VERSION=$(calculate_stable_version "$package")
+
+              if [ -z "$NEW_VERSION" ]; then
+                echo "❌ Failed to calculate version"
                 FAILED_PACKAGES+=("$package")
                 continue
               fi
-              NEW_VERSION=$(jq -r '.version' "$PROJECT_ROOT/package.json")
-
-              # Update package-lock.json to reflect workspace dependency changes
-              echo "  Updating package-lock.json..."
-              npm install --package-lock-only --ignore-scripts
-
-              # Amend the nx release commit to include package-lock.json if it changed
-              if ! git diff --quiet package-lock.json 2>/dev/null; then
-                git add package-lock.json
-                git commit --amend --no-edit
-                echo "  Amended commit to include package-lock.json"
-              fi
-
-              echo "✅ Versioning complete"
             fi
+
+            echo "  Setting version to: $NEW_VERSION"
+            jq --arg version "$NEW_VERSION" '.version = $version' "$PROJECT_ROOT/package.json" > "$PROJECT_ROOT/package.json.tmp"
+            mv "$PROJECT_ROOT/package.json.tmp" "$PROJECT_ROOT/package.json"
+
+            # Update package-lock.json to reflect workspace dependency changes
+            echo "  Updating package-lock.json..."
+            npm install --package-lock-only --ignore-scripts
+
+            git add "$PROJECT_ROOT/package.json"
+            # Include package-lock.json if it changed (check unstaged changes, not cached)
+            if ! git diff --quiet package-lock.json 2>/dev/null; then
+              git add package-lock.json
+              echo "  Including package-lock.json in commit"
+            fi
+            git commit -m "chore(release): $package@$NEW_VERSION"
+            git tag -m "Release ${package}@${NEW_VERSION}" "${package}@${NEW_VERSION}"
+
+            echo "✅ Versioning complete"
             echo "New version: $NEW_VERSION"
 
             echo ""

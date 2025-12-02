@@ -255,7 +255,7 @@ The publishing functionality is consolidated into a single unified workflow due 
 │                                                                   │
 │  2. publish                                                       │
 │     ├── Build packages                                           │
-│     ├── Version (conventional or smart prerelease)               │
+│     ├── Version (smart stable or smart prerelease)               │
 │     ├── Publish to npm (OIDC authentication)                     │
 │     ├── Push commits + tags                                      │
 │     └── Create GitHub releases                                   │
@@ -330,6 +330,48 @@ Result: 0.5.1-next.3
 - **Handles orphaned versions**: Considers both npm and git tags to avoid version conflicts
 - **Resilient to failures**: Even if a publish fails partway, the next attempt will calculate the correct version
 - **Semver compliant**: Follows semantic versioning rules for prereleases
+
+### Smart Stable Versioning Algorithm
+
+When `version_strategy` is set to `conventional` (main branch), the workflow uses a **smart stable versioning algorithm** that handles edge cases like prerelease versions being incorrectly published to the `latest` tag.
+
+**Algorithm:**
+
+1. **Get `latest` from npm**: Query npm for the package's `latest` dist-tag version. If not published, start at `0.0.1`.
+
+2. **Strip prerelease suffix**: If the latest version has a prerelease suffix (e.g., `0.0.2-next.5`), strip it to get the base version (`0.0.2`).
+
+3. **Check if base version exists**: If the latest was a prerelease, check if the base version already exists on npm or as a git tag.
+
+4. **Graduate or bump**:
+   - If base version doesn't exist → use it (the prerelease "graduates" to stable)
+   - If base version exists → find highest stable patch on npm/git and bump by 1
+
+**Example 1 - Graduating from prerelease:**
+
+```text
+Package: @uniswap/my-package
+Latest on npm: 0.0.2-next.5 (incorrectly published)
+Base version 0.0.2 exists on npm: NO
+
+Result: 0.0.2 (graduates from prerelease)
+```
+
+**Example 2 - Normal patch bump:**
+
+```text
+Package: @uniswap/my-package
+Latest on npm: 0.5.18
+Highest stable patch: 0.5.18
+
+Result: 0.5.19
+```
+
+**Why this approach?**
+
+- **Handles recovery**: If prerelease versions were incorrectly published to `latest`, the algorithm recovers by graduating to the correct stable version
+- **Consistent with prerelease algorithm**: Uses the same npm/git checking strategy
+- **No Nx release dependency**: Doesn't rely on `nx release version` which can misinterpret prerelease versions
 
 ## Development Guidelines
 
