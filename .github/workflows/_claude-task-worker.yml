@@ -39,6 +39,7 @@
 # SECRETS REQUIRED:
 # - ANTHROPIC_API_KEY: Claude API key
 # - LINEAR_API_KEY: Linear API key
+# - NODE_AUTH_TOKEN: npm token for installing @uniswap scoped packages
 # - WORKFLOW_PAT: (optional) PAT for pushing branches (falls back to GITHUB_TOKEN)
 
 name: "[claude] Task Worker"
@@ -109,6 +110,10 @@ on:
         description: "PAT for pushing branches (optional, falls back to GITHUB_TOKEN)"
         required: false
 
+      NODE_AUTH_TOKEN:
+        description: "npm token for installing @uniswap scoped packages"
+        required: true
+
 jobs:
   process-task:
     runs-on: ubuntu-latest
@@ -143,6 +148,8 @@ jobs:
         with:
           node-version: "22.21.1"
           cache: "npm"
+          registry-url: "https://registry.npmjs.org"
+          scope: "@uniswap"
 
       # Install npm 11.6.2 (required for this project)
       - name: Install npm
@@ -151,6 +158,8 @@ jobs:
       # Install dependencies
       - name: Install dependencies
         run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
       # Create and push the feature branch
       - name: Create feature branch
@@ -304,6 +313,7 @@ jobs:
             --pr-url "${{ steps.check-pr.outputs.pr_url }}"
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
       # Create job summary
       - name: Create job summary

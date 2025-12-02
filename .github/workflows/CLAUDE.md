@@ -167,11 +167,10 @@ Version pinning is centralized using GitHub repository variables (`vars.*`):
 Common secrets referenced:
 
 - `ANTHROPIC_API_KEY` - Claude AI API authentication
-- `NPM_TOKEN` / `NODE_AUTH_TOKEN` - NPM registry publishing
+- `NODE_AUTH_TOKEN` - NPM registry authentication (for publishing and installing `@uniswap` scoped packages)
 - `WORKFLOW_PAT` - Personal Access Token for pushing commits/tags (force-publish)
 - `SERVICE_ACCOUNT_GPG_PRIVATE_KEY` - GPG key for signed commits/tags
 - `LINEAR_API_KEY` - Linear API authentication (for autonomous tasks)
-- `NPM_TOKEN` - NPM registry publishing
 - `SLACK_WEBHOOK_URL` - Slack notifications
 - `GITHUB_TOKEN` - Built-in token (automatic)
 

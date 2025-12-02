@@ -8,7 +8,8 @@
 # 1. Create a "claude" label in your Linear team (or configure a different label)
 # 2. Add LINEAR_API_KEY secret to your repository
 # 3. Ensure ANTHROPIC_API_KEY secret is configured
-# 4. Add issues with the "claude" label in "Backlog" or "Todo" status
+# 4. Add NODE_AUTH_TOKEN secret (for installing @uniswap scoped packages)
+# 5. Add issues with the "claude" label in "Backlog" or "Todo" status
 #
 # USAGE:
 # - Automatic: Runs daily at 5am EST
@@ -93,6 +94,8 @@ jobs:
         with:
           node-version: "22.21.1"
           cache: "npm"
+          registry-url: "https://registry.npmjs.org"
+          scope: "@uniswap"
 
       # Ensure the claude label exists
       - name: Ensure label exists
@@ -102,6 +105,7 @@ jobs:
             --label "${{ inputs.linear_label }}"
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
       # Query Linear for issues
       - name: Query Linear issues
@@ -126,6 +130,7 @@ jobs:
           fi
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
       # Create summary for prepare job
       - name: Create prepare summary
@@ -173,6 +178,7 @@ jobs:
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+      NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
   # Job 3: Summary (always runs)
   summary:
