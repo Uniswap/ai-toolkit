@@ -898,8 +898,20 @@ jobs:
               git add package-lock.json
               echo "  Including package-lock.json in commit"
             fi
-            git commit -m "chore(release): $package@$NEW_VERSION"
-            git tag -m "Release ${package}@${NEW_VERSION}" "${package}@${NEW_VERSION}"
+
+            # Only commit if there are staged changes (handles case where version is already correct)
+            if git diff --cached --quiet; then
+              echo "  ℹ️ No changes to commit (version already at $NEW_VERSION)"
+            else
+              git commit -m "chore(release): $package@$NEW_VERSION"
+            fi
+
+            # Only create tag if it doesn't already exist
+            if git rev-parse "${package}@${NEW_VERSION}" >/dev/null 2>&1; then
+              echo "  ℹ️ Tag ${package}@${NEW_VERSION} already exists, skipping tag creation"
+            else
+              git tag -m "Release ${package}@${NEW_VERSION}" "${package}@${NEW_VERSION}"
+            fi
 
             echo "✅ Versioning complete"
             echo "New version: $NEW_VERSION"
