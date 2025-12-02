@@ -64,10 +64,23 @@ on:
         type: string
         default: "next"
 
+      linear_task_utils_tag:
+        description: "npm tag for @uniswap/ai-toolkit-linear-task-utils"
+        required: false
+        type: choice
+        options:
+          - "latest"
+          - "next"
+        default: "next"
+
 # Prevent concurrent runs
 concurrency:
   group: claude-auto-tasks
   cancel-in-progress: false
+
+# Resolved values (handles fallback for scheduled runs where inputs.* are empty)
+env:
+  LINEAR_TASK_UTILS_TAG: ${{ inputs.linear_task_utils_tag || 'next' }}
 
 jobs:
   # Job 1: Query Linear and prepare the task matrix
@@ -76,6 +89,7 @@ jobs:
     outputs:
       matrix: ${{ steps.query.outputs.result }}
       has_tasks: ${{ steps.query.outputs.has_tasks }}
+      linear_task_utils_tag: ${{ env.LINEAR_TASK_UTILS_TAG }}
 
     steps:
       # Security scanning
@@ -100,22 +114,25 @@ jobs:
       # Ensure the claude label exists
       - name: Ensure label exists
         run: |
-          npx @uniswap/ai-toolkit-linear-task-utils@latest ensure-label \
-            --team "${{ inputs.linear_team }}" \
-            --label "${{ inputs.linear_label }}"
+          npx "@uniswap/ai-toolkit-linear-task-utils@${LINEAR_TASK_UTILS_TAG}" ensure-label \
+            --team "$LINEAR_TEAM" \
+            --label "$LINEAR_LABEL"
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          LINEAR_TASK_UTILS_TAG: ${{ env.LINEAR_TASK_UTILS_TAG }}
+          LINEAR_TEAM: ${{ inputs.linear_team }}
+          LINEAR_LABEL: ${{ inputs.linear_label }}
 
       # Query Linear for issues
       - name: Query Linear issues
         id: query
         run: |
-          RESULT=$(npx @uniswap/ai-toolkit-linear-task-utils@latest query \
-            --team "${{ inputs.linear_team }}" \
-            --label "${{ inputs.linear_label }}" \
+          RESULT=$(npx "@uniswap/ai-toolkit-linear-task-utils@${LINEAR_TASK_UTILS_TAG}" query \
+            --team "$LINEAR_TEAM" \
+            --label "$LINEAR_LABEL" \
             --statuses "Backlog,Todo" \
-            --max "${{ inputs.max_issues }}")
+            --max "$MAX_ISSUES")
 
           echo "result=$RESULT" >> $GITHUB_OUTPUT
 
@@ -131,6 +148,10 @@ jobs:
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          LINEAR_TASK_UTILS_TAG: ${{ env.LINEAR_TASK_UTILS_TAG }}
+          LINEAR_TEAM: ${{ inputs.linear_team }}
+          LINEAR_LABEL: ${{ inputs.linear_label }}
+          MAX_ISSUES: ${{ inputs.max_issues }}
 
       # Create summary for prepare job
       - name: Create prepare summary
@@ -182,6 +203,7 @@ jobs:
       target_branch: ${{ inputs.target_branch }}
       model: ${{ inputs.model }}
       timeout_minutes: 60
+      linear_task_utils_tag: ${{ needs.prepare.outputs.linear_task_utils_tag }}
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}

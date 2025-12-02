@@ -35,6 +35,7 @@
 # - target_branch: Branch to create PR against (default: "next")
 # - model: Claude model to use (default: claude-sonnet-4-5-20250929)
 # - timeout_minutes: Execution timeout (default: 60)
+# - linear_task_utils_tag: npm tag for @uniswap/ai-toolkit-linear-task-utils (default: "latest")
 #
 # SECRETS REQUIRED:
 # - ANTHROPIC_API_KEY: Claude API key
@@ -96,6 +97,12 @@ on:
         required: false
         type: number
         default: 60
+
+      linear_task_utils_tag:
+        description: "npm tag for @uniswap/ai-toolkit-linear-task-utils (latest or next)"
+        required: false
+        type: string
+        default: "latest"
 
     secrets:
       ANTHROPIC_API_KEY:
@@ -307,13 +314,16 @@ jobs:
       - name: Update Linear issue
         if: steps.check-pr.outputs.pr_exists == 'true'
         run: |
-          npx @uniswap/ai-toolkit-linear-task-utils@latest update-issue \
-            --issue-id "${{ inputs.issue_id }}" \
+          npx "@uniswap/ai-toolkit-linear-task-utils@${LINEAR_TASK_UTILS_TAG}" update-issue \
+            --issue-id "$ISSUE_ID" \
             --status "In Review" \
-            --pr-url "${{ steps.check-pr.outputs.pr_url }}"
+            --pr-url "$PR_URL"
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          LINEAR_TASK_UTILS_TAG: ${{ inputs.linear_task_utils_tag }}
+          ISSUE_ID: ${{ inputs.issue_id }}
+          PR_URL: ${{ steps.check-pr.outputs.pr_url }}
 
       # Create job summary
       - name: Create job summary
