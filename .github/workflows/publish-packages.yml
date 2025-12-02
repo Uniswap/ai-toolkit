@@ -703,7 +703,16 @@ jobs:
               jq --arg version "$NEW_VERSION" '.version = $version' "$PROJECT_ROOT/package.json" > "$PROJECT_ROOT/package.json.tmp"
               mv "$PROJECT_ROOT/package.json.tmp" "$PROJECT_ROOT/package.json"
 
+              # Update package-lock.json to reflect workspace dependency changes
+              echo "  Updating package-lock.json..."
+              npm install --package-lock-only --ignore-scripts
+
               git add "$PROJECT_ROOT/package.json"
+              # Include package-lock.json if it changed
+              if ! git diff --cached --quiet package-lock.json 2>/dev/null; then
+                git add package-lock.json
+                echo "  Including package-lock.json in commit"
+              fi
               git commit -m "chore(release): $package@$NEW_VERSION"
               git tag -m "Release ${package}@${NEW_VERSION}" "${package}@${NEW_VERSION}"
 
@@ -715,6 +724,18 @@ jobs:
                 continue
               fi
               NEW_VERSION=$(jq -r '.version' "$PROJECT_ROOT/package.json")
+
+              # Update package-lock.json to reflect workspace dependency changes
+              echo "  Updating package-lock.json..."
+              npm install --package-lock-only --ignore-scripts
+
+              # Amend the nx release commit to include package-lock.json if it changed
+              if ! git diff --quiet package-lock.json 2>/dev/null; then
+                git add package-lock.json
+                git commit --amend --no-edit
+                echo "  Amended commit to include package-lock.json"
+              fi
+
               echo "✅ Versioning complete"
             fi
             echo "New version: $NEW_VERSION"
