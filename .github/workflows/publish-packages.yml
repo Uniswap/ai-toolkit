@@ -881,11 +881,18 @@ jobs:
             jq --arg version "$NEW_VERSION" '.version = $version' "$PROJECT_ROOT/package.json" > "$PROJECT_ROOT/package.json.tmp"
             mv "$PROJECT_ROOT/package.json.tmp" "$PROJECT_ROOT/package.json"
 
+            # Run sync-version target if it exists (updates version.ts and similar files)
+            if npx nx show project "$project" --json 2>/dev/null | jq -e '.targets["sync-version"]' > /dev/null 2>&1; then
+              echo "  Running sync-version target..."
+              npx nx run "$project:sync-version" || echo "  ⚠️ sync-version target failed, continuing..."
+            fi
+
             # Update package-lock.json to reflect workspace dependency changes
             echo "  Updating package-lock.json..."
             npm install --package-lock-only --ignore-scripts
 
-            git add "$PROJECT_ROOT/package.json"
+            # Stage all modified files in the project directory (handles version.ts, etc.)
+            git add "$PROJECT_ROOT"
             # Include package-lock.json if it changed (check unstaged changes, not cached)
             if ! git diff --quiet package-lock.json 2>/dev/null; then
               git add package-lock.json

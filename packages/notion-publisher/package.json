@@ -4,6 +4,18 @@
   "private": false,
   "type": "module",
   "description": "CLI tool to publish release notes to Notion databases with markdown support",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Uniswap/ai-toolkit.git",
+    "directory": "packages/notion-publisher"
+  },
+  "keywords": [
+    "notion",
+    "release-notes",
+    "cli",
+    "uniswap",
+    "ai-toolkit"
+  ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
