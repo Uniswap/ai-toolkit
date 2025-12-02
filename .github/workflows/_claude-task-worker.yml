@@ -85,7 +85,7 @@ on:
       model:
         description: |
           Claude model to use.
-          Options: claude-sonnet-4-5-20250929, claude-opus-4-20250514, claude-haiku-4-5@20251001
+          Options: claude-sonnet-4-5-20250929, claude-opus-4-5-20251101, claude-haiku-4-5@20251001
         required: false
         type: string
         default: "claude-sonnet-4-5-20250929"

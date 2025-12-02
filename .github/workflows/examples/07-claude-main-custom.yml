@@ -45,15 +45,15 @@ jobs:
       # MODEL SELECTION
       # Choose the Claude model based on your needs:
       # - claude-sonnet-4-5-20250929: Latest, best balance (RECOMMENDED)
-      # - claude-opus-4-20250514: Most capable, slower, higher cost
+      # - claude-opus-4-5-20251101: Most capable, slower, higher cost
       # - claude-haiku-4-5@20251001: Fast, cost-effective for simpler tasks
-      model: 'claude-opus-4-20250514'
+      model: "claude-opus-4-5-20251101"
 
       # TIMEOUT CONFIGURATION
       # Set maximum execution time in minutes
       # Recommended: 10-15 minutes for most repositories
       # Increase for large codebases or complex CI analysis
-      timeout_minutes: '15'
+      timeout_minutes: "15"
 
       # CUSTOM INSTRUCTIONS
       # Add repository-specific guidelines and standards
@@ -253,7 +253,7 @@ jobs:
 #     secrets:
 #       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 #     with:
-#       model: 'claude-opus-4-20250514'  # Thorough for code review
+#       model: 'claude-opus-4-5-20251101'  # Thorough for code review
 #       timeout_minutes: '15'
 #
 # -------------------
@@ -286,7 +286,7 @@ jobs:
 #     secrets:
 #       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 #     with:
-#       model: 'claude-opus-4-20250514'
+#       model: 'claude-opus-4-5-20251101'
 #       timeout_minutes: '30'
 #       custom_instructions: |
 #         Perform a comprehensive codebase audit focusing on:
@@ -365,7 +365,7 @@ jobs:
 # Solution:
 #   1. Verify model name exactly matches available models:
 #      - claude-sonnet-4-5-20250929
-#      - claude-opus-4-20250514
+#      - claude-opus-4-5-20251101
 #      - claude-haiku-4-5@20251001
 #   2. Check Anthropic API key has access to requested model
 #   3. Review Anthropic console for API limits or restrictions

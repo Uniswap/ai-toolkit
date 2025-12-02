@@ -61,16 +61,16 @@
 # - Checkout: fetch-depth: 50
 # - Trigger conditions: @claude mentions with bot filtering
 
-name: '[claude] Claude Code'
+name: "[claude] Claude Code"
 
 on:
   workflow_call:
     inputs:
       prompt:
-        description: 'Direct automation prompt for Claude. When provided, Claude runs in automation mode instead of interactive @mention mode. Supports GitHub context variables.'
+        description: "Direct automation prompt for Claude. When provided, Claude runs in automation mode instead of interactive @mention mode. Supports GitHub context variables."
         required: false
         type: string
-        default: ''
+        default: ""
 
       model:
         description: |
@@ -78,13 +78,13 @@ on:
 
           Available models:
           - claude-sonnet-4-5-20250929 (default, recommended) - Latest Sonnet model with best balance of speed and capability
-          - claude-opus-4-20250514 - Most capable model for complex tasks
+          - claude-opus-4-5-20251101 - Most capable model for complex tasks
           - claude-haiku-4-5@20251001 - Fast, cost-effective model for simpler tasks
 
           Default: claude-sonnet-4-5-20250929
         required: false
         type: string
-        default: 'claude-sonnet-4-5-20250929'
+        default: "claude-sonnet-4-5-20250929"
 
       allowed_tools:
         description: |
@@ -99,7 +99,7 @@ on:
           See https://github.com/anthropics/claude-code-action for full tool reference.
         required: false
         type: string
-        default: ''
+        default: ""
 
       disallowed_tools:
         description: |
@@ -112,7 +112,7 @@ on:
           Useful when you want to allow most tools but disable specific ones.
         required: false
         type: string
-        default: ''
+        default: ""
 
       custom_instructions:
         description: |
@@ -130,7 +130,7 @@ on:
             - Test coverage
         required: false
         type: string
-        default: 'Be sure to follow rules in all CLAUDE.md files.'
+        default: "Be sure to follow rules in all CLAUDE.md files."
 
       max_turns:
         description: |
@@ -141,7 +141,7 @@ on:
           Recommended: 10-20 for most tasks
         required: false
         type: string
-        default: ''
+        default: ""
 
       mcp_config:
         description: |
@@ -159,7 +159,7 @@ on:
             }
         required: false
         type: string
-        default: ''
+        default: ""
 
       settings:
         description: |
@@ -175,7 +175,7 @@ on:
             }
         required: false
         type: string
-        default: ''
+        default: ""
 
       timeout_minutes:
         description: |
@@ -199,11 +199,11 @@ on:
           Use this if your repository uses a different secret name for the API key.
         required: false
         type: string
-        default: 'ANTHROPIC_API_KEY'
+        default: "ANTHROPIC_API_KEY"
 
     secrets:
       ANTHROPIC_API_KEY:
-        description: 'Anthropic API key for Claude Code. Must be passed explicitly from the calling workflow.'
+        description: "Anthropic API key for Claude Code. Must be passed explicitly from the calling workflow."
         required: true
 
 jobs:

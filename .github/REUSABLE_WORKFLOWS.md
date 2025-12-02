@@ -323,7 +323,7 @@ jobs:
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     with:
-      model: 'claude-opus-4-20250514'
+      model: 'claude-opus-4-5-20251101'
       timeout_minutes: '15' # Opus may need more time
 ```
 
@@ -412,7 +412,7 @@ jobs:
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     with:
-      model: 'claude-opus-4-20250514'
+      model: 'claude-opus-4-5-20251101'
       timeout_minutes: '15'
 ```
 
@@ -608,7 +608,7 @@ jobs:
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     with:
-      model: 'claude-opus-4-20250514'
+      model: 'claude-opus-4-5-20251101'
       timeout_minutes: '15'
 ```
 
@@ -629,7 +629,7 @@ claude-deep:
     contains(github.event.pull_request.labels.*.name, 'deep-analysis') &&
     # ... (rest of if condition)
   with:
-    model: 'claude-opus-4-20250514'
+    model: 'claude-opus-4-5-20251101'
 ```
 
 #### Integration with Other Workflows

@@ -62,7 +62,7 @@ on:
         type: choice
         options:
           - "claude-sonnet-4-5-20250929" # Balanced (recommended)
-          - "claude-opus-4-20250514" # Most capable
+          - "claude-opus-4-5-20251101" # Most capable
           - "claude-haiku-4-5@20251001" # Fast & economical
         default: "claude-sonnet-4-5-20250929"
 
