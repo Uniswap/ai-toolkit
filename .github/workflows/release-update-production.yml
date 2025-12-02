@@ -5,7 +5,7 @@ name: Update Production
 #
 # REQUIRED SECRETS:
 # 1. WORKFLOW_PAT: Personal Access Token with 'repo' and 'workflow' scopes
-#    - Required to trigger the __publish-packages workflow after PR merge
+#    - Required to trigger the publish-packages workflow after PR merge
 #    - Create at: GitHub Settings > Developer settings > Personal access tokens
 # 2. ANTHROPIC_API_KEY: API key for AI-powered changelog generation
 #    - Required to generate intelligent changelogs from commit diffs
@@ -20,7 +20,7 @@ name: Update Production
 # - Assigns reviewers: @wkoutre and @Melvillian
 # - Automatically merges PR if there are no merge conflicts
 # - Sends notification to #ai-internal Slack channel with merge status
-# - After merge, __publish-packages workflow runs automatically
+# - After merge, publish-packages workflow runs automatically
 #
 # ARCHITECTURE:
 # This workflow uses a 3-job architecture for better separation of concerns:
@@ -32,7 +32,7 @@ on:
   schedule:
     # Runs every Monday at 5pm UTC (1pm EDT during daylight saving time)
     # Note: During EST (Nov-Mar), this will run at 12pm EST
-    - cron: '0 17 * * 1'
+    - cron: "0 17 * * 1"
   workflow_dispatch:
 
 jobs:
@@ -213,8 +213,8 @@ jobs:
     with:
       from_ref: ${{ needs.create-pr.outputs.before_sha }}
       to_ref: ${{ needs.create-pr.outputs.after_sha }}
-      output_formats: 'markdown'
-      custom_prompt_file: '.github/prompts/production-release-changelog.md'
+      output_formats: "markdown"
+      custom_prompt_file: ".github/prompts/production-release-changelog.md"
       max_tokens: 2048
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -507,7 +507,7 @@ jobs:
             echo "1. ✅ PR created with AI-generated changelog" >> $GITHUB_STEP_SUMMARY
             echo "2. ✅ PR automatically merged (no conflicts detected)" >> $GITHUB_STEP_SUMMARY
             echo "3. ✅ Slack notification sent to #ai-internal" >> $GITHUB_STEP_SUMMARY
-            echo "4. ⏳ __publish-packages workflow will run automatically" >> $GITHUB_STEP_SUMMARY
+            echo "4. ⏳ publish-packages workflow will run automatically" >> $GITHUB_STEP_SUMMARY
             echo "5. ⏳ Packages will be published with the \`latest\` tag" >> $GITHUB_STEP_SUMMARY
             echo "6. 🧹 Temporary branch will be deleted automatically" >> $GITHUB_STEP_SUMMARY
           else
@@ -524,7 +524,7 @@ jobs:
 
             echo "3. ✅ Slack notification sent to #ai-internal" >> $GITHUB_STEP_SUMMARY
             echo "4. ⏳ **Awaiting review and approval**" >> $GITHUB_STEP_SUMMARY
-            echo "5. ⏳ After merge, __publish-packages workflow will run automatically" >> $GITHUB_STEP_SUMMARY
+            echo "5. ⏳ After merge, publish-packages workflow will run automatically" >> $GITHUB_STEP_SUMMARY
             echo "6. ⏳ Packages will be published with the \`latest\` tag" >> $GITHUB_STEP_SUMMARY
             echo "7. 🧹 Temporary branch will be deleted automatically after merge" >> $GITHUB_STEP_SUMMARY
           fi
