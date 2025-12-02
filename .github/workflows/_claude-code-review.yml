@@ -322,105 +322,56 @@ jobs:
           VERDICT_EOF
 
           # Append final inline comment reminder (MUST be last thing in prompt)
+          # Uses 3-step workflow from Uniswap/claude-code-action fork's experimental-review mode
           cat >> /tmp/final-prompt.txt <<INLINE_REMINDER_EOF
 
           ---
 
-          # ⚠️ CRITICAL FINAL STEP: Create Review with Inline Comments FIRST
+          # ⚠️ CRITICAL: Creating Inline Comments (3-Step Workflow)
 
-          **BEFORE creating the verdict files above, you MUST submit your PR review with inline comments.**
+          **BEFORE creating the verdict files above, you MUST follow this 3-step process:**
 
-          ## Creating a Review with Inline Comments (Single Call)
-
-          Use \`mcp__github__create_pull_request_review\` to submit a formal review with inline comments in one call.
-          This tool runs as \`github-actions[bot]\` and supports inline comments via the \`comments\` array.
-
-          ### Decision Tree - For EACH potential inline comment:
-
-          1. **Check against existing PR comments first:**
-             - Same file and line already commented? → SKIP
-             - Same issue already mentioned elsewhere? → SKIP
-             - Similar pattern already noted in another file? → SKIP
-
-          2. **If not a duplicate, evaluate importance:**
-             - Critical bug or security issue? → ADD TO COMMENTS ARRAY
-             - Clear improvement with obvious fix? → ADD TO COMMENTS ARRAY
-             - Engineering principle opportunity with clear benefit? → ADD TO COMMENTS ARRAY
-             - Minor style preference? → SKIP
-             - Nitpick without real value? → SKIP
-
-          ### Submit Review with Inline Comments:
-
-          **Example call you MUST make:**
+          ## Step 1: Create a Pending Review
           \`\`\`
-          mcp__github__create_pull_request_review({
+          mcp__github__create_pending_pull_request_review({
             owner: "$REPO_OWNER",
             repo: "$REPO_NAME",
-            pull_number: $PR_NUMBER,
+            pullNumber: $PR_NUMBER
+          })
+          \`\`\`
+
+          ## Step 2: Add Inline Comments to the Pending Review
+          For EACH issue you want to comment on, call:
+          \`\`\`
+          mcp__github__add_comment_to_pending_review({
+            owner: "$REPO_OWNER",
+            repo: "$REPO_NAME",
+            pullNumber: $PR_NUMBER,
+            path: "src/example.ts",
+            line: 42,
+            side: "RIGHT",
+            subjectType: "line",
+            body: "Your feedback here"
+          })
+          \`\`\`
+
+          ## Step 3: Submit the Review
+          \`\`\`
+          mcp__github__submit_pending_pull_request_review({
+            owner: "$REPO_OWNER",
+            repo: "$REPO_NAME",
+            pullNumber: $PR_NUMBER,
             event: "COMMENT",
-            body: "## Code Review Summary\\n\\n[Your review summary here]",
-            comments: [
-              {
-                path: "src/example.ts",
-                line: 42,
-                body: "Issue description with suggestion"
-              },
-              {
-                path: "src/other.ts",
-                line: 15,
-                body: "Another inline comment"
-              }
-            ]
+            body: "Review complete - see inline comments and summary above"
           })
           \`\`\`
 
-          **Parameters:**
-          - \`owner\`: Repository owner ("$REPO_OWNER")
-          - \`repo\`: Repository name ("$REPO_NAME")
-          - \`pull_number\`: PR number ($PR_NUMBER)
-          - \`event\`: "COMMENT" (neutral), "APPROVE", or "REQUEST_CHANGES"
-          - \`body\`: Overall review summary (markdown supported)
-          - \`comments\`: Array of inline comments with:
-            - \`path\`: Relative file path (e.g., "src/components/Button.tsx")
-            - \`line\`: Line number in the NEW version of the file
-            - \`body\`: Your comment text (markdown supported)
-
-          **GitHub Suggestion Block Format:**
-          To suggest code changes, use this format in the comment body:
-          \`\`\`suggestion
-          ONLY the replacement code for the commented lines
-          \`\`\`
-          Remember: Suggestion blocks must contain ONLY the replacement lines, not surrounding context.
-
-          ## Useful Tools
-
-          To see what files changed and their line numbers:
-
-          \`\`\`
-          mcp__github__get_pull_request_files({
-            owner: "$REPO_OWNER",
-            repo: "$REPO_NAME",
-            pull_number: $PR_NUMBER
-          })
-          \`\`\`
-
-          To check existing comments (avoid duplicates):
-
-          \`\`\`
-          mcp__github__get_pull_request_comments({
-            owner: "$REPO_OWNER",
-            repo: "$REPO_NAME",
-            pull_number: $PR_NUMBER
-          })
-          \`\`\`
-
-          ## Important Notes
-
-          1. **Submit the review with inline comments FIRST**
-          2. **THEN create verdict files** (.claude-review-verdict.txt and .claude-review-summary.md)
-          3. All comments appear as \`github-actions[bot]\`
-
-          **Reviews without inline comments will be flagged as incomplete.**
+          **Important Notes:**
+          - You MUST complete all 3 steps in order
+          - Each inline comment requires a separate \`add_comment_to_pending_review\` call
+          - The \`side\` parameter should be "RIGHT" (the new code side of the diff)
+          - The \`event\` in submit should be "COMMENT" (not "APPROVE" or "REQUEST_CHANGES")
+          - Reviews without inline comments will be flagged as incomplete
           INLINE_REMINDER_EOF
 
           # Log final prompt length
@@ -454,34 +405,75 @@ jobs:
           else
             # Define tools as array for better maintainability and to eliminate
             # shell string parsing nuances. Each tool is a separate array element.
-            #
-            # Tools prefixed with "mcp__github__" are built-in to claude-code-action
-            # and run as github-actions[bot]. These include PR review capabilities
-            # with inline comment support via the "comments" array parameter.
+            # These tools are provided by the Uniswap/claude-code-action fork's experimental-review mode.
             TOOLS=(
-              # Built-in GitHub MCP tools (from claude-code-action)
-              # These run as github-actions[bot] using GITHUB_TOKEN
+              # Sticky comment tool (for updating the main review comment)
+              "mcp__github_comment__update_claude_comment"
+
+              # CI status tools
+              "mcp__github_ci__get_ci_status"
+              "mcp__github_ci__get_workflow_run_details"
+              "mcp__github_ci__download_job_log"
+
+              # GitHub MCP tools for PR interaction
               "mcp__github__get_pull_request"
-              "mcp__github__get_pull_request_files"
-              "mcp__github__get_pull_request_comments"
-              "mcp__github__create_pull_request_review"
+              "mcp__github__get_pull_request_status"
+              "mcp__github__get_issue"
               "mcp__github__get_file_contents"
+
+              # 3-step PR review tools for inline comments (CRITICAL)
+              "mcp__github__create_pending_pull_request_review"
+              "mcp__github__add_comment_to_pending_review"
+              "mcp__github__submit_pending_pull_request_review"
+
+              # Additional PR tools
+              "mcp__github__get_pull_request_diff"
+              "mcp__github__get_pull_request_reviews"
+              "mcp__github__get_pull_request_comments"
+              "mcp__github__get_pull_request_files"
+              "mcp__github__list_pull_requests"
+              "mcp__github__get_issue_comments"
+              "mcp__github__add_issue_comment"
+              "mcp__github__get_discussion"
+              "mcp__github__get_discussion_comments"
+              "mcp__github__list_workflow_runs"
+              "mcp__github__get_workflow_run"
+              "mcp__github__get_job_logs"
+              "mcp__github__list_workflow_jobs"
+              "mcp__github__search_code"
+              "mcp__github__search_pull_requests"
+              "mcp__github__get_commit"
               "mcp__github__list_commits"
 
-              # File operations (built-in to claude-code-action)
+              # File operations
               "Read"
               "Grep"
               "Glob"
-
-              # Git commands (wildcard patterns allow any arguments/flags)
-              "Bash(git log:*)"
-              "Bash(git diff:*)"
-              "Bash(git show:*)"
-              "Bash(git blame:*)"
-              "Bash(git rev-parse:*)"
-
-              # File writing
+              "Edit"
+              "MultiEdit"
+              "TodoWrite"
               "Write"
+
+              # Git commands (specific command patterns for common operations)
+              "Bash(git log)"
+              "Bash(git diff)"
+              "Bash(git show)"
+              "Bash(git log -p)"
+              "Bash(git blame)"
+              "Bash(git rev-parse HEAD)"
+              "Bash(git log --oneline -10)"
+              "Bash(git log --oneline -20)"
+              "Bash(git diff HEAD)"
+              "Bash(git log --since)"
+              "Bash(git reflog --date=relative)"
+              "Bash(git log --follow -p)"
+              "Bash(git log --name-status)"
+              "Bash(git diff --name-status)"
+              "Bash(git diff --stat)"
+              "Bash(git log --follow)"
+              "Bash(git show --name-status)"
+              "Bash(git diff HEAD~1)"
+              "Bash(git log --graph --oneline)"
             )
 
             # Join array elements with commas (no spaces)
@@ -510,21 +502,25 @@ jobs:
           echo "✅ Configured allowed tools (${#ALLOWED_TOOLS} chars)"
 
       # Run Claude Code Action to perform the review
+      # Using Uniswap fork for experimental-review mode which provides inline comment tools:
+      # - mcp__github__create_pending_pull_request_review
+      # - mcp__github__add_comment_to_pending_review
+      # - mcp__github__submit_pending_pull_request_review
+      # Note: allowed_bots parameter is not supported by this fork (removed from upstream action)
       - name: Run Claude Code Review
         if: steps.cache-check.outputs.cache-hit != 'true'
         id: claude
-        uses: anthropics/claude-code-action@a7e4c51380c42dd89b127f5e5f9be7b54020bc6b # v1.0.21
+        # Fork: https://github.com/Uniswap/claude-code-action/commit/9c8721c683e226ca3a94856565db0a265c12a010
+        uses: Uniswap/claude-code-action@9c8721c683e226ca3a94856565db0a265c12a010 # fork for experimental-review mode
         with:
+          mode: "experimental-review"
+          use_sticky_comment: true
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          prompt: ${{ steps.build-prompt.outputs.final_prompt }}
-          # Disable built-in progress tracking to avoid duplicate comments.
-          # We maintain our own single PR comment via the "Post Review Completion Comment" step.
-          # This ensures DEV-131 requirement #2: single PR comment for the lifetime of the PR.
-          track_progress: false
-          allowed_bots: dependabot
-          claude_args: ${{ steps.build-args.outputs.claude_args }}
+          override_prompt: ${{ steps.build-prompt.outputs.final_prompt }}
+          allowed_tools: ${{ steps.build-args.outputs.allowed_tools }}
           additional_permissions: |
             actions: read
+          model: ${{ inputs.model }}
 
       # Validate that inline comments were created (warning only, not blocking)
       - name: Validate Inline Comments
