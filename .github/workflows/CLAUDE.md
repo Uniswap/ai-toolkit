@@ -65,6 +65,7 @@ These workflows are prefixed with two `__` and are only used within this reposit
     - **Auto mode** (push to main/next): Detects affected packages via Nx, publishes with conventional/prerelease versioning, generates changelogs, sends Slack notifications
     - **Force mode** (manual workflow_dispatch): Publishes user-specified packages with prerelease versioning, useful for new packages or failed releases
   - Handles atomic versioning, npm publish with OIDC, git commit/tag push, and GitHub release creation
+  - **Lockfile sync**: Automatically updates `package-lock.json` when package versions are bumped to keep workspace dependencies in sync
 
 ### Consumer Workflows
 

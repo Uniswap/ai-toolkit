@@ -1,4 +1,4 @@
-name: '[claude] Generate PR Title & Description'
+name: "[claude] Generate PR Title & Description"
 
 # Reusable workflow for generating PR titles and descriptions using Claude AI
 #
@@ -31,65 +31,65 @@ on:
   workflow_call:
     inputs:
       pr_number:
-        description: 'Pull request number to update'
+        description: "Pull request number to update"
         required: true
         type: string
 
       base_ref:
-        description: 'Base branch name (e.g., main, master)'
+        description: "Base branch name (e.g., main, master)"
         required: true
         type: string
 
       model:
-        description: 'Claude model to use for generation'
+        description: "Claude model to use for generation"
         required: false
         type: string
-        default: 'claude-sonnet-4-5-20250929'
+        default: "claude-sonnet-4-5-20250929"
 
       max_turns:
-        description: 'Maximum conversation turns for Claude. Omit to use unlimited turns.'
+        description: "Maximum conversation turns for Claude. Omit to use unlimited turns."
         required: false
         type: number
 
       custom_prompt:
-        description: 'Custom prompt text (overrides prompt file and default). Output instructions will be automatically appended.'
+        description: "Custom prompt text (overrides prompt file and default). Output instructions will be automatically appended."
         required: false
         type: string
-        default: ''
+        default: ""
 
       custom_prompt_path:
-        description: 'Path to custom prompt file in repository (e.g., .github/prompts/generate-pr-metadata.md)'
+        description: "Path to custom prompt file in repository (e.g., .github/prompts/generate-pr-metadata.md)"
         required: false
         type: string
-        default: '.github/prompts/generate-pr-title-description.md'
+        default: ".github/prompts/generate-pr-title-description.md"
 
       timeout_minutes:
-        description: 'Job timeout in minutes'
+        description: "Job timeout in minutes"
         required: false
         type: number
         default: 15
 
       allowed_tools:
-        description: 'Comma-separated list of allowed tools for Claude. Leave empty for default read-only set.'
+        description: "Comma-separated list of allowed tools for Claude. Leave empty for default read-only set."
         required: false
         type: string
-        default: ''
+        default: ""
 
       commit_history_count:
-        description: 'Number of recent commits to analyze for title patterns'
+        description: "Number of recent commits to analyze for title patterns"
         required: false
         type: number
         default: 30
 
       pr_history_count:
-        description: 'Number of recent merged PRs to analyze for description patterns'
+        description: "Number of recent merged PRs to analyze for description patterns"
         required: false
         type: number
         default: 10
 
     secrets:
       ANTHROPIC_API_KEY:
-        description: 'Anthropic API key for Claude access'
+        description: "Anthropic API key for Claude access"
         required: true
 
 jobs:
@@ -99,6 +99,7 @@ jobs:
 
     # Fixed permissions (cannot be overridden by calling workflow)
     permissions:
+      id-token: write # Required to create ID tokens for Claude Code Action
       contents: read # Required to read repository code
       pull-requests: write # Required to update PR title and description
 
