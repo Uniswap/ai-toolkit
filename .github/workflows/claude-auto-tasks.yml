@@ -220,7 +220,7 @@ jobs:
       model: ${{ inputs.model || 'claude-opus-4-5-20251101' }}
       timeout_minutes: 60
       linear_task_utils_tag: ${{ needs.prepare.outputs.linear_task_utils_tag }}
-      debug_mode: ${{ inputs.debug_mode == '' && true || inputs.debug_mode }}
+      debug_mode: ${{ inputs.debug_mode != '' && inputs.debug_mode || true }}
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
