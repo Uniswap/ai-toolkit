@@ -344,6 +344,112 @@ function dismissPreviousBotReviews(owner: string, repo: string, prNumber: number
 }
 
 // =============================================================================
+// Diff Validation
+// =============================================================================
+
+/**
+ * Parses the PR diff to determine which lines are valid for inline comments.
+ * GitHub's API only accepts comments on lines that are part of the diff.
+ *
+ * @returns Map of file paths to Set of valid line numbers
+ */
+function getValidDiffLines(
+  owner: string,
+  repo: string,
+  prNumber: number
+): Map<string, Set<number>> {
+  log('Fetching PR diff to validate inline comment line numbers...');
+
+  const validLines = new Map<string, Set<number>>();
+
+  try {
+    const diff = gh(['pr', 'diff', prNumber.toString(), '--repo', `${owner}/${repo}`]);
+
+    if (!diff) {
+      log('Empty diff returned');
+      return validLines;
+    }
+
+    let currentFile: string | null = null;
+
+    for (const line of diff.split('\n')) {
+      // New file header: +++ b/path/to/file.ts
+      if (line.startsWith('+++ b/')) {
+        currentFile = line.substring(6);
+        if (!validLines.has(currentFile)) {
+          validLines.set(currentFile, new Set<number>());
+        }
+        continue;
+      }
+
+      // Hunk header: @@ -old_start,old_count +new_start,new_count @@
+      if (line.startsWith('@@') && currentFile) {
+        const match = line.match(/@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/);
+        if (match) {
+          const start = parseInt(match[1], 10);
+          const count = match[2] ? parseInt(match[2], 10) : 1;
+          const fileLines = validLines.get(currentFile)!;
+          for (let i = start; i < start + count; i++) {
+            fileLines.add(i);
+          }
+        }
+      }
+    }
+
+    let totalLines = 0;
+    for (const lines of validLines.values()) {
+      totalLines += lines.size;
+    }
+    log(`Parsed diff: ${validLines.size} files, ${totalLines} valid line positions`);
+
+    return validLines;
+  } catch (err) {
+    log(`Warning: Could not fetch diff: ${(err as Error).message}`);
+    return validLines;
+  }
+}
+
+/**
+ * Filters inline comments to only include those on valid diff lines.
+ */
+function filterValidComments(
+  comments: InlineCommentNew[],
+  validLines: Map<string, Set<number>>
+): { valid: InlineCommentNew[]; skipped: InlineCommentNew[] } {
+  const valid: InlineCommentNew[] = [];
+  const skipped: InlineCommentNew[] = [];
+
+  if (validLines.size === 0) {
+    log('No diff validation available, attempting all comments');
+    return { valid: comments, skipped: [] };
+  }
+
+  for (const comment of comments) {
+    const fileLines = validLines.get(comment.path);
+
+    if (!fileLines) {
+      log(`Skipping comment: ${comment.path}:${comment.line} - file not in diff`);
+      skipped.push(comment);
+      continue;
+    }
+
+    if (!fileLines.has(comment.line)) {
+      log(`Skipping comment: ${comment.path}:${comment.line} - line not in diff hunk`);
+      skipped.push(comment);
+      continue;
+    }
+
+    valid.push(comment);
+  }
+
+  if (skipped.length > 0) {
+    log(`Filtered out ${skipped.length} comment(s) on lines not in the diff`);
+  }
+
+  return { valid, skipped };
+}
+
+// =============================================================================
 // Validation
 // =============================================================================
 
@@ -545,13 +651,36 @@ async function main(): Promise<void> {
     }
   }
 
+  // Validate comments against the actual diff to avoid 422 errors
+  const validDiffLines = getValidDiffLines(owner, repo, prNumber);
+  const { valid: validComments, skipped: skippedComments } = filterValidComments(
+    reviewOutput.inline_comments_new,
+    validDiffLines
+  );
+
   // Build inline comments with suggestions formatted
-  const formattedComments = reviewOutput.inline_comments_new.map((comment) => ({
+  const formattedComments = validComments.map((comment) => ({
     path: comment.path,
     line: comment.line,
     body: formatSuggestion(comment.body, comment.suggestion),
     side: comment.side || ('RIGHT' as const),
   }));
+
+  // If we skipped comments, add them to the review body so feedback isn't lost
+  let reviewBody = reviewOutput.pr_review_body;
+  if (skippedComments.length > 0) {
+    const skippedSection = `\n\n---\n\n<details>\n<summary>ℹ️ ${
+      skippedComments.length
+    } comment(s) on unchanged code</summary>\n\nThe following feedback is on lines that weren't modified in this PR:\n\n${skippedComments
+      .map(
+        (c) =>
+          `**${c.path}:${c.line}**\n${
+            c.body.length > 200 ? c.body.substring(0, 200) + '...' : c.body
+          }`
+      )
+      .join('\n\n')}\n\n</details>`;
+    reviewBody += skippedSection;
+  }
 
   // Create the review with inline comments
   try {
@@ -559,7 +688,7 @@ async function main(): Promise<void> {
       owner,
       repo,
       pull_number: prNumber,
-      body: reviewOutput.pr_review_body,
+      body: reviewBody,
       event: reviewOutput.pr_review_outcome,
       comments: formattedComments,
     });
@@ -570,7 +699,10 @@ async function main(): Promise<void> {
     // Output summary
     console.log('\n=== Review Summary ===');
     console.log(`Outcome: ${reviewOutput.pr_review_outcome}`);
-    console.log(`Inline comments: ${formattedComments.length}`);
+    console.log(`Inline comments posted: ${formattedComments.length}`);
+    if (skippedComments.length > 0) {
+      console.log(`Comments on unchanged code (in summary): ${skippedComments.length}`);
+    }
     if (reviewOutput.files_reviewed?.length) {
       console.log(`Files reviewed: ${reviewOutput.files_reviewed.length}`);
     }
