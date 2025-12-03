@@ -127,11 +127,21 @@ This workflow processes Linear issues autonomously using Claude Code. It's calle
 | ---------------------------- | ------------------------------------------------------------------------------------------------------- |
 | **7-Phase Workflow**         | Claude follows a structured approach: Understand → Explore → Plan → Implement → QA → Commit → Create PR |
 | **Autonomous Execution**     | Uses `--dangerously-skip-permissions` to run without permission prompts (safe in GitHub Actions sandbox) |
-| **PR Validation**            | Job **fails explicitly** if Claude doesn't create a draft PR (no silent failures)                       |
+| **Turn Budget Management**   | Prompt includes explicit turn budgets per phase to prevent over-exploration and ensure PR creation      |
+| **Fallback PR Creation**     | If Claude makes commits but fails to create a PR, workflow automatically creates a fallback draft PR    |
 | **Debug Mode**               | Full Claude output shown by default (`debug_mode: true`) to understand reasoning                        |
 | **Task Complexity Warnings** | Warns about tasks containing keywords like "audit", "review", "investigate"                             |
-| **Commit Tracking**          | Reports commit count in job summary                                                                     |
+| **Incremental Commits**      | Prompt instructs Claude to commit and push after each major piece of work to preserve progress          |
 | **Linear Integration**       | Updates Linear issue status to "In Progress" when draft PR is created                                   |
+
+**Turn Budget (built into prompt):**
+
+| Phase              | Turns   | Purpose                                      |
+| ------------------ | ------- | -------------------------------------------- |
+| Understand/Explore | 1-30    | Read CLAUDE.md, explore codebase, identify files |
+| Plan/Implement     | 31-100  | Design approach and implement the solution   |
+| QA/Fix             | 101-130 | Run checks, fix critical issues              |
+| **Commit/PR**      | 131-150 | **RESERVED** - Must commit and create PR     |
 
 **Configuration:**
 
@@ -147,7 +157,7 @@ This workflow processes Linear issues autonomously using Claude Code. It's calle
 The workflow validates that Claude completed the task:
 
 1. **No commits + No PR**: Job fails with "Task may be too complex, unclear, or require human judgment"
-2. **Commits + No PR**: Job fails with "Claude created commits but did NOT create a PR"
+2. **Commits + No PR**: Fallback PR is automatically created to preserve work, job succeeds with warning
 3. **Commits + PR**: Job succeeds, Linear updated to "In Progress"
 
 **Job Summary Output:**
@@ -157,7 +167,7 @@ The job summary includes:
 - Task title and Linear issue link
 - Branch name and model used
 - Commit count
-- PR creation status (✅/❌)
+- PR creation status (✅ Claude PR / ⚠️ Fallback PR / ❌ No PR)
 - Failure reason (if applicable)
 - Linear status update
 

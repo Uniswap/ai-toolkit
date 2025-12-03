@@ -216,34 +216,65 @@ jobs:
 
           ---
 
+          ## ⚠️ Turn Budget Management (CRITICAL)
+
+          You have a **maximum of 150 turns**. Plan accordingly:
+
+          | Phase | Turns | Purpose |
+          |-------|-------|---------|
+          | Understand & Explore | 1-30 | Read CLAUDE.md, explore codebase, identify key files |
+          | Plan & Implement | 31-100 | Design approach and implement the solution |
+          | QA & Fix | 101-130 | Run checks, fix issues |
+          | **RESERVED: Commit & PR** | **131-150** | **MUST commit and create PR** |
+
+          **HARD RULES:**
+          - If you reach **turn 80** and haven't started implementation, **STOP exploring immediately** and begin implementing with what you know
+          - If you reach **turn 120**, you **MUST** start wrapping up: commit your work and create the PR
+          - A partial solution with a draft PR is **infinitely more valuable** than exhaustive research with no PR
+
+          ### Incremental Progress (Save Your Work!)
+
+          After completing each significant piece of work, **commit and push immediately**:
+          ```bash
+          git add -A
+          git commit -m "wip: [describe what was done]"
+          git push origin ${{ inputs.branch_name }}
+          ```
+          This ensures work is saved even if the session ends unexpectedly.
+
+          ---
+
           ## Your Workflow
 
           Follow these phases in order. Use sub-agents (Task tool) for complex exploration or planning.
 
-          ### Phase 1: Understand the Task
+          ### Phase 1: Understand the Task (turns 1-10)
 
           Ensure you understand the purpose, scope, and outcome. If completely unclear, use Linear MCP to comment asking for clarification.
 
-          ### Phase 2: Exploration
+          ### Phase 2: Exploration (turns 11-30)
 
-          - Read relevant CLAUDE.md files
-          - Explore the codebase
-          - Identify files to modify
-          - Understand existing patterns
+          **Keep exploration focused and time-boxed.** Do not rabbit-hole.
 
-          ### Phase 3: Planning
+          - Read relevant CLAUDE.md files (start with the root CLAUDE.md)
+          - Identify the 2-5 most relevant files to modify
+          - Understand existing patterns from those files
+          - **DO NOT** exhaustively read every file in the codebase
 
-          - Design your approach
-          - Consider edge cases
-          - Plan implementation steps
+          ### Phase 3: Planning (turns 31-40)
 
-          ### Phase 4: Implementation
+          - Design your approach in 3-5 concrete steps
+          - Consider only the most likely edge cases
+          - If the task seems too large, **scope down** to an MVP
+
+          ### Phase 4: Implementation (turns 41-100)
 
           - Implement following existing patterns
           - Keep changes minimal and focused
-          - Add tests if appropriate
+          - Add tests only if explicitly required or trivially simple
+          - **Commit and push after each major file change**
 
-          ### Phase 5: Quality Assurance
+          ### Phase 5: Quality Assurance (turns 101-120)
 
           Run these commands:
           ```bash
@@ -254,7 +285,9 @@ jobs:
           npx nx affected --target=build --base=${{ inputs.target_branch }}
           ```
 
-          ### Phase 6: Commit and Push
+          If checks fail, fix only **critical errors**. Minor warnings can be noted in the PR.
+
+          ### Phase 6: Commit and Push (turns 121-130)
 
           Create a conventional commit and push:
           ```bash
@@ -263,7 +296,7 @@ jobs:
           git push origin ${{ inputs.branch_name }}
           ```
 
-          ### Phase 7: Create Pull Request (REQUIRED)
+          ### Phase 7: Create Pull Request (REQUIRED - turns 131-150)
 
           **THIS PHASE IS MANDATORY.** You MUST create a draft PR using the GitHub CLI.
 
@@ -304,7 +337,7 @@ jobs:
           **CRITICAL REQUIREMENTS:**
           - You **MUST** create this draft PR successfully
           - The workflow depends on it for Linear issue updates
-          - If you cannot implement the task, you MUST still create a PR explaining what you attempted and what blockers you encountered
+          - If you cannot fully implement the task, you MUST still create a PR explaining what you accomplished and what remains
           - A PR with partial progress is better than no PR at all
 
           ---
@@ -312,10 +345,11 @@ jobs:
           ## Guidelines
 
           - Follow all CLAUDE.md instructions
-          - Make reasonable assumptions
-          - Keep changes minimal
+          - Make reasonable assumptions—do not over-research
+          - Keep changes minimal—scope down if needed
           - Only ask for clarification if task is COMPLETELY unclear
           - Do NOT push to main or ${{ inputs.target_branch }} directly
+          - **Prioritize shipping over perfection**
           PROMPT_EOF
           )
 
@@ -388,34 +422,93 @@ jobs:
           echo "commit_count=$COMMITS" >> $GITHUB_OUTPUT
           echo "Commits made: $COMMITS"
 
+      # Create fallback PR if Claude made commits but didn't create a PR
+      # This ensures work is never lost even if Claude ran out of turns or failed to create PR
+      - name: Create fallback PR (if needed)
+        id: fallback-pr
+        if: steps.check-pr.outputs.pr_exists != 'true' && steps.check-commits.outputs.commit_count != '0'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ISSUE_IDENTIFIER: ${{ inputs.issue_identifier }}
+          ISSUE_URL: ${{ inputs.issue_url }}
+          ISSUE_TITLE: ${{ inputs.issue_title }}
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+          BRANCH_NAME: ${{ inputs.branch_name }}
+          COMMIT_COUNT: ${{ steps.check-commits.outputs.commit_count }}
+          MODEL: ${{ inputs.model }}
+        run: |
+          echo "::warning::Claude made ${COMMIT_COUNT} commit(s) but did not create a PR. Creating fallback PR..."
+
+          # Get commit summary for PR body
+          COMMIT_LOG=$(git log origin/"$TARGET_BRANCH"..HEAD --oneline 2>/dev/null | head -20)
+
+          # Create the fallback PR
+          PR_URL=$(gh pr create \
+            --title "[${ISSUE_IDENTIFIER}] WIP: Partial implementation (fallback PR)" \
+            --body "$(cat <<BODY_EOF
+          ## ⚠️ Fallback PR - Incomplete Implementation
+
+          Claude exhausted the turn limit or encountered an error before creating a PR.
+          This fallback PR was automatically created to preserve the work.
+
+          **Commits made:** ${COMMIT_COUNT}
+
+          ### Commit Summary
+          \`\`\`
+          ${COMMIT_LOG}
+          \`\`\`
+
+          ### Next Steps
+          - Review the changes made by Claude
+          - Either complete the implementation manually, or
+          - Close this PR and re-run with a more focused task description
+
+          ### Linear Issue
+          ${ISSUE_URL}
+
+          ---
+          *Fallback PR created automatically. Original task used ${MODEL}.*
+          BODY_EOF
+          )" \
+            --base "$TARGET_BRANCH" \
+            --head "$BRANCH_NAME" \
+            --draft)
+
+          echo "Created fallback PR: $PR_URL"
+          echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+          echo "pr_created=true" >> $GITHUB_OUTPUT
+
       # Validate that Claude completed the task
       - name: Validate outcome
         run: |
           PR_EXISTS="${{ steps.check-pr.outputs.pr_exists }}"
+          FALLBACK_PR="${{ steps.fallback-pr.outputs.pr_created }}"
           COMMITS="${{ steps.check-commits.outputs.commit_count }}"
 
           echo "PR exists: $PR_EXISTS"
+          echo "Fallback PR created: $FALLBACK_PR"
           echo "Commits: $COMMITS"
 
-          if [ "$PR_EXISTS" != "true" ]; then
-            if [ "${COMMITS:-0}" -eq 0 ]; then
-              echo "::error::Claude did not create any commits or PR for this task"
-              echo "::error::Task may be too complex, unclear, or require human judgment"
-              echo "::error::Check Claude's output above (debug_mode is enabled) for reasoning"
-              exit 1
-            else
-              echo "::error::Claude created $COMMITS commit(s) but did NOT create a PR"
-              echo "::error::This is unexpected - Claude was instructed to always create a draft PR"
-              echo "::error::Check Claude's output above for errors during PR creation"
-              exit 1
-            fi
+          # Success if Claude created PR OR fallback PR was created
+          if [ "$PR_EXISTS" == "true" ]; then
+            echo "✅ Task completed successfully with $COMMITS commit(s) and PR created by Claude"
+          elif [ "$FALLBACK_PR" == "true" ]; then
+            echo "::warning::Task partially completed. Fallback PR created with $COMMITS commit(s)."
+            echo "⚠️ Fallback PR created - Claude did not create PR but work was preserved"
+          elif [ "${COMMITS:-0}" -eq 0 ]; then
+            echo "::error::Claude did not create any commits or PR for this task"
+            echo "::error::Task may be too complex, unclear, or require human judgment"
+            echo "::error::Check Claude's output above (debug_mode is enabled) for reasoning"
+            exit 1
+          else
+            # This shouldn't happen since fallback-pr step should have run
+            echo "::error::Unexpected state: commits exist but no PR was created"
+            exit 1
           fi
 
-          echo "✅ Task completed successfully with $COMMITS commit(s) and PR created"
-
-      # Update Linear issue if PR was created
+      # Update Linear issue if PR was created (either by Claude or fallback)
       - name: Update Linear issue
-        if: steps.check-pr.outputs.pr_exists == 'true'
+        if: steps.check-pr.outputs.pr_exists == 'true' || steps.fallback-pr.outputs.pr_created == 'true'
         run: |
           npx "@uniswap/ai-toolkit-linear-task-utils@${LINEAR_TASK_UTILS_TAG}" update-issue \
             --issue-id "$ISSUE_ID" \
@@ -426,7 +519,8 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
           LINEAR_TASK_UTILS_TAG: ${{ inputs.linear_task_utils_tag }}
           ISSUE_ID: ${{ inputs.issue_id }}
-          PR_URL: ${{ steps.check-pr.outputs.pr_url }}
+          # Use Claude's PR URL if available, otherwise use fallback PR URL
+          PR_URL: ${{ steps.check-pr.outputs.pr_url || steps.fallback-pr.outputs.pr_url }}
 
       # Create job summary
       - name: Create job summary
@@ -434,6 +528,8 @@ jobs:
         env:
           PR_EXISTS: ${{ steps.check-pr.outputs.pr_exists }}
           PR_URL: ${{ steps.check-pr.outputs.pr_url }}
+          FALLBACK_PR_CREATED: ${{ steps.fallback-pr.outputs.pr_created }}
+          FALLBACK_PR_URL: ${{ steps.fallback-pr.outputs.pr_url }}
           COMMIT_COUNT: ${{ steps.check-commits.outputs.commit_count }}
         run: |
           echo "## Task: ${{ inputs.issue_identifier }}" >> $GITHUB_STEP_SUMMARY
@@ -457,6 +553,15 @@ jobs:
             echo "**PR Created:** ✅ [$PR_URL]($PR_URL)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Linear Status:** Updated to 'In Progress'" >> $GITHUB_STEP_SUMMARY
+          elif [ "$FALLBACK_PR_CREATED" == "true" ]; then
+            echo "**PR Created:** ⚠️ Fallback PR [$FALLBACK_PR_URL]($FALLBACK_PR_URL)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "> Claude made ${COMMIT_COUNT} commit(s) but did not create a PR." >> $GITHUB_STEP_SUMMARY
+            echo "> A fallback PR was automatically created to preserve the work." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Linear Status:** Updated to 'In Progress'" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Action Required:** Review fallback PR and complete implementation if needed" >> $GITHUB_STEP_SUMMARY
           else
             echo "**PR Created:** ❌ No" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -467,9 +572,9 @@ jobs:
               echo "> Task may be too complex, unclear, or require human judgment." >> $GITHUB_STEP_SUMMARY
               echo "> Review Claude's full output above (debug_mode is enabled by default)." >> $GITHUB_STEP_SUMMARY
             else
-              echo "**Failure Reason:** Claude created ${COMMIT_COUNT} commit(s) but did NOT create a PR" >> $GITHUB_STEP_SUMMARY
+              echo "**Failure Reason:** Claude created ${COMMIT_COUNT} commit(s) but fallback PR creation failed" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
-              echo "> This is unexpected. Check Claude's output for errors during PR creation." >> $GITHUB_STEP_SUMMARY
+              echo "> This is unexpected. Check the workflow logs for errors." >> $GITHUB_STEP_SUMMARY
             fi
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Action Required:** Manual review needed" >> $GITHUB_STEP_SUMMARY
