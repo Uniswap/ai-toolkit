@@ -168,31 +168,14 @@ async function loadData() {
 
 _Impact: Production errors that are hard to debug._
 
-### Green Flags (Acknowledge these)
+### Good Practices Observed ✅
 
-**Clean separation:**
+Only if truly noteworthy - especially good applications of engineering principles
 
-```ts
-// GOOD: Single responsibility
-function validateOrder(items: Item[]): ValidationResult {
-  if (items.length === 0) return { valid: false, error: 'Empty order' };
-  if (items.some((i) => i.quantity < 1)) return { valid: false, error: 'Invalid quantity' };
-  return { valid: true };
-}
-```
+- Clean separation of concerns in [specific function/module]
+- Excellent use of dependency injection in [specific area]
 
-_Why it's good: Pure function, trivial to test, reusable._
-
-**Dependency injection:**
-
-```ts
-// GOOD: Dependencies passed in
-async function processPayment(amount: number, gateway: PaymentGateway) {
-  return gateway.charge(amount);
-}
-```
-
-_Why it's good: Test with simple mock. Swap providers without changing code._
+**Only comment when there's actionable feedback.** If code is fine, don't comment on it.
 
 ---
 
@@ -260,7 +243,6 @@ GitHub's API will reject inline comments on lines that are not within a diff hun
 - **Teach when valuable** - Connect patterns to practical benefits
 - **Focus on testing** - If something is hard to test, that's a design smell
 - **Skip nitpicks** - Don't comment on style unless it impacts readability significantly
-- **Acknowledge good code** - Reinforce good patterns when you see them
 
 ## Examples of Good Inline Comments
 
@@ -305,3 +287,6 @@ GitHub's API will reject inline comments on lines that are not within a diff hun
 ❌ Overly theoretical: "This violates SOLID principles..."
 ❌ Style nitpicks: "Use const instead of let"
 ❌ Prescriptive: "You should use a factory pattern here"
+❌ Praise comments: "Good use of X", "Nice pattern", "Well done", "Great job"
+❌ Explaining correct code: "This correctly handles the edge case..."
+❌ Unnecessary positivity: "Excellent security practice", "Good defensive programming"

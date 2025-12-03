@@ -456,7 +456,7 @@ jobs:
           # Disable built-in progress tracking - we handle our own PR comments
           track_progress: false
           # Show full Claude output in logs for debugging
-          show_full_output: true
+          show_full_output: false
           allowed_bots: dependabot
           claude_args: ${{ steps.build-args.outputs.claude_args }}
           additional_permissions: |
