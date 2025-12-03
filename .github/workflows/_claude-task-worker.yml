@@ -36,6 +36,8 @@
 # - model: Claude model to use (default: claude-sonnet-4-5-20250929)
 # - timeout_minutes: Execution timeout (default: 60)
 # - linear_task_utils_tag: npm tag for @uniswap/ai-toolkit-linear-task-utils (default: "latest")
+# - debug_mode: Enable full Claude Code output for debugging (default: true)
+# - pr_type: Type of PR to create - "draft" or "published" (default: "draft")
 #
 # SECRETS REQUIRED:
 # - ANTHROPIC_API_KEY: Claude API key
@@ -109,6 +111,12 @@ on:
         required: false
         type: boolean
         default: true
+
+      pr_type:
+        description: "Type of PR to create: 'draft' or 'published'"
+        required: false
+        type: string
+        default: "draft"
 
     secrets:
       ANTHROPIC_API_KEY:
@@ -298,7 +306,7 @@ jobs:
 
           ### Phase 7: Create Pull Request (REQUIRED - turns 131-150)
 
-          **THIS PHASE IS MANDATORY.** You MUST create a draft PR using the GitHub CLI.
+          **THIS PHASE IS MANDATORY.** You MUST create a PR using the GitHub CLI.
 
           Run this command:
           ```bash
@@ -325,8 +333,7 @@ jobs:
           ---
           *Autonomous implementation using ${{ inputs.model }}*" \
             --base "${{ inputs.target_branch }}" \
-            --head "${{ inputs.branch_name }}" \
-            --draft
+            --head "${{ inputs.branch_name }}" ${{ inputs.pr_type == 'draft' && '--draft' || '' }}
           ```
 
           After creating the PR, verify it was created:
@@ -436,16 +443,15 @@ jobs:
           BRANCH_NAME: ${{ inputs.branch_name }}
           COMMIT_COUNT: ${{ steps.check-commits.outputs.commit_count }}
           MODEL: ${{ inputs.model }}
+          PR_TYPE: ${{ inputs.pr_type }}
         run: |
           echo "::warning::Claude made ${COMMIT_COUNT} commit(s) but did not create a PR. Creating fallback PR..."
 
           # Get commit summary for PR body
           COMMIT_LOG=$(git log origin/"$TARGET_BRANCH"..HEAD --oneline 2>/dev/null | head -20)
 
-          # Create the fallback PR
-          PR_URL=$(gh pr create \
-            --title "[${ISSUE_IDENTIFIER}] WIP: Partial implementation (fallback PR)" \
-            --body "$(cat <<BODY_EOF
+          # Build PR body content
+          PR_BODY=$(cat <<BODY_EOF
           ## ⚠️ Fallback PR - Incomplete Implementation
 
           Claude exhausted the turn limit or encountered an error before creating a PR.
@@ -469,10 +475,23 @@ jobs:
           ---
           *Fallback PR created automatically. Original task used ${MODEL}.*
           BODY_EOF
-          )" \
-            --base "$TARGET_BRANCH" \
-            --head "$BRANCH_NAME" \
-            --draft)
+          )
+
+          # Build PR create command with optional --draft flag
+          PR_ARGS=(
+            --title "[${ISSUE_IDENTIFIER}] WIP: Partial implementation (fallback PR)"
+            --body "$PR_BODY"
+            --base "$TARGET_BRANCH"
+            --head "$BRANCH_NAME"
+          )
+
+          # Add --draft flag if pr_type is 'draft'
+          if [ "$PR_TYPE" = "draft" ]; then
+            PR_ARGS+=(--draft)
+          fi
+
+          # Create the fallback PR
+          PR_URL=$(gh pr create "${PR_ARGS[@]}")
 
           echo "Created fallback PR: $PR_URL"
           echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
@@ -543,6 +562,8 @@ jobs:
           echo "**Model:** ${{ inputs.model }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Max Turns:** 150" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**PR Type:** ${{ inputs.pr_type }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # Show commit count
