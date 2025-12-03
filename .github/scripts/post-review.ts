@@ -2,25 +2,33 @@
 /**
  * Post Review Script
  *
- * Parses Claude's structured JSON review output and posts it to GitHub
- * using the GitHub API. All actions are performed as `github-actions[bot]`.
+ * Takes Claude's structured JSON review output (from --json-schema) and posts
+ * it to GitHub using the GitHub API. All actions appear as `github-actions[bot]`.
+ *
+ * The workflow uses --json-schema flag with claude-code-action, which returns
+ * validated JSON directly via `structured_output`. This script expects clean
+ * JSON input (no preamble text or code fences needed).
  *
  * @usage
  *   npx tsx .github/scripts/post-review.ts \
  *     --owner "Uniswap" \
  *     --repo "ai-toolkit" \
- *     --pr-number 123 \
- *     --review-json '{"pr_review_body": "...", ...}'
+ *     --pr-number 123
  *
  * @environment
  *   GITHUB_TOKEN - GitHub token for API authentication (required)
- *   REVIEW_JSON_FILE - Path to file containing review JSON (safest for shell)
- *   REVIEW_JSON - Alternative to --review-json flag (direct content)
+ *   REVIEW_JSON_FILE - Path to file containing review JSON (preferred)
+ *   REVIEW_JSON - Direct JSON content (alternative to file)
  *
- * @priority Review JSON is read from (in order):
- *   1. --review-json CLI flag
- *   2. REVIEW_JSON_FILE env var (reads file at path)
- *   3. REVIEW_JSON env var (direct content)
+ * @input The review JSON must match this schema:
+ *   {
+ *     "pr_review_body": string,        // Markdown review content
+ *     "pr_review_outcome": string,     // "APPROVE" | "REQUEST_CHANGES" | "COMMENT"
+ *     "inline_comments_new": array,    // Inline comments on specific lines
+ *     "inline_comments_responses"?: array,  // Responses to existing comments
+ *     "files_reviewed"?: string[],     // List of reviewed files
+ *     "confidence"?: number            // 0.0-1.0 confidence level
+ *   }
  *
  * @output
  *   Exits with 0 on success, 1 on failure
@@ -397,7 +405,7 @@ function getValidDiffLines(
     }
 
     let totalLines = 0;
-    for (const lines of validLines.values()) {
+    for (const lines of Array.from(validLines.values())) {
       totalLines += lines.size;
     }
     log(`Parsed diff: ${validLines.size} files, ${totalLines} valid line positions`);
@@ -549,12 +557,13 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // Get review JSON from various sources (priority order):
-  // 1. --review-json CLI flag
-  // 2. REVIEW_JSON_FILE env var (read from file path - safest for shell)
+  // Get review JSON from sources (priority order):
+  // 1. REVIEW_JSON_FILE env var (preferred - file path from workflow)
+  // 2. --review-json CLI flag
   // 3. REVIEW_JSON env var (direct content)
-  let reviewJsonInput = values['review-json'];
-  if (!reviewJsonInput && process.env.REVIEW_JSON_FILE) {
+  let reviewJsonInput: string | undefined;
+
+  if (process.env.REVIEW_JSON_FILE) {
     try {
       reviewJsonInput = readFileSync(process.env.REVIEW_JSON_FILE, 'utf-8');
       log(`Read review JSON from file: ${process.env.REVIEW_JSON_FILE}`);
@@ -563,13 +572,14 @@ async function main(): Promise<void> {
       process.exit(1);
     }
   }
+
   if (!reviewJsonInput) {
-    reviewJsonInput = process.env.REVIEW_JSON;
+    reviewJsonInput = values['review-json'] || process.env.REVIEW_JSON;
   }
 
   if (!reviewJsonInput) {
     logError(
-      'Missing review JSON. Provide via --review-json, REVIEW_JSON_FILE, or REVIEW_JSON env'
+      'Missing review JSON. Provide via REVIEW_JSON_FILE, --review-json, or REVIEW_JSON env'
     );
     process.exit(1);
   }
@@ -577,38 +587,12 @@ async function main(): Promise<void> {
   log(`Processing review for ${owner}/${repo}#${prNumber}`);
 
   // Parse and validate the review JSON
+  // With --json-schema, the input is already clean JSON (no preamble or code fences)
   let reviewOutput: ReviewOutput;
   try {
-    // Claude may output explanatory text before the JSON code block.
-    // We need to extract the JSON from anywhere in the response.
-    // Expected format: [optional preamble text] ```json\n{...}\n```
-
-    let jsonStr = reviewJsonInput.trim();
-
-    // Try to find a JSON code block anywhere in the response
-    // Use a regex that matches ```json...``` and captures the content
-    // The $ anchor ensures we get the LAST code block if there are multiple
-    const jsonBlockMatch = jsonStr.match(/```json\s*([\s\S]*?)```\s*$/);
-    if (jsonBlockMatch) {
-      jsonStr = jsonBlockMatch[1].trim();
-      log('Extracted JSON from code block');
-    } else if (jsonStr.startsWith('```')) {
-      // Fallback: strip code fences if response starts with them
-      jsonStr = jsonStr.replace(/^```(?:json)?\s*\n?/, '');
-      jsonStr = jsonStr.replace(/\n?```\s*$/, '');
-      log('Stripped code fences from start of response');
-    } else {
-      // Last resort: try to find JSON object directly (starts with {)
-      const jsonStartIndex = jsonStr.indexOf('{');
-      if (jsonStartIndex !== -1) {
-        jsonStr = jsonStr.substring(jsonStartIndex);
-        log('Found JSON object starting at index ' + jsonStartIndex);
-      }
-    }
-
-    const parsed = JSON.parse(jsonStr.trim());
+    const parsed = JSON.parse(reviewJsonInput.trim());
     reviewOutput = validateReviewOutput(parsed);
-    log('Review JSON validated successfully');
+    log('Review JSON parsed and validated successfully');
   } catch (error) {
     logError(`Failed to parse review JSON: ${(error as Error).message}`);
     log('Raw input (first 500 chars):');
