@@ -437,7 +437,6 @@ npx nx run-many --target=build
 - **Documentation**: Check package-level README.md and CLAUDE.md files
 - **Issues**: [GitHub Issues](https://github.com/Uniswap/ai-toolkit/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/Uniswap/ai-toolkit/discussions)
-- **Slack**: [#pod-dev-ai](https://uniswapteam.enterprise.slack.com/archives/C094URH6C13)
 
 ### Common Issues
 

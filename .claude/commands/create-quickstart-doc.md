@@ -58,6 +58,7 @@ const prerequisiteDocs = await searchNotion({
 Before writing documentation, thoroughly research the tool:
 
 1. **Read the source code** in the repository to understand:
+
    - What the tool does
    - How it's configured/used
    - Any CLI commands or API interfaces
@@ -101,6 +102,7 @@ Create the documentation following this standard template structure:
 > **Note:** Complete these prerequisites in order before proceeding.
 
 1. **[Prerequisite 1]** - [Brief description]
+
    - [Link to prerequisite doc in Notion database]
 
 2. **[Prerequisite 2]** - [Brief description]
@@ -136,10 +138,10 @@ Create the documentation following this standard template structure:
 
 ### Inputs/Parameters
 
-| Input | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `param1` | string | Yes | - | Description |
-| `param2` | number | No | `10` | Description |
+| Input    | Type   | Required | Default | Description |
+| -------- | ------ | -------- | ------- | ----------- |
+| `param1` | string | Yes      | -       | Description |
+| `param2` | number | No       | `10`    | Description |
 
 ### Key Features
 
@@ -162,7 +164,7 @@ Create the documentation following this standard template structure:
 - [Full documentation](https://github.com/Uniswap/ai-toolkit/blob/main/path/to/README.md)
 - [Example implementation](https://github.com/Uniswap/ai-toolkit/blob/main/path/to/example)
 
-**Need help?** Ask in [#pod-dev-ai](slackChannel://uniswapteam.enterprise.slack.com/C094URH6C13) Slack channel
+**Need help?** Open an issue at [GitHub Issues](https://github.com/Uniswap/ai-toolkit/issues)
 ```
 
 ### Step 5: Create the Notion Page
