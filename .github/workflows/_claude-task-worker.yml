@@ -104,6 +104,12 @@ on:
         type: string
         default: "latest"
 
+      debug_mode:
+        description: "Enable full Claude Code output for debugging (shows Claude's reasoning)"
+        required: false
+        type: boolean
+        default: true
+
     secrets:
       ANTHROPIC_API_KEY:
         description: "Anthropic API key for Claude Code"
@@ -257,9 +263,49 @@ jobs:
           git push origin ${{ inputs.branch_name }}
           ```
 
-          ### Phase 7: Create Pull Request
+          ### Phase 7: Create Pull Request (REQUIRED)
 
-          Use gh CLI to create a PR to ${{ inputs.target_branch }}.
+          **THIS PHASE IS MANDATORY.** You MUST create a draft PR using the GitHub CLI.
+
+          Run this command:
+          ```bash
+          gh pr create \
+            --title "[${{ inputs.issue_identifier }}] [Brief description of your changes]" \
+            --body "## Summary
+
+          [Explain what was implemented and why]
+
+          ## Changes
+
+          - [List key file changes]
+          - [Highlight important design decisions]
+
+          ## Testing
+
+          - [Describe how you tested the changes]
+          - [List commands to verify functionality]
+
+          ## Linear Issue
+
+          Closes: ${{ inputs.issue_url }}
+
+          ---
+          *Autonomous implementation using ${{ inputs.model }}*" \
+            --base "${{ inputs.target_branch }}" \
+            --head "${{ inputs.branch_name }}" \
+            --draft
+          ```
+
+          After creating the PR, verify it was created:
+          ```bash
+          gh pr view --json url
+          ```
+
+          **CRITICAL REQUIREMENTS:**
+          - You **MUST** create this draft PR successfully
+          - The workflow depends on it for Linear issue updates
+          - If you cannot implement the task, you MUST still create a PR explaining what you attempted and what blockers you encountered
+          - A PR with partial progress is better than no PR at all
 
           ---
 
@@ -278,6 +324,25 @@ jobs:
           echo "$PROMPT" >> $GITHUB_OUTPUT
           echo "PROMPT_DELIM" >> $GITHUB_OUTPUT
 
+      # Warn about potentially complex tasks
+      - name: Assess task complexity
+        env:
+          ISSUE_DESCRIPTION: ${{ inputs.issue_description }}
+        run: |
+          # Check for keywords indicating manual work may be needed
+          if echo "$ISSUE_DESCRIPTION" | grep -qiE "(audit|review|decide|discuss|meeting|manual|clarify|unclear|investigate)"; then
+            echo "::warning::This task may require human judgment or clarification"
+            KEYWORDS=$(echo "$ISSUE_DESCRIPTION" | grep -ioE "(audit|review|decide|discuss|meeting|manual|clarify|unclear|investigate)" | sort -u | tr '\n' ', ' | sed 's/,$//')
+            echo "::warning::Keywords found: $KEYWORDS"
+          fi
+
+          # Check task length
+          WORD_COUNT=$(echo "$ISSUE_DESCRIPTION" | wc -w | tr -d ' ')
+          if [ "$WORD_COUNT" -gt 500 ]; then
+            echo "::warning::Task description is very long ($WORD_COUNT words)"
+            echo "::warning::Consider breaking into smaller, more focused tasks"
+          fi
+
       # Run Claude Code with Linear MCP configured
       - name: Run Claude Code
         id: claude
@@ -285,9 +350,10 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: ${{ steps.build-prompt.outputs.prompt }}
+          show_full_output: ${{ inputs.debug_mode }}
           claude_args: |
             --model ${{ inputs.model }}
-            --max-turns 100
+            --max-turns 150
             --mcp-config '{"mcpServers":{"linear":{"command":"npx","args":["-y","linear-mcp-server"],"env":{"LINEAR_API_KEY":"${{ secrets.LINEAR_API_KEY }}"}}}}'
           additional_permissions: |
             actions: read
@@ -310,13 +376,47 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
+      # Check how many commits were made
+      - name: Check commit count
+        id: check-commits
+        run: |
+          # Count commits beyond the base branch
+          COMMITS=$(git log origin/${{ inputs.target_branch }}..HEAD --oneline 2>/dev/null | wc -l | tr -d ' ')
+          echo "commit_count=$COMMITS" >> $GITHUB_OUTPUT
+          echo "Commits made: $COMMITS"
+
+      # Validate that Claude completed the task
+      - name: Validate outcome
+        run: |
+          PR_EXISTS="${{ steps.check-pr.outputs.pr_exists }}"
+          COMMITS="${{ steps.check-commits.outputs.commit_count }}"
+
+          echo "PR exists: $PR_EXISTS"
+          echo "Commits: $COMMITS"
+
+          if [ "$PR_EXISTS" != "true" ]; then
+            if [ "$COMMITS" -eq 0 ]; then
+              echo "::error::Claude did not create any commits or PR for this task"
+              echo "::error::Task may be too complex, unclear, or require human judgment"
+              echo "::error::Check Claude's output above (debug_mode is enabled) for reasoning"
+              exit 1
+            else
+              echo "::error::Claude created $COMMITS commit(s) but did NOT create a PR"
+              echo "::error::This is unexpected - Claude was instructed to always create a draft PR"
+              echo "::error::Check Claude's output above for errors during PR creation"
+              exit 1
+            fi
+          fi
+
+          echo "✅ Task completed successfully with $COMMITS commit(s) and PR created"
+
       # Update Linear issue if PR was created
       - name: Update Linear issue
         if: steps.check-pr.outputs.pr_exists == 'true'
         run: |
           npx "@uniswap/ai-toolkit-linear-task-utils@${LINEAR_TASK_UTILS_TAG}" update-issue \
             --issue-id "$ISSUE_ID" \
-            --status "In Review" \
+            --status "In Progress" \
             --pr-url "$PR_URL"
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
@@ -328,6 +428,10 @@ jobs:
       # Create job summary
       - name: Create job summary
         if: always()
+        env:
+          PR_EXISTS: ${{ steps.check-pr.outputs.pr_exists }}
+          PR_URL: ${{ steps.check-pr.outputs.pr_url }}
+          COMMIT_COUNT: ${{ steps.check-commits.outputs.commit_count }}
         run: |
           echo "## Task: ${{ inputs.issue_identifier }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -339,13 +443,31 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Model:** ${{ inputs.model }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Max Turns:** 150" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ steps.check-pr.outputs.pr_exists }}" == "true" ]; then
-            echo "**PR Created:** [${{ steps.check-pr.outputs.pr_url }}](${{ steps.check-pr.outputs.pr_url }})" >> $GITHUB_STEP_SUMMARY
+          # Show commit count
+          echo "**Commits Made:** ${COMMIT_COUNT:-0}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$PR_EXISTS" == "true" ]; then
+            echo "**PR Created:** ✅ [$PR_URL]($PR_URL)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Linear Status:** Updated to 'In Review'" >> $GITHUB_STEP_SUMMARY
+            echo "**Linear Status:** Updated to 'In Progress'" >> $GITHUB_STEP_SUMMARY
           else
-            echo "**PR Created:** No" >> $GITHUB_STEP_SUMMARY
+            echo "**PR Created:** ❌ No" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Claude did not create a PR. Check the logs for details." >> $GITHUB_STEP_SUMMARY
+
+            if [ "${COMMIT_COUNT:-0}" -eq 0 ]; then
+              echo "**Failure Reason:** Claude did not create any commits or PR" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "> Task may be too complex, unclear, or require human judgment." >> $GITHUB_STEP_SUMMARY
+              echo "> Review Claude's full output above (debug_mode is enabled by default)." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "**Failure Reason:** Claude created ${COMMIT_COUNT} commit(s) but did NOT create a PR" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "> This is unexpected. Check Claude's output for errors during PR creation." >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Action Required:** Manual review needed" >> $GITHUB_STEP_SUMMARY
           fi
