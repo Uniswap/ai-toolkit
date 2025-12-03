@@ -95,6 +95,106 @@ This allows users to add custom notes, disclaimers, or additional context that s
 **Related Issues:** #123, #456
 ```
 
+**Generation Mode:**
+
+The `generation_mode` input controls what the workflow generates:
+
+| Mode          | Description                         | Default |
+| ------------- | ----------------------------------- | ------- |
+| `both`        | Generate both title and description | Yes     |
+| `title`       | Generate only the PR title          | No      |
+| `description` | Generate only the PR description    | No      |
+
+**Usage example:**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_generate-pr-metadata.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  base_ref: ${{ github.base_ref }}
+  generation_mode: 'title' # Only generate title, leave description unchanged
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+### Autonomous Task Processing (`_claude-task-worker.yml`)
+
+This workflow processes Linear issues autonomously using Claude Code. It's called by `claude-auto-tasks.yml` for each task in the matrix.
+
+**Key Features:**
+
+| Feature                      | Description                                                                                              |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **7-Phase Workflow**         | Claude follows a structured approach: Understand → Explore → Plan → Implement → QA → Commit → Create PR  |
+| **Autonomous Execution**     | Uses `--dangerously-skip-permissions` to run without permission prompts (safe in GitHub Actions sandbox) |
+| **Turn Budget Management**   | Prompt includes explicit turn budgets per phase to prevent over-exploration and ensure PR creation       |
+| **Fallback PR Creation**     | If Claude makes commits but fails to create a PR, workflow automatically creates a fallback PR           |
+| **Debug Mode**               | Full Claude output shown by default (`debug_mode: true`) to understand reasoning                         |
+| **Configurable PR Type**     | Choose between draft or published PRs via `pr_type` input (default: "draft")                             |
+| **Task Complexity Warnings** | Warns about tasks containing keywords like "audit", "review", "investigate"                              |
+| **Incremental Commits**      | Prompt instructs Claude to commit and push after each major piece of work to preserve progress           |
+| **Linear Integration**       | Updates Linear issue status to "In Progress" when PR is created                                          |
+
+**Turn Budget (built into prompt):**
+
+| Phase              | Turns   | Purpose                                          |
+| ------------------ | ------- | ------------------------------------------------ |
+| Understand/Explore | 1-30    | Read CLAUDE.md, explore codebase, identify files |
+| Plan/Implement     | 31-100  | Design approach and implement the solution       |
+| QA/Fix             | 101-130 | Run checks, fix critical issues                  |
+| **Commit/PR**      | 131-150 | **RESERVED** - Must commit and create PR         |
+
+**Configuration:**
+
+| Input             | Default                    | Description                                  |
+| ----------------- | -------------------------- | -------------------------------------------- |
+| `model`           | `claude-opus-4-5-20251101` | Claude model to use                          |
+| `max_turns`       | `150`                      | Maximum conversation turns                   |
+| `debug_mode`      | `true`                     | Show full Claude output                      |
+| `timeout_minutes` | `60`                       | Job timeout                                  |
+| `pr_type`         | `draft`                    | Type of PR to create: "draft" or "published" |
+
+**Validation Behavior:**
+
+The workflow validates that Claude completed the task:
+
+1. **No commits + No PR**: Job fails with "Task may be too complex, unclear, or require human judgment"
+2. **Commits + No PR**: Fallback PR is automatically created to preserve work, job succeeds with warning
+3. **Commits + PR**: Job succeeds, Linear updated to "In Progress"
+
+**Job Summary Output:**
+
+The job summary includes:
+
+- Task title and Linear issue link
+- Branch name and model used
+- PR type (draft or published)
+- Commit count
+- PR creation status (✅ Claude PR / ⚠️ Fallback PR / ❌ No PR)
+- Failure reason (if applicable)
+- Linear status update
+
+**Usage example:**
+
+```yaml
+uses: ./.github/workflows/_claude-task-worker.yml
+with:
+  issue_id: ${{ matrix.issue_id }}
+  issue_identifier: ${{ matrix.issue_identifier }}
+  issue_title: ${{ matrix.issue_title }}
+  issue_description: ${{ matrix.issue_description }}
+  issue_url: ${{ matrix.issue_url }}
+  branch_name: ${{ matrix.branch_name }}
+  target_branch: 'next'
+  model: 'claude-opus-4-5-20251101'
+  debug_mode: true
+  pr_type: 'draft' # or 'published' for non-draft PRs
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+  NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+```
+
 ### Shared Internal Workflows
 
 These workflows are prefixed with two `__` and are only used within this repository:
@@ -167,11 +267,10 @@ Version pinning is centralized using GitHub repository variables (`vars.*`):
 Common secrets referenced:
 
 - `ANTHROPIC_API_KEY` - Claude AI API authentication
-- `NPM_TOKEN` / `NODE_AUTH_TOKEN` - NPM registry publishing
+- `NODE_AUTH_TOKEN` - NPM registry authentication (for publishing and installing `@uniswap` scoped packages)
 - `WORKFLOW_PAT` - Personal Access Token for pushing commits/tags (force-publish)
 - `SERVICE_ACCOUNT_GPG_PRIVATE_KEY` - GPG key for signed commits/tags
 - `LINEAR_API_KEY` - Linear API authentication (for autonomous tasks)
-- `NPM_TOKEN` - NPM registry publishing
 - `SLACK_WEBHOOK_URL` - Slack notifications
 - `GITHUB_TOKEN` - Built-in token (automatic)
 

@@ -35,10 +35,14 @@
 # - target_branch: Branch to create PR against (default: "next")
 # - model: Claude model to use (default: claude-sonnet-4-5-20250929)
 # - timeout_minutes: Execution timeout (default: 60)
+# - linear_task_utils_tag: npm tag for @uniswap/ai-toolkit-linear-task-utils (default: "latest")
+# - debug_mode: Enable full Claude Code output for debugging (default: true)
+# - pr_type: Type of PR to create - "draft" or "published" (default: "draft")
 #
 # SECRETS REQUIRED:
 # - ANTHROPIC_API_KEY: Claude API key
 # - LINEAR_API_KEY: Linear API key
+# - NODE_AUTH_TOKEN: npm token for installing @uniswap scoped packages
 # - WORKFLOW_PAT: (optional) PAT for pushing branches (falls back to GITHUB_TOKEN)
 
 name: "[claude] Task Worker"
@@ -85,16 +89,34 @@ on:
       model:
         description: |
           Claude model to use.
-          Options: claude-sonnet-4-5-20250929, claude-opus-4-20250514, claude-haiku-4-5@20251001
+          Options: claude-sonnet-4-5-20250929, claude-opus-4-5-20251101, claude-haiku-4-5@20251001
         required: false
         type: string
-        default: "claude-sonnet-4-5-20250929"
+        default: "claude-opus-4-5-20251101"
 
       timeout_minutes:
         description: "Maximum execution time in minutes"
         required: false
         type: number
         default: 60
+
+      linear_task_utils_tag:
+        description: "npm tag for @uniswap/ai-toolkit-linear-task-utils (latest or next)"
+        required: false
+        type: string
+        default: "latest"
+
+      debug_mode:
+        description: "Enable full Claude Code output for debugging (shows Claude's reasoning)"
+        required: false
+        type: boolean
+        default: true
+
+      pr_type:
+        description: "Type of PR to create: 'draft' or 'published'"
+        required: false
+        type: string
+        default: "draft"
 
     secrets:
       ANTHROPIC_API_KEY:
@@ -108,6 +130,10 @@ on:
       WORKFLOW_PAT:
         description: "PAT for pushing branches (optional, falls back to GITHUB_TOKEN)"
         required: false
+
+      NODE_AUTH_TOKEN:
+        description: "npm token for installing @uniswap scoped packages"
+        required: true
 
 jobs:
   process-task:
@@ -143,6 +169,8 @@ jobs:
         with:
           node-version: "22.21.1"
           cache: "npm"
+          registry-url: "https://registry.npmjs.org"
+          scope: "@uniswap"
 
       # Install npm 11.6.2 (required for this project)
       - name: Install npm
@@ -151,6 +179,8 @@ jobs:
       # Install dependencies
       - name: Install dependencies
         run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
       # Create and push the feature branch
       - name: Create feature branch
@@ -194,34 +224,65 @@ jobs:
 
           ---
 
+          ## ⚠️ Turn Budget Management (CRITICAL)
+
+          You have a **maximum of 150 turns**. Plan accordingly:
+
+          | Phase | Turns | Purpose |
+          |-------|-------|---------|
+          | Understand & Explore | 1-30 | Read CLAUDE.md, explore codebase, identify key files |
+          | Plan & Implement | 31-100 | Design approach and implement the solution |
+          | QA & Fix | 101-130 | Run checks, fix issues |
+          | **RESERVED: Commit & PR** | **131-150** | **MUST commit and create PR** |
+
+          **HARD RULES:**
+          - If you reach **turn 80** and haven't started implementation, **STOP exploring immediately** and begin implementing with what you know
+          - If you reach **turn 120**, you **MUST** start wrapping up: commit your work and create the PR
+          - A partial solution with a draft PR is **infinitely more valuable** than exhaustive research with no PR
+
+          ### Incremental Progress (Save Your Work!)
+
+          After completing each significant piece of work, **commit and push immediately**:
+          ```bash
+          git add -A
+          git commit -m "wip: [describe what was done]"
+          git push origin ${{ inputs.branch_name }}
+          ```
+          This ensures work is saved even if the session ends unexpectedly.
+
+          ---
+
           ## Your Workflow
 
           Follow these phases in order. Use sub-agents (Task tool) for complex exploration or planning.
 
-          ### Phase 1: Understand the Task
+          ### Phase 1: Understand the Task (turns 1-10)
 
           Ensure you understand the purpose, scope, and outcome. If completely unclear, use Linear MCP to comment asking for clarification.
 
-          ### Phase 2: Exploration
+          ### Phase 2: Exploration (turns 11-30)
 
-          - Read relevant CLAUDE.md files
-          - Explore the codebase
-          - Identify files to modify
-          - Understand existing patterns
+          **Keep exploration focused and time-boxed.** Do not rabbit-hole.
 
-          ### Phase 3: Planning
+          - Read relevant CLAUDE.md files (start with the root CLAUDE.md)
+          - Identify the 2-5 most relevant files to modify
+          - Understand existing patterns from those files
+          - **DO NOT** exhaustively read every file in the codebase
 
-          - Design your approach
-          - Consider edge cases
-          - Plan implementation steps
+          ### Phase 3: Planning (turns 31-40)
 
-          ### Phase 4: Implementation
+          - Design your approach in 3-5 concrete steps
+          - Consider only the most likely edge cases
+          - If the task seems too large, **scope down** to an MVP
+
+          ### Phase 4: Implementation (turns 41-100)
 
           - Implement following existing patterns
           - Keep changes minimal and focused
-          - Add tests if appropriate
+          - Add tests only if explicitly required or trivially simple
+          - **Commit and push after each major file change**
 
-          ### Phase 5: Quality Assurance
+          ### Phase 5: Quality Assurance (turns 101-120)
 
           Run these commands:
           ```bash
@@ -232,7 +293,9 @@ jobs:
           npx nx affected --target=build --base=${{ inputs.target_branch }}
           ```
 
-          ### Phase 6: Commit and Push
+          If checks fail, fix only **critical errors**. Minor warnings can be noted in the PR.
+
+          ### Phase 6: Commit and Push (turns 121-130)
 
           Create a conventional commit and push:
           ```bash
@@ -241,19 +304,59 @@ jobs:
           git push origin ${{ inputs.branch_name }}
           ```
 
-          ### Phase 7: Create Pull Request
+          ### Phase 7: Create Pull Request (REQUIRED - turns 131-150)
 
-          Use gh CLI to create a PR to ${{ inputs.target_branch }}.
+          **THIS PHASE IS MANDATORY.** You MUST create a PR using the GitHub CLI.
+
+          Run this command:
+          ```bash
+          gh pr create \
+            --title "[${{ inputs.issue_identifier }}] [Brief description of your changes]" \
+            --body "## Summary
+
+          [Explain what was implemented and why]
+
+          ## Changes
+
+          - [List key file changes]
+          - [Highlight important design decisions]
+
+          ## Testing
+
+          - [Describe how you tested the changes]
+          - [List commands to verify functionality]
+
+          ## Linear Issue
+
+          Closes: ${{ inputs.issue_url }}
+
+          ---
+          *Autonomous implementation using ${{ inputs.model }}*" \
+            --base "${{ inputs.target_branch }}" \
+            --head "${{ inputs.branch_name }}" ${{ inputs.pr_type == 'draft' && '--draft' || '' }}
+          ```
+
+          After creating the PR, verify it was created:
+          ```bash
+          gh pr view --json url
+          ```
+
+          **CRITICAL REQUIREMENTS:**
+          - You **MUST** create this draft PR successfully
+          - The workflow depends on it for Linear issue updates
+          - If you cannot fully implement the task, you MUST still create a PR explaining what you accomplished and what remains
+          - A PR with partial progress is better than no PR at all
 
           ---
 
           ## Guidelines
 
           - Follow all CLAUDE.md instructions
-          - Make reasonable assumptions
-          - Keep changes minimal
+          - Make reasonable assumptions—do not over-research
+          - Keep changes minimal—scope down if needed
           - Only ask for clarification if task is COMPLETELY unclear
           - Do NOT push to main or ${{ inputs.target_branch }} directly
+          - **Prioritize shipping over perfection**
           PROMPT_EOF
           )
 
@@ -262,6 +365,25 @@ jobs:
           echo "$PROMPT" >> $GITHUB_OUTPUT
           echo "PROMPT_DELIM" >> $GITHUB_OUTPUT
 
+      # Warn about potentially complex tasks
+      - name: Assess task complexity
+        env:
+          ISSUE_DESCRIPTION: ${{ inputs.issue_description }}
+        run: |
+          # Check for keywords indicating manual work may be needed
+          if echo "$ISSUE_DESCRIPTION" | grep -qiE "(audit|review|decide|discuss|meeting|manual|clarify|unclear|investigate)"; then
+            echo "::warning::This task may require human judgment or clarification"
+            KEYWORDS=$(echo "$ISSUE_DESCRIPTION" | grep -ioE "(audit|review|decide|discuss|meeting|manual|clarify|unclear|investigate)" | sort -u | tr '\n' ', ' | sed 's/,$//')
+            echo "::warning::Keywords found: $KEYWORDS"
+          fi
+
+          # Check task length
+          WORD_COUNT=$(echo "$ISSUE_DESCRIPTION" | wc -w | tr -d ' ')
+          if [ "$WORD_COUNT" -gt 500 ]; then
+            echo "::warning::Task description is very long ($WORD_COUNT words)"
+            echo "::warning::Consider breaking into smaller, more focused tasks"
+          fi
+
       # Run Claude Code with Linear MCP configured
       - name: Run Claude Code
         id: claude
@@ -269,9 +391,11 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: ${{ steps.build-prompt.outputs.prompt }}
+          show_full_output: ${{ inputs.debug_mode }}
           claude_args: |
             --model ${{ inputs.model }}
-            --max-turns 100
+            --max-turns 150
+            --dangerously-skip-permissions
             --mcp-config '{"mcpServers":{"linear":{"command":"npx","args":["-y","linear-mcp-server"],"env":{"LINEAR_API_KEY":"${{ secrets.LINEAR_API_KEY }}"}}}}'
           additional_permissions: |
             actions: read
@@ -294,20 +418,138 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
-      # Update Linear issue if PR was created
-      - name: Update Linear issue
-        if: steps.check-pr.outputs.pr_exists == 'true'
+      # Check how many commits were made
+      - name: Check commit count
+        id: check-commits
+        env:
+          TARGET_BRANCH: ${{ inputs.target_branch }}
         run: |
-          npx @uniswap/ai-toolkit-linear-task-utils@latest update-issue \
-            --issue-id "${{ inputs.issue_id }}" \
-            --status "In Review" \
-            --pr-url "${{ steps.check-pr.outputs.pr_url }}"
+          # Count commits beyond the base branch
+          COMMITS=$(git log origin/"$TARGET_BRANCH"..HEAD --oneline 2>/dev/null | wc -l | tr -d ' ')
+          echo "commit_count=$COMMITS" >> $GITHUB_OUTPUT
+          echo "Commits made: $COMMITS"
+
+      # Create fallback PR if Claude made commits but didn't create a PR
+      # This ensures work is never lost even if Claude ran out of turns or failed to create PR
+      - name: Create fallback PR (if needed)
+        id: fallback-pr
+        if: steps.check-pr.outputs.pr_exists != 'true' && steps.check-commits.outputs.commit_count != '0'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ISSUE_IDENTIFIER: ${{ inputs.issue_identifier }}
+          ISSUE_URL: ${{ inputs.issue_url }}
+          ISSUE_TITLE: ${{ inputs.issue_title }}
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+          BRANCH_NAME: ${{ inputs.branch_name }}
+          COMMIT_COUNT: ${{ steps.check-commits.outputs.commit_count }}
+          MODEL: ${{ inputs.model }}
+          PR_TYPE: ${{ inputs.pr_type }}
+        run: |
+          echo "::warning::Claude made ${COMMIT_COUNT} commit(s) but did not create a PR. Creating fallback PR..."
+
+          # Get commit summary for PR body
+          COMMIT_LOG=$(git log origin/"$TARGET_BRANCH"..HEAD --oneline 2>/dev/null | head -20)
+
+          # Build PR body content
+          PR_BODY=$(cat <<BODY_EOF
+          ## ⚠️ Fallback PR - Incomplete Implementation
+
+          Claude exhausted the turn limit or encountered an error before creating a PR.
+          This fallback PR was automatically created to preserve the work.
+
+          **Commits made:** ${COMMIT_COUNT}
+
+          ### Commit Summary
+          \`\`\`
+          ${COMMIT_LOG}
+          \`\`\`
+
+          ### Next Steps
+          - Review the changes made by Claude
+          - Either complete the implementation manually, or
+          - Close this PR and re-run with a more focused task description
+
+          ### Linear Issue
+          ${ISSUE_URL}
+
+          ---
+          *Fallback PR created automatically. Original task used ${MODEL}.*
+          BODY_EOF
+          )
+
+          # Build PR create command with optional --draft flag
+          PR_ARGS=(
+            --title "[${ISSUE_IDENTIFIER}] WIP: Partial implementation (fallback PR)"
+            --body "$PR_BODY"
+            --base "$TARGET_BRANCH"
+            --head "$BRANCH_NAME"
+          )
+
+          # Add --draft flag if pr_type is 'draft'
+          if [ "$PR_TYPE" = "draft" ]; then
+            PR_ARGS+=(--draft)
+          fi
+
+          # Create the fallback PR
+          PR_URL=$(gh pr create "${PR_ARGS[@]}")
+
+          echo "Created fallback PR: $PR_URL"
+          echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+          echo "pr_created=true" >> $GITHUB_OUTPUT
+
+      # Validate that Claude completed the task
+      - name: Validate outcome
+        run: |
+          PR_EXISTS="${{ steps.check-pr.outputs.pr_exists }}"
+          FALLBACK_PR="${{ steps.fallback-pr.outputs.pr_created }}"
+          COMMITS="${{ steps.check-commits.outputs.commit_count }}"
+
+          echo "PR exists: $PR_EXISTS"
+          echo "Fallback PR created: $FALLBACK_PR"
+          echo "Commits: $COMMITS"
+
+          # Success if Claude created PR OR fallback PR was created
+          if [ "$PR_EXISTS" == "true" ]; then
+            echo "✅ Task completed successfully with $COMMITS commit(s) and PR created by Claude"
+          elif [ "$FALLBACK_PR" == "true" ]; then
+            echo "::warning::Task partially completed. Fallback PR created with $COMMITS commit(s)."
+            echo "⚠️ Fallback PR created - Claude did not create PR but work was preserved"
+          elif [ "${COMMITS:-0}" -eq 0 ]; then
+            echo "::error::Claude did not create any commits or PR for this task"
+            echo "::error::Task may be too complex, unclear, or require human judgment"
+            echo "::error::Check Claude's output above (debug_mode is enabled) for reasoning"
+            exit 1
+          else
+            # This shouldn't happen since fallback-pr step should have run
+            echo "::error::Unexpected state: commits exist but no PR was created"
+            exit 1
+          fi
+
+      # Update Linear issue if PR was created (either by Claude or fallback)
+      - name: Update Linear issue
+        if: steps.check-pr.outputs.pr_exists == 'true' || steps.fallback-pr.outputs.pr_created == 'true'
+        run: |
+          npx "@uniswap/ai-toolkit-linear-task-utils@${LINEAR_TASK_UTILS_TAG}" update-issue \
+            --issue-id "$ISSUE_ID" \
+            --status "In Progress" \
+            --pr-url "$PR_URL"
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          LINEAR_TASK_UTILS_TAG: ${{ inputs.linear_task_utils_tag }}
+          ISSUE_ID: ${{ inputs.issue_id }}
+          # Use Claude's PR URL if available, otherwise use fallback PR URL
+          PR_URL: ${{ steps.check-pr.outputs.pr_url || steps.fallback-pr.outputs.pr_url }}
 
       # Create job summary
       - name: Create job summary
         if: always()
+        env:
+          PR_EXISTS: ${{ steps.check-pr.outputs.pr_exists }}
+          PR_URL: ${{ steps.check-pr.outputs.pr_url }}
+          FALLBACK_PR_CREATED: ${{ steps.fallback-pr.outputs.pr_created }}
+          FALLBACK_PR_URL: ${{ steps.fallback-pr.outputs.pr_url }}
+          COMMIT_COUNT: ${{ steps.check-commits.outputs.commit_count }}
         run: |
           echo "## Task: ${{ inputs.issue_identifier }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -319,13 +561,42 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Model:** ${{ inputs.model }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Max Turns:** 150" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**PR Type:** ${{ inputs.pr_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ steps.check-pr.outputs.pr_exists }}" == "true" ]; then
-            echo "**PR Created:** [${{ steps.check-pr.outputs.pr_url }}](${{ steps.check-pr.outputs.pr_url }})" >> $GITHUB_STEP_SUMMARY
+          # Show commit count
+          echo "**Commits Made:** ${COMMIT_COUNT:-0}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$PR_EXISTS" == "true" ]; then
+            echo "**PR Created:** ✅ [$PR_URL]($PR_URL)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Linear Status:** Updated to 'In Review'" >> $GITHUB_STEP_SUMMARY
+            echo "**Linear Status:** Updated to 'In Progress'" >> $GITHUB_STEP_SUMMARY
+          elif [ "$FALLBACK_PR_CREATED" == "true" ]; then
+            echo "**PR Created:** ⚠️ Fallback PR [$FALLBACK_PR_URL]($FALLBACK_PR_URL)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "> Claude made ${COMMIT_COUNT} commit(s) but did not create a PR." >> $GITHUB_STEP_SUMMARY
+            echo "> A fallback PR was automatically created to preserve the work." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Linear Status:** Updated to 'In Progress'" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Action Required:** Review fallback PR and complete implementation if needed" >> $GITHUB_STEP_SUMMARY
           else
-            echo "**PR Created:** No" >> $GITHUB_STEP_SUMMARY
+            echo "**PR Created:** ❌ No" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Claude did not create a PR. Check the logs for details." >> $GITHUB_STEP_SUMMARY
+
+            if [ "${COMMIT_COUNT:-0}" -eq 0 ]; then
+              echo "**Failure Reason:** Claude did not create any commits or PR" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "> Task may be too complex, unclear, or require human judgment." >> $GITHUB_STEP_SUMMARY
+              echo "> Review Claude's full output above (debug_mode is enabled by default)." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "**Failure Reason:** Claude created ${COMMIT_COUNT} commit(s) but fallback PR creation failed" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "> This is unexpected. Check the workflow logs for errors." >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Action Required:** Manual review needed" >> $GITHUB_STEP_SUMMARY
           fi

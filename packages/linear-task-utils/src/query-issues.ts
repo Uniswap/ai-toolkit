@@ -14,6 +14,34 @@ function slugify(text: string, maxLength = 50): string {
     .replace(/-+$/, ''); // Remove trailing hyphens after truncation
 }
 
+const TRUNCATION_SUFFIX = '\n\n[Description truncated for workflow. See full issue in Linear.]';
+
+/**
+ * Truncate text to a maximum length with ellipsis indicator
+ * GitHub Actions has limits on output/matrix sizes, so we truncate large descriptions
+ *
+ * @param text - The text to truncate
+ * @param maxLength - Maximum total length including the truncation suffix (default: 4000)
+ * @returns The original text if under maxLength, or truncated text with suffix
+ */
+export function truncateDescription(text: string, maxLength = 4000): string {
+  if (!text || text.length <= maxLength) {
+    return text;
+  }
+
+  // Account for suffix length to ensure total output stays within maxLength
+  const effectiveMax = maxLength - TRUNCATION_SUFFIX.length;
+
+  // Truncate and add indicator that it was truncated
+  const truncated = text.substring(0, effectiveMax);
+
+  // Try to break at a word boundary (look for space in last 20% of text)
+  const lastSpace = truncated.lastIndexOf(' ');
+  const breakPoint = lastSpace > effectiveMax * 0.8 ? lastSpace : effectiveMax;
+
+  return truncated.substring(0, breakPoint) + TRUNCATION_SUFFIX;
+}
+
 /**
  * Generate a branch name from a Linear issue
  * Format: claude/{identifier}-{slug}
@@ -65,11 +93,12 @@ export async function queryIssues(
   });
 
   // Process and sort issues by priority
+  // Note: issue_description is truncated to prevent GitHub Actions matrix size issues
   const processedIssues: ProcessedIssue[] = issues.nodes.map((issue) => ({
     issue_id: issue.id,
     issue_identifier: issue.identifier,
     issue_title: issue.title,
-    issue_description: issue.description || '',
+    issue_description: truncateDescription(issue.description || ''),
     issue_url: issue.url,
     branch_name: generateBranchName(issue.identifier, issue.title),
     priority: issue.priority ?? 0,

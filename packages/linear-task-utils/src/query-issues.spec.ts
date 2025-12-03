@@ -1,5 +1,10 @@
 import type { LinearClient } from '@linear/sdk';
-import { parseQueryConfig, createLinearClient, queryIssues } from './query-issues';
+import {
+  parseQueryConfig,
+  createLinearClient,
+  queryIssues,
+  truncateDescription,
+} from './query-issues';
 import { DEFAULTS } from './types';
 
 // Mock @linear/sdk
@@ -20,6 +25,95 @@ describe('query-issues.ts', () => {
   afterEach(() => {
     process.env = originalEnv;
     jest.clearAllMocks();
+  });
+
+  describe('truncateDescription', () => {
+    const SUFFIX = '\n\n[Description truncated for workflow. See full issue in Linear.]';
+    const SUFFIX_LENGTH = SUFFIX.length;
+
+    it('should return empty string for empty input', () => {
+      expect(truncateDescription('')).toBe('');
+    });
+
+    it('should return null/undefined unchanged', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect(truncateDescription(null as any)).toBe(null);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect(truncateDescription(undefined as any)).toBe(undefined);
+    });
+
+    it('should return text unchanged when under maxLength', () => {
+      expect(truncateDescription('short text')).toBe('short text');
+      expect(truncateDescription('a'.repeat(3999))).toBe('a'.repeat(3999));
+      expect(truncateDescription('a'.repeat(4000))).toBe('a'.repeat(4000));
+    });
+
+    it('should truncate text when over maxLength', () => {
+      const longText = 'a'.repeat(5000);
+      const result = truncateDescription(longText);
+
+      expect(result).toContain(SUFFIX);
+      expect(result.length).toBeLessThanOrEqual(4000);
+    });
+
+    it('should respect custom maxLength parameter', () => {
+      const text = 'a'.repeat(200);
+      const result = truncateDescription(text, 100);
+
+      expect(result).toContain(SUFFIX);
+      expect(result.length).toBeLessThanOrEqual(100);
+    });
+
+    it('should truncate at word boundary when possible', () => {
+      // Create text with words that exceeds maxLength
+      // Use a larger maxLength to ensure we have room for content + suffix
+      const maxLength = 200;
+      // Create text that definitely exceeds maxLength
+      const textPart = 'word '.repeat(100); // 500 chars
+      const result = truncateDescription(textPart, maxLength);
+
+      expect(result).toContain(SUFFIX);
+      expect(result.length).toBeLessThanOrEqual(maxLength);
+      // Should end with a word, not mid-word (before suffix)
+      const beforeSuffix = result.replace(SUFFIX, '');
+      expect(beforeSuffix.endsWith('word')).toBe(true);
+    });
+
+    it('should handle text with no spaces', () => {
+      const noSpaces = 'a'.repeat(5000);
+      const result = truncateDescription(noSpaces);
+
+      expect(result).toContain(SUFFIX);
+      expect(result.length).toBeLessThanOrEqual(4000);
+    });
+
+    it('should ensure total output never exceeds maxLength', () => {
+      // Test with various text lengths
+      const testCases = [4001, 5000, 10000, 100000];
+
+      for (const length of testCases) {
+        const text = 'x '.repeat(Math.ceil(length / 2));
+        const result = truncateDescription(text, 4000);
+
+        expect(result.length).toBeLessThanOrEqual(4000);
+        expect(result).toContain(SUFFIX);
+      }
+    });
+
+    it('should truncate at exactly maxLength when no suitable word boundary', () => {
+      // Text with a space very early (before 80% mark)
+      const maxLength = 100;
+      const effectiveMax = maxLength - SUFFIX_LENGTH;
+      // Put a single space at 10% mark
+      const earlySpaceText = 'a'.repeat(Math.floor(effectiveMax * 0.1)) + ' ' + 'b'.repeat(5000);
+      const result = truncateDescription(earlySpaceText, maxLength);
+
+      expect(result).toContain(SUFFIX);
+      expect(result.length).toBeLessThanOrEqual(maxLength);
+      // Space is too early, so it should truncate at effectiveMax, not at the space
+      const beforeSuffix = result.replace(SUFFIX, '');
+      expect(beforeSuffix.length).toBe(effectiveMax);
+    });
   });
 
   describe('parseQueryConfig', () => {
@@ -147,7 +241,7 @@ describe('query-issues.ts', () => {
         teams: jest.fn(),
         issues: jest.fn(),
         ...overrides,
-      }) as unknown as LinearClient;
+      } as unknown as LinearClient);
 
     it('should throw error when team is not found', async () => {
       const mockClient = createMockLinearClient({
@@ -291,7 +385,14 @@ describe('query-issues.ts', () => {
 
     it('should sort issues by priority correctly', async () => {
       const mockIssues = [
-        { id: '1', identifier: 'T-1', title: 'Low priority', description: '', url: '', priority: 4 },
+        {
+          id: '1',
+          identifier: 'T-1',
+          title: 'Low priority',
+          description: '',
+          url: '',
+          priority: 4,
+        },
         {
           id: '2',
           identifier: 'T-2',

@@ -8,7 +8,8 @@
 # 1. Create a "claude" label in your Linear team (or configure a different label)
 # 2. Add LINEAR_API_KEY secret to your repository
 # 3. Ensure ANTHROPIC_API_KEY secret is configured
-# 4. Add issues with the "claude" label in "Backlog" or "Todo" status
+# 4. Add NODE_AUTH_TOKEN secret (for installing @uniswap scoped packages)
+# 5. Add issues with the "claude" label in "Backlog" or "Todo" status
 #
 # USAGE:
 # - Automatic: Runs daily at 5am EST
@@ -53,9 +54,9 @@ on:
         type: choice
         options:
           - "claude-sonnet-4-5-20250929"
-          - "claude-opus-4-20250514"
+          - "claude-opus-4-5-20251101"
           - "claude-haiku-4-5@20251001"
-        default: "claude-sonnet-4-5-20250929"
+        default: "claude-opus-4-5-20251101"
 
       target_branch:
         description: "Branch to create PRs against"
@@ -63,18 +64,42 @@ on:
         type: string
         default: "next"
 
+      linear_task_utils_tag:
+        description: "npm tag for @uniswap/ai-toolkit-linear-task-utils"
+        required: false
+        type: choice
+        options:
+          - "latest"
+          - "next"
+        default: "next"
+
+      debug_mode:
+        description: "Enable full Claude Code output for debugging"
+        required: false
+        type: boolean
+        default: true
+
 # Prevent concurrent runs
 concurrency:
   group: claude-auto-tasks
   cancel-in-progress: false
+
+# Resolved values (handles fallback for scheduled runs where inputs.* are empty)
+env:
+  LINEAR_TASK_UTILS_TAG: ${{ inputs.linear_task_utils_tag || 'next' }}
 
 jobs:
   # Job 1: Query Linear and prepare the task matrix
   prepare:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.query.outputs.result }}
+      # matrix_json contains only the 'include' array for GitHub Actions matrix strategy
+      # (the 'count' property in the full result is not a valid matrix property)
+      matrix_json: ${{ steps.query.outputs.matrix_json }}
+      # Full result is used for the summary step
+      result: ${{ steps.query.outputs.result }}
       has_tasks: ${{ steps.query.outputs.has_tasks }}
+      linear_task_utils_tag: ${{ env.LINEAR_TASK_UTILS_TAG }}
 
     steps:
       # Security scanning
@@ -93,27 +118,39 @@ jobs:
         with:
           node-version: "22.21.1"
           cache: "npm"
+          registry-url: "https://registry.npmjs.org"
+          scope: "@uniswap"
 
       # Ensure the claude label exists
       - name: Ensure label exists
         run: |
-          npx @uniswap/ai-toolkit-linear-task-utils@latest ensure-label \
-            --team "${{ inputs.linear_team }}" \
-            --label "${{ inputs.linear_label }}"
+          npx "@uniswap/ai-toolkit-linear-task-utils@${LINEAR_TASK_UTILS_TAG}" ensure-label \
+            --team "$LINEAR_TEAM" \
+            --label "$LINEAR_LABEL"
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          LINEAR_TASK_UTILS_TAG: ${{ env.LINEAR_TASK_UTILS_TAG }}
+          LINEAR_TEAM: ${{ inputs.linear_team }}
+          LINEAR_LABEL: ${{ inputs.linear_label }}
 
       # Query Linear for issues
       - name: Query Linear issues
         id: query
         run: |
-          RESULT=$(npx @uniswap/ai-toolkit-linear-task-utils@latest query \
-            --team "${{ inputs.linear_team }}" \
-            --label "${{ inputs.linear_label }}" \
+          RESULT=$(npx "@uniswap/ai-toolkit-linear-task-utils@${LINEAR_TASK_UTILS_TAG}" query \
+            --team "$LINEAR_TEAM" \
+            --label "$LINEAR_LABEL" \
             --statuses "Backlog,Todo" \
-            --max "${{ inputs.max_issues }}")
+            --max "$MAX_ISSUES")
 
+          # Store full result for summary step
           echo "result=$RESULT" >> $GITHUB_OUTPUT
+
+          # Extract only the 'include' array for the matrix strategy
+          # GitHub Actions matrix only accepts array values, not scalar properties like 'count'
+          MATRIX_JSON=$(echo "$RESULT" | jq -c '{include: .include}')
+          echo "matrix_json=$MATRIX_JSON" >> $GITHUB_OUTPUT
 
           # Check if we have tasks
           COUNT=$(echo "$RESULT" | jq -r '.count')
@@ -126,28 +163,40 @@ jobs:
           fi
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          LINEAR_TASK_UTILS_TAG: ${{ env.LINEAR_TASK_UTILS_TAG }}
+          LINEAR_TEAM: ${{ inputs.linear_team }}
+          LINEAR_LABEL: ${{ inputs.linear_label }}
+          MAX_ISSUES: ${{ inputs.max_issues }}
 
       # Create summary for prepare job
       - name: Create prepare summary
+        env:
+          QUERY_RESULT: ${{ steps.query.outputs.result }}
+          INPUT_LINEAR_TEAM: ${{ inputs.linear_team }}
+          INPUT_LINEAR_LABEL: ${{ inputs.linear_label }}
+          INPUT_MAX_ISSUES: ${{ inputs.max_issues }}
+          INPUT_MODEL: ${{ inputs.model }}
+          INPUT_TARGET_BRANCH: ${{ inputs.target_branch }}
         run: |
           echo "## Prepare Phase" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Configuration:**" >> $GITHUB_STEP_SUMMARY
-          echo "- Team: ${{ inputs.linear_team }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Label: ${{ inputs.linear_label }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Max Issues: ${{ inputs.max_issues }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Model: ${{ inputs.model }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Target Branch: ${{ inputs.target_branch }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Team: $INPUT_LINEAR_TEAM" >> $GITHUB_STEP_SUMMARY
+          echo "- Label: $INPUT_LINEAR_LABEL" >> $GITHUB_STEP_SUMMARY
+          echo "- Max Issues: $INPUT_MAX_ISSUES" >> $GITHUB_STEP_SUMMARY
+          echo "- Model: $INPUT_MODEL" >> $GITHUB_STEP_SUMMARY
+          echo "- Target Branch: $INPUT_TARGET_BRANCH" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          COUNT=$(echo '${{ steps.query.outputs.result }}' | jq -r '.count')
+          COUNT=$(echo "$QUERY_RESULT" | jq -r '.count')
           echo "**Issues Found:** $COUNT" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ "$COUNT" -gt 0 ]; then
             echo "| Identifier | Title | Priority |" >> $GITHUB_STEP_SUMMARY
             echo "|------------|-------|----------|" >> $GITHUB_STEP_SUMMARY
-            echo '${{ steps.query.outputs.result }}' | jq -r '.include[] | "| \(.issue_identifier) | \(.issue_title) | \(.priority_label) |"' >> $GITHUB_STEP_SUMMARY
+            echo "$QUERY_RESULT" | jq -r '.include[] | "| \(.issue_identifier) | \(.issue_title) | \(.priority_label) |"' >> $GITHUB_STEP_SUMMARY
           fi
 
   # Job 2: Process each task in parallel
@@ -157,7 +206,7 @@ jobs:
     strategy:
       fail-fast: false
       max-parallel: 3
-      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix_json) }}
 
     uses: ./.github/workflows/_claude-task-worker.yml
     with:
@@ -167,12 +216,15 @@ jobs:
       issue_description: ${{ matrix.issue_description }}
       issue_url: ${{ matrix.issue_url }}
       branch_name: ${{ matrix.branch_name }}
-      target_branch: ${{ inputs.target_branch }}
-      model: ${{ inputs.model }}
+      target_branch: ${{ inputs.target_branch || 'next' }}
+      model: ${{ inputs.model || 'claude-opus-4-5-20251101' }}
       timeout_minutes: 60
+      linear_task_utils_tag: ${{ needs.prepare.outputs.linear_task_utils_tag }}
+      debug_mode: ${{ inputs.debug_mode != '' && inputs.debug_mode || true }}
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+      NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
   # Job 3: Summary (always runs)
   summary:
@@ -188,17 +240,28 @@ jobs:
           egress-policy: audit
 
       - name: Generate final summary
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          HAS_TASKS: ${{ needs.prepare.outputs.has_tasks }}
+          QUERY_RESULT: ${{ needs.prepare.outputs.result }}
+          TASK_RESULT: ${{ needs.process-task.result }}
+          INPUT_LINEAR_TEAM: ${{ inputs.linear_team }}
+          INPUT_LINEAR_LABEL: ${{ inputs.linear_label }}
         run: |
           echo "# Claude Auto Tasks Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Workflow Run:** [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          echo "**Workflow Run:** [#${RUN_NUMBER}](${SERVER_URL}/${REPOSITORY}/actions/runs/${RUN_ID})" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ needs.prepare.outputs.has_tasks }}" == "true" ]; then
-            echo "**Tasks Found:** $(echo '${{ needs.prepare.outputs.matrix }}' | jq -r '.count')" >> $GITHUB_STEP_SUMMARY
+          if [ "$HAS_TASKS" == "true" ]; then
+            TASK_COUNT=$(echo "$QUERY_RESULT" | jq -r '.count')
+            echo "**Tasks Found:** $TASK_COUNT" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
 
-            case "${{ needs.process-task.result }}" in
+            case "$TASK_RESULT" in
               "success")
                 echo "**Result:** All tasks completed successfully" >> $GITHUB_STEP_SUMMARY
                 ;;
@@ -209,14 +272,14 @@ jobs:
                 echo "**Result:** Workflow was cancelled" >> $GITHUB_STEP_SUMMARY
                 ;;
               *)
-                echo "**Result:** ${{ needs.process-task.result }}" >> $GITHUB_STEP_SUMMARY
+                echo "**Result:** $TASK_RESULT" >> $GITHUB_STEP_SUMMARY
                 ;;
             esac
           else
             echo "**Result:** No tasks found matching criteria" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "To add tasks for Claude to process:" >> $GITHUB_STEP_SUMMARY
-            echo "1. Create issues in the **${{ inputs.linear_team }}** team" >> $GITHUB_STEP_SUMMARY
-            echo "2. Add the **${{ inputs.linear_label }}** label" >> $GITHUB_STEP_SUMMARY
+            echo "1. Create issues in the **$INPUT_LINEAR_TEAM** team" >> $GITHUB_STEP_SUMMARY
+            echo "2. Add the **$INPUT_LINEAR_LABEL** label" >> $GITHUB_STEP_SUMMARY
             echo "3. Set status to **Backlog** or **Todo**" >> $GITHUB_STEP_SUMMARY
           fi
