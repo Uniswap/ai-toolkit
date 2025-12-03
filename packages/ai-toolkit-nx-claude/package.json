@@ -89,6 +89,11 @@
               "input": "./packages/agents/agnostic/src",
               "glob": "**/*.md",
               "output": "content/agents/agnostic"
+            },
+            {
+              "input": "./packages/ai-toolkit-nx-claude/src/content/devcontainer",
+              "glob": "**/*",
+              "output": "content/devcontainer"
             }
           ]
         }

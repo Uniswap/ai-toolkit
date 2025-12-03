@@ -37,9 +37,7 @@ export type McpRemoteHostedAddonMetadata = {
   env?: Record<string, string>;
 };
 
-export type McpAddonMetadata =
-  | McpCommandAddonMetadata
-  | McpRemoteHostedAddonMetadata;
+export type McpAddonMetadata = McpCommandAddonMetadata | McpRemoteHostedAddonMetadata;
 
 /**
  * Metadata for a Claude Code addon
@@ -57,8 +55,8 @@ export interface AddonMetadata {
   packageName: string;
   /** Registry URL (optional, defaults to npm) */
   registry?: string;
-  /** MCP-specific configuration */
-  mcp: McpAddonMetadata;
+  /** MCP-specific configuration (required for mcp-server type) */
+  mcp?: McpAddonMetadata;
   /** Installation requirements */
   requirements?: {
     /** Required Node.js version */
@@ -69,11 +67,13 @@ export interface AddonMetadata {
   /** Project setup configuration */
   projectSetup?: {
     /** Git repository to clone */
-    repositoryUrl: string;
+    repositoryUrl?: string;
     /** Path within repo to copy from */
-    configSourcePath: string;
+    configSourcePath?: string;
     /** Directory name to create in project */
     targetDirectory: string;
+    /** Whether this is a bundled setup (files included in package) */
+    bundled?: boolean;
   };
 }
 
@@ -84,8 +84,7 @@ const ADDON_REGISTRY: AddonMetadata[] = [
   {
     id: 'spec-workflow-mcp',
     name: 'Spec Workflow MCP',
-    description:
-      'MCP server for spec-driven development workflow with dashboard support',
+    description: 'MCP server for spec-driven development workflow with dashboard support',
     type: 'mcp-server',
     packageName: '@uniswap/spec-workflow-mcp',
     mcp: {
@@ -180,8 +179,7 @@ const ADDON_REGISTRY: AddonMetadata[] = [
       command: 'npx',
       args: ['-y', '@modelcontextprotocol/server-github'],
       env: {
-        GITHUB_PERSONAL_ACCESS_TOKEN:
-          'PROMPT_TO_INSERT_GITHUB_PERSONAL_ACCESS_TOKEN',
+        GITHUB_PERSONAL_ACCESS_TOKEN: 'PROMPT_TO_INSERT_GITHUB_PERSONAL_ACCESS_TOKEN',
       },
     },
   },
@@ -225,8 +223,7 @@ const ADDON_REGISTRY: AddonMetadata[] = [
   {
     id: 'aws-log-analyzer-mcp',
     name: 'AWS Log Analyzer MCP',
-    description:
-      'MCP server for AWS CloudWatch Logs analysis, searching, and correlation',
+    description: 'MCP server for AWS CloudWatch Logs analysis, searching, and correlation',
     type: 'mcp-server',
     packageName: 'Log-Analyzer-with-MCP',
     mcp: {
@@ -247,8 +244,7 @@ const ADDON_REGISTRY: AddonMetadata[] = [
   {
     id: 'pulumi-mcp',
     name: 'Pulumi MCP',
-    description:
-      'MCP server for Pulumi infrastructure as code management (HTTP)',
+    description: 'MCP server for Pulumi infrastructure as code management (HTTP)',
     type: 'mcp-server',
     packageName: 'pulumi',
     mcp: {
@@ -257,22 +253,55 @@ const ADDON_REGISTRY: AddonMetadata[] = [
       url: 'https://mcp.ai.pulumi.com/mcp',
     },
   },
+  {
+    id: 'docker-sandbox',
+    name: 'Docker Sandbox',
+    description:
+      'Secure devcontainer for running Claude Code with --dangerously-skip-permissions safely',
+    type: 'project-setup',
+    packageName: '@uniswap/ai-toolkit-nx-claude',
+    projectSetup: {
+      targetDirectory: '.devcontainer',
+      bundled: true,
+    },
+    requirements: {
+      commands: ['docker'],
+    },
+  },
 ];
 
 /**
  * Check if the MCP server is a command-based server
  * for example, one you would add this `claude mcp add mastra -- npx -y @mastra/mcp-docs-server`
  */
-export function isCommandMcpServer(mcp: McpAddonMetadata): boolean {
-  return 'command' in mcp;
+export function isCommandMcpServer(
+  mcp: McpAddonMetadata | undefined
+): mcp is McpCommandAddonMetadata {
+  return mcp !== undefined && 'command' in mcp;
 }
 
 /**
  * Check if the MCP server is a remote hosted server
  * for example, one you would add this `claude mcp add notion --transport http https://mcp.notion.com/mcp`
  */
-export function isRemoteHostedMcpServer(mcp: McpAddonMetadata): boolean {
-  return 'transport' in mcp;
+export function isRemoteHostedMcpServer(
+  mcp: McpAddonMetadata | undefined
+): mcp is McpRemoteHostedAddonMetadata {
+  return mcp !== undefined && 'transport' in mcp;
+}
+
+/**
+ * Check if an addon is a project-setup type (not an MCP server)
+ */
+export function isProjectSetupAddon(addon: AddonMetadata): boolean {
+  return addon.type === 'project-setup' && addon.projectSetup !== undefined;
+}
+
+/**
+ * Check if an addon is a bundled project-setup (files included in package)
+ */
+export function isBundledProjectSetup(addon: AddonMetadata): boolean {
+  return isProjectSetupAddon(addon) && addon.projectSetup?.bundled === true;
 }
 
 /**
@@ -313,11 +342,7 @@ export async function isAddonInstalled(addonId: string): Promise<boolean> {
         if (addon.type === 'mcp-server' && config.mcpServers) {
           // Look for the server by package name or command
           for (const [, serverConfig] of Object.entries(config.mcpServers)) {
-            if (
-              serverConfig &&
-              typeof serverConfig === 'object' &&
-              'command' in serverConfig
-            ) {
+            if (serverConfig && typeof serverConfig === 'object' && 'command' in serverConfig) {
               const command = (serverConfig as any).command;
               const args = (serverConfig as any).args || [];
 
@@ -366,11 +391,7 @@ export async function getInstalledAddonConfig(
 
         if (addon.type === 'mcp-server' && config.mcpServers) {
           for (const [, serverConfig] of Object.entries(config.mcpServers)) {
-            if (
-              serverConfig &&
-              typeof serverConfig === 'object' &&
-              'command' in serverConfig
-            ) {
+            if (serverConfig && typeof serverConfig === 'object' && 'command' in serverConfig) {
               const command = (serverConfig as any).command;
               const args = (serverConfig as any).args || [];
 
@@ -410,13 +431,8 @@ export async function validateAddonRequirements(
   if (addon.requirements?.node) {
     const nodeVersion = process.version;
     // Simple version check - could be improved with semver
-    if (
-      !nodeVersion.match(/v1[89]\.\d+\.\d+/) &&
-      !nodeVersion.match(/v2\d+\.\d+\.\d+/)
-    ) {
-      errors.push(
-        `Node.js ${addon.requirements.node} required, found ${nodeVersion}`
-      );
+    if (!nodeVersion.match(/v1[89]\.\d+\.\d+/) && !nodeVersion.match(/v2\d+\.\d+\.\d+/)) {
+      errors.push(`Node.js ${addon.requirements.node} required, found ${nodeVersion}`);
     }
   }
 

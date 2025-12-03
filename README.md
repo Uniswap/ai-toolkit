@@ -12,6 +12,7 @@ The **AI Toolkit** is a standardized collection of AI agents and commands design
 - **Pre-built AI Agents**: Specialized subagents for code explanation, refactoring, testing, research, and more. Claude Code will use these automatically without any need for manual direction by the user
 - **Ready-to-use Commands**: Quick access patterns (called "[Slash commands](https://docs.anthropic.com/en/docs/claude-code/slash-commands)") for common development workflows like understanding codebases (`/explore`), generating tests (`/gen-tests`), and planning features (`/plan`)
 - **Standardized Patterns**: Create a common toolset of Claude Code commands and agents shared by everyone at Uniswap
+- **Docker Sandbox**: A secure devcontainer for running Claude Code with `--dangerously-skip-permissions` safely in an isolated environment
 
 **Why it exists:**
 
@@ -72,6 +73,27 @@ claude # this should open up the Claude Code REPL
 ```
 
 Once installed, you'll have access to powerful Claude Code agents and commands that make development workflows more efficient and consistent.
+
+### Option C: Docker Sandbox for Autonomous Mode
+
+If you want to run Claude Code with `--dangerously-skip-permissions` safely, install the Docker sandbox:
+
+```bash
+# Install the Docker sandbox addon
+npx @uniswap/ai-toolkit-nx-claude@latest addons --addon docker-sandbox
+
+# Or copy the .devcontainer directory from this repository to your project
+```
+
+This creates a `.devcontainer` directory in your project with:
+
+- **Network isolation**: Firewall blocks all connections except essential services (GitHub, npm, Anthropic API)
+- **Container isolation**: Code runs in Docker, isolated from your host machine
+- **Pre-configured environment**: Claude Code CLI, VS Code extensions, and development tools
+
+After setup, open your project in VS Code and click "Reopen in Container" to start using the sandbox.
+
+See [.devcontainer/README.md](.devcontainer/README.md) for detailed documentation.
 
 ## Contributing
 

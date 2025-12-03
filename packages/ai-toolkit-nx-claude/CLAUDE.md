@@ -319,7 +319,47 @@ Generators source content from dedicated packages:
 
 - `@ai-toolkit/commands-agnostic`: Language-agnostic commands
 - `@ai-toolkit/agents-agnostic`: Language-agnostic agents
+- Bundled content (devcontainer files for docker-sandbox addon)
 - Future: Language-specific content packages
+
+### Docker Sandbox Addon
+
+The `docker-sandbox` addon provides a secure devcontainer environment for running Claude Code with `--dangerously-skip-permissions` safely.
+
+**Usage**:
+
+```bash
+npx @uniswap/ai-toolkit-nx-claude@latest addons --addon docker-sandbox
+```
+
+**Files Installed**:
+
+- `.devcontainer/devcontainer.json` - VS Code devcontainer configuration
+- `.devcontainer/Dockerfile` - Container image definition with Claude Code
+- `.devcontainer/init-firewall.sh` - Firewall script for network isolation
+- `.devcontainer/README.md` - Usage documentation
+
+**Key Features**:
+
+- Network isolation via iptables firewall
+- Only allows connections to essential services (GitHub, npm, Anthropic API)
+- Pre-installed Claude Code CLI
+- VS Code extensions pre-configured
+- Persistent bash history across container rebuilds
+
+**Architecture**:
+
+The addon uses the `bundled` project-setup pattern:
+
+1. Content files are stored in `src/content/devcontainer/`
+2. Files are copied to `dist/content/devcontainer/` during build
+3. `docker-sandbox-setup.ts` handles installation to target projects
+
+**Security Considerations**:
+
+- Firewall blocks all outbound traffic except whitelisted domains
+- Container runs as non-root `node` user
+- Requires `NET_ADMIN` and `NET_RAW` capabilities for firewall setup
 
 ### Error Handling Patterns
 
