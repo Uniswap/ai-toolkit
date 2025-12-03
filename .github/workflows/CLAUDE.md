@@ -126,6 +126,7 @@ This workflow processes Linear issues autonomously using Claude Code. It's calle
 | Feature                      | Description                                                                                             |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------- |
 | **7-Phase Workflow**         | Claude follows a structured approach: Understand → Explore → Plan → Implement → QA → Commit → Create PR |
+| **Autonomous Execution**     | Uses `--dangerously-skip-permissions` to run without permission prompts (safe in GitHub Actions sandbox) |
 | **PR Validation**            | Job **fails explicitly** if Claude doesn't create a draft PR (no silent failures)                       |
 | **Debug Mode**               | Full Claude output shown by default (`debug_mode: true`) to understand reasoning                        |
 | **Task Complexity Warnings** | Warns about tasks containing keywords like "audit", "review", "investigate"                             |

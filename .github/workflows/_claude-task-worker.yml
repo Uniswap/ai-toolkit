@@ -354,6 +354,7 @@ jobs:
           claude_args: |
             --model ${{ inputs.model }}
             --max-turns 150
+            --dangerously-skip-permissions
             --mcp-config '{"mcpServers":{"linear":{"command":"npx","args":["-y","linear-mcp-server"],"env":{"LINEAR_API_KEY":"${{ secrets.LINEAR_API_KEY }}"}}}}'
           additional_permissions: |
             actions: read
