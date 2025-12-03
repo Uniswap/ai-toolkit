@@ -117,6 +117,69 @@ secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
+### Autonomous Task Processing (`_claude-task-worker.yml`)
+
+This workflow processes Linear issues autonomously using Claude Code. It's called by `claude-auto-tasks.yml` for each task in the matrix.
+
+**Key Features:**
+
+| Feature                      | Description                                                                                             |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **7-Phase Workflow**         | Claude follows a structured approach: Understand → Explore → Plan → Implement → QA → Commit → Create PR |
+| **PR Validation**            | Job **fails explicitly** if Claude doesn't create a draft PR (no silent failures)                       |
+| **Debug Mode**               | Full Claude output shown by default (`debug_mode: true`) to understand reasoning                        |
+| **Task Complexity Warnings** | Warns about tasks containing keywords like "audit", "review", "investigate"                             |
+| **Commit Tracking**          | Reports commit count in job summary                                                                     |
+| **Linear Integration**       | Updates Linear issue status to "In Progress" when draft PR is created                                   |
+
+**Configuration:**
+
+| Input             | Default                    | Description                |
+| ----------------- | -------------------------- | -------------------------- |
+| `model`           | `claude-opus-4-5-20251101` | Claude model to use        |
+| `max_turns`       | `150`                      | Maximum conversation turns |
+| `debug_mode`      | `true`                     | Show full Claude output    |
+| `timeout_minutes` | `60`                       | Job timeout                |
+
+**Validation Behavior:**
+
+The workflow validates that Claude completed the task:
+
+1. **No commits + No PR**: Job fails with "Task may be too complex, unclear, or require human judgment"
+2. **Commits + No PR**: Job fails with "Claude created commits but did NOT create a PR"
+3. **Commits + PR**: Job succeeds, Linear updated to "In Progress"
+
+**Job Summary Output:**
+
+The job summary includes:
+
+- Task title and Linear issue link
+- Branch name and model used
+- Commit count
+- PR creation status (✅/❌)
+- Failure reason (if applicable)
+- Linear status update
+
+**Usage example:**
+
+```yaml
+uses: ./.github/workflows/_claude-task-worker.yml
+with:
+  issue_id: ${{ matrix.issue_id }}
+  issue_identifier: ${{ matrix.issue_identifier }}
+  issue_title: ${{ matrix.issue_title }}
+  issue_description: ${{ matrix.issue_description }}
+  issue_url: ${{ matrix.issue_url }}
+  branch_name: ${{ matrix.branch_name }}
+  target_branch: 'next'
+  model: 'claude-opus-4-5-20251101'
+  debug_mode: true
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+  NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+```
+
 ### Shared Internal Workflows
 
 These workflows are prefixed with two `__` and are only used within this repository:

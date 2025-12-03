@@ -1,0 +1,724 @@
+#!/usr/bin/env npx tsx
+/**
+ * Post Review Script
+ *
+ * Parses Claude's structured JSON review output and posts it to GitHub
+ * using the GitHub API. All actions are performed as `github-actions[bot]`.
+ *
+ * @usage
+ *   npx tsx .github/scripts/post-review.ts \
+ *     --owner "Uniswap" \
+ *     --repo "ai-toolkit" \
+ *     --pr-number 123 \
+ *     --review-json '{"pr_review_body": "...", ...}'
+ *
+ * @environment
+ *   GITHUB_TOKEN - GitHub token for API authentication (required)
+ *   REVIEW_JSON_FILE - Path to file containing review JSON (safest for shell)
+ *   REVIEW_JSON - Alternative to --review-json flag (direct content)
+ *
+ * @priority Review JSON is read from (in order):
+ *   1. --review-json CLI flag
+ *   2. REVIEW_JSON_FILE env var (reads file at path)
+ *   3. REVIEW_JSON env var (direct content)
+ *
+ * @output
+ *   Exits with 0 on success, 1 on failure
+ *   Outputs review URL on success
+ */
+
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { parseArgs } from 'node:util';
+
+// =============================================================================
+// Types
+// =============================================================================
+
+interface InlineCommentNew {
+  path: string;
+  line: number;
+  body: string;
+  suggestion?: string;
+  side?: 'LEFT' | 'RIGHT';
+}
+
+interface InlineCommentResponse {
+  comment_id: number;
+  body: string;
+  should_resolve?: boolean;
+}
+
+interface ReviewOutput {
+  pr_review_body: string;
+  pr_review_outcome: 'COMMENT' | 'APPROVE' | 'REQUEST_CHANGES';
+  inline_comments_new: InlineCommentNew[];
+  inline_comments_responses?: InlineCommentResponse[];
+  files_reviewed?: string[];
+  confidence?: number;
+}
+
+interface CreateReviewParams {
+  owner: string;
+  repo: string;
+  pull_number: number;
+  body: string;
+  event: 'COMMENT' | 'APPROVE' | 'REQUEST_CHANGES';
+  comments: Array<{
+    path: string;
+    line: number;
+    body: string;
+    side?: 'LEFT' | 'RIGHT';
+  }>;
+}
+
+// =============================================================================
+// Utilities
+// =============================================================================
+
+function log(message: string): void {
+  console.log(`[post-review] ${message}`);
+}
+
+function logError(message: string): void {
+  console.error(`[post-review] ERROR: ${message}`);
+}
+
+function gh(args: string[], input?: string): string {
+  log(`Executing: gh ${args.join(' ')}`);
+
+  try {
+    // Use execFileSync to avoid shell interpretation of special characters
+    // (parentheses, quotes, pipes, etc. in jq filters)
+    const result = execFileSync('gh', args, {
+      encoding: 'utf-8',
+      input,
+      env: { ...process.env },
+      maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large responses
+    });
+    return result.trim();
+  } catch (error) {
+    const execError = error as { stderr?: string; message?: string };
+    logError(`gh command failed: ${execError.stderr || execError.message}`);
+    throw error;
+  }
+}
+
+function formatSuggestion(body: string, suggestion?: string): string {
+  if (!suggestion) return body;
+
+  // GitHub's special suggestion syntax
+  return `${body}
+
+\`\`\`suggestion
+${suggestion}
+\`\`\``;
+}
+
+// =============================================================================
+// GitHub API Functions
+// =============================================================================
+
+function createReview(params: CreateReviewParams): { id: number; html_url: string } {
+  log(`Creating review with ${params.comments.length} inline comments...`);
+  log(`Review event: ${params.event}`);
+
+  // Build the API request body
+  const requestBody = {
+    body: params.body,
+    event: params.event,
+    comments: params.comments.map((c) => ({
+      path: c.path,
+      line: c.line,
+      body: c.body,
+      side: c.side || 'RIGHT',
+    })),
+  };
+
+  // Use gh api with JSON input
+  const result = gh(
+    [
+      'api',
+      '--method',
+      'POST',
+      `repos/${params.owner}/${params.repo}/pulls/${params.pull_number}/reviews`,
+      '--input',
+      '-',
+    ],
+    JSON.stringify(requestBody)
+  );
+
+  try {
+    const response = JSON.parse(result) as { id: number; html_url: string };
+    log(`Review created with ID: ${response.id}`);
+    return response;
+  } catch {
+    logError('Failed to parse review creation response');
+    throw new Error('Failed to create review');
+  }
+}
+
+function replyToComment(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  commentId: number,
+  body: string
+): void {
+  log(`Replying to comment ${commentId}...`);
+
+  // Use --input with JSON.stringify to avoid shell injection from markdown content
+  gh(
+    [
+      'api',
+      '--method',
+      'POST',
+      `repos/${owner}/${repo}/pulls/${prNumber}/comments/${commentId}/replies`,
+      '--input',
+      '-',
+    ],
+    JSON.stringify({ body })
+  );
+}
+
+/**
+ * Resolves a review thread containing the given comment ID.
+ *
+ * This requires GraphQL because the REST API doesn't expose review thread resolution.
+ * We need to:
+ * 1. Query all review threads for the PR
+ * 2. Find the thread containing our comment (by matching databaseId)
+ * 3. Resolve that thread using the GraphQL mutation
+ *
+ * @see https://stackoverflow.com/questions/71421045/how-to-resolve-a-github-pull-request-conversation-comment-thread-using-github
+ */
+function resolveReviewThread(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  commentId: number
+): boolean {
+  log(`Resolving review thread containing comment ${commentId}...`);
+
+  // Step 1: Query review threads to find the one containing this comment
+  // We need to match by databaseId (REST API ID) since that's what we have
+  const queryResult = gh(
+    ['api', 'graphql', '--input', '-'],
+    JSON.stringify({
+      query: `
+        query($owner: String!, $repo: String!, $pr: Int!) {
+          repository(owner: $owner, name: $repo) {
+            pullRequest(number: $pr) {
+              reviewThreads(first: 100) {
+                nodes {
+                  id
+                  isResolved
+                  comments(first: 100) {
+                    nodes {
+                      databaseId
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `,
+      variables: { owner, repo, pr: prNumber },
+    })
+  );
+
+  let threadId: string | null = null;
+
+  try {
+    const data = JSON.parse(queryResult) as {
+      data?: {
+        repository?: {
+          pullRequest?: {
+            reviewThreads?: {
+              nodes: Array<{
+                id: string;
+                isResolved: boolean;
+                comments: { nodes: Array<{ databaseId: number }> };
+              }>;
+            };
+          };
+        };
+      };
+    };
+
+    const threads = data.data?.repository?.pullRequest?.reviewThreads?.nodes || [];
+
+    // Find the thread containing our comment
+    for (const thread of threads) {
+      const hasComment = thread.comments.nodes.some((c) => c.databaseId === commentId);
+      if (hasComment) {
+        if (thread.isResolved) {
+          log(`Thread is already resolved`);
+          return true;
+        }
+        threadId = thread.id;
+        break;
+      }
+    }
+
+    if (!threadId) {
+      log(`Could not find review thread containing comment ${commentId}`);
+      return false;
+    }
+  } catch (err) {
+    logError(`Failed to query review threads: ${(err as Error).message}`);
+    return false;
+  }
+
+  // Step 2: Resolve the thread using GraphQL mutation
+  try {
+    gh(
+      ['api', 'graphql', '--input', '-'],
+      JSON.stringify({
+        query: `
+          mutation($threadId: ID!) {
+            resolveReviewThread(input: {threadId: $threadId}) {
+              thread {
+                id
+                isResolved
+              }
+            }
+          }
+        `,
+        variables: { threadId },
+      })
+    );
+
+    log(`Successfully resolved review thread`);
+    return true;
+  } catch (err) {
+    logError(`Failed to resolve review thread: ${(err as Error).message}`);
+    return false;
+  }
+}
+
+function dismissPreviousBotReviews(owner: string, repo: string, prNumber: number): void {
+  log('Checking for previous bot reviews to dismiss...');
+
+  const result = gh([
+    'api',
+    `repos/${owner}/${repo}/pulls/${prNumber}/reviews`,
+    '--jq',
+    '[.[] | select(.user.login == "github-actions[bot]" and (.state == "APPROVED" or .state == "CHANGES_REQUESTED" or .state == "COMMENTED"))]',
+  ]);
+
+  if (!result) {
+    log('No previous bot reviews found');
+    return;
+  }
+
+  try {
+    const reviews = JSON.parse(result) as Array<{ id: number }>;
+
+    if (reviews.length === 0) {
+      log('No previous bot reviews to dismiss');
+      return;
+    }
+
+    log(`Found ${reviews.length} previous bot review(s) to dismiss`);
+
+    for (const review of reviews) {
+      try {
+        gh([
+          'api',
+          '--method',
+          'PUT',
+          `repos/${owner}/${repo}/pulls/${prNumber}/reviews/${review.id}/dismissals`,
+          '-f',
+          'message=Superseded by new review after PR update',
+        ]);
+        log(`Dismissed review ${review.id}`);
+      } catch {
+        log(`Could not dismiss review ${review.id} (may lack permissions)`);
+      }
+    }
+  } catch {
+    log('No reviews to dismiss');
+  }
+}
+
+// =============================================================================
+// Diff Validation
+// =============================================================================
+
+/**
+ * Parses the PR diff to determine which lines are valid for inline comments.
+ * GitHub's API only accepts comments on lines that are part of the diff.
+ *
+ * @returns Map of file paths to Set of valid line numbers
+ */
+function getValidDiffLines(
+  owner: string,
+  repo: string,
+  prNumber: number
+): Map<string, Set<number>> {
+  log('Fetching PR diff to validate inline comment line numbers...');
+
+  const validLines = new Map<string, Set<number>>();
+
+  try {
+    const diff = gh(['pr', 'diff', prNumber.toString(), '--repo', `${owner}/${repo}`]);
+
+    if (!diff) {
+      log('Empty diff returned');
+      return validLines;
+    }
+
+    let currentFile: string | null = null;
+
+    for (const line of diff.split('\n')) {
+      // New file header: +++ b/path/to/file.ts
+      if (line.startsWith('+++ b/')) {
+        currentFile = line.substring(6);
+        if (!validLines.has(currentFile)) {
+          validLines.set(currentFile, new Set<number>());
+        }
+        continue;
+      }
+
+      // Hunk header: @@ -old_start,old_count +new_start,new_count @@
+      if (line.startsWith('@@') && currentFile) {
+        const match = line.match(/@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/);
+        if (match) {
+          const start = parseInt(match[1], 10);
+          const count = match[2] ? parseInt(match[2], 10) : 1;
+          const fileLines = validLines.get(currentFile)!;
+          for (let i = start; i < start + count; i++) {
+            fileLines.add(i);
+          }
+        }
+      }
+    }
+
+    let totalLines = 0;
+    for (const lines of validLines.values()) {
+      totalLines += lines.size;
+    }
+    log(`Parsed diff: ${validLines.size} files, ${totalLines} valid line positions`);
+
+    return validLines;
+  } catch (err) {
+    log(`Warning: Could not fetch diff: ${(err as Error).message}`);
+    return validLines;
+  }
+}
+
+/**
+ * Filters inline comments to only include those on valid diff lines.
+ */
+function filterValidComments(
+  comments: InlineCommentNew[],
+  validLines: Map<string, Set<number>>
+): { valid: InlineCommentNew[]; skipped: InlineCommentNew[] } {
+  const valid: InlineCommentNew[] = [];
+  const skipped: InlineCommentNew[] = [];
+
+  if (validLines.size === 0) {
+    log('No diff validation available, attempting all comments');
+    return { valid: comments, skipped: [] };
+  }
+
+  for (const comment of comments) {
+    const fileLines = validLines.get(comment.path);
+
+    if (!fileLines) {
+      log(`Skipping comment: ${comment.path}:${comment.line} - file not in diff`);
+      skipped.push(comment);
+      continue;
+    }
+
+    if (!fileLines.has(comment.line)) {
+      log(`Skipping comment: ${comment.path}:${comment.line} - line not in diff hunk`);
+      skipped.push(comment);
+      continue;
+    }
+
+    valid.push(comment);
+  }
+
+  if (skipped.length > 0) {
+    log(`Filtered out ${skipped.length} comment(s) on lines not in the diff`);
+  }
+
+  return { valid, skipped };
+}
+
+// =============================================================================
+// Validation
+// =============================================================================
+
+function validateReviewOutput(data: unknown): ReviewOutput {
+  if (typeof data !== 'object' || data === null) {
+    throw new Error('Review output must be an object');
+  }
+
+  const review = data as Record<string, unknown>;
+
+  // Required fields
+  if (typeof review.pr_review_body !== 'string') {
+    throw new Error('pr_review_body must be a string');
+  }
+
+  const validOutcomes = ['COMMENT', 'APPROVE', 'REQUEST_CHANGES'];
+  if (!validOutcomes.includes(review.pr_review_outcome as string)) {
+    throw new Error(`pr_review_outcome must be one of: ${validOutcomes.join(', ')}`);
+  }
+
+  if (!Array.isArray(review.inline_comments_new)) {
+    throw new Error('inline_comments_new must be an array');
+  }
+
+  // Validate each inline comment
+  for (const comment of review.inline_comments_new) {
+    if (typeof comment !== 'object' || comment === null) {
+      throw new Error('Each inline comment must be an object');
+    }
+
+    const c = comment as Record<string, unknown>;
+
+    if (typeof c.path !== 'string' || !c.path) {
+      throw new Error('Each inline comment must have a path (string)');
+    }
+
+    if (typeof c.line !== 'number' || c.line < 1) {
+      throw new Error('Each inline comment must have a line (positive number)');
+    }
+
+    if (typeof c.body !== 'string' || !c.body) {
+      throw new Error('Each inline comment must have a body (string)');
+    }
+  }
+
+  // Validate optional inline_comments_responses
+  if (review.inline_comments_responses !== undefined) {
+    if (!Array.isArray(review.inline_comments_responses)) {
+      throw new Error('inline_comments_responses must be an array');
+    }
+
+    for (const response of review.inline_comments_responses) {
+      if (typeof response !== 'object' || response === null) {
+        throw new Error('Each comment response must be an object');
+      }
+
+      const r = response as Record<string, unknown>;
+
+      if (typeof r.comment_id !== 'number') {
+        throw new Error('Each comment response must have a comment_id (number)');
+      }
+
+      if (typeof r.body !== 'string' || !r.body) {
+        throw new Error('Each comment response must have a body (string)');
+      }
+    }
+  }
+
+  return review as unknown as ReviewOutput;
+}
+
+// =============================================================================
+// Main
+// =============================================================================
+
+async function main(): Promise<void> {
+  // Parse command line arguments
+  const { values } = parseArgs({
+    options: {
+      owner: { type: 'string' },
+      repo: { type: 'string' },
+      'pr-number': { type: 'string' },
+      'review-json': { type: 'string' },
+      'dry-run': { type: 'boolean', default: false },
+    },
+    strict: true,
+  });
+
+  const owner = values.owner;
+  const repo = values.repo;
+  const prNumber = parseInt(values['pr-number'] || '', 10);
+  const dryRun = values['dry-run'];
+
+  // Validate required inputs
+  if (!owner || !repo || isNaN(prNumber)) {
+    logError('Missing required arguments: --owner, --repo, --pr-number');
+    process.exit(1);
+  }
+
+  // Get review JSON from various sources (priority order):
+  // 1. --review-json CLI flag
+  // 2. REVIEW_JSON_FILE env var (read from file path - safest for shell)
+  // 3. REVIEW_JSON env var (direct content)
+  let reviewJsonInput = values['review-json'];
+  if (!reviewJsonInput && process.env.REVIEW_JSON_FILE) {
+    try {
+      reviewJsonInput = readFileSync(process.env.REVIEW_JSON_FILE, 'utf-8');
+      log(`Read review JSON from file: ${process.env.REVIEW_JSON_FILE}`);
+    } catch (err) {
+      logError(`Failed to read REVIEW_JSON_FILE: ${(err as Error).message}`);
+      process.exit(1);
+    }
+  }
+  if (!reviewJsonInput) {
+    reviewJsonInput = process.env.REVIEW_JSON;
+  }
+
+  if (!reviewJsonInput) {
+    logError(
+      'Missing review JSON. Provide via --review-json, REVIEW_JSON_FILE, or REVIEW_JSON env'
+    );
+    process.exit(1);
+  }
+
+  log(`Processing review for ${owner}/${repo}#${prNumber}`);
+
+  // Parse and validate the review JSON
+  let reviewOutput: ReviewOutput;
+  try {
+    // Claude may output explanatory text before the JSON code block.
+    // We need to extract the JSON from anywhere in the response.
+    // Expected format: [optional preamble text] ```json\n{...}\n```
+
+    let jsonStr = reviewJsonInput.trim();
+
+    // Try to find a JSON code block anywhere in the response
+    // Use a regex that matches ```json...``` and captures the content
+    // The $ anchor ensures we get the LAST code block if there are multiple
+    const jsonBlockMatch = jsonStr.match(/```json\s*([\s\S]*?)```\s*$/);
+    if (jsonBlockMatch) {
+      jsonStr = jsonBlockMatch[1].trim();
+      log('Extracted JSON from code block');
+    } else if (jsonStr.startsWith('```')) {
+      // Fallback: strip code fences if response starts with them
+      jsonStr = jsonStr.replace(/^```(?:json)?\s*\n?/, '');
+      jsonStr = jsonStr.replace(/\n?```\s*$/, '');
+      log('Stripped code fences from start of response');
+    } else {
+      // Last resort: try to find JSON object directly (starts with {)
+      const jsonStartIndex = jsonStr.indexOf('{');
+      if (jsonStartIndex !== -1) {
+        jsonStr = jsonStr.substring(jsonStartIndex);
+        log('Found JSON object starting at index ' + jsonStartIndex);
+      }
+    }
+
+    const parsed = JSON.parse(jsonStr.trim());
+    reviewOutput = validateReviewOutput(parsed);
+    log('Review JSON validated successfully');
+  } catch (error) {
+    logError(`Failed to parse review JSON: ${(error as Error).message}`);
+    log('Raw input (first 500 chars):');
+    console.log(reviewJsonInput.substring(0, 500));
+    process.exit(1);
+  }
+
+  if (dryRun) {
+    log('DRY RUN - Would post the following review:');
+    console.log(JSON.stringify(reviewOutput, null, 2));
+    process.exit(0);
+  }
+
+  // Dismiss previous bot reviews
+  dismissPreviousBotReviews(owner, repo, prNumber);
+
+  // Process responses to existing comments first
+  if (reviewOutput.inline_comments_responses?.length) {
+    log(
+      `Processing ${reviewOutput.inline_comments_responses.length} responses to existing comments...`
+    );
+
+    for (const response of reviewOutput.inline_comments_responses) {
+      try {
+        // Reply to the comment first
+        replyToComment(owner, repo, prNumber, response.comment_id, response.body);
+
+        // If marked for resolution, resolve the thread via GraphQL
+        if (response.should_resolve) {
+          const resolved = resolveReviewThread(owner, repo, prNumber, response.comment_id);
+          if (resolved) {
+            log(`Comment ${response.comment_id} replied to and thread resolved`);
+          } else {
+            log(`Comment ${response.comment_id} replied to but thread resolution failed`);
+          }
+        }
+      } catch (error) {
+        logError(`Failed to reply to comment ${response.comment_id}: ${(error as Error).message}`);
+      }
+    }
+  }
+
+  // Validate comments against the actual diff to avoid 422 errors
+  const validDiffLines = getValidDiffLines(owner, repo, prNumber);
+  const { valid: validComments, skipped: skippedComments } = filterValidComments(
+    reviewOutput.inline_comments_new,
+    validDiffLines
+  );
+
+  // Build inline comments with suggestions formatted
+  const formattedComments = validComments.map((comment) => ({
+    path: comment.path,
+    line: comment.line,
+    body: formatSuggestion(comment.body, comment.suggestion),
+    side: comment.side || ('RIGHT' as const),
+  }));
+
+  // If we skipped comments, add them to the review body so feedback isn't lost
+  let reviewBody = reviewOutput.pr_review_body;
+  if (skippedComments.length > 0) {
+    const skippedSection = `\n\n---\n\n<details>\n<summary>ℹ️ ${
+      skippedComments.length
+    } comment(s) on unchanged code</summary>\n\nThe following feedback is on lines that weren't modified in this PR:\n\n${skippedComments
+      .map(
+        (c) =>
+          `**${c.path}:${c.line}**\n${
+            c.body.length > 200 ? c.body.substring(0, 200) + '...' : c.body
+          }`
+      )
+      .join('\n\n')}\n\n</details>`;
+    reviewBody += skippedSection;
+  }
+
+  // Create the review with inline comments
+  try {
+    const result = createReview({
+      owner,
+      repo,
+      pull_number: prNumber,
+      body: reviewBody,
+      event: reviewOutput.pr_review_outcome,
+      comments: formattedComments,
+    });
+
+    log(`Review posted successfully!`);
+    log(`Review URL: ${result.html_url}`);
+
+    // Output summary
+    console.log('\n=== Review Summary ===');
+    console.log(`Outcome: ${reviewOutput.pr_review_outcome}`);
+    console.log(`Inline comments posted: ${formattedComments.length}`);
+    if (skippedComments.length > 0) {
+      console.log(`Comments on unchanged code (in summary): ${skippedComments.length}`);
+    }
+    if (reviewOutput.files_reviewed?.length) {
+      console.log(`Files reviewed: ${reviewOutput.files_reviewed.length}`);
+    }
+    if (reviewOutput.confidence !== undefined) {
+      console.log(`Confidence: ${(reviewOutput.confidence * 100).toFixed(0)}%`);
+    }
+    console.log(`Review ID: ${result.id}`);
+    console.log(`URL: ${result.html_url}`);
+  } catch (error) {
+    logError(`Failed to create review: ${(error as Error).message}`);
+    process.exit(1);
+  }
+}
+
+main().catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  logError(`Unexpected error: ${message}`);
+  process.exit(1);
+});

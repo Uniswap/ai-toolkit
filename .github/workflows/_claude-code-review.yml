@@ -1,13 +1,20 @@
-name: '[claude] Claude Code Review'
+name: "[claude] Claude Code Review"
 
 # Reusable workflow for automated PR code reviews using Claude AI
 #
 # This workflow provides comprehensive code reviews with:
 # - Formal GitHub reviews (APPROVE/REQUEST_CHANGES/COMMENT)
-# - Inline comments on specific lines of code
-# - Auto-resolution of comments when issues are fixed
+# - Inline comments on specific lines of code (as github-actions[bot])
 # - Patch-ID based caching to skip rebases
 # - Custom prompt support
+#
+# ARCHITECTURE:
+# This workflow uses a hybrid approach:
+# 1. Claude analyzes the PR and outputs structured JSON
+# 2. A TypeScript script parses the JSON and posts the review via gh CLI
+#
+# This ensures all comments appear as `github-actions[bot]` using the official
+# Anthropic action without needing a fork.
 #
 # USAGE:
 #   uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
@@ -20,7 +27,6 @@ name: '[claude] Claude Code Review'
 # FEATURES:
 # - Runs on every push but skips rebases (patch-ID detection)
 # - Creates inline comments like human reviewers
-# - Tracks and resolves previous comments
 # - Submits formal reviews for merge protection
 # - Supports custom prompts
 #
@@ -35,53 +41,53 @@ on:
   workflow_call:
     inputs:
       pr_number:
-        description: 'Pull request number to review'
+        description: "Pull request number to review"
         required: true
         type: string
 
       base_ref:
-        description: 'Base branch name (e.g., main, master)'
+        description: "Base branch name (e.g., main, master)"
         required: true
         type: string
 
       model:
-        description: 'Claude model to use for review'
+        description: "Claude model to use for review"
         required: false
         type: string
-        default: 'claude-sonnet-4-5-20250929'
+        default: "claude-sonnet-4-5-20250929"
 
       max_turns:
-        description: 'Maximum conversation turns for Claude. Omit to use unlimited turns (may help with track_progress Issue #602).'
+        description: "Maximum conversation turns for Claude. Omit to use unlimited turns."
         required: false
         type: number
 
       custom_prompt:
-        description: 'Custom prompt text (overrides prompt file and default). Verdict logic will be automatically appended.'
+        description: "Custom prompt text (overrides prompt file and default)."
         required: false
         type: string
-        default: ''
+        default: ""
 
       custom_prompt_path:
-        description: 'Path to custom prompt file in repository (e.g., .claude/prompts/claude-pr-bot.md)'
+        description: "Path to custom prompt file in repository (e.g., .claude/prompts/claude-pr-bot.md)"
         required: false
         type: string
-        default: '.claude/prompts/claude-pr-bot.md'
+        default: ".claude/prompts/claude-pr-bot.md"
 
       timeout_minutes:
-        description: 'Job timeout in minutes'
+        description: "Job timeout in minutes"
         required: false
         type: number
         default: 30
 
       allowed_tools:
-        description: 'Comma-separated list of allowed tools for Claude (e.g., "Read,Grep,Glob,Bash(git log),Write"). Leave empty for default permissive set.'
+        description: 'Comma-separated list of allowed tools for Claude (e.g., "Read,Grep,Glob"). Leave empty for default read-only set.'
         required: false
         type: string
-        default: ''
+        default: ""
 
     secrets:
       ANTHROPIC_API_KEY:
-        description: 'Anthropic API key for Claude access'
+        description: "Anthropic API key for Claude access"
         required: true
 
 jobs:
@@ -176,7 +182,34 @@ jobs:
           echo "We've already reviewed this exact code, so skipping to save API costs."
           exit 0
 
-      # Build final prompt with custom content + verdict injection
+      # Fetch existing review comments for context
+      - name: Fetch Existing Review Comments
+        if: steps.cache-check.outputs.cache-hit != 'true'
+        id: existing-comments
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          echo "ℹ️  Fetching existing review comments for context..."
+
+          # Get existing review comments (for re-review context)
+          COMMENTS=$(gh api "/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/comments" \
+            --jq '[.[] | {id: .id, path: .path, line: .line, body: .body, user: .user.login}]' || echo "[]")
+
+          # Save to file for prompt inclusion
+          echo "$COMMENTS" > /tmp/existing-comments.json
+
+          COMMENT_COUNT=$(echo "$COMMENTS" | jq 'length')
+          echo "existing_comment_count=$COMMENT_COUNT" >> $GITHUB_OUTPUT
+
+          if [ "$COMMENT_COUNT" -gt 0 ]; then
+            echo "ℹ️  Found $COMMENT_COUNT existing review comment(s)"
+          else
+            echo "ℹ️  No existing review comments found (initial review)"
+          fi
+
+      # Build final prompt with custom content
       - name: Build Review Prompt
         if: steps.cache-check.outputs.cache-hit != 'true'
         id: build-prompt
@@ -188,6 +221,7 @@ jobs:
           PR_NUMBER: ${{ inputs.pr_number }}
           BASE_REF: ${{ inputs.base_ref }}
           PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
+          EXISTING_COMMENT_COUNT: ${{ steps.existing-comments.outputs.existing_comment_count }}
         run: |
           CUSTOM_PROMPT=""
 
@@ -206,9 +240,6 @@ jobs:
             echo "📝 Fetching default prompt from Uniswap/ai-toolkit repository"
 
             # Fetch default prompt via GitHub API
-            # -f: Fail on HTTP errors (status >= 400)
-            # -S: Show errors even with -s
-            # -s: Silent mode (no progress bar)
             if ! curl -fSs -H "Authorization: token $GITHUB_TOKEN" \
                       -H "Accept: application/vnd.github.v4.raw" \
                       -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/prompts/default-pr-review.md" \
@@ -227,7 +258,7 @@ jobs:
           REPO_OWNER=$(echo "$REPO" | cut -d'/' -f1)
           REPO_NAME=$(echo "$REPO" | cut -d'/' -f2)
 
-          # Build final prompt with context and verdict injection
+          # Build final prompt with context
           cat > /tmp/final-prompt.txt <<PROMPT_EOF
           # Review Context
 
@@ -244,6 +275,26 @@ jobs:
           # Append custom prompt content
           echo "$CUSTOM_PROMPT" >> /tmp/final-prompt.txt
 
+          # Append existing comments context for re-reviews
+          if [ "$EXISTING_COMMENT_COUNT" -gt 0 ]; then
+            cat >> /tmp/final-prompt.txt <<EXISTING_COMMENTS_EOF
+
+          ---
+
+          # Existing Review Comments
+
+          The following review comments already exist on this PR. Check if issues have been addressed:
+
+          \`\`\`json
+          $(cat /tmp/existing-comments.json)
+          \`\`\`
+
+          For each existing comment, if the issue has been fixed in the current code, include a response
+          in your \`inline_comments_responses\` array with \`should_resolve: true\`.
+          EXISTING_COMMENTS_EOF
+            echo "✨ Added existing comments context for re-review"
+          fi
+
           # Append fast-review mode instructions for trivial PRs
           IS_TRIVIAL="${{ steps.pr-size.outputs.is_trivial }}"
           if [ "$IS_TRIVIAL" = "true" ]; then
@@ -258,98 +309,65 @@ jobs:
           1. **Quick scan**: Review changed files briefly
           2. **Focus on critical issues only**: Bugs, security vulnerabilities, breaking changes
           3. **Skip comprehensive analysis**: Don't need detailed maintainability or improvement suggestions
-          4. **Minimal inline comments**: If the PR only modifies auto-generated files (lockfiles, snapshots), skip inline comments entirely and just acknowledge in summary
-          5. **Fast verdict**: Create verdict files and complete quickly
+          4. **Minimal inline comments**: If the PR only modifies auto-generated files (lockfiles, snapshots), use an empty \`inline_comments_new\` array
+          5. **Fast verdict**: Complete quickly with appropriate outcome
 
           **Goal**: Provide value while minimizing review cost for small changes.
           TRIVIAL_MODE_EOF
             echo "✨ Added fast-review mode instructions for trivial PR"
           fi
 
-          # Append verdict writing requirements (always injected)
-          cat >> /tmp/final-prompt.txt <<VERDICT_EOF
+          # ALWAYS append JSON output instructions (required for hybrid approach)
+          cat >> /tmp/final-prompt.txt <<JSON_OUTPUT_EOF
 
           ---
 
-          # Required: Review Output
+          # ⚠️ CRITICAL: Required JSON Output Format
 
-          After completing your review, you **MUST** create these two files in the GitHub workspace root directory:
+          **Your ENTIRE response must be a single JSON code block.** Do NOT include any explanatory text, analysis summary, or preamble before the JSON. Do NOT call any GitHub MCP tools to post comments.
 
-          ## 1. \`\$GITHUB_WORKSPACE/.claude-review-verdict.txt\`
+          Output your complete review as a JSON object with this exact structure:
 
-          **IMPORTANT:** Write this file to the full path: \`\$GITHUB_WORKSPACE/.claude-review-verdict.txt\`
-
-          Contains ONLY one word (the verdict):
-          - \`APPROVE\` - No blocking issues, safe to merge
-          - \`REQUEST_CHANGES\` - Critical issues that must be fixed before merge
-          - \`COMMENT\` - Moderate issues, non-blocking but should be addressed
-
-          **Example file content:**
-          \`\`\`
-          APPROVE
-          \`\`\`
-
-          ## 2. \`\$GITHUB_WORKSPACE/.claude-review-summary.md\`
-
-          **IMPORTANT:** Write this file to the full path: \`\$GITHUB_WORKSPACE/.claude-review-summary.md\`
-
-          Your review summary in markdown format:
-
-          ```markdown
-          ## 🤖 Claude Code Review
-
-          **Status:** ✅ Completed
-          **Verdict:** [Your verdict: APPROVE/REQUEST_CHANGES/COMMENT]
-          **Patch ID:** $PATCH_ID
-
-          ### Summary
-          [Brief overview of the PR and your assessment]
-
-          ### Key Findings
-          - [Important issue or observation 1]
-          - [Important issue or observation 2]
-          - [Important issue or observation 3]
-
-          ### Inline Comments
-          I've added [X] inline comments with detailed feedback on specific lines.
-          Please review all comments and address the issues marked.
-
-          [Optional: Any additional context or recommendations]
-          ```
-
-          **These files are required** for the formal GitHub review to be submitted.
-          If you don't create them, the review will fail.
-          VERDICT_EOF
-
-          # Append final inline comment reminder (MUST be last thing in prompt)
-          cat >> /tmp/final-prompt.txt <<INLINE_REMINDER_EOF
-
-          ---
-
-          # ⚠️ CRITICAL FINAL STEP: Create Inline Comments FIRST
-
-          **BEFORE creating the verdict files above, you MUST:**
-
-          1. Call \`mcp__github__create_pull_request_review\` with the \`comments\` array containing at least 1 inline comment
-          2. Each comment needs: \`path\` (file path), \`line\` (line number), \`body\` (your feedback)
-          3. ONLY AFTER inline comments are created, then create the verdict files
-
-          **Example call you MUST make:**
-          \`\`\`
-          mcp__github__create_pull_request_review({
-            owner: "$REPO_OWNER",
-            repo: "$REPO_NAME",
-            pull_number: $PR_NUMBER,
-            body: "Review summary",
-            event: "COMMENT",
-            comments: [
-              { path: "src/example.ts", line: 42, body: "Your feedback here" }
-            ]
-          })
+          \`\`\`json
+          {
+            "pr_review_body": "## Code Review Summary\\n\\n[Your markdown-formatted review summary]",
+            "pr_review_outcome": "COMMENT",
+            "inline_comments_new": [
+              {
+                "path": "src/example.ts",
+                "line": 42,
+                "body": "Your detailed feedback for this specific line",
+                "suggestion": "optional corrected code here"
+              }
+            ],
+            "inline_comments_responses": [],
+            "files_reviewed": ["src/file1.ts", "src/file2.ts"],
+            "confidence": 0.85
+          }
           \`\`\`
 
-          **Reviews without inline comments will be flagged as incomplete.**
-          INLINE_REMINDER_EOF
+          **JSON Schema:**
+          - \`pr_review_body\` (string, required): Markdown-formatted review summary
+          - \`pr_review_outcome\` (enum, required): "COMMENT", "APPROVE", or "REQUEST_CHANGES"
+          - \`inline_comments_new\` (array, required): New inline comments (can be empty \`[]\`)
+            - Each comment needs: \`path\` (file path), \`line\` (number), \`body\` (feedback text)
+            - Optional: \`suggestion\` (corrected code snippet)
+          - \`inline_comments_responses\` (array, optional): Responses to existing comments
+            - Each response needs: \`comment_id\` (number), \`body\` (response text), \`should_resolve\` (boolean)
+          - \`files_reviewed\` (array, optional): List of files you reviewed
+          - \`confidence\` (number, optional): 0.0-1.0 confidence in your review
+
+          **Outcome Guidelines:**
+          - \`APPROVE\`: No blocking issues, code is safe to merge
+          - \`REQUEST_CHANGES\`: Critical bugs, security issues, or data loss risks
+          - \`COMMENT\`: Suggestions and improvements, but not blocking
+
+          **IMPORTANT:**
+          - DO NOT call \`mcp__github__create_pull_request_review\` or any GitHub write tools
+          - Your JSON will be parsed by a script that posts the review as \`github-actions[bot]\`
+          - Ensure your JSON is valid and properly escaped
+          JSON_OUTPUT_EOF
+          echo "✅ Added JSON output instructions (required for hybrid approach)"
 
           # Log final prompt length
           PROMPT_LENGTH=$(wc -c < /tmp/final-prompt.txt)
@@ -367,7 +385,7 @@ jobs:
           echo "📄 Prompt preview (first 10 lines):"
           head -n 10 /tmp/final-prompt.txt
 
-      # Build Claude arguments with proper escaping for tool specifications
+      # Build Claude arguments - READ-ONLY tools only (no GitHub write tools)
       - name: Build Claude Arguments
         if: steps.cache-check.outputs.cache-hit != 'true'
         id: build-args
@@ -376,39 +394,30 @@ jobs:
           INPUT_MAX_TURNS: ${{ inputs.max_turns }}
           INPUT_MODEL: ${{ inputs.model }}
         run: |
-          # Build allowed tools list programmatically to avoid shell parsing issues
+          # Build allowed tools list - READ-ONLY tools only
+          # Claude outputs JSON, the post-review script handles GitHub writes
           if [ -n "$INPUT_ALLOWED_TOOLS" ]; then
             ALLOWED_TOOLS="$INPUT_ALLOWED_TOOLS"
           else
-            # Define tools as array for better maintainability and to eliminate
-            # shell string parsing nuances. Each tool is a separate array element.
+            # Define read-only tools for analysis
             TOOLS=(
-              # GitHub MCP tools for PR interaction
-              "mcp__github__get_pull_request"
-              "mcp__github__get_pull_request_files"
-              "mcp__github__get_pull_request_diff"
-              "mcp__github__get_pull_request_comments"
-              "mcp__github__get_pull_request_reviews"
-              "mcp__github__get_pull_request_review_comments"
-              "mcp__github__create_review_comment"
-              "mcp__github__resolve_review_thread"
-              "mcp__github__list_review_comments"
-              "mcp__github__create_pull_request_review"
-
-              # File operations
+              # File operations (read-only)
               "Read"
               "Grep"
               "Glob"
 
-              # Git commands (wildcard patterns allow any arguments/flags)
+              # Git commands for context (read-only)
               "Bash(git log:*)"
               "Bash(git diff:*)"
               "Bash(git show:*)"
               "Bash(git blame:*)"
               "Bash(git rev-parse:*)"
 
-              # File writing
-              "Write"
+              # GitHub MCP tools (read-only, for fetching PR context)
+              "mcp__github__get_pull_request"
+              "mcp__github__get_pull_request_files"
+              "mcp__github__get_pull_request_comments"
+              "mcp__github__get_pull_request_reviews"
             )
 
             # Join array elements with commas (no spaces)
@@ -434,9 +443,9 @@ jobs:
           echo "claude_args<<CLAUDE_ARGS_EOF" >> $GITHUB_OUTPUT
           echo "$CLAUDE_ARGS" >> $GITHUB_OUTPUT
           echo "CLAUDE_ARGS_EOF" >> $GITHUB_OUTPUT
-          echo "✅ Configured allowed tools (${#ALLOWED_TOOLS} chars)"
+          echo "✅ Configured read-only tools (${#ALLOWED_TOOLS} chars)"
 
-      # Run Claude Code Action to perform the review
+      # Run Claude Code Action to perform the review (analysis only, outputs JSON)
       - name: Run Claude Code Review
         if: steps.cache-check.outputs.cache-hit != 'true'
         id: claude
@@ -444,329 +453,231 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: ${{ steps.build-prompt.outputs.final_prompt }}
-          # Disable built-in progress tracking to avoid duplicate comments.
-          # We maintain our own single PR comment via the "Post Review Completion Comment" step.
-          # This ensures DEV-131 requirement #2: single PR comment for the lifetime of the PR.
+          # Disable built-in progress tracking - we handle our own PR comments
           track_progress: false
+          # Show full Claude output in logs for debugging
+          show_full_output: false
           allowed_bots: dependabot
           claude_args: ${{ steps.build-args.outputs.claude_args }}
           additional_permissions: |
             actions: read
 
-      # Validate that inline comments were created (warning only, not blocking)
-      - name: Validate Inline Comments
+      # Setup Node.js for the post-review script
+      - name: Setup Node.js
         if: steps.cache-check.outputs.cache-hit != 'true' && success()
-        id: validate-comments
-        env:
-          PR_NUMBER: ${{ inputs.pr_number }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          IS_TRIVIAL: ${{ steps.pr-size.outputs.is_trivial }}
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: "22"
+
+      # Extract Claude's final response from the execution output
+      - name: Extract Claude Response
+        if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        id: extract-response
         run: |
           set -euo pipefail
 
-          echo "ℹ️  Checking for inline review comments on PR #$PR_NUMBER"
+          EXECUTION_FILE="/home/runner/work/_temp/claude-execution-output.json"
 
-          # Get all review comments for this PR
-          COMMENTS=$(gh api "/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/comments" --jq 'length')
+          if [ ! -f "$EXECUTION_FILE" ]; then
+            echo "❌ Claude execution output file not found"
+            exit 1
+          fi
 
-          echo "inline_comment_count=$COMMENTS" >> $GITHUB_OUTPUT
+          echo "ℹ️  Extracting Claude's final response from execution log..."
 
-          if [ "$COMMENTS" -eq 0 ]; then
-            if [ "$IS_TRIVIAL" = "true" ]; then
-              echo "⚠️  No inline comments created, but PR is trivial (< 20 lines)"
-              echo "   This is acceptable for small PRs with only auto-generated files"
-              echo "has_inline_comments=false" >> $GITHUB_OUTPUT
-            else
-              echo "⚠️  WARNING: No inline comments were created for this PR"
-              echo "   The review prompt requires inline comments for comprehensive reviews"
-              echo "   This may indicate a model capability issue or prompt following problem"
-              echo ""
-              echo "   Consider:"
-              echo "   - Re-running the review with a more capable model"
-              echo "   - Checking if the prompt instructions are clear enough"
-              echo "has_inline_comments=false" >> $GITHUB_OUTPUT
+          # Extract the last assistant message content from the execution log
+          # The file is a JSON array created by `jq -s '.'` in claude-code-action
+          # Format: [{"type": "system", ...}, {"type": "assistant", "message": {...}}, ...]
+          # We need to find the last assistant message and extract its text content
+          REVIEW_TEXT=$(cat "$EXECUTION_FILE" | \
+            jq '[.[] | select(.type == "assistant") | .message.content[] | select(.type == "text") | .text] | last // empty' -r)
+
+          if [ -z "$REVIEW_TEXT" ]; then
+            echo "❌ Could not extract assistant response from execution log"
+            echo "📋 Execution file structure debug:"
+            echo "  - File size: $(wc -c < "$EXECUTION_FILE") bytes"
+            echo "  - Number of messages: $(jq 'length' "$EXECUTION_FILE")"
+            echo "  - Message types: $(jq '[.[].type] | unique' "$EXECUTION_FILE")"
+            echo "  - Assistant messages count: $(jq '[.[] | select(.type == "assistant")] | length' "$EXECUTION_FILE")"
+            echo ""
+            echo "📋 Last assistant message structure (first 1000 chars):"
+            jq '[.[] | select(.type == "assistant")] | last' "$EXECUTION_FILE" | head -c 1000
+            exit 1
+          fi
+
+          # Save for the next step
+          echo "$REVIEW_TEXT" > /tmp/claude-review-response.txt
+          echo "✅ Extracted response (${#REVIEW_TEXT} chars)"
+
+          # Show preview
+          echo "📋 Response preview (first 500 chars):"
+          echo "$REVIEW_TEXT" | head -c 500
+
+      # Upload Claude execution output as artifact for debugging
+      - name: Upload Claude Execution Output
+        if: steps.cache-check.outputs.cache-hit != 'true' && always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: claude-execution-output-pr${{ inputs.pr_number }}
+          path: /home/runner/work/_temp/claude-execution-output.json
+          retention-days: 7
+          if-no-files-found: warn
+
+      # Download post-review script if running from external repository
+      # When running from ai-toolkit itself, use the local file
+      - name: Setup Post Review Script
+        if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        id: setup-script
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # Check if we're running from the ai-toolkit repository
+          if [ "$GITHUB_REPOSITORY" = "Uniswap/ai-toolkit" ]; then
+            echo "ℹ️  Running from ai-toolkit - using local post-review.ts"
+            echo "script_path=.github/scripts/post-review.ts" >> $GITHUB_OUTPUT
+          else
+            echo "ℹ️  Running from external repository - downloading post-review.ts from Uniswap/ai-toolkit"
+
+            # Download the script from ai-toolkit repository
+            if ! curl -fSs -H "Authorization: token $GITHUB_TOKEN" \
+                      -H "Accept: application/vnd.github.v4.raw" \
+                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/scripts/post-review.ts" \
+                      -o /tmp/post-review.ts 2>&1 | tee /tmp/curl-error.log; then
+              echo "❌ Failed to download post-review.ts from Uniswap/ai-toolkit"
+              echo "   Error details:"
+              cat /tmp/curl-error.log | head -5
+              exit 1
             fi
-          else
-            echo "✅ Found $COMMENTS inline comment(s)"
-            echo "has_inline_comments=true" >> $GITHUB_OUTPUT
+
+            echo "✅ Downloaded post-review.ts"
+            echo "script_path=/tmp/post-review.ts" >> $GITHUB_OUTPUT
           fi
 
-      # Dismiss previous bot reviews to avoid cluttering PR with multiple reviews
-      - name: Dismiss Previous Bot Reviews
+      # Post the review using our script (all comments as github-actions[bot])
+      - name: Post Review via Script
         if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        id: post-review
         env:
-          PR_NUMBER: ${{ inputs.pr_number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          # Pass file path instead of content to avoid shell injection risks
+          # The script reads the file directly, avoiding shell expansion of content
+          REVIEW_JSON_FILE: /tmp/claude-review-response.txt
+          # Script path determined by setup-script step (local or downloaded)
+          POST_REVIEW_SCRIPT: ${{ steps.setup-script.outputs.script_path }}
         run: |
           set -euo pipefail
 
-          echo "ℹ️  Checking for previous bot reviews to dismiss..."
+          echo "ℹ️  Parsing Claude's review output and posting to GitHub..."
+          echo "ℹ️  Using script: $POST_REVIEW_SCRIPT"
 
-          # Get all reviews on this PR by github-actions[bot]
-          # Filter for reviews that are APPROVED, CHANGES_REQUESTED, or COMMENTED (not DISMISSED or PENDING)
-          REVIEWS=$(gh api "/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews" \
-            --jq '[.[] | select(.user.login == "github-actions[bot]" and (.state == "APPROVED" or .state == "CHANGES_REQUESTED" or .state == "COMMENTED"))]')
+          # Parse owner and repo
+          REPO_OWNER=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)
+          REPO_NAME=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
 
-          REVIEW_COUNT=$(echo "$REVIEWS" | jq 'length')
-
-          if [ "$REVIEW_COUNT" -eq 0 ]; then
-            echo "ℹ️  No previous bot reviews found to dismiss"
-          else
-            echo "ℹ️  Found $REVIEW_COUNT previous bot review(s) to dismiss"
-
-            # Dismiss each review
-            echo "$REVIEWS" | jq -r '.[].id' | while read -r REVIEW_ID; do
-              echo "   Dismissing review ID: $REVIEW_ID"
-              gh api "/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews/${REVIEW_ID}/dismissals" \
-                -X PUT \
-                -f message="Superseded by new review after PR update" \
-                > /dev/null 2>&1 || {
-                  echo "   ⚠️  Could not dismiss review $REVIEW_ID (may lack permissions or review is not dismissible)"
-                }
-            done
-
-            echo "✅ Previous bot reviews dismissed"
+          # Verify the response file exists
+          if [ ! -f "$REVIEW_JSON_FILE" ]; then
+            echo "❌ No review response file found at $REVIEW_JSON_FILE"
+            exit 1
           fi
 
-      # Submit formal GitHub review using verdict from Claude
-      - name: Submit GitHub Review
-        if: steps.cache-check.outputs.cache-hit != 'true' && success()
-        env:
-          PR_NUMBER: ${{ inputs.pr_number }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-
-          # Configuration
-          WORKSPACE_ROOT="${GITHUB_WORKSPACE:-.}"
-          VERDICT_FILE="$WORKSPACE_ROOT/.claude-review-verdict.txt"
-          SUMMARY_FILE="$WORKSPACE_ROOT/.claude-review-summary.md"
-          DEFAULT_VERDICT="COMMENT"
-          DEFAULT_SUMMARY="Claude AI completed the code review. See inline comments for detailed feedback."
-
-          echo "ℹ️  Starting GitHub review submission for PR #$PR_NUMBER"
-
-          # Read verdict from file or use default
-          VERDICT="$DEFAULT_VERDICT"
-          if [ -f "$VERDICT_FILE" ]; then
-            VERDICT=$(cat "$VERDICT_FILE" | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')
-            echo "ℹ️  Read verdict from file: $VERDICT"
-          else
-            echo "⚠️  No verdict file found at $VERDICT_FILE, using default: $DEFAULT_VERDICT"
+          # Check that the file has content
+          if [ ! -s "$REVIEW_JSON_FILE" ]; then
+            echo "❌ No review output from Claude (file is empty)"
+            exit 1
           fi
 
-          # Validate verdict
-          case "$VERDICT" in
-            APPROVE|REQUEST_CHANGES|COMMENT)
-              echo "✅ Valid verdict: $VERDICT"
-              ;;
-            *)
-              echo "❌ Invalid verdict '$VERDICT', must be APPROVE, REQUEST_CHANGES, or COMMENT"
-              echo "⚠️  Falling back to default: $DEFAULT_VERDICT"
-              VERDICT="$DEFAULT_VERDICT"
-              ;;
-          esac
+          echo "ℹ️  Review response length: $(wc -c < "$REVIEW_JSON_FILE") bytes"
 
-          # Read summary from file or use default
-          SUMMARY="$DEFAULT_SUMMARY"
-          if [ -f "$SUMMARY_FILE" ]; then
-            SUMMARY=$(cat "$SUMMARY_FILE")
-            echo "ℹ️  Read review summary from file (${#SUMMARY} chars)"
-          else
-            echo "⚠️  No summary file found at $SUMMARY_FILE, using default message"
-          fi
+          # Run the post-review script (path from setup-script step)
+          # REVIEW_JSON_FILE env var is passed to the script, which reads the file directly
+          # This avoids shell expansion of file content (shell injection safe)
+          npx tsx "$POST_REVIEW_SCRIPT" \
+            --owner "$REPO_OWNER" \
+            --repo "$REPO_NAME" \
+            --pr-number "$PR_NUMBER"
 
-          # Submit GitHub review using gh CLI
-          echo "ℹ️  Submitting GitHub review for PR #$PR_NUMBER..."
-          case "$VERDICT" in
-            APPROVE)
-              gh pr review "$PR_NUMBER" --approve --body "$SUMMARY"
-              echo "✅ Submitted APPROVE review"
-              echo "✨ PR approved - no blocking issues found"
-              ;;
-            REQUEST_CHANGES)
-              gh pr review "$PR_NUMBER" --request-changes --body "$SUMMARY"
-              echo "✅ Submitted REQUEST_CHANGES review (blocking)"
-              echo "🔴 Changes requested - critical issues must be addressed before merge"
-              ;;
-            COMMENT)
-              gh pr review "$PR_NUMBER" --comment --body "$SUMMARY"
-              echo "✅ Submitted COMMENT review (non-blocking)"
-              echo "💬 Review completed - see comments for feedback"
-              ;;
-          esac
+          echo "✅ Review posted successfully"
 
-          # Cleanup temporary files
-          if [ -f "$VERDICT_FILE" ]; then
-            rm -f "$VERDICT_FILE"
-            echo "ℹ️  Cleaned up $VERDICT_FILE"
-          fi
-          if [ -f "$SUMMARY_FILE" ]; then
-            rm -f "$SUMMARY_FILE"
-            echo "ℹ️  Cleaned up $SUMMARY_FILE"
-          fi
-
-          echo "✅ Review submission completed successfully"
-
-      # Update PR comment with final results (success case)
-      - name: Post Review Completion Comment
-        if: steps.cache-check.outputs.cache-hit != 'true' && success()
-        env:
-          PR_NUMBER: ${{ inputs.pr_number }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-
-          # Configuration
-          COMMENT_ID_FILE=".claude-review-comment-id"
-          VERDICT_FILE=".claude-review-verdict.txt"
-          SUMMARY_FILE=".claude-review-summary.md"
-          COMMENT_MARKER="<!-- claude-pr-review-bot -->"
-          JOB_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-
-          echo "ℹ️  Preparing to post review completion comment" >&2
-
-          # Get existing comment ID for this PR
-          COMMENT_ID=""
-          if [ -f "$COMMENT_ID_FILE" ]; then
-            COMMENT_ID=$(cat "$COMMENT_ID_FILE")
-            echo "ℹ️  Found cached comment ID: $COMMENT_ID" >&2
-          else
-            echo "ℹ️  Searching for existing Claude review comment..." >&2
-            COMMENT_ID=$(gh api "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
-              --jq ".[] | select(.body | contains(\"${COMMENT_MARKER}\")) | .id" | head -1 || echo "")
-            if [ -n "$COMMENT_ID" ]; then
-              echo "ℹ️  Found existing comment ID: $COMMENT_ID" >&2
-              echo "$COMMENT_ID" > "$COMMENT_ID_FILE"
-            else
-              echo "ℹ️  No existing comment found" >&2
-            fi
-          fi
-
-          # Read verdict and summary
-          VERDICT="COMMENT"
-          VERDICT_EMOJI="💬"
-          VERDICT_TEXT="Review Completed"
-          VERDICT_COLOR="⚪"
-
-          if [ -f "$VERDICT_FILE" ]; then
-            VERDICT=$(cat "$VERDICT_FILE" | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')
-            echo "ℹ️  Read verdict: $VERDICT" >&2
-          else
-            echo "⚠️  No verdict file found, using default: COMMENT" >&2
-          fi
-
-          # Set emoji and text based on verdict
-          case "$VERDICT" in
-            APPROVE)
-              VERDICT_EMOJI="✅"
-              VERDICT_TEXT="Approved"
-              VERDICT_COLOR="🟢"
-              ;;
-            REQUEST_CHANGES)
-              VERDICT_EMOJI="🔴"
-              VERDICT_TEXT="Changes Requested"
-              VERDICT_COLOR="🔴"
-              ;;
-            COMMENT)
-              VERDICT_EMOJI="💬"
-              VERDICT_TEXT="Review Completed"
-              VERDICT_COLOR="⚪"
-              ;;
-          esac
-
-          # Read summary if available
-          if [ -f "$SUMMARY_FILE" ]; then
-            SUMMARY=$(cat "$SUMMARY_FILE")
-            echo "ℹ️  Read summary (${#SUMMARY} chars)" >&2
-          else
-            echo "⚠️  No summary file found, using default" >&2
-            SUMMARY="Claude AI completed the code review. See inline comments for detailed feedback."
-          fi
-
-          # Generate comment body
-          COMMENT_BODY=$(cat <<EOF
-          ${COMMENT_MARKER}
-          ## 🤖 Claude Code Review
-
-          **Status:** ✅ Completed
-          **Verdict:** ${VERDICT_COLOR} ${VERDICT_EMOJI} **${VERDICT_TEXT}**
-          **Job:** [View workflow run](${JOB_URL})
-
-          ---
-
-          ${SUMMARY}
-
-          ---
-
-          <details>
-          <summary>Review Details</summary>
-
-          **Verdict:** \`${VERDICT}\`
-          **Completed:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-
-          </details>
-          EOF
-          )
-
-          # Create or update comment
-          if [ -n "$COMMENT_ID" ]; then
-            echo "ℹ️  Updating comment ID: $COMMENT_ID..." >&2
-            gh api "/repos/${GITHUB_REPOSITORY}/issues/comments/${COMMENT_ID}" \
-              -X PATCH \
-              -f body="$COMMENT_BODY" \
-              > /dev/null
-            echo "✅ Updated comment ID: $COMMENT_ID" >&2
-          else
-            echo "ℹ️  Creating new PR comment..." >&2
-            COMMENT_ID=$(gh api "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
-              -X POST \
-              -f body="$COMMENT_BODY" \
-              --jq '.id')
-            echo "$COMMENT_ID" > "$COMMENT_ID_FILE"
-            echo "✅ Created comment with ID: $COMMENT_ID" >&2
-          fi
-
-          echo "✅ Review completion comment posted" >&2
-
-      # Update PR comment with error status (failure case)
-      - name: Post Review Error Comment
+      # Fallback: Post review summary as PR comment if script fails
+      - name: Fallback Review Comment
         if: steps.cache-check.outputs.cache-hit != 'true' && failure()
         env:
           PR_NUMBER: ${{ inputs.pr_number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          echo "⚠️  Script failed, posting Claude's output as comment fallback..."
+
+          COMMENT_MARKER="<!-- claude-pr-review-bot -->"
+          JOB_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          # Try to read the extracted response, fallback to execution file
+          if [ -f /tmp/claude-review-response.txt ]; then
+            SUMMARY=$(cat /tmp/claude-review-response.txt)
+          elif [ -f /home/runner/work/_temp/claude-execution-output.json ]; then
+            SUMMARY=$(cat /home/runner/work/_temp/claude-execution-output.json | head -c 10000)
+          else
+            SUMMARY="No review output available"
+          fi
+
+          # Generate fallback comment
+          COMMENT_BODY=$(cat <<EOF
+          ${COMMENT_MARKER}
+          ## 🤖 Claude Code Review
+
+          **Status:** ⚠️ Partial (script error)
+          **Job:** [View workflow run](${JOB_URL})
+
+          ---
+
+          The review was completed but there was an error posting inline comments.
+
+          <details>
+          <summary>Raw Review Output</summary>
+
+          \`\`\`
+          ${SUMMARY:0:10000}
+          \`\`\`
+
+          </details>
+
+          ---
+
+          *Please check the workflow logs for details.*
+          EOF
+          )
+
+          # Post as PR comment
+          gh api "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+            -X POST \
+            -f body="$COMMENT_BODY" \
+            > /dev/null
+
+          echo "✅ Fallback comment posted"
+
+      # Post error comment if Claude completely fails (no output at all)
+      - name: Post Review Error Comment
+        if: steps.cache-check.outputs.cache-hit != 'true' && failure() && steps.claude.conclusion == 'failure'
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
 
-          # Configuration
-          COMMENT_ID_FILE=".claude-review-comment-id"
           COMMENT_MARKER="<!-- claude-pr-review-bot -->"
           JOB_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
-          echo "ℹ️  Preparing to post review error comment" >&2
-
-          # Get existing comment ID for this PR
-          COMMENT_ID=""
-          if [ -f "$COMMENT_ID_FILE" ]; then
-            COMMENT_ID=$(cat "$COMMENT_ID_FILE")
-            echo "ℹ️  Found cached comment ID: $COMMENT_ID" >&2
-          else
-            echo "ℹ️  Searching for existing Claude review comment..." >&2
-            COMMENT_ID=$(gh api "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
-              --jq ".[] | select(.body | contains(\"${COMMENT_MARKER}\")) | .id" | head -1 || echo "")
-            if [ -n "$COMMENT_ID" ]; then
-              echo "ℹ️  Found existing comment ID: $COMMENT_ID" >&2
-              echo "$COMMENT_ID" > "$COMMENT_ID_FILE"
-            else
-              echo "ℹ️  No existing comment found" >&2
-            fi
-          fi
+          echo "ℹ️  Posting review error comment" >&2
 
           # Generate error comment body
           COMMENT_BODY=$(cat <<EOF
@@ -796,23 +707,11 @@ jobs:
           EOF
           )
 
-          # Create or update comment
-          if [ -n "$COMMENT_ID" ]; then
-            echo "ℹ️  Updating comment ID: $COMMENT_ID..." >&2
-            gh api "/repos/${GITHUB_REPOSITORY}/issues/comments/${COMMENT_ID}" \
-              -X PATCH \
-              -f body="$COMMENT_BODY" \
-              > /dev/null
-            echo "✅ Updated comment ID: $COMMENT_ID" >&2
-          else
-            echo "ℹ️  Creating new PR comment..." >&2
-            COMMENT_ID=$(gh api "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
-              -X POST \
-              -f body="$COMMENT_BODY" \
-              --jq '.id')
-            echo "$COMMENT_ID" > "$COMMENT_ID_FILE"
-            echo "✅ Created comment with ID: $COMMENT_ID" >&2
-          fi
+          # Post comment
+          gh api "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+            -X POST \
+            -f body="$COMMENT_BODY" \
+            > /dev/null
 
           echo "✅ Error comment posted" >&2
 
