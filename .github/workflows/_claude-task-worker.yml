@@ -379,12 +379,13 @@ jobs:
       # Check how many commits were made
       - name: Check commit count
         id: check-commits
-        run: |
-          # Count commits beyond the base branch
-          COMMITS=$(git log origin/${{ inputs.target_branch }}..HEAD --oneline 2>/dev/null | wc -l | tr -d ' ')
-          echo "commit_count=$COMMITS" >> $GITHUB_OUTPUT
-          echo "Commits made: $COMMITS"
-
+      env:
+        TARGET_BRANCH: ${{ inputs.target_branch }}
+      run: |
+        # Count commits beyond the base branch
+        COMMITS=$(git log origin/"$TARGET_BRANCH"..HEAD --oneline 2>/dev/null | wc -l | tr -d ' ')
+        echo "commit_count=$COMMITS" >> $GITHUB_OUTPUT
+        echo "Commits made: $COMMITS"
       # Validate that Claude completed the task
       - name: Validate outcome
         run: |
