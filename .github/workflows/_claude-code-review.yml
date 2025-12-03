@@ -258,7 +258,8 @@ jobs:
           REPO_OWNER=$(echo "$REPO" | cut -d'/' -f1)
           REPO_NAME=$(echo "$REPO" | cut -d'/' -f2)
 
-          # Build final prompt with context
+          # Build final prompt with review context
+          # Note: JSON output format is enforced by --json-schema flag, not prompt instructions
           cat > /tmp/final-prompt.txt <<PROMPT_EOF
           # Review Context
 
@@ -317,57 +318,33 @@ jobs:
             echo "✨ Added fast-review mode instructions for trivial PR"
           fi
 
-          # ALWAYS append JSON output instructions (required for hybrid approach)
-          cat >> /tmp/final-prompt.txt <<JSON_OUTPUT_EOF
+          # Append field guidance for the structured output
+          # Note: The actual JSON schema is enforced via --json-schema flag
+          cat >> /tmp/final-prompt.txt <<JSON_GUIDANCE_EOF
 
           ---
 
-          # ⚠️ CRITICAL: Required JSON Output Format
+          # 📋 Output Field Guidance
 
-          **Your ENTIRE response must be a single JSON code block.** Do NOT include any explanatory text, analysis summary, or preamble before the JSON. Do NOT call any GitHub MCP tools to post comments.
+          Your structured output will be validated against a JSON schema. Here's how to use each field:
 
-          Output your complete review as a JSON object with this exact structure:
-
-          \`\`\`json
-          {
-            "pr_review_body": "## Code Review Summary\\n\\n[Your markdown-formatted review summary]",
-            "pr_review_outcome": "COMMENT",
-            "inline_comments_new": [
-              {
-                "path": "src/example.ts",
-                "line": 42,
-                "body": "Your detailed feedback for this specific line",
-                "suggestion": "optional corrected code here"
-              }
-            ],
-            "inline_comments_responses": [],
-            "files_reviewed": ["src/file1.ts", "src/file2.ts"],
-            "confidence": 0.85
-          }
-          \`\`\`
-
-          **JSON Schema:**
-          - \`pr_review_body\` (string, required): Markdown-formatted review summary
-          - \`pr_review_outcome\` (enum, required): "COMMENT", "APPROVE", or "REQUEST_CHANGES"
-          - \`inline_comments_new\` (array, required): New inline comments (can be empty \`[]\`)
-            - Each comment needs: \`path\` (file path), \`line\` (number), \`body\` (feedback text)
+          **Required fields:**
+          - \`pr_review_body\`: Your complete markdown-formatted review. Put ALL your analysis, findings, and reasoning here.
+          - \`pr_review_outcome\`: Your review decision:
+            - \`APPROVE\`: No blocking issues, code is safe to merge
+            - \`REQUEST_CHANGES\`: Critical bugs, security vulnerabilities, or data loss risks
+            - \`COMMENT\`: Suggestions and improvements, but not blocking merge
+          - \`inline_comments_new\`: Array of inline comments on specific lines (can be empty \`[]\`)
+            - Each needs: \`path\` (file), \`line\` (number), \`body\` (feedback)
             - Optional: \`suggestion\` (corrected code snippet)
-          - \`inline_comments_responses\` (array, optional): Responses to existing comments
-            - Each response needs: \`comment_id\` (number), \`body\` (response text), \`should_resolve\` (boolean)
-          - \`files_reviewed\` (array, optional): List of files you reviewed
-          - \`confidence\` (number, optional): 0.0-1.0 confidence in your review
 
-          **Outcome Guidelines:**
-          - \`APPROVE\`: No blocking issues, code is safe to merge
-          - \`REQUEST_CHANGES\`: Critical bugs, security issues, or data loss risks
-          - \`COMMENT\`: Suggestions and improvements, but not blocking
-
-          **IMPORTANT:**
-          - DO NOT call \`mcp__github__create_pull_request_review\` or any GitHub write tools
-          - Your JSON will be parsed by a script that posts the review as \`github-actions[bot]\`
-          - Ensure your JSON is valid and properly escaped
-          JSON_OUTPUT_EOF
-          echo "✅ Added JSON output instructions (required for hybrid approach)"
+          **Optional fields:**
+          - \`inline_comments_responses\`: Responses to existing review comments (for re-reviews)
+            - Each needs: \`comment_id\`, \`body\`, and optionally \`should_resolve: true\`
+          - \`files_reviewed\`: List of files you reviewed
+          - \`confidence\`: 0.0-1.0 confidence in your review
+          JSON_GUIDANCE_EOF
+          echo "✅ Added output field guidance"
 
           # Log final prompt length
           PROMPT_LENGTH=$(wc -c < /tmp/final-prompt.txt)
@@ -424,6 +401,62 @@ jobs:
             ALLOWED_TOOLS=$(IFS=,; echo "${TOOLS[*]}")
           fi
 
+          # Define JSON schema for structured output
+          # This ensures Claude returns validated JSON matching our expected format
+          JSON_SCHEMA='{
+            "type": "object",
+            "properties": {
+              "pr_review_body": {
+                "type": "string",
+                "description": "Markdown-formatted review summary with all analysis"
+              },
+              "pr_review_outcome": {
+                "type": "string",
+                "enum": ["COMMENT", "APPROVE", "REQUEST_CHANGES"],
+                "description": "Review decision"
+              },
+              "inline_comments_new": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": { "type": "string", "description": "File path" },
+                    "line": { "type": "integer", "description": "Line number" },
+                    "body": { "type": "string", "description": "Comment text" },
+                    "suggestion": { "type": "string", "description": "Optional code suggestion" }
+                  },
+                  "required": ["path", "line", "body"]
+                },
+                "description": "New inline comments on specific lines"
+              },
+              "inline_comments_responses": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "comment_id": { "type": "integer", "description": "ID of existing comment" },
+                    "body": { "type": "string", "description": "Response text" },
+                    "should_resolve": { "type": "boolean", "description": "Whether to resolve the thread" }
+                  },
+                  "required": ["comment_id", "body"]
+                },
+                "description": "Responses to existing review comments"
+              },
+              "files_reviewed": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "List of files reviewed"
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Confidence level (0.0-1.0)"
+              }
+            },
+            "required": ["pr_review_body", "pr_review_outcome", "inline_comments_new"]
+          }'
+
           # Build claude_args conditionally based on provided inputs
           CLAUDE_ARGS="--model $INPUT_MODEL"
 
@@ -436,13 +469,18 @@ jobs:
             echo "ℹ️  Omitting --max-turns (unlimited turns)"
           fi
 
+          # Add JSON schema for structured output (ensures validated JSON response)
+          # Compact the schema to a single line for the CLI argument
+          COMPACT_SCHEMA=$(echo "$JSON_SCHEMA" | jq -c .)
           CLAUDE_ARGS="$CLAUDE_ARGS
+            --json-schema '$COMPACT_SCHEMA'
             --allowedTools $ALLOWED_TOOLS"
 
           echo "allowed_tools=$ALLOWED_TOOLS" >> $GITHUB_OUTPUT
           echo "claude_args<<CLAUDE_ARGS_EOF" >> $GITHUB_OUTPUT
           echo "$CLAUDE_ARGS" >> $GITHUB_OUTPUT
           echo "CLAUDE_ARGS_EOF" >> $GITHUB_OUTPUT
+          echo "✅ Configured structured output with JSON schema"
           echo "✅ Configured read-only tools (${#ALLOWED_TOOLS} chars)"
 
       # Run Claude Code Action to perform the review (analysis only, outputs JSON)
@@ -469,49 +507,33 @@ jobs:
         with:
           node-version: "22"
 
-      # Extract Claude's final response from the execution output
+      # Extract Claude's structured output (validated JSON from --json-schema)
       - name: Extract Claude Response
         if: steps.cache-check.outputs.cache-hit != 'true' && success()
         id: extract-response
+        env:
+          STRUCTURED_OUTPUT: ${{ steps.claude.outputs.structured_output }}
         run: |
           set -euo pipefail
 
-          EXECUTION_FILE="/home/runner/work/_temp/claude-execution-output.json"
+          echo "ℹ️  Extracting structured output from Claude..."
 
-          if [ ! -f "$EXECUTION_FILE" ]; then
-            echo "❌ Claude execution output file not found"
+          # The structured_output is already validated JSON from --json-schema
+          if [ -z "$STRUCTURED_OUTPUT" ]; then
+            echo "❌ No structured_output from Claude"
+            echo "   This may indicate the --json-schema flag wasn't processed correctly"
             exit 1
           fi
 
-          echo "ℹ️  Extracting Claude's final response from execution log..."
+          # Save the structured output for the post-review script
+          echo "$STRUCTURED_OUTPUT" > /tmp/claude-review-response.txt
+          echo "✅ Extracted structured output (${#STRUCTURED_OUTPUT} chars)"
 
-          # Extract the last assistant message content from the execution log
-          # The file is a JSON array created by `jq -s '.'` in claude-code-action
-          # Format: [{"type": "system", ...}, {"type": "assistant", "message": {...}}, ...]
-          # We need to find the last assistant message and extract its text content
-          REVIEW_TEXT=$(cat "$EXECUTION_FILE" | \
-            jq '[.[] | select(.type == "assistant") | .message.content[] | select(.type == "text") | .text] | last // empty' -r)
-
-          if [ -z "$REVIEW_TEXT" ]; then
-            echo "❌ Could not extract assistant response from execution log"
-            echo "📋 Execution file structure debug:"
-            echo "  - File size: $(wc -c < "$EXECUTION_FILE") bytes"
-            echo "  - Number of messages: $(jq 'length' "$EXECUTION_FILE")"
-            echo "  - Message types: $(jq '[.[].type] | unique' "$EXECUTION_FILE")"
-            echo "  - Assistant messages count: $(jq '[.[] | select(.type == "assistant")] | length' "$EXECUTION_FILE")"
-            echo ""
-            echo "📋 Last assistant message structure (first 1000 chars):"
-            jq '[.[] | select(.type == "assistant")] | last' "$EXECUTION_FILE" | head -c 1000
-            exit 1
-          fi
-
-          # Save for the next step
-          echo "$REVIEW_TEXT" > /tmp/claude-review-response.txt
-          echo "✅ Extracted response (${#REVIEW_TEXT} chars)"
-
-          # Show preview
-          echo "📋 Response preview (first 500 chars):"
-          echo "$REVIEW_TEXT" | head -c 500
+          # Show preview and validate it's proper JSON
+          echo "📋 Response preview:"
+          echo "$STRUCTURED_OUTPUT" | jq -r '.pr_review_outcome // "unknown"' | xargs -I{} echo "  Outcome: {}"
+          echo "$STRUCTURED_OUTPUT" | jq -r '.inline_comments_new | length' | xargs -I{} echo "  Inline comments: {}"
+          echo "$STRUCTURED_OUTPUT" | jq -r '.confidence // "not set"' | xargs -I{} echo "  Confidence: {}"
 
       # Upload Claude execution output as artifact for debugging
       - name: Upload Claude Execution Output
