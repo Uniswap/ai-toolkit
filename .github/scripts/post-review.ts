@@ -2,25 +2,33 @@
 /**
  * Post Review Script
  *
- * Parses Claude's structured JSON review output and posts it to GitHub
- * using the GitHub API. All actions are performed as `github-actions[bot]`.
+ * Takes Claude's structured JSON review output (from --json-schema) and posts
+ * it to GitHub using the GitHub API. All actions appear as `github-actions[bot]`.
+ *
+ * The workflow uses --json-schema flag with claude-code-action, which returns
+ * validated JSON directly via `structured_output`. This script expects clean
+ * JSON input (no preamble text or code fences needed).
  *
  * @usage
  *   npx tsx .github/scripts/post-review.ts \
  *     --owner "Uniswap" \
  *     --repo "ai-toolkit" \
- *     --pr-number 123 \
- *     --review-json '{"pr_review_body": "...", ...}'
+ *     --pr-number 123
  *
  * @environment
  *   GITHUB_TOKEN - GitHub token for API authentication (required)
- *   REVIEW_JSON_FILE - Path to file containing review JSON (safest for shell)
- *   REVIEW_JSON - Alternative to --review-json flag (direct content)
+ *   REVIEW_JSON_FILE - Path to file containing review JSON (preferred)
+ *   REVIEW_JSON - Direct JSON content (alternative to file)
  *
- * @priority Review JSON is read from (in order):
- *   1. --review-json CLI flag
- *   2. REVIEW_JSON_FILE env var (reads file at path)
- *   3. REVIEW_JSON env var (direct content)
+ * @input The review JSON must match this schema:
+ *   {
+ *     "pr_review_body": string,        // Markdown review content
+ *     "pr_review_outcome": string,     // "APPROVE" | "REQUEST_CHANGES" | "COMMENT"
+ *     "inline_comments_new": array,    // Inline comments on specific lines
+ *     "inline_comments_responses"?: array,  // Responses to existing comments
+ *     "files_reviewed"?: string[],     // List of reviewed files
+ *     "confidence"?: number            // 0.0-1.0 confidence level
+ *   }
  *
  * @output
  *   Exits with 0 on success, 1 on failure
@@ -116,8 +124,113 @@ ${suggestion}
 }
 
 // =============================================================================
+// Constants
+// =============================================================================
+
+/** HTML comment marker used to identify and update the bot's review comment */
+const REVIEW_COMMENT_MARKER = '<!-- claude-pr-review-bot -->';
+
+// =============================================================================
 // GitHub API Functions
 // =============================================================================
+
+/**
+ * Finds an existing PR comment from the bot by looking for the marker.
+ * Returns the comment ID if found, null otherwise.
+ */
+function findExistingBotComment(owner: string, repo: string, prNumber: number): number | null {
+  log('Searching for existing bot review comment...');
+
+  try {
+    const result = gh([
+      'api',
+      `repos/${owner}/${repo}/issues/${prNumber}/comments`,
+      '--jq',
+      `.[] | select(.user.login == "github-actions[bot]") | select(.body | contains("${REVIEW_COMMENT_MARKER}")) | .id`,
+    ]);
+
+    if (result) {
+      // May return multiple IDs if somehow there are duplicates, take the first
+      const commentId = parseInt(result.split('\n')[0], 10);
+      if (!isNaN(commentId)) {
+        log(`Found existing bot comment: ${commentId}`);
+        return commentId;
+      }
+    }
+
+    log('No existing bot review comment found');
+    return null;
+  } catch {
+    log('No existing bot review comment found (query returned empty)');
+    return null;
+  }
+}
+
+/**
+ * Creates or updates the main review comment on the PR.
+ * This is an editable issue comment (not a review) that persists across reviews.
+ *
+ * @returns The comment URL
+ */
+function upsertReviewComment(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  body: string
+): { id: number; html_url: string } {
+  // Prepend the marker to the body
+  const markedBody = `${REVIEW_COMMENT_MARKER}\n${body}`;
+
+  const existingCommentId = findExistingBotComment(owner, repo, prNumber);
+
+  if (existingCommentId) {
+    log(`Updating existing comment ${existingCommentId}...`);
+
+    const result = gh(
+      [
+        'api',
+        '--method',
+        'PATCH',
+        `repos/${owner}/${repo}/issues/comments/${existingCommentId}`,
+        '--input',
+        '-',
+      ],
+      JSON.stringify({ body: markedBody })
+    );
+
+    try {
+      const response = JSON.parse(result) as { id: number; html_url: string };
+      log(`Comment updated: ${response.html_url}`);
+      return response;
+    } catch {
+      logError('Failed to parse comment update response');
+      throw new Error('Failed to update comment');
+    }
+  } else {
+    log('Creating new review comment...');
+
+    const result = gh(
+      [
+        'api',
+        '--method',
+        'POST',
+        `repos/${owner}/${repo}/issues/${prNumber}/comments`,
+        '--input',
+        '-',
+      ],
+      JSON.stringify({ body: markedBody })
+    );
+
+    try {
+      const response = JSON.parse(result) as { id: number; html_url: string };
+      log(`Comment created: ${response.html_url}`);
+      return response;
+    } catch {
+      logError('Failed to parse comment creation response');
+      throw new Error('Failed to create comment');
+    }
+  }
+}
 
 function createReview(params: CreateReviewParams): { id: number; html_url: string } {
   log(`Creating review with ${params.comments.length} inline comments...`);
@@ -150,7 +263,7 @@ function createReview(params: CreateReviewParams): { id: number; html_url: strin
 
   try {
     const response = JSON.parse(result) as { id: number; html_url: string };
-    log(`Review created with ID: ${response.id}`);
+    log(`Review successfully created with ID: ${response.id}`);
     return response;
   } catch {
     logError('Failed to parse review creation response');
@@ -397,7 +510,7 @@ function getValidDiffLines(
     }
 
     let totalLines = 0;
-    for (const lines of validLines.values()) {
+    for (const lines of Array.from(validLines.values())) {
       totalLines += lines.size;
     }
     log(`Parsed diff: ${validLines.size} files, ${totalLines} valid line positions`);
@@ -549,12 +662,13 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // Get review JSON from various sources (priority order):
-  // 1. --review-json CLI flag
-  // 2. REVIEW_JSON_FILE env var (read from file path - safest for shell)
+  // Get review JSON from sources (priority order):
+  // 1. REVIEW_JSON_FILE env var (preferred - file path from workflow)
+  // 2. --review-json CLI flag
   // 3. REVIEW_JSON env var (direct content)
-  let reviewJsonInput = values['review-json'];
-  if (!reviewJsonInput && process.env.REVIEW_JSON_FILE) {
+  let reviewJsonInput: string | undefined;
+
+  if (process.env.REVIEW_JSON_FILE) {
     try {
       reviewJsonInput = readFileSync(process.env.REVIEW_JSON_FILE, 'utf-8');
       log(`Read review JSON from file: ${process.env.REVIEW_JSON_FILE}`);
@@ -563,13 +677,14 @@ async function main(): Promise<void> {
       process.exit(1);
     }
   }
+
   if (!reviewJsonInput) {
-    reviewJsonInput = process.env.REVIEW_JSON;
+    reviewJsonInput = values['review-json'] || process.env.REVIEW_JSON;
   }
 
   if (!reviewJsonInput) {
     logError(
-      'Missing review JSON. Provide via --review-json, REVIEW_JSON_FILE, or REVIEW_JSON env'
+      'Missing review JSON. Provide via REVIEW_JSON_FILE, --review-json, or REVIEW_JSON env'
     );
     process.exit(1);
   }
@@ -577,38 +692,12 @@ async function main(): Promise<void> {
   log(`Processing review for ${owner}/${repo}#${prNumber}`);
 
   // Parse and validate the review JSON
+  // With --json-schema, the input is already clean JSON (no preamble or code fences)
   let reviewOutput: ReviewOutput;
   try {
-    // Claude may output explanatory text before the JSON code block.
-    // We need to extract the JSON from anywhere in the response.
-    // Expected format: [optional preamble text] ```json\n{...}\n```
-
-    let jsonStr = reviewJsonInput.trim();
-
-    // Try to find a JSON code block anywhere in the response
-    // Use a regex that matches ```json...``` and captures the content
-    // The $ anchor ensures we get the LAST code block if there are multiple
-    const jsonBlockMatch = jsonStr.match(/```json\s*([\s\S]*?)```\s*$/);
-    if (jsonBlockMatch) {
-      jsonStr = jsonBlockMatch[1].trim();
-      log('Extracted JSON from code block');
-    } else if (jsonStr.startsWith('```')) {
-      // Fallback: strip code fences if response starts with them
-      jsonStr = jsonStr.replace(/^```(?:json)?\s*\n?/, '');
-      jsonStr = jsonStr.replace(/\n?```\s*$/, '');
-      log('Stripped code fences from start of response');
-    } else {
-      // Last resort: try to find JSON object directly (starts with {)
-      const jsonStartIndex = jsonStr.indexOf('{');
-      if (jsonStartIndex !== -1) {
-        jsonStr = jsonStr.substring(jsonStartIndex);
-        log('Found JSON object starting at index ' + jsonStartIndex);
-      }
-    }
-
-    const parsed = JSON.parse(jsonStr.trim());
+    const parsed = JSON.parse(reviewJsonInput.trim());
     reviewOutput = validateReviewOutput(parsed);
-    log('Review JSON validated successfully');
+    log('Review JSON parsed and validated successfully');
   } catch (error) {
     logError(`Failed to parse review JSON: ${(error as Error).message}`);
     log('Raw input (first 500 chars):');
@@ -666,7 +755,7 @@ async function main(): Promise<void> {
     side: comment.side || ('RIGHT' as const),
   }));
 
-  // If we skipped comments, add them to the review body so feedback isn't lost
+  // Build the full review body for the editable comment
   let reviewBody = reviewOutput.pr_review_body;
   if (skippedComments.length > 0) {
     const skippedSection = `\n\n---\n\n<details>\n<summary>ℹ️ ${
@@ -682,38 +771,79 @@ async function main(): Promise<void> {
     reviewBody += skippedSection;
   }
 
-  // Create the review with inline comments
+  // HYBRID APPROACH:
+  // 1. Create/update an editable PR comment with the full review content
+  // 2. Submit a minimal formal review with just the verdict (and inline comments)
+  //
+  // This ensures:
+  // - Only ONE main review comment exists at any time (editable)
+  // - Formal review verdict is still recorded for branch protection
+  // - Inline comments are attached to specific lines
+
+  let commentResult: { id: number; html_url: string } | null = null;
+  let reviewResult: { id: number; html_url: string } | null = null;
+
+  // Step 1: Create or update the main review comment (editable)
   try {
-    const result = createReview({
+    commentResult = upsertReviewComment(owner, repo, prNumber, reviewBody);
+    log(`Review comment ${commentResult.id} saved at: ${commentResult.html_url}`);
+  } catch (error) {
+    logError(`Failed to upsert review comment: ${(error as Error).message}`);
+    // Continue to try formal review even if comment fails
+  }
+
+  // Step 2: Submit the formal review with minimal body (verdict + inline comments)
+  // The body just references the main comment to avoid duplication
+  try {
+    const minimalReviewBody = commentResult
+      ? `📋 **Review verdict: ${reviewOutput.pr_review_outcome}**\n\n` +
+        `👆 The [main review comment](${commentResult.html_url}) above is the **source of truth** for this PR review. ` +
+        `It is automatically updated on each review cycle, so always refer to it for the most current feedback.\n\n` +
+        `_This formal review submission is for the verdict only._` +
+        (formattedComments.length > 0
+          ? ` _${formattedComments.length} inline comment(s) are attached below._`
+          : '')
+      : reviewBody; // Fallback to full body if comment failed
+
+    reviewResult = createReview({
       owner,
       repo,
       pull_number: prNumber,
-      body: reviewBody,
+      body: minimalReviewBody,
       event: reviewOutput.pr_review_outcome,
       comments: formattedComments,
     });
 
-    log(`Review posted successfully!`);
-    log(`Review URL: ${result.html_url}`);
-
-    // Output summary
-    console.log('\n=== Review Summary ===');
-    console.log(`Outcome: ${reviewOutput.pr_review_outcome}`);
-    console.log(`Inline comments posted: ${formattedComments.length}`);
-    if (skippedComments.length > 0) {
-      console.log(`Comments on unchanged code (in summary): ${skippedComments.length}`);
-    }
-    if (reviewOutput.files_reviewed?.length) {
-      console.log(`Files reviewed: ${reviewOutput.files_reviewed.length}`);
-    }
-    if (reviewOutput.confidence !== undefined) {
-      console.log(`Confidence: ${(reviewOutput.confidence * 100).toFixed(0)}%`);
-    }
-    console.log(`Review ID: ${result.id}`);
-    console.log(`URL: ${result.html_url}`);
+    log(`Formal review posted successfully!`);
+    log(`Review URL: ${reviewResult.html_url}`);
   } catch (error) {
-    logError(`Failed to create review: ${(error as Error).message}`);
-    process.exit(1);
+    logError(`Failed to create formal review: ${(error as Error).message}`);
+    // If we at least got the comment posted, consider it a partial success
+    if (!commentResult) {
+      process.exit(1);
+    }
+  }
+
+  // Output summary
+  console.log('\n=== Review Summary ===');
+  console.log(`Outcome: ${reviewOutput.pr_review_outcome}`);
+  console.log(`Inline comments posted: ${formattedComments.length}`);
+  if (skippedComments.length > 0) {
+    console.log(`Comments on unchanged code (in summary): ${skippedComments.length}`);
+  }
+  if (reviewOutput.files_reviewed?.length) {
+    console.log(`Files reviewed: ${reviewOutput.files_reviewed.length}`);
+  }
+  if (reviewOutput.confidence !== undefined) {
+    console.log(`Confidence: ${(reviewOutput.confidence * 100).toFixed(0)}%`);
+  }
+  if (commentResult) {
+    console.log(`Main comment ID: ${commentResult.id}`);
+    console.log(`Main comment URL: ${commentResult.html_url}`);
+  }
+  if (reviewResult) {
+    console.log(`Review ID: ${reviewResult.id}`);
+    console.log(`Review URL: ${reviewResult.html_url}`);
   }
 }
 
