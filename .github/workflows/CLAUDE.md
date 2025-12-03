@@ -123,34 +123,36 @@ This workflow processes Linear issues autonomously using Claude Code. It's calle
 
 **Key Features:**
 
-| Feature                      | Description                                                                                             |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------- |
-| **7-Phase Workflow**         | Claude follows a structured approach: Understand → Explore → Plan → Implement → QA → Commit → Create PR |
+| Feature                      | Description                                                                                              |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **7-Phase Workflow**         | Claude follows a structured approach: Understand → Explore → Plan → Implement → QA → Commit → Create PR  |
 | **Autonomous Execution**     | Uses `--dangerously-skip-permissions` to run without permission prompts (safe in GitHub Actions sandbox) |
-| **Turn Budget Management**   | Prompt includes explicit turn budgets per phase to prevent over-exploration and ensure PR creation      |
-| **Fallback PR Creation**     | If Claude makes commits but fails to create a PR, workflow automatically creates a fallback draft PR    |
-| **Debug Mode**               | Full Claude output shown by default (`debug_mode: true`) to understand reasoning                        |
-| **Task Complexity Warnings** | Warns about tasks containing keywords like "audit", "review", "investigate"                             |
-| **Incremental Commits**      | Prompt instructs Claude to commit and push after each major piece of work to preserve progress          |
-| **Linear Integration**       | Updates Linear issue status to "In Progress" when draft PR is created                                   |
+| **Turn Budget Management**   | Prompt includes explicit turn budgets per phase to prevent over-exploration and ensure PR creation       |
+| **Fallback PR Creation**     | If Claude makes commits but fails to create a PR, workflow automatically creates a fallback PR           |
+| **Debug Mode**               | Full Claude output shown by default (`debug_mode: true`) to understand reasoning                         |
+| **Configurable PR Type**     | Choose between draft or published PRs via `pr_type` input (default: "draft")                             |
+| **Task Complexity Warnings** | Warns about tasks containing keywords like "audit", "review", "investigate"                              |
+| **Incremental Commits**      | Prompt instructs Claude to commit and push after each major piece of work to preserve progress           |
+| **Linear Integration**       | Updates Linear issue status to "In Progress" when PR is created                                          |
 
 **Turn Budget (built into prompt):**
 
-| Phase              | Turns   | Purpose                                      |
-| ------------------ | ------- | -------------------------------------------- |
+| Phase              | Turns   | Purpose                                          |
+| ------------------ | ------- | ------------------------------------------------ |
 | Understand/Explore | 1-30    | Read CLAUDE.md, explore codebase, identify files |
-| Plan/Implement     | 31-100  | Design approach and implement the solution   |
-| QA/Fix             | 101-130 | Run checks, fix critical issues              |
-| **Commit/PR**      | 131-150 | **RESERVED** - Must commit and create PR     |
+| Plan/Implement     | 31-100  | Design approach and implement the solution       |
+| QA/Fix             | 101-130 | Run checks, fix critical issues                  |
+| **Commit/PR**      | 131-150 | **RESERVED** - Must commit and create PR         |
 
 **Configuration:**
 
-| Input             | Default                    | Description                |
-| ----------------- | -------------------------- | -------------------------- |
-| `model`           | `claude-opus-4-5-20251101` | Claude model to use        |
-| `max_turns`       | `150`                      | Maximum conversation turns |
-| `debug_mode`      | `true`                     | Show full Claude output    |
-| `timeout_minutes` | `60`                       | Job timeout                |
+| Input             | Default                    | Description                                  |
+| ----------------- | -------------------------- | -------------------------------------------- |
+| `model`           | `claude-opus-4-5-20251101` | Claude model to use                          |
+| `max_turns`       | `150`                      | Maximum conversation turns                   |
+| `debug_mode`      | `true`                     | Show full Claude output                      |
+| `timeout_minutes` | `60`                       | Job timeout                                  |
+| `pr_type`         | `draft`                    | Type of PR to create: "draft" or "published" |
 
 **Validation Behavior:**
 
@@ -166,6 +168,7 @@ The job summary includes:
 
 - Task title and Linear issue link
 - Branch name and model used
+- PR type (draft or published)
 - Commit count
 - PR creation status (✅ Claude PR / ⚠️ Fallback PR / ❌ No PR)
 - Failure reason (if applicable)
@@ -185,6 +188,7 @@ with:
   target_branch: 'next'
   model: 'claude-opus-4-5-20251101'
   debug_mode: true
+  pr_type: 'draft' # or 'published' for non-draft PRs
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
   LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
