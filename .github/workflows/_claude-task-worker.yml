@@ -395,7 +395,7 @@ jobs:
           echo "Commits: $COMMITS"
 
           if [ "$PR_EXISTS" != "true" ]; then
-            if [ "$COMMITS" -eq 0 ]; then
+            if [ "${COMMITS:-0}" -eq 0 ]; then
               echo "::error::Claude did not create any commits or PR for this task"
               echo "::error::Task may be too complex, unclear, or require human judgment"
               echo "::error::Check Claude's output above (debug_mode is enabled) for reasoning"
