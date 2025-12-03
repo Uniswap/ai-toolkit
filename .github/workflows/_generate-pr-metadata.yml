@@ -563,6 +563,19 @@ jobs:
             if [ -f "$DESCRIPTION_FILE" ]; then
               GENERATED_DESCRIPTION=$(cat "$DESCRIPTION_FILE")
               echo "Read description from file (${#GENERATED_DESCRIPTION} chars)"
+
+              # Strip any markers that Claude may have included in its output
+              # This prevents double markers when the workflow wraps the content
+              ORIGINAL_LENGTH=${#GENERATED_DESCRIPTION}
+              GENERATED_DESCRIPTION=$(echo "$GENERATED_DESCRIPTION" | sed "s|$START_MARKER||g" | sed "s|$END_MARKER||g")
+
+              # Remove any leading/trailing blank lines that may result from marker removal
+              GENERATED_DESCRIPTION=$(echo "$GENERATED_DESCRIPTION" | sed '/^[[:space:]]*$/d' | sed -e :a -e '/^\s*$/d;N;ba')
+
+              # Re-add proper structure if content was modified
+              if [ ${#GENERATED_DESCRIPTION} -ne "$ORIGINAL_LENGTH" ]; then
+                echo "  Stripped existing markers from Claude's output (was $ORIGINAL_LENGTH chars, now ${#GENERATED_DESCRIPTION} chars)"
+              fi
             else
               echo "No description file found at $DESCRIPTION_FILE, using default message"
             fi

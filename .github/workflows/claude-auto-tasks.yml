@@ -73,6 +73,12 @@ on:
           - "next"
         default: "next"
 
+      debug_mode:
+        description: "Enable full Claude Code output for debugging"
+        required: false
+        type: boolean
+        default: true
+
 # Prevent concurrent runs
 concurrency:
   group: claude-auto-tasks
@@ -210,10 +216,11 @@ jobs:
       issue_description: ${{ matrix.issue_description }}
       issue_url: ${{ matrix.issue_url }}
       branch_name: ${{ matrix.branch_name }}
-      target_branch: ${{ inputs.target_branch }}
-      model: ${{ inputs.model }}
+      target_branch: ${{ inputs.target_branch || 'next' }}
+      model: ${{ inputs.model || 'claude-opus-4-5-20251101' }}
       timeout_minutes: 60
       linear_task_utils_tag: ${{ needs.prepare.outputs.linear_task_utils_tag }}
+      debug_mode: ${{ inputs.debug_mode != '' && inputs.debug_mode || true }}
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}

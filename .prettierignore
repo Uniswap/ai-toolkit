@@ -3,3 +3,7 @@
 /coverage
 /.nx/cache
 /.nx/workspace-data
+
+# YAML files - use native YAML formatter instead of Prettier
+*.yml
+*.yaml
