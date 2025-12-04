@@ -35,8 +35,10 @@
  *   Outputs review URL on success
  */
 
-import { execFileSync, spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 
 // =============================================================================
@@ -111,30 +113,45 @@ function gh(args: string[], options?: GhOptions | string): string {
       env.GH_TOKEN = opts.token;
     }
 
-    // When stdin input is needed, use spawnSync with explicit pipe configuration
-    // This is more reliable than execFileSync's `input` option in CI environments
+    // When stdin input is needed, use a temp file instead of stdin piping
+    // This is more reliable in CI environments where stdin handling can be inconsistent
     if (opts.input !== undefined) {
-      const result = spawnSync('gh', args, {
-        input: opts.input,
-        encoding: 'utf-8',
-        env,
-        maxBuffer: 10 * 1024 * 1024,
-        stdio: ['pipe', 'pipe', 'pipe'], // Explicitly configure all stdio streams as pipes
-      });
+      // Create a unique temp file for this invocation
+      const tempFile = join(
+        tmpdir(),
+        `gh-input-${Date.now()}-${Math.random().toString(36).slice(2)}.json`
+      );
 
-      if (result.error) {
-        throw result.error;
+      try {
+        // Write input to temp file
+        writeFileSync(tempFile, opts.input, 'utf-8');
+
+        // Replace --input - with the temp file path in args
+        const modifiedArgs = args.map((arg, i) => {
+          // If previous arg was --input and this is -, replace with temp file
+          if (args[i - 1] === '--input' && arg === '-') {
+            return tempFile;
+          }
+          return arg;
+        });
+
+        const result = execFileSync('gh', modifiedArgs, {
+          encoding: 'utf-8',
+          env,
+          maxBuffer: 10 * 1024 * 1024,
+        });
+        return result.trim();
+      } finally {
+        // Clean up temp file
+        try {
+          unlinkSync(tempFile);
+        } catch {
+          // Ignore cleanup errors
+        }
       }
-
-      if (result.status !== 0) {
-        const errorMsg = result.stderr || `gh exited with code ${result.status}`;
-        throw new Error(errorMsg);
-      }
-
-      return (result.stdout || '').trim();
     }
 
-    // For commands without stdin input, use execFileSync (simpler, faster)
+    // For commands without stdin input, use execFileSync directly
     const result = execFileSync('gh', args, {
       encoding: 'utf-8',
       env,
