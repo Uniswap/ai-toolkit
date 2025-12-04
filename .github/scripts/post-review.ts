@@ -111,14 +111,29 @@ function gh(args: string[], options?: GhOptions | string): string {
       env.GH_TOKEN = opts.token;
     }
 
-    // Use execFileSync to avoid shell interpretation of special characters
-    // (parentheses, quotes, pipes, etc. in jq filters)
-    const result = execFileSync('gh', args, {
+    // Build exec options separately to handle stdin correctly
+    // CRITICAL: Only include 'input' when it's actually provided.
+    // If undefined, execFileSync inherits stdin from parent process,
+    // which is empty/closed in GitHub Actions CI. This causes
+    // "unexpected end of JSON input" errors when using --input -
+    const execOptions: {
+      encoding: 'utf-8';
+      env: typeof env;
+      maxBuffer: number;
+      input?: string;
+    } = {
       encoding: 'utf-8',
-      input: opts.input,
       env,
       maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large responses
-    });
+    };
+
+    if (opts.input !== undefined) {
+      execOptions.input = opts.input;
+    }
+
+    // Use execFileSync to avoid shell interpretation of special characters
+    // (parentheses, quotes, pipes, etc. in jq filters)
+    const result = execFileSync('gh', args, execOptions);
     return result.trim();
   } catch (error) {
     const execError = error as { stderr?: string; message?: string };
@@ -474,8 +489,17 @@ function dismissPreviousBotReviews(owner: string, repo: string, prNumber: number
           'message=Superseded by new review after PR update',
         ]);
         log(`Dismissed review ${review.id}`);
-      } catch {
-        log(`Could not dismiss review ${review.id} (may lack permissions)`);
+      } catch (error) {
+        // Distinguish between different error types for clearer logging
+        const errorMsg = (error as Error).message || '';
+        if (errorMsg.includes('422')) {
+          // 422 typically means the review is already dismissed or in a non-dismissable state
+          log(`Review ${review.id} already dismissed or in non-dismissable state`);
+        } else if (errorMsg.includes('403')) {
+          log(`Could not dismiss review ${review.id} (insufficient permissions)`);
+        } else {
+          log(`Could not dismiss review ${review.id}: ${errorMsg}`);
+        }
       }
     }
   } catch {
@@ -845,10 +869,15 @@ async function main(): Promise<void> {
     log(`Review URL: ${reviewResult.html_url}`);
   } catch (error) {
     logError(`Failed to create formal review: ${(error as Error).message}`);
-    // If we at least got the comment posted, consider it a partial success
-    if (!commentResult) {
-      process.exit(1);
-    }
+    // Formal review is required for branch protection rules to receive a verdict.
+    // Always fail if we couldn't create it, even if the comment was posted.
+    logError(
+      'CRITICAL: Formal review is required for branch protection. ' +
+        (commentResult
+          ? `The main comment was posted at ${commentResult.html_url} but the formal verdict was not recorded.`
+          : 'Neither the comment nor the formal review were created.')
+    );
+    process.exit(1);
   }
 
   // Output summary
