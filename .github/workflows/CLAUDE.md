@@ -111,6 +111,17 @@ The `generation_mode` input controls what the workflow generates:
 | `title`       | Generate only the PR title          | No      |
 | `description` | Generate only the PR description    | No      |
 
+**Required Secrets:**
+
+| Secret              | Required    | Description                                                                                                                                                                    |
+| ------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ANTHROPIC_API_KEY` | Yes         | Anthropic API key for Claude access                                                                                                                                            |
+| `WORKFLOW_PAT`      | Conditional | Personal Access Token with `repo` scope for cross-repo access to fetch default prompts from ai-toolkit. **Required if not providing `custom_prompt` or `custom_prompt_path`.** |
+
+> **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
+>
+> **Note:** If you need assistance adding the `WORKFLOW_PAT` secret to your repository or installing the Claude GitHub App, please reach out to the **#pod-dev-ai** Slack channel.
+
 **Usage example:**
 
 ```yaml
@@ -121,7 +132,18 @@ with:
   generation_mode: 'title' # Only generate title, leave description unchanged
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }} # Required for default prompt
 ```
+
+**Prompt Configuration Options:**
+
+The workflow determines which prompt to use in this priority order:
+
+1. **`custom_prompt` input**: Explicit prompt text passed directly to the workflow
+2. **`custom_prompt_path` input**: Path to a prompt file in the calling repository (default: `.github/prompts/generate-pr-title-description.md`)
+3. **Default prompt from ai-toolkit**: Fetched from `Uniswap/ai-toolkit` repository (requires `WORKFLOW_PAT`)
+
+If using option 1 or 2, the `WORKFLOW_PAT` secret is not required.
 
 ### Autonomous Task Processing (`_claude-task-worker.yml`)
 
@@ -350,9 +372,9 @@ Version pinning is centralized using GitHub repository variables (`vars.*`):
 
 Common secrets referenced:
 
-- `ANTHROPIC_API_KEY` - Claude AI API authentication
+- `ANTHROPIC_API_KEY` - Claude AI API authentication (also requires the [Claude GitHub App](https://github.com/apps/claude) to be installed on the repository)
 - `NODE_AUTH_TOKEN` - NPM registry authentication (for publishing and installing `@uniswap` scoped packages)
-- `WORKFLOW_PAT` - Personal Access Token for pushing commits/tags (force-publish)
+- `WORKFLOW_PAT` - Personal Access Token with `repo` scope for: (1) pushing commits/tags in force-publish, (2) cross-repo access to fetch default prompts from ai-toolkit in `_claude-code-review.yml` and `_generate-pr-metadata.yml`
 - `SERVICE_ACCOUNT_GPG_PRIVATE_KEY` - GPG key for signed commits/tags
 - `LINEAR_API_KEY` - Linear API authentication (for autonomous tasks)
 - `SLACK_WEBHOOK_URL` - Slack notifications

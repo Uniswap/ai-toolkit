@@ -124,8 +124,113 @@ ${suggestion}
 }
 
 // =============================================================================
+// Constants
+// =============================================================================
+
+/** HTML comment marker used to identify and update the bot's review comment */
+const REVIEW_COMMENT_MARKER = '<!-- claude-pr-review-bot -->';
+
+// =============================================================================
 // GitHub API Functions
 // =============================================================================
+
+/**
+ * Finds an existing PR comment from the bot by looking for the marker.
+ * Returns the comment ID if found, null otherwise.
+ */
+function findExistingBotComment(owner: string, repo: string, prNumber: number): number | null {
+  log('Searching for existing bot review comment...');
+
+  try {
+    const result = gh([
+      'api',
+      `repos/${owner}/${repo}/issues/${prNumber}/comments`,
+      '--jq',
+      `.[] | select(.user.login == "github-actions[bot]") | select(.body | contains("${REVIEW_COMMENT_MARKER}")) | .id`,
+    ]);
+
+    if (result) {
+      // May return multiple IDs if somehow there are duplicates, take the first
+      const commentId = parseInt(result.split('\n')[0], 10);
+      if (!isNaN(commentId)) {
+        log(`Found existing bot comment: ${commentId}`);
+        return commentId;
+      }
+    }
+
+    log('No existing bot review comment found');
+    return null;
+  } catch {
+    log('No existing bot review comment found (query returned empty)');
+    return null;
+  }
+}
+
+/**
+ * Creates or updates the main review comment on the PR.
+ * This is an editable issue comment (not a review) that persists across reviews.
+ *
+ * @returns The comment URL
+ */
+function upsertReviewComment(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  body: string
+): { id: number; html_url: string } {
+  // Prepend the marker to the body
+  const markedBody = `${REVIEW_COMMENT_MARKER}\n${body}`;
+
+  const existingCommentId = findExistingBotComment(owner, repo, prNumber);
+
+  if (existingCommentId) {
+    log(`Updating existing comment ${existingCommentId}...`);
+
+    const result = gh(
+      [
+        'api',
+        '--method',
+        'PATCH',
+        `repos/${owner}/${repo}/issues/comments/${existingCommentId}`,
+        '--input',
+        '-',
+      ],
+      JSON.stringify({ body: markedBody })
+    );
+
+    try {
+      const response = JSON.parse(result) as { id: number; html_url: string };
+      log(`Comment updated: ${response.html_url}`);
+      return response;
+    } catch {
+      logError('Failed to parse comment update response');
+      throw new Error('Failed to update comment');
+    }
+  } else {
+    log('Creating new review comment...');
+
+    const result = gh(
+      [
+        'api',
+        '--method',
+        'POST',
+        `repos/${owner}/${repo}/issues/${prNumber}/comments`,
+        '--input',
+        '-',
+      ],
+      JSON.stringify({ body: markedBody })
+    );
+
+    try {
+      const response = JSON.parse(result) as { id: number; html_url: string };
+      log(`Comment created: ${response.html_url}`);
+      return response;
+    } catch {
+      logError('Failed to parse comment creation response');
+      throw new Error('Failed to create comment');
+    }
+  }
+}
 
 function createReview(params: CreateReviewParams): { id: number; html_url: string } {
   log(`Creating review with ${params.comments.length} inline comments...`);
@@ -158,7 +263,7 @@ function createReview(params: CreateReviewParams): { id: number; html_url: strin
 
   try {
     const response = JSON.parse(result) as { id: number; html_url: string };
-    log(`Review created with ID: ${response.id}`);
+    log(`Review successfully created with ID: ${response.id}`);
     return response;
   } catch {
     logError('Failed to parse review creation response');
@@ -650,7 +755,7 @@ async function main(): Promise<void> {
     side: comment.side || ('RIGHT' as const),
   }));
 
-  // If we skipped comments, add them to the review body so feedback isn't lost
+  // Build the full review body for the editable comment
   let reviewBody = reviewOutput.pr_review_body;
   if (skippedComments.length > 0) {
     const skippedSection = `\n\n---\n\n<details>\n<summary>ℹ️ ${
@@ -666,38 +771,79 @@ async function main(): Promise<void> {
     reviewBody += skippedSection;
   }
 
-  // Create the review with inline comments
+  // HYBRID APPROACH:
+  // 1. Create/update an editable PR comment with the full review content
+  // 2. Submit a minimal formal review with just the verdict (and inline comments)
+  //
+  // This ensures:
+  // - Only ONE main review comment exists at any time (editable)
+  // - Formal review verdict is still recorded for branch protection
+  // - Inline comments are attached to specific lines
+
+  let commentResult: { id: number; html_url: string } | null = null;
+  let reviewResult: { id: number; html_url: string } | null = null;
+
+  // Step 1: Create or update the main review comment (editable)
   try {
-    const result = createReview({
+    commentResult = upsertReviewComment(owner, repo, prNumber, reviewBody);
+    log(`Review comment ${commentResult.id} saved at: ${commentResult.html_url}`);
+  } catch (error) {
+    logError(`Failed to upsert review comment: ${(error as Error).message}`);
+    // Continue to try formal review even if comment fails
+  }
+
+  // Step 2: Submit the formal review with minimal body (verdict + inline comments)
+  // The body just references the main comment to avoid duplication
+  try {
+    const minimalReviewBody = commentResult
+      ? `📋 **Review verdict: ${reviewOutput.pr_review_outcome}**\n\n` +
+        `👆 The [main review comment](${commentResult.html_url}) above is the **source of truth** for this PR review. ` +
+        `It is automatically updated on each review cycle, so always refer to it for the most current feedback.\n\n` +
+        `_This formal review submission is for the verdict only._` +
+        (formattedComments.length > 0
+          ? ` _${formattedComments.length} inline comment(s) are attached below._`
+          : '')
+      : reviewBody; // Fallback to full body if comment failed
+
+    reviewResult = createReview({
       owner,
       repo,
       pull_number: prNumber,
-      body: reviewBody,
+      body: minimalReviewBody,
       event: reviewOutput.pr_review_outcome,
       comments: formattedComments,
     });
 
-    log(`Review posted successfully!`);
-    log(`Review URL: ${result.html_url}`);
-
-    // Output summary
-    console.log('\n=== Review Summary ===');
-    console.log(`Outcome: ${reviewOutput.pr_review_outcome}`);
-    console.log(`Inline comments posted: ${formattedComments.length}`);
-    if (skippedComments.length > 0) {
-      console.log(`Comments on unchanged code (in summary): ${skippedComments.length}`);
-    }
-    if (reviewOutput.files_reviewed?.length) {
-      console.log(`Files reviewed: ${reviewOutput.files_reviewed.length}`);
-    }
-    if (reviewOutput.confidence !== undefined) {
-      console.log(`Confidence: ${(reviewOutput.confidence * 100).toFixed(0)}%`);
-    }
-    console.log(`Review ID: ${result.id}`);
-    console.log(`URL: ${result.html_url}`);
+    log(`Formal review posted successfully!`);
+    log(`Review URL: ${reviewResult.html_url}`);
   } catch (error) {
-    logError(`Failed to create review: ${(error as Error).message}`);
-    process.exit(1);
+    logError(`Failed to create formal review: ${(error as Error).message}`);
+    // If we at least got the comment posted, consider it a partial success
+    if (!commentResult) {
+      process.exit(1);
+    }
+  }
+
+  // Output summary
+  console.log('\n=== Review Summary ===');
+  console.log(`Outcome: ${reviewOutput.pr_review_outcome}`);
+  console.log(`Inline comments posted: ${formattedComments.length}`);
+  if (skippedComments.length > 0) {
+    console.log(`Comments on unchanged code (in summary): ${skippedComments.length}`);
+  }
+  if (reviewOutput.files_reviewed?.length) {
+    console.log(`Files reviewed: ${reviewOutput.files_reviewed.length}`);
+  }
+  if (reviewOutput.confidence !== undefined) {
+    console.log(`Confidence: ${(reviewOutput.confidence * 100).toFixed(0)}%`);
+  }
+  if (commentResult) {
+    console.log(`Main comment ID: ${commentResult.id}`);
+    console.log(`Main comment URL: ${commentResult.html_url}`);
+  }
+  if (reviewResult) {
+    console.log(`Review ID: ${reviewResult.id}`);
+    console.log(`Review URL: ${reviewResult.html_url}`);
   }
 }
 
