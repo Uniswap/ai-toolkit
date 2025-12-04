@@ -101,6 +101,9 @@ on:
       ANTHROPIC_API_KEY:
         description: "Anthropic API key for Claude access"
         required: true
+      WORKFLOW_PAT:
+        description: "Personal Access Token with repo scope for cross-repo access to fetch default prompts from ai-toolkit. Only required if not providing a custom_prompt or custom_prompt_path."
+        required: false
 
 jobs:
   generate-metadata:
@@ -265,7 +268,7 @@ jobs:
         env:
           CUSTOM_PROMPT_INPUT: ${{ inputs.custom_prompt }}
           CUSTOM_PROMPT_PATH: ${{ inputs.custom_prompt_path }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ inputs.pr_number }}
           BASE_REF: ${{ inputs.base_ref }}
@@ -295,9 +298,16 @@ jobs:
           else
             echo "📝 Fetching default prompt from Uniswap/ai-toolkit repository"
 
-            # Fetch default prompt via GitHub API
+            # Check if WORKFLOW_PAT is available for cross-repo access
+            if [ -z "$WORKFLOW_PAT" ]; then
+              echo "❌ WORKFLOW_PAT secret is required to fetch default prompt from Uniswap/ai-toolkit"
+              echo "   Either provide a custom_prompt, custom_prompt_path, or set the WORKFLOW_PAT secret"
+              exit 1
+            fi
+
+            # Fetch default prompt via GitHub API using WORKFLOW_PAT for cross-repo access
             if ! curl -fSs --max-time 30 --max-redirs 3 \
-                      -H "Authorization: token $GITHUB_TOKEN" \
+                      -H "Authorization: token $WORKFLOW_PAT" \
                       -H "Accept: application/vnd.github.v4.raw" \
                       -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/prompts/generate-pr-title-description.md" \
                       -o /tmp/default-prompt.md 2>&1 | tee /tmp/curl-error.log; then
