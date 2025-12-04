@@ -564,6 +564,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+          # github.workflow_ref contains the full path with ref, e.g.:
+          # Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@refs/heads/next
+          # Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@b68c51701ad7a45...
+          WORKFLOW_REF: ${{ github.workflow_ref }}
         run: |
           set -euo pipefail
 
@@ -574,18 +578,23 @@ jobs:
           else
             echo "ℹ️  Running from external repository - downloading post-review.ts from Uniswap/ai-toolkit"
 
-            # Download the script from ai-toolkit repository
+            # Extract the ref from the workflow_ref (everything after the @)
+            # This ensures we download the script from the same ref as the workflow being called
+            TOOLKIT_REF="${WORKFLOW_REF##*@}"
+            echo "ℹ️  Using ref from workflow: $TOOLKIT_REF"
+
+            # Download the script from ai-toolkit repository at the same ref as the workflow
             if ! curl -fSs -H "Authorization: token $WORKFLOW_PAT" \
                       -H "Accept: application/vnd.github.v4.raw" \
-                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/scripts/post-review.ts" \
+                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/scripts/post-review.ts?ref=${TOOLKIT_REF}" \
                       -o /tmp/post-review.ts 2>&1 | tee /tmp/curl-error.log; then
-              echo "❌ Failed to download post-review.ts from Uniswap/ai-toolkit"
+              echo "❌ Failed to download post-review.ts from Uniswap/ai-toolkit@${TOOLKIT_REF}"
               echo "   Error details:"
               cat /tmp/curl-error.log | head -5
               exit 1
             fi
 
-            echo "✅ Downloaded post-review.ts"
+            echo "✅ Downloaded post-review.ts from ref: $TOOLKIT_REF"
             echo "script_path=/tmp/post-review.ts" >> $GITHUB_OUTPUT
           fi
 
