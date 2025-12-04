@@ -9,10 +9,11 @@ name: 'Example: Generate PR Title & Description - Custom'
 # - Additional skip conditions
 #
 # To use this in your repository:
-# 1. Copy this file to .github/workflows/generate-pr-title-description.yml
-# 2. Create .github/prompts/generate-pr-metadata.md with your custom prompt
-# 3. Add ANTHROPIC_API_KEY secret to your repository
-# 4. Adjust the configuration as needed
+# 1. Install the Claude GitHub App: https://github.com/apps/claude
+# 2. Copy this file to .github/workflows/generate-pr-title-description.yml
+# 3. Create .github/prompts/generate-pr-metadata.md with your custom prompt
+# 4. Add ANTHROPIC_API_KEY secret to your repository
+# 5. Adjust the configuration as needed
 
 on:
   pull_request:

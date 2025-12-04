@@ -12,10 +12,11 @@ name: Claude Code (Custom Configuration)
 # - You want custom instructions for your codebase's standards
 #
 # QUICK START:
-# 1. Review each customization option below
-# 2. Copy relevant sections to your workflow
-# 3. Adjust values to match your repository's needs
-# 4. Test incrementally, starting with one customization at a time
+# 1. Install the Claude GitHub App: https://github.com/apps/claude
+# 2. Review each customization option below
+# 3. Copy relevant sections to your workflow
+# 4. Adjust values to match your repository's needs
+# 5. Test incrementally, starting with one customization at a time
 #
 
 on:

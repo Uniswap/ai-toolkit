@@ -152,11 +152,21 @@ inputs:
     default: 15
 ```
 
+### Claude GitHub App (Required)
+
+The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository before using any Claude-powered example workflows (Examples 05-13).
+
+1. Go to: <https://github.com/apps/claude>
+2. Click **Install**
+3. Select your repository
+
+> **Need help?** Ask in **#pod-dev-ai** Slack channel
+
 ### Common Secrets
 
 Examples reference these secrets:
 
-- `ANTHROPIC_API_KEY` - Claude AI authentication
+- `ANTHROPIC_API_KEY` - Claude AI authentication (requires Claude GitHub App)
 - `LINEAR_API_KEY` - Linear API authentication (Example 11)
 - `GITHUB_TOKEN` - Built-in token (automatic)
 - `SLACK_WEBHOOK_URL` - Notifications (optional)

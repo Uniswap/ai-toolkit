@@ -10,9 +10,10 @@
 #   uses: Uniswap/ai-toolkit/.github/workflows/_claude-task-worker.yml@main
 #
 # PREREQUISITES:
-# 1. ANTHROPIC_API_KEY secret configured
-# 2. LINEAR_API_KEY secret configured
-# 3. Linear issues labeled with "claude" in "Backlog" or "Todo" status
+# 1. Install the Claude GitHub App: https://github.com/apps/claude
+# 2. ANTHROPIC_API_KEY secret configured
+# 3. LINEAR_API_KEY secret configured
+# 4. Linear issues labeled with "claude" in "Backlog" or "Todo" status
 #
 # FEATURES:
 # - Scheduled daily execution (5am EST)
