@@ -19,14 +19,8 @@ function writeJson(p, data) {
 
 function main() {
   const repoRoot = process.cwd();
-  const pkgPath = path.join(
-    repoRoot,
-    'packages/ai-toolkit-nx-claude/package.json'
-  );
-  const srcGeneratorsDir = path.join(
-    repoRoot,
-    'packages/ai-toolkit-nx-claude/src/generators'
-  );
+  const pkgPath = path.join(repoRoot, 'packages/ai-toolkit-nx-claude/package.json');
+  const srcGeneratorsDir = path.join(repoRoot, 'packages/ai-toolkit-nx-claude/src/generators');
 
   if (!fs.existsSync(pkgPath)) {
     console.error('Could not find package.json at', pkgPath);
@@ -39,7 +33,10 @@ function main() {
 
   const pkg = readJson(pkgPath);
 
-  const fixedEntries = ['packages/ai-toolkit-nx-claude/src/index.ts'];
+  const fixedEntries = [
+    'packages/ai-toolkit-nx-claude/src/index.ts',
+    'packages/ai-toolkit-nx-claude/src/scripts/claude-plus/index.ts',
+  ];
 
   const discovered = [];
   for (const dir of fs.readdirSync(srcGeneratorsDir)) {
@@ -48,11 +45,7 @@ function main() {
     const genTs = path.join(genDir, 'generator.ts');
     if (fs.existsSync(genTs)) {
       // Store as workspace-relative path for Nx
-      const rel = path.join(
-        'packages/ai-toolkit-nx-claude/src/generators',
-        dir,
-        'generator.ts'
-      );
+      const rel = path.join('packages/ai-toolkit-nx-claude/src/generators', dir, 'generator.ts');
       discovered.push(rel);
     }
   }
@@ -61,18 +54,11 @@ function main() {
 
   const desired = [...fixedEntries, ...discovered];
 
-  const current =
-    pkg?.nx?.targets?.bundle?.options?.additionalEntryPoints || [];
+  const current = pkg?.nx?.targets?.bundle?.options?.additionalEntryPoints || [];
 
-  const arraysEqual = (a, b) =>
-    a.length === b.length && a.every((v, i) => v === b[i]);
+  const arraysEqual = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
 
-  if (
-    !pkg.nx ||
-    !pkg.nx.targets ||
-    !pkg.nx.targets.bundle ||
-    !pkg.nx.targets.bundle.options
-  ) {
+  if (!pkg.nx || !pkg.nx.targets || !pkg.nx.targets.bundle || !pkg.nx.targets.bundle.options) {
     console.error('package.json missing nx.targets.bundle.options structure.');
     process.exit(1);
   }
@@ -80,9 +66,7 @@ function main() {
   if (!arraysEqual(current, desired)) {
     pkg.nx.targets.bundle.options.additionalEntryPoints = desired;
     writeJson(pkgPath, pkg);
-    console.log(
-      'Updated additionalEntryPoints to:\n - ' + desired.join('\n - ')
-    );
+    console.log('Updated additionalEntryPoints to:\n - ' + desired.join('\n - '));
   } else {
     console.log('additionalEntryPoints already up to date.');
   }
