@@ -574,7 +574,7 @@ jobs:
             echo "ℹ️  Running from external repository - downloading post-review.ts from Uniswap/ai-toolkit"
 
             # Download the script from ai-toolkit repository
-            if ! curl -fSs -H "Authorization: token $GITHUB_TOKEN" \
+            if ! curl -fSs -H "Authorization: token $WORKFLOW_PAT" \
                       -H "Accept: application/vnd.github.v4.raw" \
                       -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/scripts/post-review.ts" \
                       -o /tmp/post-review.ts 2>&1 | tee /tmp/curl-error.log; then
