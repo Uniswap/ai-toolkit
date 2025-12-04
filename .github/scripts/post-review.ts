@@ -35,7 +35,7 @@
  *   Outputs review URL on success
  */
 
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 
@@ -111,29 +111,35 @@ function gh(args: string[], options?: GhOptions | string): string {
       env.GH_TOKEN = opts.token;
     }
 
-    // Build exec options separately to handle stdin correctly
-    // CRITICAL: Only include 'input' when it's actually provided.
-    // If undefined, execFileSync inherits stdin from parent process,
-    // which is empty/closed in GitHub Actions CI. This causes
-    // "unexpected end of JSON input" errors when using --input -
-    const execOptions: {
-      encoding: 'utf-8';
-      env: typeof env;
-      maxBuffer: number;
-      input?: string;
-    } = {
+    // When stdin input is needed, use spawnSync with explicit pipe configuration
+    // This is more reliable than execFileSync's `input` option in CI environments
+    if (opts.input !== undefined) {
+      const result = spawnSync('gh', args, {
+        input: opts.input,
+        encoding: 'utf-8',
+        env,
+        maxBuffer: 10 * 1024 * 1024,
+        stdio: ['pipe', 'pipe', 'pipe'], // Explicitly configure all stdio streams as pipes
+      });
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      if (result.status !== 0) {
+        const errorMsg = result.stderr || `gh exited with code ${result.status}`;
+        throw new Error(errorMsg);
+      }
+
+      return (result.stdout || '').trim();
+    }
+
+    // For commands without stdin input, use execFileSync (simpler, faster)
+    const result = execFileSync('gh', args, {
       encoding: 'utf-8',
       env,
       maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large responses
-    };
-
-    if (opts.input !== undefined) {
-      execOptions.input = opts.input;
-    }
-
-    // Use execFileSync to avoid shell interpretation of special characters
-    // (parentheses, quotes, pipes, etc. in jq filters)
-    const result = execFileSync('gh', args, execOptions);
+    });
     return result.trim();
   } catch (error) {
     const execError = error as { stderr?: string; message?: string };
