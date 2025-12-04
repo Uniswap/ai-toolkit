@@ -85,6 +85,12 @@ on:
         type: string
         default: ""
 
+      toolkit_ref:
+        description: "Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Defaults to 'main'. Use 'next' or a specific SHA to test unreleased changes."
+        required: false
+        type: string
+        default: "main"
+
     secrets:
       ANTHROPIC_API_KEY:
         description: "Anthropic API key for Claude access"
@@ -225,6 +231,7 @@ jobs:
           BASE_REF: ${{ inputs.base_ref }}
           PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
           EXISTING_COMMENT_COUNT: ${{ steps.existing-comments.outputs.existing_comment_count }}
+          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
         run: |
           CUSTOM_PROMPT=""
 
@@ -252,7 +259,7 @@ jobs:
             # Fetch default prompt via GitHub API using WORKFLOW_PAT for cross-repo access
             if ! curl -fSs -H "Authorization: token $WORKFLOW_PAT" \
                       -H "Accept: application/vnd.github.v4.raw" \
-                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/prompts/default-pr-review.md" \
+                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/prompts/default-pr-review.md?ref=${TOOLKIT_REF}" \
                       -o /tmp/default-prompt.md 2>&1 | tee /tmp/curl-error.log; then
               echo "❌ Failed to fetch default prompt from Uniswap/ai-toolkit"
               echo "   Error details:"
@@ -564,11 +571,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
-          # github.job_workflow_sha is the commit SHA of the reusable workflow file
-          # This is the SHA of the ai-toolkit commit that the workflow was called from
-          # e.g., if caller uses @next, this is the HEAD commit of the next branch
-          # if caller uses @39bfb2d..., this is that exact commit
-          JOB_WORKFLOW_SHA: ${{ github.job_workflow_sha }}
+          # Explicit ref input - defaults to 'main', can be set to 'next' or a SHA for testing
+          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
         run: |
           set -euo pipefail
 
@@ -578,20 +582,20 @@ jobs:
             echo "script_path=.github/scripts/post-review.ts" >> $GITHUB_OUTPUT
           else
             echo "ℹ️  Running from external repository - downloading post-review.ts from Uniswap/ai-toolkit"
-            echo "ℹ️  Using reusable workflow SHA: $JOB_WORKFLOW_SHA"
+            echo "ℹ️  Using toolkit ref: $TOOLKIT_REF"
 
-            # Download the script from ai-toolkit repository at the exact commit of the workflow
+            # Download the script from ai-toolkit repository at the specified ref
             if ! curl -fSs -H "Authorization: token $WORKFLOW_PAT" \
                       -H "Accept: application/vnd.github.v4.raw" \
-                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/scripts/post-review.ts?ref=${JOB_WORKFLOW_SHA}" \
+                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/scripts/post-review.ts?ref=${TOOLKIT_REF}" \
                       -o /tmp/post-review.ts 2>&1 | tee /tmp/curl-error.log; then
-              echo "❌ Failed to download post-review.ts from Uniswap/ai-toolkit@${JOB_WORKFLOW_SHA}"
+              echo "❌ Failed to download post-review.ts from Uniswap/ai-toolkit@${TOOLKIT_REF}"
               echo "   Error details:"
               cat /tmp/curl-error.log | head -5
               exit 1
             fi
 
-            echo "✅ Downloaded post-review.ts from SHA: $JOB_WORKFLOW_SHA"
+            echo "✅ Downloaded post-review.ts from SHA: $TOOLKIT_REF"
             echo "script_path=/tmp/post-review.ts" >> $GITHUB_OUTPUT
           fi
 
