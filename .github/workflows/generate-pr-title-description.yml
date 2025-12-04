@@ -51,3 +51,4 @@ jobs:
       pr_history_count: 10
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
