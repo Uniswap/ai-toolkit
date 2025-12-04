@@ -290,7 +290,7 @@ Common secrets referenced:
 
 - `ANTHROPIC_API_KEY` - Claude AI API authentication (also requires the [Claude GitHub App](https://github.com/apps/claude) to be installed on the repository)
 - `NODE_AUTH_TOKEN` - NPM registry authentication (for publishing and installing `@uniswap` scoped packages)
-- `WORKFLOW_PAT` - Personal Access Token with `repo` scope for: (1) pushing commits/tags in force-publish, (2) cross-repo access to fetch default prompts from ai-toolkit in `_claude-code-review.yml` and `_generate-pr-metadata.yml`
+- `WORKFLOW_PAT` - Personal Access Token with `repo` scope for: (1) pushing commits/tags in force-publish, (2) cross-repo access to fetch default prompts from ai-toolkit in `_claude-code-review.yml` and `_generate-pr-metadata.yml`, (3) resolving review threads via GraphQL API in `_claude-code-review.yml` (the default `GITHUB_TOKEN` lacks permissions for the `resolveReviewThread` mutation)
 - `SERVICE_ACCOUNT_GPG_PRIVATE_KEY` - GPG key for signed commits/tags
 - `LINEAR_API_KEY` - Linear API authentication (for autonomous tasks)
 - `SLACK_WEBHOOK_URL` - Slack notifications

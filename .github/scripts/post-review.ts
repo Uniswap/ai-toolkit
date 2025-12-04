@@ -92,16 +92,31 @@ function logError(message: string): void {
   console.error(`[post-review] ERROR: ${message}`);
 }
 
-function gh(args: string[], input?: string): string {
+interface GhOptions {
+  input?: string;
+  /** Custom token to use instead of GITHUB_TOKEN (e.g., for GraphQL operations) */
+  token?: string;
+}
+
+function gh(args: string[], options?: GhOptions | string): string {
+  // Support legacy signature: gh(args, input)
+  const opts: GhOptions = typeof options === 'string' ? { input: options } : options || {};
+
   log(`Executing: gh ${args.join(' ')}`);
 
   try {
+    // Build environment, optionally overriding GH_TOKEN for GraphQL permissions
+    const env = { ...process.env };
+    if (opts.token) {
+      env.GH_TOKEN = opts.token;
+    }
+
     // Use execFileSync to avoid shell interpretation of special characters
     // (parentheses, quotes, pipes, etc. in jq filters)
     const result = execFileSync('gh', args, {
       encoding: 'utf-8',
-      input,
-      env: { ...process.env },
+      input: opts.input,
+      env,
       maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large responses
     });
     return result.trim();
@@ -303,6 +318,10 @@ function replyToComment(
  * 2. Find the thread containing our comment (by matching databaseId)
  * 3. Resolve that thread using the GraphQL mutation
  *
+ * NOTE: The resolveReviewThread GraphQL mutation requires elevated permissions that
+ * the default GITHUB_TOKEN in Actions doesn't have. We use GH_TOKEN_FOR_GRAPHQL
+ * (which should be set to WORKFLOW_PAT) for this operation.
+ *
  * @see https://stackoverflow.com/questions/71421045/how-to-resolve-a-github-pull-request-conversation-comment-thread-using-github
  */
 function resolveReviewThread(
@@ -313,11 +332,18 @@ function resolveReviewThread(
 ): boolean {
   log(`Resolving review thread containing comment ${commentId}...`);
 
+  // Use GH_TOKEN_FOR_GRAPHQL for GraphQL operations that require elevated permissions
+  // Falls back to undefined (which means gh will use GITHUB_TOKEN or GH_TOKEN from env)
+  const graphqlToken = process.env.GH_TOKEN_FOR_GRAPHQL;
+
+  if (!graphqlToken) {
+    log('Warning: GH_TOKEN_FOR_GRAPHQL not set, using default token');
+  }
+
   // Step 1: Query review threads to find the one containing this comment
   // We need to match by databaseId (REST API ID) since that's what we have
-  const queryResult = gh(
-    ['api', 'graphql', '--input', '-'],
-    JSON.stringify({
+  const queryResult = gh(['api', 'graphql', '--input', '-'], {
+    input: JSON.stringify({
       query: `
         query($owner: String!, $repo: String!, $pr: Int!) {
           repository(owner: $owner, name: $repo) {
@@ -338,8 +364,9 @@ function resolveReviewThread(
         }
       `,
       variables: { owner, repo, pr: prNumber },
-    })
-  );
+    }),
+    token: graphqlToken,
+  });
 
   let threadId: string | null = null;
 
@@ -386,9 +413,8 @@ function resolveReviewThread(
 
   // Step 2: Resolve the thread using GraphQL mutation
   try {
-    gh(
-      ['api', 'graphql', '--input', '-'],
-      JSON.stringify({
+    gh(['api', 'graphql', '--input', '-'], {
+      input: JSON.stringify({
         query: `
           mutation($threadId: ID!) {
             resolveReviewThread(input: {threadId: $threadId}) {
@@ -400,8 +426,9 @@ function resolveReviewThread(
           }
         `,
         variables: { threadId },
-      })
-    );
+      }),
+      token: graphqlToken,
+    });
 
     log(`Successfully resolved review thread`);
     return true;

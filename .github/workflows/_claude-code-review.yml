@@ -595,6 +595,9 @@ jobs:
         id: post-review
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # WORKFLOW_PAT is used for GraphQL operations (resolving review threads)
+          # that require elevated permissions beyond what GITHUB_TOKEN provides
+          GH_TOKEN_FOR_GRAPHQL: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ inputs.pr_number }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           # Pass file path instead of content to avoid shell injection risks
