@@ -13,9 +13,10 @@ name: 'Example: Claude Code Review - Custom Prompt'
 # 3. Default prompt from ai-toolkit repository
 #
 # To use this:
-# 1. Create your custom prompt at .github/prompts/my-pr-review.md
-# 2. Copy this workflow to .github/workflows/claude-code-review.yml
-# 3. Customize the path if needed
+# 1. Install the Claude GitHub App: https://github.com/apps/claude
+# 2. Create your custom prompt at .github/prompts/my-pr-review.md
+# 3. Copy this workflow to .github/workflows/claude-code-review.yml
+# 4. Customize the path if needed
 #
 # Your custom prompt can focus on:
 # - Security-specific concerns

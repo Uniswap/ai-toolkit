@@ -36,7 +36,9 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 
 // =============================================================================
@@ -92,22 +94,166 @@ function logError(message: string): void {
   console.error(`[post-review] ERROR: ${message}`);
 }
 
-function gh(args: string[], input?: string): string {
+interface GhOptions {
+  input?: string;
+  /** Custom token to use instead of GITHUB_TOKEN (e.g., for GraphQL operations) */
+  token?: string;
+}
+
+function gh(args: string[], options?: GhOptions | string): string {
+  // Support legacy signature: gh(args, input)
+  const opts: GhOptions = typeof options === 'string' ? { input: options } : options || {};
+
   log(`Executing: gh ${args.join(' ')}`);
 
   try {
-    // Use execFileSync to avoid shell interpretation of special characters
-    // (parentheses, quotes, pipes, etc. in jq filters)
+    // Build environment, optionally overriding GH_TOKEN for GraphQL permissions
+    const env = { ...process.env };
+    if (opts.token) {
+      env.GH_TOKEN = opts.token;
+    }
+
+    // When stdin input is needed, use a temp file instead of stdin piping
+    // This is more reliable in CI environments where stdin handling can be inconsistent
+    if (opts.input !== undefined) {
+      // Create a unique temp file for this invocation
+      const tempFile = join(
+        tmpdir(),
+        `gh-input-${Date.now()}-${Math.random().toString(36).slice(2)}.json`
+      );
+
+      // Enhanced logging for debugging JSON input issues
+      log(`[DEBUG] Input string length: ${opts.input.length} bytes`);
+      log(`[DEBUG] Input first 100 chars: ${opts.input.substring(0, 100)}`);
+      log(
+        `[DEBUG] Input last 100 chars: ${opts.input.substring(
+          Math.max(0, opts.input.length - 100)
+        )}`
+      );
+
+      // Validate JSON before writing
+      try {
+        JSON.parse(opts.input);
+        log(`[DEBUG] Input JSON validation: PASSED`);
+      } catch (jsonErr) {
+        logError(`[DEBUG] Input JSON validation: FAILED - ${(jsonErr as Error).message}`);
+        logError(`[DEBUG] Full input for debugging:\n${opts.input}`);
+      }
+
+      // Write input to temp file
+      writeFileSync(tempFile, opts.input, 'utf-8');
+      log(`[DEBUG] Wrote to temp file: ${tempFile}`);
+
+      // Verify the file was written correctly by reading it back
+      const readBack = readFileSync(tempFile, 'utf-8');
+      log(`[DEBUG] Read back ${readBack.length} bytes from temp file`);
+      log(`[DEBUG] Write/read match: ${opts.input === readBack ? 'YES' : 'NO (MISMATCH!)'}`);
+
+      if (opts.input !== readBack) {
+        logError(`[DEBUG] MISMATCH DETAILS:`);
+        logError(`[DEBUG]   Original length: ${opts.input.length}`);
+        logError(`[DEBUG]   Read back length: ${readBack.length}`);
+        // Find first diff position
+        let firstDiff = -1;
+        for (let i = 0; i < Math.max(opts.input.length, readBack.length); i++) {
+          if (opts.input[i] !== readBack[i]) {
+            firstDiff = i;
+            break;
+          }
+        }
+        logError(`[DEBUG]   First diff position: ${firstDiff}`);
+      }
+
+      // Validate read-back JSON
+      try {
+        JSON.parse(readBack);
+        log(`[DEBUG] Read-back JSON validation: PASSED`);
+      } catch (jsonErr) {
+        logError(`[DEBUG] Read-back JSON validation: FAILED - ${(jsonErr as Error).message}`);
+      }
+
+      // Replace --input - with the temp file path in args
+      const modifiedArgs = args.map((arg, i) => {
+        // If previous arg was --input and this is -, replace with temp file
+        if (args[i - 1] === '--input' && arg === '-') {
+          return tempFile;
+        }
+        return arg;
+      });
+
+      log(`[DEBUG] Modified command: gh ${modifiedArgs.join(' ')}`);
+
+      // Also log the gh CLI version for debugging
+      try {
+        const ghVersion = execFileSync('gh', ['--version'], { encoding: 'utf-8', env });
+        log(`[DEBUG] gh CLI version: ${ghVersion.split('\n')[0]}`);
+      } catch {
+        log(`[DEBUG] Could not get gh version`);
+      }
+
+      let commandSucceeded = false;
+      try {
+        const result = execFileSync('gh', modifiedArgs, {
+          encoding: 'utf-8',
+          env,
+          maxBuffer: 10 * 1024 * 1024,
+        });
+        log(`[DEBUG] gh command succeeded, response length: ${result.length} bytes`);
+        commandSucceeded = true;
+        return result.trim();
+      } catch (execError) {
+        const err = execError as { stdout?: string; stderr?: string; message?: string };
+
+        // On failure, log diagnostic information
+        // Note: retry logic for review creation is handled in createReview()
+        try {
+          const fileOnError = readFileSync(tempFile, 'utf-8');
+          logError(`[DEBUG] Temp file still exists on error, length: ${fileOnError.length} bytes`);
+          // Only log full contents for small files to avoid log spam
+          if (fileOnError.length < 2000) {
+            logError(`[DEBUG] Temp file contents on error:\n${fileOnError}`);
+          }
+        } catch (readErr) {
+          logError(`[DEBUG] Could not read temp file on error: ${(readErr as Error).message}`);
+        }
+
+        // Log the error details
+        if (err.stdout) {
+          logError(`[DEBUG] stdout: ${err.stdout.substring(0, 1000)}`);
+        }
+        if (err.stderr) {
+          logError(`[DEBUG] stderr: ${err.stderr.substring(0, 500)}`);
+        }
+
+        throw execError;
+      } finally {
+        // Only clean up if command succeeded, preserve on failure for debugging
+        if (commandSucceeded) {
+          try {
+            unlinkSync(tempFile);
+            log(`[DEBUG] Cleaned up temp file: ${tempFile}`);
+          } catch {
+            // Ignore cleanup errors
+          }
+        } else {
+          log(`[DEBUG] Preserving temp file for debugging: ${tempFile}`);
+        }
+      }
+    }
+
+    // For commands without stdin input, use execFileSync directly
     const result = execFileSync('gh', args, {
       encoding: 'utf-8',
-      input,
-      env: { ...process.env },
+      env,
       maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large responses
     });
     return result.trim();
   } catch (error) {
-    const execError = error as { stderr?: string; message?: string };
+    const execError = error as { stderr?: string; message?: string; stdout?: string };
     logError(`gh command failed: ${execError.stderr || execError.message}`);
+    if (execError.stdout) {
+      logError(`[DEBUG] stdout from failed command: ${execError.stdout}`);
+    }
     throw error;
   }
 }
@@ -232,6 +378,46 @@ function upsertReviewComment(
   }
 }
 
+/**
+ * Helper function to check if a recent bot review exists on the PR.
+ * Used to detect if a review was created despite a 500 error from GitHub.
+ *
+ * @returns The review object if found within maxAgeMs, null otherwise
+ */
+function findRecentBotReview(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  maxAgeMs: number = 5000
+): { id: number; html_url: string; state: string; submitted_at: string } | null {
+  try {
+    const reviewsResult = execFileSync(
+      'gh',
+      [
+        'api',
+        `repos/${owner}/${repo}/pulls/${prNumber}/reviews`,
+        '--jq',
+        '[.[] | select(.user.login == "github-actions[bot]")] | sort_by(.submitted_at) | last',
+      ],
+      { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 }
+    );
+
+    if (reviewsResult.trim()) {
+      const lastReview = JSON.parse(reviewsResult.trim());
+      const submittedAt = new Date(lastReview.submitted_at);
+      const now = new Date();
+      const ageMs = now.getTime() - submittedAt.getTime();
+
+      if (ageMs < maxAgeMs) {
+        return lastReview;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function createReview(params: CreateReviewParams): { id: number; html_url: string } {
   log(`Creating review with ${params.comments.length} inline comments...`);
   log(`Review event: ${params.event}`);
@@ -248,27 +434,92 @@ function createReview(params: CreateReviewParams): { id: number; html_url: strin
     })),
   };
 
-  // Use gh api with JSON input
-  const result = gh(
-    [
-      'api',
-      '--method',
-      'POST',
-      `repos/${params.owner}/${params.repo}/pulls/${params.pull_number}/reviews`,
-      '--input',
-      '-',
-    ],
-    JSON.stringify(requestBody)
-  );
-
-  try {
-    const response = JSON.parse(result) as { id: number; html_url: string };
-    log(`Review successfully created with ID: ${response.id}`);
-    return response;
-  } catch {
-    logError('Failed to parse review creation response');
-    throw new Error('Failed to create review');
+  // Enhanced logging for debugging review creation
+  log(`[DEBUG] Review body length: ${params.body.length} chars`);
+  log(`[DEBUG] Review comments count: ${requestBody.comments.length}`);
+  if (requestBody.comments.length > 0) {
+    for (let i = 0; i < requestBody.comments.length; i++) {
+      const c = requestBody.comments[i];
+      log(
+        `[DEBUG] Comment ${i}: path=${c.path}, line=${c.line}, body_length=${c.body.length}, side=${c.side}`
+      );
+      log(`[DEBUG] Comment ${i} body preview: ${c.body.substring(0, 200)}...`);
+    }
   }
+
+  const jsonPayload = JSON.stringify(requestBody);
+  log(`[DEBUG] Full review JSON payload length: ${jsonPayload.length} bytes`);
+  log(`[DEBUG] Full review JSON payload:\n${jsonPayload}`);
+
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY_MS = 5000;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    log(`[DEBUG] Review creation attempt ${attempt}/${MAX_RETRIES}`);
+
+    try {
+      // Use gh api with JSON input
+      const result = gh(
+        [
+          'api',
+          '--method',
+          'POST',
+          `repos/${params.owner}/${params.repo}/pulls/${params.pull_number}/reviews`,
+          '--input',
+          '-',
+        ],
+        jsonPayload
+      );
+
+      try {
+        const response = JSON.parse(result) as { id: number; html_url: string };
+        log(`Review successfully created with ID: ${response.id}`);
+        return response;
+      } catch {
+        logError('Failed to parse review creation response');
+        logError(`[DEBUG] Raw response from gh: ${result}`);
+        throw new Error('Failed to create review');
+      }
+    } catch (error) {
+      logError(`[DEBUG] Review creation attempt ${attempt} failed: ${(error as Error).message}`);
+
+      // Check if the review was actually created despite the error (GitHub 500 quirk)
+      log(`[DEBUG] Checking if review was created despite error...`);
+      const existingReview = findRecentBotReview(
+        params.owner,
+        params.repo,
+        params.pull_number,
+        5000 // 5 seconds
+      );
+
+      if (existingReview) {
+        log(
+          `[DEBUG] ✅ Review WAS created despite error! ID: ${existingReview.id}, state: ${existingReview.state}`
+        );
+        log(`[DEBUG] Review submitted at: ${existingReview.submitted_at}`);
+        return { id: existingReview.id, html_url: existingReview.html_url };
+      }
+
+      log(`[DEBUG] No recent bot review found - the error was a real failure`);
+
+      // If this wasn't the last attempt, wait and retry
+      if (attempt < MAX_RETRIES) {
+        log(`[DEBUG] Waiting ${RETRY_DELAY_MS}ms before retry...`);
+        // Use synchronous sleep since we're in a sync function
+        const start = Date.now();
+        while (Date.now() - start < RETRY_DELAY_MS) {
+          // Busy wait - not ideal but works for sync context
+        }
+        log(`[DEBUG] Retrying...`);
+      } else {
+        // Last attempt failed, throw the error
+        throw error;
+      }
+    }
+  }
+
+  // Should never reach here, but TypeScript needs this
+  throw new Error('Failed to create review after all retries');
 }
 
 function replyToComment(
@@ -303,6 +554,10 @@ function replyToComment(
  * 2. Find the thread containing our comment (by matching databaseId)
  * 3. Resolve that thread using the GraphQL mutation
  *
+ * NOTE: The resolveReviewThread GraphQL mutation requires elevated permissions that
+ * the default GITHUB_TOKEN in Actions doesn't have. We use GH_TOKEN_FOR_GRAPHQL
+ * (which should be set to WORKFLOW_PAT) for this operation.
+ *
  * @see https://stackoverflow.com/questions/71421045/how-to-resolve-a-github-pull-request-conversation-comment-thread-using-github
  */
 function resolveReviewThread(
@@ -313,11 +568,18 @@ function resolveReviewThread(
 ): boolean {
   log(`Resolving review thread containing comment ${commentId}...`);
 
+  // Use GH_TOKEN_FOR_GRAPHQL for GraphQL operations that require elevated permissions
+  // Falls back to undefined (which means gh will use GITHUB_TOKEN or GH_TOKEN from env)
+  const graphqlToken = process.env.GH_TOKEN_FOR_GRAPHQL;
+
+  if (!graphqlToken) {
+    log('Warning: GH_TOKEN_FOR_GRAPHQL not set, using default token');
+  }
+
   // Step 1: Query review threads to find the one containing this comment
   // We need to match by databaseId (REST API ID) since that's what we have
-  const queryResult = gh(
-    ['api', 'graphql', '--input', '-'],
-    JSON.stringify({
+  const queryResult = gh(['api', 'graphql', '--input', '-'], {
+    input: JSON.stringify({
       query: `
         query($owner: String!, $repo: String!, $pr: Int!) {
           repository(owner: $owner, name: $repo) {
@@ -338,8 +600,9 @@ function resolveReviewThread(
         }
       `,
       variables: { owner, repo, pr: prNumber },
-    })
-  );
+    }),
+    token: graphqlToken,
+  });
 
   let threadId: string | null = null;
 
@@ -386,9 +649,8 @@ function resolveReviewThread(
 
   // Step 2: Resolve the thread using GraphQL mutation
   try {
-    gh(
-      ['api', 'graphql', '--input', '-'],
-      JSON.stringify({
+    gh(['api', 'graphql', '--input', '-'], {
+      input: JSON.stringify({
         query: `
           mutation($threadId: ID!) {
             resolveReviewThread(input: {threadId: $threadId}) {
@@ -400,8 +662,9 @@ function resolveReviewThread(
           }
         `,
         variables: { threadId },
-      })
-    );
+      }),
+      token: graphqlToken,
+    });
 
     log(`Successfully resolved review thread`);
     return true;
@@ -447,8 +710,17 @@ function dismissPreviousBotReviews(owner: string, repo: string, prNumber: number
           'message=Superseded by new review after PR update',
         ]);
         log(`Dismissed review ${review.id}`);
-      } catch {
-        log(`Could not dismiss review ${review.id} (may lack permissions)`);
+      } catch (error) {
+        // Distinguish between different error types for clearer logging
+        const errorMsg = (error as Error).message || '';
+        if (errorMsg.includes('422')) {
+          // 422 typically means the review is already dismissed or in a non-dismissable state
+          log(`Review ${review.id} already dismissed or in non-dismissable state`);
+        } else if (errorMsg.includes('403')) {
+          log(`Could not dismiss review ${review.id} (insufficient permissions)`);
+        } else {
+          log(`Could not dismiss review ${review.id}: ${errorMsg}`);
+        }
       }
     }
   } catch {
@@ -514,6 +786,12 @@ function getValidDiffLines(
       totalLines += lines.size;
     }
     log(`Parsed diff: ${validLines.size} files, ${totalLines} valid line positions`);
+
+    // Log detailed valid lines for debugging
+    for (const [file, lines] of Array.from(validLines.entries())) {
+      const sortedLines = Array.from(lines).sort((a, b) => a - b);
+      log(`[DEBUG] Valid lines for ${file}: [${sortedLines.join(', ')}]`);
+    }
 
     return validLines;
   } catch (err) {
@@ -818,10 +1096,15 @@ async function main(): Promise<void> {
     log(`Review URL: ${reviewResult.html_url}`);
   } catch (error) {
     logError(`Failed to create formal review: ${(error as Error).message}`);
-    // If we at least got the comment posted, consider it a partial success
-    if (!commentResult) {
-      process.exit(1);
-    }
+    // Formal review is required for branch protection rules to receive a verdict.
+    // Always fail if we couldn't create it, even if the comment was posted.
+    logError(
+      'CRITICAL: Formal review is required for branch protection. ' +
+        (commentResult
+          ? `The main comment was posted at ${commentResult.html_url} but the formal verdict was not recorded.`
+          : 'Neither the comment nor the formal review were created.')
+    );
+    process.exit(1);
   }
 
   // Output summary

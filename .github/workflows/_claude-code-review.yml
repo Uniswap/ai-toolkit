@@ -85,10 +85,19 @@ on:
         type: string
         default: ""
 
+      toolkit_ref:
+        description: "Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Defaults to 'main'. Use 'next' or a specific SHA to test unreleased changes."
+        required: false
+        type: string
+        default: "main"
+
     secrets:
       ANTHROPIC_API_KEY:
         description: "Anthropic API key for Claude access"
         required: true
+      WORKFLOW_PAT:
+        description: "Personal Access Token with repo scope for cross-repo access to fetch default prompts from ai-toolkit. Only required if not providing a custom_prompt or custom_prompt_path."
+        required: false
 
 jobs:
   claude-review:
@@ -216,12 +225,13 @@ jobs:
         env:
           CUSTOM_PROMPT_INPUT: ${{ inputs.custom_prompt }}
           CUSTOM_PROMPT_PATH: ${{ inputs.custom_prompt_path }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ inputs.pr_number }}
           BASE_REF: ${{ inputs.base_ref }}
           PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
           EXISTING_COMMENT_COUNT: ${{ steps.existing-comments.outputs.existing_comment_count }}
+          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
         run: |
           CUSTOM_PROMPT=""
 
@@ -239,10 +249,17 @@ jobs:
           else
             echo "📝 Fetching default prompt from Uniswap/ai-toolkit repository"
 
-            # Fetch default prompt via GitHub API
-            if ! curl -fSs -H "Authorization: token $GITHUB_TOKEN" \
+            # Check if WORKFLOW_PAT is available for cross-repo access
+            if [ -z "$WORKFLOW_PAT" ]; then
+              echo "❌ WORKFLOW_PAT secret is required to fetch default prompt from Uniswap/ai-toolkit"
+              echo "   Either provide a custom_prompt, custom_prompt_path, or set the WORKFLOW_PAT secret"
+              exit 1
+            fi
+
+            # Fetch default prompt via GitHub API using WORKFLOW_PAT for cross-repo access
+            if ! curl -fSs -H "Authorization: token $WORKFLOW_PAT" \
                       -H "Accept: application/vnd.github.v4.raw" \
-                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/prompts/default-pr-review.md" \
+                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/prompts/default-pr-review.md?ref=${TOOLKIT_REF}" \
                       -o /tmp/default-prompt.md 2>&1 | tee /tmp/curl-error.log; then
               echo "❌ Failed to fetch default prompt from Uniswap/ai-toolkit"
               echo "   Error details:"
@@ -334,6 +351,16 @@ jobs:
             - \`APPROVE\`: No blocking issues, code is safe to merge
             - \`REQUEST_CHANGES\`: Critical bugs, security vulnerabilities, or data loss risks
             - \`COMMENT\`: Suggestions and improvements, but not blocking merge
+
+          **CRITICAL - Outcome Consistency Rule:**
+          Your \`pr_review_outcome\` MUST match your stated recommendation in \`pr_review_body\`.
+          - If your analysis finds NO issues and you recommend approval → use \`APPROVE\`
+          - If your analysis finds blocking issues → use \`REQUEST_CHANGES\`
+          - Only use \`COMMENT\` when you have suggestions but explicitly do NOT recommend approval yet
+
+          Do NOT default to \`COMMENT\` when you intend to approve. If you write "Recommendation: APPROVE"
+          or "No issues found, safe to merge" in your review body, the \`pr_review_outcome\` must be \`APPROVE\`.
+
           - \`inline_comments_new\`: Array of inline comments on specific lines (can be empty \`[]\`)
             - Each needs: \`path\` (file), \`line\` (number), \`body\` (feedback)
             - Optional: \`suggestion\` (corrected code snippet)
@@ -553,6 +580,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+          # Explicit ref input - defaults to 'main', can be set to 'next' or a SHA for testing
+          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
         run: |
           set -euo pipefail
 
@@ -562,19 +592,20 @@ jobs:
             echo "script_path=.github/scripts/post-review.ts" >> $GITHUB_OUTPUT
           else
             echo "ℹ️  Running from external repository - downloading post-review.ts from Uniswap/ai-toolkit"
+            echo "ℹ️  Using toolkit ref: $TOOLKIT_REF"
 
-            # Download the script from ai-toolkit repository
-            if ! curl -fSs -H "Authorization: token $GITHUB_TOKEN" \
+            # Download the script from ai-toolkit repository at the specified ref
+            if ! curl -fSs -H "Authorization: token $WORKFLOW_PAT" \
                       -H "Accept: application/vnd.github.v4.raw" \
-                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/scripts/post-review.ts" \
+                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/scripts/post-review.ts?ref=${TOOLKIT_REF}" \
                       -o /tmp/post-review.ts 2>&1 | tee /tmp/curl-error.log; then
-              echo "❌ Failed to download post-review.ts from Uniswap/ai-toolkit"
+              echo "❌ Failed to download post-review.ts from Uniswap/ai-toolkit@${TOOLKIT_REF}"
               echo "   Error details:"
               cat /tmp/curl-error.log | head -5
               exit 1
             fi
 
-            echo "✅ Downloaded post-review.ts"
+            echo "✅ Downloaded post-review.ts from SHA: $TOOLKIT_REF"
             echo "script_path=/tmp/post-review.ts" >> $GITHUB_OUTPUT
           fi
 
@@ -584,6 +615,9 @@ jobs:
         id: post-review
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # WORKFLOW_PAT is used for GraphQL operations (resolving review threads)
+          # that require elevated permissions beyond what GITHUB_TOKEN provides
+          GH_TOKEN_FOR_GRAPHQL: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ inputs.pr_number }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           # Pass file path instead of content to avoid shell injection risks

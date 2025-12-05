@@ -12,10 +12,11 @@ name: Claude Code
 # - Read CI results and help debug failures
 #
 # QUICK START:
-# 1. Copy this workflow to your repository's .github/workflows/ directory
-# 2. Ensure you have ANTHROPIC_API_KEY secret configured
-# 3. Commit and test by mentioning @claude in a PR comment
-# 4. (Optional) Customize model, tools, or instructions
+# 1. Install the Claude GitHub App: https://github.com/apps/claude
+# 2. Copy this workflow to your repository's .github/workflows/ directory
+# 3. Ensure you have ANTHROPIC_API_KEY secret configured
+# 4. Commit and test by mentioning @claude in a PR comment
+# 5. (Optional) Customize model, tools, or instructions
 #
 # CUSTOMIZATION OPTIONS:
 # See the bottom of this file for examples of common customizations including:
