@@ -211,7 +211,7 @@ For each message, extract:
 - If `permalink` missing: Skip message (cannot link to it)
 - If `text` missing or empty: Skip message
 - If `user` missing: Display as "Unknown User"
-- If no messages meet threshold: Omit this section entirely (see Step 7 formatting rules)
+- If no messages meet threshold: Omit this section entirely (see Step 8 formatting rules)
 
 **Error Handling:**
 
