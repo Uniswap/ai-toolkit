@@ -85,9 +85,9 @@ This ensures all comments appear as `github-actions[bot]` using the official Ant
 
 **Required Secrets:**
 
-| Secret              | Required    | Description                                                                                                                                                                    |
-| ------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ANTHROPIC_API_KEY` | Yes         | Anthropic API key for Claude access                                                                                                                                            |
+| Secret              | Required    | Description                                                                                                                                                                                                                            |
+| ------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY` | Yes         | Anthropic API key for Claude access                                                                                                                                                                                                    |
 | `WORKFLOW_PAT`      | Conditional | Personal Access Token with `repo` scope for cross-repo access to fetch default prompts from ai-toolkit. **Required if not providing `custom_prompt` or `custom_prompt_path`.** Also used for resolving review threads via GraphQL API. |
 
 > **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
@@ -96,17 +96,17 @@ This ensures all comments appear as `github-actions[bot]` using the official Ant
 
 **Configuration Inputs:**
 
-| Input               | Required | Default                          | Description                                                                                                    |
-| ------------------- | -------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `pr_number`         | Yes      | -                                | Pull request number to review                                                                                  |
-| `base_ref`          | Yes      | -                                | Base branch name (e.g., main, master)                                                                          |
-| `model`             | No       | `claude-sonnet-4-5-20250929`     | Claude model to use for review                                                                                 |
-| `max_turns`         | No       | unlimited                        | Maximum conversation turns for Claude                                                                          |
-| `custom_prompt`     | No       | `""`                             | Custom prompt text (overrides prompt file and default)                                                         |
-| `custom_prompt_path`| No       | `.claude/prompts/claude-pr-bot.md` | Path to custom prompt file in repository                                                                     |
-| `timeout_minutes`   | No       | `30`                             | Job timeout in minutes                                                                                         |
-| `allowed_tools`     | No       | `""`                             | Comma-separated list of allowed tools for Claude                                                               |
-| `toolkit_ref`       | No       | `main`                           | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
+| Input                | Required | Default                            | Description                                                                                                                    |
+| -------------------- | -------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `pr_number`          | Yes      | -                                  | Pull request number to review                                                                                                  |
+| `base_ref`           | Yes      | -                                  | Base branch name (e.g., main, master)                                                                                          |
+| `model`              | No       | `claude-sonnet-4-5-20250929`       | Claude model to use for review                                                                                                 |
+| `max_turns`          | No       | unlimited                          | Maximum conversation turns for Claude                                                                                          |
+| `custom_prompt`      | No       | `""`                               | Custom prompt text (overrides prompt file and default)                                                                         |
+| `custom_prompt_path` | No       | `.claude/prompts/claude-pr-bot.md` | Path to custom prompt file in repository                                                                                       |
+| `timeout_minutes`    | No       | `30`                               | Job timeout in minutes                                                                                                         |
+| `allowed_tools`      | No       | `""`                               | Comma-separated list of allowed tools for Claude                                                                               |
+| `toolkit_ref`        | No       | `main`                             | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
 
 **Usage example:**
 
@@ -191,11 +191,14 @@ This allows users to add custom notes, disclaimers, or additional context that s
 
 The `generation_mode` input controls what the workflow generates:
 
-| Mode          | Description                         | Default |
-| ------------- | ----------------------------------- | ------- |
-| `both`        | Generate both title and description | Yes     |
-| `title`       | Generate only the PR title          | No      |
-| `description` | Generate only the PR description    | No      |
+| Mode                  | Description                                                                                                           | Default |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------- | ------- |
+| `both`                | Generate both title and description                                                                                   | Yes     |
+| `both-deferred-title` | Generate description always; only generate title if the existing PR title is inadequate or doesn't follow conventions | No      |
+| `title`               | Generate only the PR title                                                                                            | No      |
+| `description`         | Generate only the PR description                                                                                      | No      |
+
+**Note on `both-deferred-title` mode:** In this mode, Claude evaluates the existing PR title against conventional commit patterns and repository history. If the existing title is acceptable (follows conventions, has appropriate type/scope, accurately describes the changes), Claude will preserve it and only generate the description. This is useful when users have already entered a meaningful title that shouldn't be overwritten.
 
 **Required Secrets:**
 
