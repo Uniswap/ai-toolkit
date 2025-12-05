@@ -183,6 +183,14 @@ function gh(args: string[], options?: GhOptions | string): string {
 
       log(`[DEBUG] Modified command: gh ${modifiedArgs.join(' ')}`);
 
+      // Also log the gh CLI version for debugging
+      try {
+        const ghVersion = execFileSync('gh', ['--version'], { encoding: 'utf-8', env });
+        log(`[DEBUG] gh CLI version: ${ghVersion.split('\n')[0]}`);
+      } catch {
+        log(`[DEBUG] Could not get gh version`);
+      }
+
       let commandSucceeded = false;
       try {
         const result = execFileSync('gh', modifiedArgs, {
@@ -202,6 +210,84 @@ function gh(args: string[], options?: GhOptions | string): string {
         } catch (readErr) {
           logError(`[DEBUG] Could not read temp file on error: ${(readErr as Error).message}`);
         }
+
+        // Try again with --include to see HTTP response headers
+        // This helps diagnose if the API is returning an error response
+        log(`[DEBUG] Retrying with --include to capture HTTP headers...`);
+        try {
+          // Insert --include after 'api' in the args
+          const debugArgs = [...modifiedArgs];
+          const apiIndex = debugArgs.indexOf('api');
+          if (apiIndex !== -1) {
+            debugArgs.splice(apiIndex + 1, 0, '--include');
+          }
+          const debugResult = execFileSync('gh', debugArgs, {
+            encoding: 'utf-8',
+            env,
+            maxBuffer: 10 * 1024 * 1024,
+          });
+          logError(
+            `[DEBUG] Retry with --include succeeded (unexpected):\n${debugResult.substring(
+              0,
+              2000
+            )}`
+          );
+        } catch (retryError) {
+          const retryErr = retryError as { stdout?: string; stderr?: string; message?: string };
+          logError(`[DEBUG] Retry with --include also failed`);
+          if (retryErr.stdout) {
+            logError(
+              `[DEBUG] Retry stdout (may contain HTTP headers):\n${retryErr.stdout.substring(
+                0,
+                2000
+              )}`
+            );
+          }
+          if (retryErr.stderr) {
+            logError(`[DEBUG] Retry stderr:\n${retryErr.stderr.substring(0, 1000)}`);
+          }
+        }
+
+        // Try with curl to get raw HTTP response for debugging
+        // Extract the API endpoint from args
+        const endpoint = modifiedArgs.find((arg) => arg.startsWith('repos/'));
+        const inputFile = modifiedArgs.find((arg) => arg.startsWith('/tmp/'));
+        if (endpoint && inputFile) {
+          log(`[DEBUG] Trying curl for raw HTTP response...`);
+          try {
+            const curlResult = execFileSync(
+              'curl',
+              [
+                '-s',
+                '-w',
+                '\\n---HTTP_CODE:%{http_code}---',
+                '-X',
+                'POST',
+                '-H',
+                'Accept: application/vnd.github+json',
+                '-H',
+                `Authorization: Bearer ${env.GH_TOKEN || env.GITHUB_TOKEN}`,
+                '-H',
+                'Content-Type: application/json',
+                '-d',
+                `@${inputFile}`,
+                `https://api.github.com/${endpoint}`,
+              ],
+              {
+                encoding: 'utf-8',
+                env,
+                maxBuffer: 10 * 1024 * 1024,
+              }
+            );
+            logError(`[DEBUG] curl response:\n${curlResult}`);
+          } catch (curlError) {
+            const curlErr = curlError as { stdout?: string; stderr?: string; message?: string };
+            logError(`[DEBUG] curl also failed: ${curlErr.message}`);
+            if (curlErr.stdout) logError(`[DEBUG] curl stdout:\n${curlErr.stdout}`);
+            if (curlErr.stderr) logError(`[DEBUG] curl stderr:\n${curlErr.stderr}`);
+          }
+        }
+
         throw execError;
       } finally {
         // Only clean up if command succeeded, preserve on failure for debugging
@@ -676,6 +762,12 @@ function getValidDiffLines(
       totalLines += lines.size;
     }
     log(`Parsed diff: ${validLines.size} files, ${totalLines} valid line positions`);
+
+    // Log detailed valid lines for debugging
+    for (const [file, lines] of Array.from(validLines.entries())) {
+      const sortedLines = Array.from(lines).sort((a, b) => a - b);
+      log(`[DEBUG] Valid lines for ${file}: [${sortedLines.join(', ')}]`);
+    }
 
     return validLines;
   } catch (err) {
