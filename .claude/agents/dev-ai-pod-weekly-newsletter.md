@@ -265,7 +265,7 @@ For each changelog entry, extract:
 - If `Branch` is "next" or not "main": Skip entry entirely
 - If `Name` missing: Skip entry
 - If `Description` missing: Display name only without description
-- If no changelog entries for `main` branch in date range: Omit this section entirely (see Step 7 formatting rules)
+- If no changelog entries for `main` branch in date range: Omit this section entirely (see Step 8 formatting rules)
 
 **Error Handling:**
 
@@ -728,7 +728,7 @@ Action: Log warning, continue (newsletter was already created in Notion)
 Status: Success with warning (cross-post is best-effort)
 ```
 
-6. **Missing Required Properties:**
+3. **Missing Required Properties:**
 
 ```
 Warning: "Entry missing required property: {property}"
