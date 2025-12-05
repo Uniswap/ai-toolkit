@@ -122,31 +122,98 @@ function gh(args: string[], options?: GhOptions | string): string {
         `gh-input-${Date.now()}-${Math.random().toString(36).slice(2)}.json`
       );
 
+      // Enhanced logging for debugging JSON input issues
+      log(`[DEBUG] Input string length: ${opts.input.length} bytes`);
+      log(`[DEBUG] Input first 100 chars: ${opts.input.substring(0, 100)}`);
+      log(
+        `[DEBUG] Input last 100 chars: ${opts.input.substring(
+          Math.max(0, opts.input.length - 100)
+        )}`
+      );
+
+      // Validate JSON before writing
       try {
-        // Write input to temp file
-        writeFileSync(tempFile, opts.input, 'utf-8');
+        JSON.parse(opts.input);
+        log(`[DEBUG] Input JSON validation: PASSED`);
+      } catch (jsonErr) {
+        logError(`[DEBUG] Input JSON validation: FAILED - ${(jsonErr as Error).message}`);
+        logError(`[DEBUG] Full input for debugging:\n${opts.input}`);
+      }
 
-        // Replace --input - with the temp file path in args
-        const modifiedArgs = args.map((arg, i) => {
-          // If previous arg was --input and this is -, replace with temp file
-          if (args[i - 1] === '--input' && arg === '-') {
-            return tempFile;
+      // Write input to temp file
+      writeFileSync(tempFile, opts.input, 'utf-8');
+      log(`[DEBUG] Wrote to temp file: ${tempFile}`);
+
+      // Verify the file was written correctly by reading it back
+      const readBack = readFileSync(tempFile, 'utf-8');
+      log(`[DEBUG] Read back ${readBack.length} bytes from temp file`);
+      log(`[DEBUG] Write/read match: ${opts.input === readBack ? 'YES' : 'NO (MISMATCH!)'}`);
+
+      if (opts.input !== readBack) {
+        logError(`[DEBUG] MISMATCH DETAILS:`);
+        logError(`[DEBUG]   Original length: ${opts.input.length}`);
+        logError(`[DEBUG]   Read back length: ${readBack.length}`);
+        // Find first diff position
+        let firstDiff = -1;
+        for (let i = 0; i < Math.max(opts.input.length, readBack.length); i++) {
+          if (opts.input[i] !== readBack[i]) {
+            firstDiff = i;
+            break;
           }
-          return arg;
-        });
+        }
+        logError(`[DEBUG]   First diff position: ${firstDiff}`);
+      }
 
+      // Validate read-back JSON
+      try {
+        JSON.parse(readBack);
+        log(`[DEBUG] Read-back JSON validation: PASSED`);
+      } catch (jsonErr) {
+        logError(`[DEBUG] Read-back JSON validation: FAILED - ${(jsonErr as Error).message}`);
+      }
+
+      // Replace --input - with the temp file path in args
+      const modifiedArgs = args.map((arg, i) => {
+        // If previous arg was --input and this is -, replace with temp file
+        if (args[i - 1] === '--input' && arg === '-') {
+          return tempFile;
+        }
+        return arg;
+      });
+
+      log(`[DEBUG] Modified command: gh ${modifiedArgs.join(' ')}`);
+
+      let commandSucceeded = false;
+      try {
         const result = execFileSync('gh', modifiedArgs, {
           encoding: 'utf-8',
           env,
           maxBuffer: 10 * 1024 * 1024,
         });
+        log(`[DEBUG] gh command succeeded, response length: ${result.length} bytes`);
+        commandSucceeded = true;
         return result.trim();
-      } finally {
-        // Clean up temp file
+      } catch (execError) {
+        // On failure, read the temp file again to verify it still exists and has correct content
         try {
-          unlinkSync(tempFile);
-        } catch {
-          // Ignore cleanup errors
+          const fileOnError = readFileSync(tempFile, 'utf-8');
+          logError(`[DEBUG] Temp file still exists on error, length: ${fileOnError.length} bytes`);
+          logError(`[DEBUG] Temp file contents on error:\n${fileOnError}`);
+        } catch (readErr) {
+          logError(`[DEBUG] Could not read temp file on error: ${(readErr as Error).message}`);
+        }
+        throw execError;
+      } finally {
+        // Only clean up if command succeeded, preserve on failure for debugging
+        if (commandSucceeded) {
+          try {
+            unlinkSync(tempFile);
+            log(`[DEBUG] Cleaned up temp file: ${tempFile}`);
+          } catch {
+            // Ignore cleanup errors
+          }
+        } else {
+          log(`[DEBUG] Preserving temp file for debugging: ${tempFile}`);
         }
       }
     }
@@ -159,8 +226,11 @@ function gh(args: string[], options?: GhOptions | string): string {
     });
     return result.trim();
   } catch (error) {
-    const execError = error as { stderr?: string; message?: string };
+    const execError = error as { stderr?: string; message?: string; stdout?: string };
     logError(`gh command failed: ${execError.stderr || execError.message}`);
+    if (execError.stdout) {
+      logError(`[DEBUG] stdout from failed command: ${execError.stdout}`);
+    }
     throw error;
   }
 }
@@ -301,6 +371,23 @@ function createReview(params: CreateReviewParams): { id: number; html_url: strin
     })),
   };
 
+  // Enhanced logging for debugging review creation
+  log(`[DEBUG] Review body length: ${params.body.length} chars`);
+  log(`[DEBUG] Review comments count: ${requestBody.comments.length}`);
+  if (requestBody.comments.length > 0) {
+    for (let i = 0; i < requestBody.comments.length; i++) {
+      const c = requestBody.comments[i];
+      log(
+        `[DEBUG] Comment ${i}: path=${c.path}, line=${c.line}, body_length=${c.body.length}, side=${c.side}`
+      );
+      log(`[DEBUG] Comment ${i} body preview: ${c.body.substring(0, 200)}...`);
+    }
+  }
+
+  const jsonPayload = JSON.stringify(requestBody);
+  log(`[DEBUG] Full review JSON payload length: ${jsonPayload.length} bytes`);
+  log(`[DEBUG] Full review JSON payload:\n${jsonPayload}`);
+
   // Use gh api with JSON input
   const result = gh(
     [
@@ -311,7 +398,7 @@ function createReview(params: CreateReviewParams): { id: number; html_url: strin
       '--input',
       '-',
     ],
-    JSON.stringify(requestBody)
+    jsonPayload
   );
 
   try {
@@ -320,6 +407,7 @@ function createReview(params: CreateReviewParams): { id: number; html_url: strin
     return response;
   } catch {
     logError('Failed to parse review creation response');
+    logError(`[DEBUG] Raw response from gh: ${result}`);
     throw new Error('Failed to create review');
   }
 }
