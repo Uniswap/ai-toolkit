@@ -104,6 +104,16 @@ Then run from GitHub Actions UI: Actions → Manual Changelog Generator → Run 
 
 ## Prerequisites
 
+### Claude GitHub App (Required for Claude-powered workflows)
+
+The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository to use any Claude-powered workflows (`_claude-main.yml`, `_claude-welcome.yml`, `_claude-code-review.yml`, `_generate-changelog.yml`, `_generate-pr-metadata.yml`, `_claude-task-worker.yml`).
+
+1. Go to: <https://github.com/apps/claude>
+2. Click **Install**
+3. Select your repository
+
+> **Need help?** Ask in **#pod-dev-ai** Slack channel
+
 ### Required Secrets
 
 To use these workflows, you'll need to configure the following secrets in your repository:
