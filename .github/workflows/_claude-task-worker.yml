@@ -379,9 +379,11 @@ jobs:
       # Check how many commits were made
       - name: Check commit count
         id: check-commits
+        env:
+          TARGET_BRANCH: ${{ inputs.target_branch }}
         run: |
           # Count commits beyond the base branch
-          COMMITS=$(git log origin/${{ inputs.target_branch }}..HEAD --oneline 2>/dev/null | wc -l | tr -d ' ')
+          COMMITS=$(git log origin/"$TARGET_BRANCH"..HEAD --oneline 2>/dev/null | wc -l | tr -d ' ')
           echo "commit_count=$COMMITS" >> $GITHUB_OUTPUT
           echo "Commits made: $COMMITS"
 
@@ -432,16 +434,21 @@ jobs:
           PR_EXISTS: ${{ steps.check-pr.outputs.pr_exists }}
           PR_URL: ${{ steps.check-pr.outputs.pr_url }}
           COMMIT_COUNT: ${{ steps.check-commits.outputs.commit_count }}
+          ISSUE_IDENTIFIER: ${{ inputs.issue_identifier }}
+          ISSUE_TITLE: ${{ inputs.issue_title }}
+          ISSUE_URL: ${{ inputs.issue_url }}
+          BRANCH_NAME: ${{ inputs.branch_name }}
+          MODEL: ${{ inputs.model }}
         run: |
-          echo "## Task: ${{ inputs.issue_identifier }}" >> $GITHUB_STEP_SUMMARY
+          echo "## Task: $ISSUE_IDENTIFIER" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Title:** ${{ inputs.issue_title }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Title:** $ISSUE_TITLE" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Linear Issue:** [${{ inputs.issue_identifier }}](${{ inputs.issue_url }})" >> $GITHUB_STEP_SUMMARY
+          echo "**Linear Issue:** [$ISSUE_IDENTIFIER]($ISSUE_URL)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Branch:** \`${{ inputs.branch_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`$BRANCH_NAME\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Model:** ${{ inputs.model }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Model:** $MODEL" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Max Turns:** 150" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

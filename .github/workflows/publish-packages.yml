@@ -14,6 +14,14 @@ name: Publish Packages
 # - Push to next: Auto mode with 'next' npm tag, prerelease versioning
 # - workflow_dispatch: Force mode with 'next' npm tag, prerelease versioning
 #
+# WORKFLOW CHANGE DETECTION:
+# In addition to package publishing, this workflow also detects changes to reusable workflow
+# files (prefixed with _ in .github/workflows/). When workflow files change:
+# - The next branch is synced with main (ensures workflow updates propagate)
+# - A Slack notification is sent about the workflow changes
+# This ensures that workflow updates are tracked and communicated even when no packages
+# need to be published.
+#
 # REQUIRED SECRETS:
 # - WORKFLOW_PAT: For pushing commits/tags
 # - NODE_AUTH_TOKEN: For npm publishing
@@ -62,6 +70,8 @@ jobs:
     environment: ${{ github.event_name == 'push' && 'Production' || null }}
     outputs:
       has_packages: ${{ steps.resolve.outputs.has_packages }}
+      has_workflow_changes: ${{ steps.workflow-changes.outputs.has_workflow_changes }}
+      should_continue: ${{ steps.resolve.outputs.has_packages == 'true' || steps.workflow-changes.outputs.has_workflow_changes == 'true' }}
       projects: ${{ steps.resolve.outputs.projects }}
       packages: ${{ steps.resolve.outputs.packages }}
       package_count: ${{ steps.resolve.outputs.package_count }}
@@ -166,6 +176,47 @@ jobs:
           else
             echo "Using commit before push: $BASE_SHA"
             echo "base=$BASE_SHA" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Detect reusable workflow changes
+        id: workflow-changes
+        if: github.event_name == 'push'
+        env:
+          BASE_SHA: ${{ steps.base-sha.outputs.base }}
+        run: |
+          echo "=========================================="
+          echo "Checking for reusable workflow changes"
+          echo "=========================================="
+
+          # Get list of changed files between base and HEAD
+          CHANGED_FILES=$(git diff --name-only "$BASE_SHA" HEAD 2>/dev/null || echo "")
+
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "ℹ️  No files changed"
+            echo "has_workflow_changes=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          echo ""
+
+          # Check for changes to reusable workflows (files prefixed with _ in .github/workflows/)
+          # These are shared workflows that other repositories may depend on
+          WORKFLOW_CHANGES=$(echo "$CHANGED_FILES" | grep -E '^\.github/workflows/_.*\.yml$' || echo "")
+
+          if [ -n "$WORKFLOW_CHANGES" ]; then
+            echo "✅ Found reusable workflow changes:"
+            echo "$WORKFLOW_CHANGES"
+            echo ""
+            echo "has_workflow_changes=true" >> $GITHUB_OUTPUT
+
+            # Count changed workflows
+            WORKFLOW_COUNT=$(echo "$WORKFLOW_CHANGES" | wc -l | tr -d ' ')
+            echo "📊 $WORKFLOW_COUNT reusable workflow(s) changed"
+          else
+            echo "ℹ️  No reusable workflow changes detected"
+            echo "has_workflow_changes=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Resolve packages to publish
@@ -1146,16 +1197,144 @@ jobs:
       NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
   # ============================================================================
+  # NOTIFY WORKFLOW CHANGES: Notification when only workflow files changed
+  # ============================================================================
+  # This job handles the case where reusable workflow files were updated
+  # but no npm packages were published. It ensures stakeholders are aware
+  # of workflow changes that may affect dependent repositories.
+  notify-workflow-changes:
+    name: Notify workflow changes
+    runs-on: ubuntu-24.04
+    needs: [detect, publish]
+    # Run when workflow files changed but no packages were published
+    # (the notify-release job handles the case when packages ARE published)
+    if: |
+      always() &&
+      github.event_name == 'push' &&
+      needs.detect.outputs.is_dry_run != 'true' &&
+      needs.detect.outputs.has_workflow_changes == 'true' &&
+      (needs.detect.outputs.has_packages != 'true' || needs.publish.outputs.has_successes != 'true')
+
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Identify changed workflows
+        id: changed-workflows
+        env:
+          BASE_SHA: ${{ needs.detect.outputs.base_sha }}
+        run: |
+          # Get list of changed reusable workflow files
+          WORKFLOW_CHANGES=$(git diff --name-only "$BASE_SHA" HEAD 2>/dev/null | grep -E '^\.github/workflows/_.*\.yml$' || echo "")
+
+          if [ -z "$WORKFLOW_CHANGES" ]; then
+            echo "workflow_list=" >> $GITHUB_OUTPUT
+            echo "workflow_count=0" >> $GITHUB_OUTPUT
+          else
+            # Format as comma-separated list
+            WORKFLOW_LIST=$(echo "$WORKFLOW_CHANGES" | tr '\n' ',' | sed 's/,$//')
+            WORKFLOW_COUNT=$(echo "$WORKFLOW_CHANGES" | wc -l | tr -d ' ')
+            echo "workflow_list=$WORKFLOW_LIST" >> $GITHUB_OUTPUT
+            echo "workflow_count=$WORKFLOW_COUNT" >> $GITHUB_OUTPUT
+            echo "Changed workflows: $WORKFLOW_LIST"
+          fi
+
+      - name: Send Slack notification for workflow changes
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          BRANCH_NAME: ${{ github.ref_name }}
+          WORKFLOW_LIST: ${{ steps.changed-workflows.outputs.workflow_list }}
+          WORKFLOW_COUNT: ${{ steps.changed-workflows.outputs.workflow_count }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          # Format the workflow list for Slack
+          FORMATTED_WORKFLOWS=$(echo "$WORKFLOW_LIST" | tr ',' '\n' | sed 's|^\.github/workflows/||' | while read f; do echo "• $f"; done)
+
+          # Build Slack message payload
+          PAYLOAD=$(cat <<EOF
+          {
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "🔧 Workflow Update - $BRANCH_NAME",
+                  "emoji": true
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*$WORKFLOW_COUNT reusable workflow(s) updated*\n\n$FORMATTED_WORKFLOWS"
+                }
+              },
+              {
+                "type": "context",
+                "elements": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "<$REPO_URL/commit/$COMMIT_SHA|View commit> | <$REPO_URL/tree/$BRANCH_NAME/.github/workflows|Browse workflows>"
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
+          )
+
+          # Send to Slack
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+              --data "$PAYLOAD" \
+              "$SLACK_WEBHOOK_URL" \
+              --silent --show-error --fail || echo "⚠️ Failed to send Slack notification"
+            echo "✅ Sent Slack notification for workflow changes"
+          else
+            echo "⚠️ SLACK_WEBHOOK_URL not configured, skipping notification"
+          fi
+
+      - name: Generate workflow summary
+        env:
+          WORKFLOW_LIST: ${{ steps.changed-workflows.outputs.workflow_list }}
+          WORKFLOW_COUNT: ${{ steps.changed-workflows.outputs.workflow_count }}
+          BRANCH_NAME: ${{ github.ref_name }}
+        run: |
+          echo "## 🔧 Workflow Update" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** $BRANCH_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "**Workflows updated:** $WORKFLOW_COUNT" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Changed Workflows" >> $GITHUB_STEP_SUMMARY
+          echo "$WORKFLOW_LIST" | tr ',' '\n' | sed 's|^\.github/workflows/||' | while read f; do
+            [ -n "$f" ] && echo "- \`$f\`" >> $GITHUB_STEP_SUMMARY
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "ℹ️ No npm packages were published in this update." >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
   # SYNC NEXT: Sync next branch with main after main releases (auto mode only)
   # ============================================================================
+  # Runs when packages are published OR when reusable workflow files are changed
+  # This ensures the next branch stays in sync with main for all significant changes
   sync-next:
     name: Sync next branch with main
     runs-on: ubuntu-24.04
     needs: [detect, publish]
+    # Run if we're on main, it's a push event, not a dry run, AND either:
+    # - packages were published successfully, OR
+    # - reusable workflow files were changed (even if no packages to publish)
     if: |
+      always() &&
       github.ref_name == 'main' &&
       github.event_name == 'push' &&
-      needs.detect.outputs.is_dry_run != 'true'
+      needs.detect.outputs.is_dry_run != 'true' &&
+      (needs.publish.outputs.has_successes == 'true' || needs.detect.outputs.has_workflow_changes == 'true')
     permissions:
       contents: write
 
