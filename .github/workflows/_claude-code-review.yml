@@ -351,6 +351,16 @@ jobs:
             - \`APPROVE\`: No blocking issues, code is safe to merge
             - \`REQUEST_CHANGES\`: Critical bugs, security vulnerabilities, or data loss risks
             - \`COMMENT\`: Suggestions and improvements, but not blocking merge
+
+          **CRITICAL - Outcome Consistency Rule:**
+          Your \`pr_review_outcome\` MUST match your stated recommendation in \`pr_review_body\`.
+          - If your analysis finds NO issues and you recommend approval → use \`APPROVE\`
+          - If your analysis finds blocking issues → use \`REQUEST_CHANGES\`
+          - Only use \`COMMENT\` when you have suggestions but explicitly do NOT recommend approval yet
+
+          Do NOT default to \`COMMENT\` when you intend to approve. If you write "Recommendation: APPROVE"
+          or "No issues found, safe to merge" in your review body, the \`pr_review_outcome\` must be \`APPROVE\`.
+
           - \`inline_comments_new\`: Array of inline comments on specific lines (can be empty \`[]\`)
             - Each needs: \`path\` (file), \`line\` (number), \`body\` (feedback)
             - Optional: \`suggestion\` (corrected code snippet)

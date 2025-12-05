@@ -31,7 +31,12 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 - `claude-auto-tasks.yml` - Scheduled autonomous task processing from Linear
 - `_claude-task-worker.yml` - Reusable worker for processing individual Linear tasks
 
-### Reusable Workflows (7 workflows, prefixed with `_`)
+### Dependency Management (2 workflows)
+
+- `update-action-versions.yml` - Scheduled workflow to update GitHub Actions to latest versions
+- `_update-action-versions-worker.yml` - Reusable worker for analyzing and updating action versions
+
+### Reusable Workflows (8 workflows, prefixed with `_`)
 
 - `_claude-main.yml` - Core Claude AI interaction engine
 - `_claude-welcome.yml` - Reusable welcome message poster
@@ -40,6 +45,7 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 - `_generate-changelog.yml` - AI-powered changelog generation
 - `_generate-pr-metadata.yml` - AI-powered PR title and description generation
 - `_notify-release.yml` - Slack release notifications
+- `_update-action-versions-worker.yml` - GitHub Actions version update automation
 
 ## Key Files
 
@@ -306,6 +312,83 @@ secrets:
   NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 ```
 
+### GitHub Actions Version Updater (`_update-action-versions-worker.yml`)
+
+This workflow uses Claude Code to automatically update GitHub Actions to their latest versions. It runs weekly and creates PRs with version updates.
+
+**Schedule:**
+
+- **Frequency**: Every Monday at 5:00 AM Eastern Time (10:00 AM UTC)
+- **Cron**: `0 10 * * 1`
+
+**How It Works:**
+
+1. Consumer workflow (`update-action-versions.yml`) creates an update branch
+2. Calls the reusable worker (`_update-action-versions-worker.yml`)
+3. Claude Code scans all workflow files for external actions pinned to SHAs
+4. Queries GitHub API for latest releases and their commit SHAs
+5. Updates outdated actions and creates a PR with a summary table
+
+**Key Features:**
+
+| Feature                      | Description                                                     |
+| ---------------------------- | --------------------------------------------------------------- |
+| **SHA Pinning Maintained**   | Updates SHA references while preserving security best practices |
+| **Version Comments Updated** | Updates both the SHA and the version comment (e.g., `# v4.2.0`) |
+| **All Versions Updated**     | Updates to latest regardless of major/minor/patch               |
+| **Comprehensive PR**         | Creates PR with table showing all updates and changelog links   |
+| **Dry Run Mode**             | Can analyze without making changes                              |
+| **Fallback PR**              | Creates fallback PR if Claude commits but doesn't create PR     |
+
+**Configuration:**
+
+| Input             | Default                      | Description                    |
+| ----------------- | ---------------------------- | ------------------------------ |
+| `branch_name`     | required                     | Branch to work on              |
+| `target_branch`   | `main`                       | Base branch for PR             |
+| `dry_run`         | `false`                      | Analyze only, skip PR creation |
+| `model`           | `claude-sonnet-4-5-20250929` | Claude model to use            |
+| `timeout_minutes` | `30`                         | Maximum execution time         |
+| `debug_mode`      | `true`                       | Show full Claude output        |
+
+**Example Transformation:**
+
+Before:
+
+```yaml
+- uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+```
+
+After (if v4.2.3 is latest):
+
+```yaml
+- uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.3
+```
+
+**Manual Trigger:**
+
+```bash
+# Run with defaults
+gh workflow run update-action-versions.yml
+
+# Dry run (analysis only)
+gh workflow run update-action-versions.yml -f dry_run=true
+
+# Use Opus model
+gh workflow run update-action-versions.yml -f model=claude-opus-4-5-20251101
+```
+
+**Usage example (calling from another repo):**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_update-action-versions-worker.yml@main
+with:
+  branch_name: 'chore/update-action-versions-2024-01-15'
+  target_branch: 'main'
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
 ### Shared Internal Workflows
 
 These workflows are prefixed with two `__` and are only used within this repository:
@@ -328,6 +411,7 @@ These workflows are prefixed with two `__` and are only used within this reposit
 - `claude-welcome.yml` - New PR welcomes
 - `generate-pr-title-description.yml` - Auto-generated PR titles and descriptions
 - `release-update-production.yml` - Production sync automation
+- `update-action-versions.yml` - Automated GitHub Actions version updates (scheduled)
 
 ## Subdirectories
 
@@ -440,8 +524,8 @@ gh workflow run publish-packages.yml \
 
 **Note**: Force publishing only runs on the `next` branch and publishes with the `next` npm tag using prerelease versioning.
 
-- **On Schedule**: `claude-auto-tasks.yml` (daily at 5am EST)
-- **Manual Dispatch**: `release-update-production.yml`, `claude-code-review.yml`, `claude-auto-tasks.yml`
+- **On Schedule**: `claude-auto-tasks.yml` (daily at 5am EST), `update-action-versions.yml` (weekly on Mondays at 5am ET)
+- **Manual Dispatch**: `release-update-production.yml`, `claude-code-review.yml`, `claude-auto-tasks.yml`, `update-action-versions.yml`
 
 ## Architecture: Publish Workflow
 
