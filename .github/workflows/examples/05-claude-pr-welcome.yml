@@ -5,11 +5,12 @@ name: Claude PR Welcome
 # to automatically post welcome messages from Claude to newly opened pull requests.
 #
 # QUICK START:
-# 1. Copy this workflow to your repository's .github/workflows/ directory
-# 2. Update workflow_deployment_date to today's date (YYYY-MM-DD)
-# 3. Customize the welcome_message if desired
-# 4. (Optional) Add documentation_url if you have a Claude guide
-# 5. Commit and test with a new PR
+# 1. Install the Claude GitHub App: https://github.com/apps/claude
+# 2. Copy this workflow to your repository's .github/workflows/ directory
+# 3. Update workflow_deployment_date to today's date (YYYY-MM-DD)
+# 4. Customize the welcome_message if desired
+# 5. (Optional) Add documentation_url if you have a Claude guide
+# 6. Commit and test with a new PR
 #
 # CUSTOMIZATION OPTIONS:
 # See the bottom of this file for examples of common customizations including:
@@ -30,7 +31,7 @@ jobs:
     with:
       # REQUIRED: Date you deploy this workflow (YYYY-MM-DD)
       # Update this to today's date when you first deploy
-      workflow_deployment_date: '2025-01-15'
+      workflow_deployment_date: "2025-01-15"
 
       # OPTIONAL: Number of months to remain active (default: 3)
       # Set to 0 to disable expiration

@@ -31,7 +31,12 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 - `claude-auto-tasks.yml` - Scheduled autonomous task processing from Linear
 - `_claude-task-worker.yml` - Reusable worker for processing individual Linear tasks
 
-### Reusable Workflows (7 workflows, prefixed with `_`)
+### Dependency Management (2 workflows)
+
+- `update-action-versions.yml` - Scheduled workflow to update GitHub Actions to latest versions
+- `_update-action-versions-worker.yml` - Reusable worker for analyzing and updating action versions
+
+### Reusable Workflows (8 workflows, prefixed with `_`)
 
 - `_claude-main.yml` - Core Claude AI interaction engine
 - `_claude-welcome.yml` - Reusable welcome message poster
@@ -40,6 +45,7 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 - `_generate-changelog.yml` - AI-powered changelog generation
 - `_generate-pr-metadata.yml` - AI-powered PR title and description generation
 - `_notify-release.yml` - Slack release notifications
+- `_update-action-versions-worker.yml` - GitHub Actions version update automation
 
 ## Key Files
 
@@ -54,6 +60,92 @@ These workflows are prefixed with `_` and may be called from other repositories:
 - `_generate-changelog.yml` - AI-generated release notes
 - `_generate-pr-metadata.yml` - AI-generated PR titles and descriptions
 - `_notify-release.yml` - Slack notification dispatcher
+
+### PR Code Review (`_claude-code-review.yml`)
+
+This workflow performs automated PR code reviews using Claude AI with the following features:
+
+**Key Features:**
+
+- Formal GitHub reviews (APPROVE/REQUEST_CHANGES/COMMENT)
+- Inline comments on specific lines of code (as `github-actions[bot]`)
+- Patch-ID based caching to skip rebases (no actual code changes)
+- Custom prompt support
+- Existing review comment context for re-reviews
+- Fast review mode for trivial PRs (< 20 lines)
+
+**Architecture:**
+
+This workflow uses a hybrid approach:
+
+1. Claude analyzes the PR and outputs structured JSON
+2. A TypeScript script (`post-review.ts`) parses the JSON and posts the review via `gh` CLI
+
+This ensures all comments appear as `github-actions[bot]` using the official Anthropic action without needing a fork.
+
+**Required Secrets:**
+
+| Secret              | Required    | Description                                                                                                                                                                                                                            |
+| ------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY` | Yes         | Anthropic API key for Claude access                                                                                                                                                                                                    |
+| `WORKFLOW_PAT`      | Conditional | Personal Access Token with `repo` scope for cross-repo access to fetch default prompts from ai-toolkit. **Required if not providing `custom_prompt` or `custom_prompt_path`.** Also used for resolving review threads via GraphQL API. |
+
+> **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
+>
+> **Note:** If you need assistance adding the `WORKFLOW_PAT` secret to your repository or installing the Claude GitHub App, please reach out to the **#pod-dev-ai** Slack channel.
+
+**Configuration Inputs:**
+
+| Input                | Required | Default                            | Description                                                                                                                    |
+| -------------------- | -------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `pr_number`          | Yes      | -                                  | Pull request number to review                                                                                                  |
+| `base_ref`           | Yes      | -                                  | Base branch name (e.g., main, master)                                                                                          |
+| `model`              | No       | `claude-sonnet-4-5-20250929`       | Claude model to use for review                                                                                                 |
+| `max_turns`          | No       | unlimited                          | Maximum conversation turns for Claude                                                                                          |
+| `custom_prompt`      | No       | `""`                               | Custom prompt text (overrides prompt file and default)                                                                         |
+| `custom_prompt_path` | No       | `.claude/prompts/claude-pr-bot.md` | Path to custom prompt file in repository                                                                                       |
+| `timeout_minutes`    | No       | `30`                               | Job timeout in minutes                                                                                                         |
+| `allowed_tools`      | No       | `""`                               | Comma-separated list of allowed tools for Claude                                                                               |
+| `toolkit_ref`        | No       | `main`                             | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
+
+**Usage example:**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  base_ref: ${{ github.base_ref }}
+  model: 'claude-sonnet-4-5-20250929'
+  toolkit_ref: 'main' # or 'next' to test unreleased changes
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }} # Required for default prompt
+```
+
+**Prompt Configuration Options:**
+
+The workflow determines which prompt to use in this priority order:
+
+1. **`custom_prompt` input**: Explicit prompt text passed directly to the workflow
+2. **`custom_prompt_path` input**: Path to a prompt file in the calling repository (default: `.claude/prompts/claude-pr-bot.md`)
+3. **Default prompt from ai-toolkit**: Fetched from `Uniswap/ai-toolkit` repository (requires `WORKFLOW_PAT`)
+
+If using option 1 or 2, the `WORKFLOW_PAT` secret is not required for prompt fetching (but may still be needed for thread resolution).
+
+**Testing Unreleased Changes:**
+
+Use the `toolkit_ref` input to test changes to the post-review script before merging:
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  base_ref: ${{ github.base_ref }}
+  toolkit_ref: 'next' # Use the 'next' branch version of post-review.ts
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+```
 
 ### PR Metadata Generation (`_generate-pr-metadata.yml`)
 
@@ -99,11 +191,25 @@ This allows users to add custom notes, disclaimers, or additional context that s
 
 The `generation_mode` input controls what the workflow generates:
 
-| Mode          | Description                         | Default |
-| ------------- | ----------------------------------- | ------- |
-| `both`        | Generate both title and description | Yes     |
-| `title`       | Generate only the PR title          | No      |
-| `description` | Generate only the PR description    | No      |
+| Mode                  | Description                                                                                                           | Default |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------- | ------- |
+| `both`                | Generate both title and description                                                                                   | Yes     |
+| `both-deferred-title` | Generate description always; only generate title if the existing PR title is inadequate or doesn't follow conventions | No      |
+| `title`               | Generate only the PR title                                                                                            | No      |
+| `description`         | Generate only the PR description                                                                                      | No      |
+
+**Note on `both-deferred-title` mode:** In this mode, Claude evaluates the existing PR title against conventional commit patterns and repository history. If the existing title is acceptable (follows conventions, has appropriate type/scope, accurately describes the changes), Claude will preserve it and only generate the description. This is useful when users have already entered a meaningful title that shouldn't be overwritten.
+
+**Required Secrets:**
+
+| Secret              | Required    | Description                                                                                                                                                                    |
+| ------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ANTHROPIC_API_KEY` | Yes         | Anthropic API key for Claude access                                                                                                                                            |
+| `WORKFLOW_PAT`      | Conditional | Personal Access Token with `repo` scope for cross-repo access to fetch default prompts from ai-toolkit. **Required if not providing `custom_prompt` or `custom_prompt_path`.** |
+
+> **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
+>
+> **Note:** If you need assistance adding the `WORKFLOW_PAT` secret to your repository or installing the Claude GitHub App, please reach out to the **#pod-dev-ai** Slack channel.
 
 **Usage example:**
 
@@ -115,7 +221,18 @@ with:
   generation_mode: 'title' # Only generate title, leave description unchanged
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }} # Required for default prompt
 ```
+
+**Prompt Configuration Options:**
+
+The workflow determines which prompt to use in this priority order:
+
+1. **`custom_prompt` input**: Explicit prompt text passed directly to the workflow
+2. **`custom_prompt_path` input**: Path to a prompt file in the calling repository (default: `.github/prompts/generate-pr-title-description.md`)
+3. **Default prompt from ai-toolkit**: Fetched from `Uniswap/ai-toolkit` repository (requires `WORKFLOW_PAT`)
+
+If using option 1 or 2, the `WORKFLOW_PAT` secret is not required.
 
 ### Autonomous Task Processing (`_claude-task-worker.yml`)
 
@@ -123,30 +240,43 @@ This workflow processes Linear issues autonomously using Claude Code. It's calle
 
 **Key Features:**
 
-| Feature                      | Description                                                                                             |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------- |
-| **7-Phase Workflow**         | Claude follows a structured approach: Understand → Explore → Plan → Implement → QA → Commit → Create PR |
-| **PR Validation**            | Job **fails explicitly** if Claude doesn't create a draft PR (no silent failures)                       |
-| **Debug Mode**               | Full Claude output shown by default (`debug_mode: true`) to understand reasoning                        |
-| **Task Complexity Warnings** | Warns about tasks containing keywords like "audit", "review", "investigate"                             |
-| **Commit Tracking**          | Reports commit count in job summary                                                                     |
-| **Linear Integration**       | Updates Linear issue status to "In Progress" when draft PR is created                                   |
+| Feature                      | Description                                                                                              |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **7-Phase Workflow**         | Claude follows a structured approach: Understand → Explore → Plan → Implement → QA → Commit → Create PR  |
+| **Autonomous Execution**     | Uses `--dangerously-skip-permissions` to run without permission prompts (safe in GitHub Actions sandbox) |
+| **Turn Budget Management**   | Prompt includes explicit turn budgets per phase to prevent over-exploration and ensure PR creation       |
+| **Fallback PR Creation**     | If Claude makes commits but fails to create a PR, workflow automatically creates a fallback PR           |
+| **Debug Mode**               | Full Claude output shown by default (`debug_mode: true`) to understand reasoning                         |
+| **Configurable PR Type**     | Choose between draft or published PRs via `pr_type` input (default: "draft")                             |
+| **Task Complexity Warnings** | Warns about tasks containing keywords like "audit", "review", "investigate"                              |
+| **Incremental Commits**      | Prompt instructs Claude to commit and push after each major piece of work to preserve progress           |
+| **Linear Integration**       | Updates Linear issue status to "In Progress" when PR is created                                          |
+
+**Turn Budget (built into prompt):**
+
+| Phase              | Turns   | Purpose                                          |
+| ------------------ | ------- | ------------------------------------------------ |
+| Understand/Explore | 1-30    | Read CLAUDE.md, explore codebase, identify files |
+| Plan/Implement     | 31-100  | Design approach and implement the solution       |
+| QA/Fix             | 101-130 | Run checks, fix critical issues                  |
+| **Commit/PR**      | 131-150 | **RESERVED** - Must commit and create PR         |
 
 **Configuration:**
 
-| Input             | Default                    | Description                |
-| ----------------- | -------------------------- | -------------------------- |
-| `model`           | `claude-opus-4-5-20251101` | Claude model to use        |
-| `max_turns`       | `150`                      | Maximum conversation turns |
-| `debug_mode`      | `true`                     | Show full Claude output    |
-| `timeout_minutes` | `60`                       | Job timeout                |
+| Input             | Default                    | Description                                  |
+| ----------------- | -------------------------- | -------------------------------------------- |
+| `model`           | `claude-opus-4-5-20251101` | Claude model to use                          |
+| `max_turns`       | `150`                      | Maximum conversation turns                   |
+| `debug_mode`      | `true`                     | Show full Claude output                      |
+| `timeout_minutes` | `60`                       | Job timeout                                  |
+| `pr_type`         | `draft`                    | Type of PR to create: "draft" or "published" |
 
 **Validation Behavior:**
 
 The workflow validates that Claude completed the task:
 
 1. **No commits + No PR**: Job fails with "Task may be too complex, unclear, or require human judgment"
-2. **Commits + No PR**: Job fails with "Claude created commits but did NOT create a PR"
+2. **Commits + No PR**: Fallback PR is automatically created to preserve work, job succeeds with warning
 3. **Commits + PR**: Job succeeds, Linear updated to "In Progress"
 
 **Job Summary Output:**
@@ -155,8 +285,9 @@ The job summary includes:
 
 - Task title and Linear issue link
 - Branch name and model used
+- PR type (draft or published)
 - Commit count
-- PR creation status (✅/❌)
+- PR creation status (✅ Claude PR / ⚠️ Fallback PR / ❌ No PR)
 - Failure reason (if applicable)
 - Linear status update
 
@@ -174,10 +305,88 @@ with:
   target_branch: 'next'
   model: 'claude-opus-4-5-20251101'
   debug_mode: true
+  pr_type: 'draft' # or 'published' for non-draft PRs
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
   LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
   NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+```
+
+### GitHub Actions Version Updater (`_update-action-versions-worker.yml`)
+
+This workflow uses Claude Code to automatically update GitHub Actions to their latest versions. It runs weekly and creates PRs with version updates.
+
+**Schedule:**
+
+- **Frequency**: Every Monday at 5:00 AM Eastern Time (10:00 AM UTC)
+- **Cron**: `0 10 * * 1`
+
+**How It Works:**
+
+1. Consumer workflow (`update-action-versions.yml`) creates an update branch
+2. Calls the reusable worker (`_update-action-versions-worker.yml`)
+3. Claude Code scans all workflow files for external actions pinned to SHAs
+4. Queries GitHub API for latest releases and their commit SHAs
+5. Updates outdated actions and creates a PR with a summary table
+
+**Key Features:**
+
+| Feature                      | Description                                                     |
+| ---------------------------- | --------------------------------------------------------------- |
+| **SHA Pinning Maintained**   | Updates SHA references while preserving security best practices |
+| **Version Comments Updated** | Updates both the SHA and the version comment (e.g., `# v4.2.0`) |
+| **All Versions Updated**     | Updates to latest regardless of major/minor/patch               |
+| **Comprehensive PR**         | Creates PR with table showing all updates and changelog links   |
+| **Dry Run Mode**             | Can analyze without making changes                              |
+| **Fallback PR**              | Creates fallback PR if Claude commits but doesn't create PR     |
+
+**Configuration:**
+
+| Input             | Default                      | Description                    |
+| ----------------- | ---------------------------- | ------------------------------ |
+| `branch_name`     | required                     | Branch to work on              |
+| `target_branch`   | `main`                       | Base branch for PR             |
+| `dry_run`         | `false`                      | Analyze only, skip PR creation |
+| `model`           | `claude-sonnet-4-5-20250929` | Claude model to use            |
+| `timeout_minutes` | `30`                         | Maximum execution time         |
+| `debug_mode`      | `true`                       | Show full Claude output        |
+
+**Example Transformation:**
+
+Before:
+
+```yaml
+- uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+```
+
+After (if v4.2.3 is latest):
+
+```yaml
+- uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.3
+```
+
+**Manual Trigger:**
+
+```bash
+# Run with defaults
+gh workflow run update-action-versions.yml
+
+# Dry run (analysis only)
+gh workflow run update-action-versions.yml -f dry_run=true
+
+# Use Opus model
+gh workflow run update-action-versions.yml -f model=claude-opus-4-5-20251101
+```
+
+**Usage example (calling from another repo):**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_update-action-versions-worker.yml@main
+with:
+  branch_name: 'chore/update-action-versions-2024-01-15'
+  target_branch: 'main'
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
 ### Shared Internal Workflows
@@ -202,6 +411,7 @@ These workflows are prefixed with two `__` and are only used within this reposit
 - `claude-welcome.yml` - New PR welcomes
 - `generate-pr-title-description.yml` - Auto-generated PR titles and descriptions
 - `release-update-production.yml` - Production sync automation
+- `update-action-versions.yml` - Automated GitHub Actions version updates (scheduled)
 
 ## Subdirectories
 
@@ -251,9 +461,9 @@ Version pinning is centralized using GitHub repository variables (`vars.*`):
 
 Common secrets referenced:
 
-- `ANTHROPIC_API_KEY` - Claude AI API authentication
+- `ANTHROPIC_API_KEY` - Claude AI API authentication (also requires the [Claude GitHub App](https://github.com/apps/claude) to be installed on the repository)
 - `NODE_AUTH_TOKEN` - NPM registry authentication (for publishing and installing `@uniswap` scoped packages)
-- `WORKFLOW_PAT` - Personal Access Token for pushing commits/tags (force-publish)
+- `WORKFLOW_PAT` - Personal Access Token with `repo` scope for: (1) pushing commits/tags in force-publish, (2) cross-repo access to fetch default prompts from ai-toolkit in `_claude-code-review.yml` and `_generate-pr-metadata.yml`, (3) resolving review threads via GraphQL API in `_claude-code-review.yml` (the default `GITHUB_TOKEN` lacks permissions for the `resolveReviewThread` mutation). **Important:** The account that owns the PAT must have write, maintain, or admin access to the repository for thread resolution to work.
 - `SERVICE_ACCOUNT_GPG_PRIVATE_KEY` - GPG key for signed commits/tags
 - `LINEAR_API_KEY` - Linear API authentication (for autonomous tasks)
 - `SLACK_WEBHOOK_URL` - Slack notifications
@@ -314,8 +524,8 @@ gh workflow run publish-packages.yml \
 
 **Note**: Force publishing only runs on the `next` branch and publishes with the `next` npm tag using prerelease versioning.
 
-- **On Schedule**: `claude-auto-tasks.yml` (daily at 5am EST)
-- **Manual Dispatch**: `release-update-production.yml`, `claude-code-review.yml`, `claude-auto-tasks.yml`
+- **On Schedule**: `claude-auto-tasks.yml` (daily at 5am EST), `update-action-versions.yml` (weekly on Mondays at 5am ET)
+- **Manual Dispatch**: `release-update-production.yml`, `claude-code-review.yml`, `claude-auto-tasks.yml`, `update-action-versions.yml`
 
 ## Architecture: Publish Workflow
 

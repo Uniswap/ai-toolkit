@@ -8,12 +8,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as https from 'https';
+import * as http from 'http';
+import * as os from 'os';
 import { displaySuccess, displayWarning, displayDebug, displayInfo } from './display';
+import { offerSlackSetup } from './slack-setup';
 
 interface SlackConfig {
-  clientId: string;
-  clientSecret: string;
   refreshToken: string;
+  refreshUrl: string;
 }
 
 interface TokenRefreshResponse {
@@ -28,20 +30,19 @@ interface AuthTestResponse {
   error?: string;
 }
 
-const CLAUDE_CONFIG_PATH = path.join(process.env.HOME || '', '.claude.json');
-const SLACK_ENV_PATH = path.join(process.env.HOME || '', '.config', 'claude-code', 'slack-env.sh');
+const CLAUDE_CONFIG_PATH = path.join(os.homedir(), '.claude.json');
+const SLACK_ENV_PATH = path.join(os.homedir(), '.config', 'claude-code', 'slack-env.sh');
 
 /**
  * Load Slack OAuth configuration from environment or config file
  */
 function loadSlackConfig(): SlackConfig | null {
   // First try environment variables
-  const clientId = process.env.SLACK_CLIENT_ID;
-  const clientSecret = process.env.SLACK_CLIENT_SECRET;
   const refreshToken = process.env.SLACK_REFRESH_TOKEN;
+  const refreshUrl = process.env.SLACK_REFRESH_URL;
 
-  if (clientId && clientSecret && refreshToken) {
-    return { clientId, clientSecret, refreshToken };
+  if (refreshToken && refreshUrl) {
+    return { refreshToken, refreshUrl };
   }
 
   // Try loading from slack-env.sh
@@ -58,11 +59,10 @@ function loadSlackConfig(): SlackConfig | null {
       }
     }
 
-    if (envVars.SLACK_CLIENT_ID && envVars.SLACK_CLIENT_SECRET && envVars.SLACK_REFRESH_TOKEN) {
+    if (envVars.SLACK_REFRESH_TOKEN && envVars.SLACK_REFRESH_URL) {
       return {
-        clientId: envVars.SLACK_CLIENT_ID,
-        clientSecret: envVars.SLACK_CLIENT_SECRET,
         refreshToken: envVars.SLACK_REFRESH_TOKEN,
+        refreshUrl: envVars.SLACK_REFRESH_URL,
       };
     }
   }
@@ -87,16 +87,18 @@ function getCurrentToken(): string | null {
 }
 
 /**
- * Make an HTTPS POST request
+ * Make an HTTP/HTTPS POST request (protocol-aware)
  */
-function httpsPost(url: string, data: string, headers: Record<string, string>): Promise<string> {
+function httpPost(url: string, data: string, headers: Record<string, string>): Promise<string> {
   return new Promise((resolve, reject) => {
     const urlObj = new URL(url);
+    const isHttps = urlObj.protocol === 'https:';
+    const defaultPort = isHttps ? 443 : 80;
 
     const options = {
       hostname: urlObj.hostname,
-      port: 443,
-      path: urlObj.pathname,
+      port: urlObj.port ? parseInt(urlObj.port, 10) : defaultPort,
+      path: urlObj.pathname + urlObj.search,
       method: 'POST',
       headers: {
         ...headers,
@@ -104,10 +106,18 @@ function httpsPost(url: string, data: string, headers: Record<string, string>): 
       },
     };
 
-    const req = https.request(options, (res) => {
+    const requestModule = isHttps ? https : http;
+    const req = requestModule.request(options, (res) => {
       let body = '';
       res.on('data', (chunk) => (body += chunk));
-      res.on('end', () => resolve(body));
+      res.on('end', () => {
+        // Check HTTP status code for network-level errors
+        if (res.statusCode && (res.statusCode < 200 || res.statusCode >= 300)) {
+          reject(new Error(`HTTP ${res.statusCode}: ${body}`));
+        } else {
+          resolve(body);
+        }
+      });
     });
 
     req.on('error', reject);
@@ -136,7 +146,14 @@ function httpsGet(url: string, token: string): Promise<string> {
     const req = https.request(options, (res) => {
       let body = '';
       res.on('data', (chunk) => (body += chunk));
-      res.on('end', () => resolve(body));
+      res.on('end', () => {
+        // Check HTTP status code for network-level errors
+        if (res.statusCode && (res.statusCode < 200 || res.statusCode >= 300)) {
+          reject(new Error(`HTTP ${res.statusCode}: ${body}`));
+        } else {
+          resolve(body);
+        }
+      });
     });
 
     req.on('error', reject);
@@ -168,23 +185,25 @@ async function testToken(token: string, verbose?: boolean): Promise<boolean> {
 }
 
 /**
- * Refresh the OAuth token
+ * Refresh the OAuth token using backend endpoint
  */
 async function refreshOAuthToken(
   config: SlackConfig,
   verbose?: boolean
 ): Promise<{ accessToken: string; refreshToken?: string }> {
-  displayDebug('Refreshing OAuth token...', verbose);
+  displayDebug('Refreshing OAuth token via backend...', verbose);
 
-  const params = new URLSearchParams({
-    client_id: config.clientId,
-    client_secret: config.clientSecret,
-    grant_type: 'refresh_token',
+  // Construct the backend refresh endpoint URL (handle trailing slash)
+  const baseUrl = config.refreshUrl.replace(/\/+$/, ''); // Remove trailing slashes
+  const refreshEndpoint = `${baseUrl}/slack/refresh`;
+  displayDebug(`Calling refresh endpoint: ${refreshEndpoint}`, verbose);
+
+  const payload = JSON.stringify({
     refresh_token: config.refreshToken,
   });
 
-  const response = await httpsPost('https://slack.com/api/oauth.v2.access', params.toString(), {
-    'Content-Type': 'application/x-www-form-urlencoded',
+  const response = await httpPost(refreshEndpoint, payload, {
+    'Content-Type': 'application/json',
   });
 
   const data: TokenRefreshResponse = JSON.parse(response);
@@ -261,14 +280,22 @@ function updateRefreshToken(newRefreshToken: string, verbose?: boolean): void {
  */
 export async function validateAndRefreshSlackToken(verbose?: boolean): Promise<void> {
   // Load Slack config
-  const config = loadSlackConfig();
+  let config = loadSlackConfig();
 
   if (!config) {
-    displayWarning('Slack OAuth configuration not found. Skipping token validation.');
-    displayWarning('To enable token refresh, set environment variables:');
-    displayWarning('  SLACK_CLIENT_ID, SLACK_CLIENT_SECRET, SLACK_REFRESH_TOKEN');
-    displayWarning(`Or create ${SLACK_ENV_PATH}`);
-    return;
+    // Offer interactive setup if config is missing
+    const setupCompleted = await offerSlackSetup(verbose);
+
+    if (setupCompleted) {
+      // Reload config after setup
+      config = loadSlackConfig();
+    }
+
+    if (!config) {
+      // User declined setup or setup failed
+      displayDebug('Slack configuration not available. Skipping token validation.', verbose);
+      return;
+    }
   }
 
   // Get current token

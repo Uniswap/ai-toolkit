@@ -13,9 +13,10 @@ name: 'Example: Claude Code Review - Basic'
 # - Default prompt from ai-toolkit
 #
 # To use this in your repository:
-# 1. Copy this file to .github/workflows/claude-code-review.yml
-# 2. Add ANTHROPIC_API_KEY secret to your repository
-# 3. That's it! The workflow will run on every PR update
+# 1. Install the Claude GitHub App: https://github.com/apps/claude
+# 2. Copy this file to .github/workflows/claude-code-review.yml
+# 3. Add ANTHROPIC_API_KEY secret to your repository
+# 4. That's it! The workflow will run on every PR update
 #
 # Note: This example filters out:
 # - Merge queue PRs (gh-readonly-queue branches)

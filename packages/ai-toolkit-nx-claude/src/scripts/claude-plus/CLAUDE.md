@@ -16,6 +16,7 @@ src/scripts/claude-plus/
 ├── display.ts        # Colorized console output utilities
 ├── mcp-selector.ts   # MCP server selector integration
 ├── slack-token.ts    # Slack OAuth token management
+├── slack-setup.ts    # Interactive Slack OAuth setup wizard
 ├── claude-launcher.ts # Claude Code process spawning
 ├── README.md         # User documentation
 └── CLAUDE.md         # This file (AI assistant documentation)
@@ -74,7 +75,7 @@ export async function runMcpSelector(verbose?: boolean): Promise<void>;
 
 ### slack-token.ts - Slack Token Management
 
-**Purpose**: Validates and refreshes Slack OAuth tokens.
+**Purpose**: Validates and refreshes Slack OAuth tokens using a backend service.
 
 **Key Functions**:
 
@@ -96,7 +97,7 @@ function updateRefreshToken(newRefreshToken: string, verbose?: boolean): void;
 
 **Configuration Sources**:
 
-1. Environment variables: `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `SLACK_REFRESH_TOKEN`
+1. Environment variables: `SLACK_REFRESH_URL`, `SLACK_REFRESH_TOKEN`
 2. File: `~/.config/claude-code/slack-env.sh` (parsed for export statements)
 
 **Token Storage**:
@@ -106,10 +107,75 @@ function updateRefreshToken(newRefreshToken: string, verbose?: boolean): void;
 
 **API Endpoints**:
 
-- Token validation: `GET https://slack.com/api/auth.test`
-- Token refresh: `POST https://slack.com/api/oauth.v2.access`
+- Token validation: `GET https://slack.com/api/auth.test` (direct Slack API call)
+- Token refresh: `POST {SLACK_REFRESH_URL}/slack/refresh` (backend endpoint)
+  - Request: `{ refresh_token: string }`
+  - Response: `{ ok: boolean, access_token: string, refresh_token?: string }`
+
+**Architecture Change**: Previously called Slack's OAuth API directly with client credentials. Now calls a backend service that securely handles the OAuth flow, keeping client credentials on the backend.
 
 **Important**: Slack refresh tokens are single-use. After each refresh, the new refresh token must be saved.
+
+### slack-setup.ts - Interactive Setup Wizard
+
+**Purpose**: Provides an interactive setup wizard for first-time users to configure Slack OAuth settings.
+
+**OAuth Backend URL**: `https://ai-toolkit-slack-oauth-backend.vercel.app`
+
+**Key Functions**:
+
+```typescript
+// Main setup wizard entry point
+export async function runSlackSetupWizard(verbose?: boolean): Promise<boolean>;
+
+// Offer setup when config is missing (called from slack-token.ts)
+export async function offerSlackSetup(verbose?: boolean): Promise<boolean>;
+
+// Check if config file exists
+export function slackEnvExists(): boolean;
+```
+
+**Behavior**:
+
+1. Displays step-by-step instructions with the OAuth backend URL
+2. Guides user to visit the OAuth backend, authorize with Slack, and copy tokens
+3. Prompts for Backend Refresh URL (with default pre-filled) and Refresh Token
+4. Creates `~/.config/claude-code/` directory with 700 permissions
+5. Writes `slack-env.sh` file with 600 permissions (owner read/write only)
+6. Returns true if setup completed, false if skipped/cancelled
+
+**Setup Instructions Shown to User**:
+
+```
+📋 Step-by-Step Instructions:
+
+  Step 1: Visit the OAuth Setup Page
+    • Open: https://ai-toolkit-slack-oauth-backend.vercel.app
+    • Click "Add to Slack" and authorize the app
+
+  Step 2: Copy Your Tokens
+    • After authorization, you'll see your tokens displayed
+    • Copy the Access Token (OAuth Token) - starts with xoxp-...
+    • Copy the Refresh Token - starts with xoxe-1-...
+
+  Step 3: Enter Your Configuration Below
+    • Backend Refresh URL: https://ai-toolkit-slack-oauth-backend.vercel.app
+    • Refresh Token: The xoxe-1-... token you copied
+```
+
+**Integration**:
+
+- Called from `slack-token.ts` when `loadSlackConfig()` returns null
+- Can be invoked directly via `--setup-slack` CLI flag
+- Handles existing file detection with overwrite confirmation
+- Backend URL defaults to `https://ai-toolkit-slack-oauth-backend.vercel.app` (user can press Enter to accept)
+
+**File Permissions**: The setup wizard enforces secure file permissions:
+
+- Directory: `0o700` (rwx------)
+- Config file: `0o600` (rw-------)
+
+**User Guidance**: Directs users to visit the OAuth backend URL to obtain their tokens. The backend handles the secure OAuth flow with Slack and provides both access and refresh tokens.
 
 ### claude-launcher.ts - Claude Launch
 
@@ -212,13 +278,14 @@ To add a new pre-launch step:
 4. Add the step call in `main()` with appropriate step numbering
 5. Update help text and documentation
 
-### Updating Slack API
+### Updating Backend Integration
 
-If Slack changes their OAuth API:
+If the backend API changes:
 
-1. Update `refreshOAuthToken()` request format
+1. Update `refreshOAuthToken()` request format and endpoint path
 2. Update `testToken()` if auth.test response changes
 3. Update `TokenRefreshResponse` and `AuthTestResponse` interfaces
+4. Coordinate with backend team on API contract changes
 
 ## Dependencies
 

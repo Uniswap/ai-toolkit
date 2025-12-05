@@ -18,7 +18,7 @@ const httpsAgent = new Agent({
  */
 export class SlackClient {
   private readonly client: WebClient;
-  private readonly botClient: WebClient;
+  private readonly botClient?: WebClient;
   private static instance?: SlackClient;
 
   constructor(token?: string) {
@@ -36,8 +36,10 @@ export class SlackClient {
     // Client for OAuth operations (no token needed)
     this.client = new WebClient(token, clientOptions);
 
-    // Bot client for sending messages
-    this.botClient = new WebClient(config.slackBotToken, clientOptions);
+    // Bot client for sending messages (optional - not available with token rotation)
+    if (config.slackBotToken) {
+      this.botClient = new WebClient(config.slackBotToken, clientOptions);
+    }
   }
 
   /**
@@ -95,12 +97,19 @@ export class SlackClient {
 
   /**
    * Send a direct message to a user with channel caching
+   * Returns null if bot client is not configured (token rotation mode)
    */
   async sendDirectMessage(
     userId: string,
     message: string,
     blocks?: any[]
-  ): Promise<SendMessageResponse> {
+  ): Promise<SendMessageResponse | null> {
+    // Skip DM if no bot client (token rotation mode)
+    if (!this.botClient) {
+      logger.info('Skipping DM - bot token not configured (token rotation mode)', { userId });
+      return null;
+    }
+
     try {
       // Check cache for existing channel
       const cacheKey = `dm_channel:${userId}`;
@@ -160,14 +169,21 @@ export class SlackClient {
 
   /**
    * Get user information with caching
+   * Returns null if bot client is not configured (token rotation mode)
    */
-  async getUserInfo(userId: string): Promise<UserInfoResponse> {
+  async getUserInfo(userId: string): Promise<UserInfoResponse | null> {
+    // Skip if no bot client (token rotation mode)
+    if (!this.botClient) {
+      logger.info('Skipping user info lookup - bot token not configured (token rotation mode)', { userId });
+      return null;
+    }
+
     const cacheKey = `user:${userId}`;
 
     // Use cache's getOrSet for automatic cache management
     return await userInfoCache.getOrSet(cacheKey, async () => {
       try {
-        const response = await this.botClient.users.info({
+        const response = await this.botClient!.users.info({
           user: userId,
         });
 
@@ -213,8 +229,15 @@ export class SlackClient {
 
   /**
    * Test authentication and get current auth info
+   * Returns null if bot client is not configured (token rotation mode)
    */
-  async testAuth(): Promise<AuthTestResponse> {
+  async testAuth(): Promise<AuthTestResponse | null> {
+    // Skip if no bot client (token rotation mode)
+    if (!this.botClient) {
+      logger.info('Skipping auth test - bot token not configured (token rotation mode)');
+      return null;
+    }
+
     try {
       const response = await this.botClient.auth.test();
 
@@ -245,6 +268,13 @@ export class SlackClient {
         { originalError: error }
       );
     }
+  }
+
+  /**
+   * Check if bot client is available
+   */
+  hasBotClient(): boolean {
+    return !!this.botClient;
   }
 }
 

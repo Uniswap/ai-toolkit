@@ -13,11 +13,13 @@ import { displayError, displayWarning } from './display';
  *
  * This spawns claude as a child process with stdio inherited,
  * effectively handing over control to Claude.
+ *
+ * @param args - Arguments to pass through to the claude command
  */
-export async function launchClaude(): Promise<void> {
+export async function launchClaude(args: string[] = []): Promise<void> {
   return new Promise((resolve, reject) => {
     // Spawn claude with inherited stdio so it takes over the terminal
-    const child = spawn('claude', [], {
+    const child = spawn('claude', args, {
       stdio: 'inherit',
       shell: true,
     });

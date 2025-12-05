@@ -1,0 +1,417 @@
+# Reusable workflow for updating GitHub Action versions using Claude Code
+#
+# This workflow is called by update-action-versions.yml and can also be called
+# from other repositories. It uses Claude Code to:
+# 1. Scan workflow files for external actions pinned to SHA commits
+# 2. Check GitHub API for latest release versions
+# 3. Update outdated actions to their latest versions
+# 4. Create a PR with a summary of all changes
+#
+# USAGE:
+#   jobs:
+#     update:
+#       uses: Uniswap/ai-toolkit/.github/workflows/_update-action-versions-worker.yml@main
+#       with:
+#         branch_name: 'chore/update-action-versions-2024-01-15'
+#         target_branch: 'main'
+#       secrets:
+#         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+#
+# INPUTS:
+#   - branch_name: Branch to work on (required)
+#   - target_branch: Base branch for PR (default: main)
+#   - dry_run: Skip PR creation, report only (default: false)
+#   - model: Claude model to use (default: claude-sonnet-4-5-20250929)
+#   - timeout_minutes: Execution timeout (default: 30)
+#   - debug_mode: Show full Claude output (default: true)
+#
+# SECRETS REQUIRED:
+#   - ANTHROPIC_API_KEY: Claude API key
+#   - WORKFLOW_PAT: (optional) PAT for pushing branches
+
+name: "[internal] Update Action Versions Worker"
+
+on:
+  workflow_call:
+    inputs:
+      branch_name:
+        description: "Branch name to work on"
+        required: true
+        type: string
+
+      target_branch:
+        description: "Base branch for the PR"
+        required: false
+        type: string
+        default: "main"
+
+      dry_run:
+        description: "Skip PR creation, report only"
+        required: false
+        type: boolean
+        default: false
+
+      model:
+        description: "Claude model to use"
+        required: false
+        type: string
+        default: "claude-sonnet-4-5-20250929"
+
+      timeout_minutes:
+        description: "Maximum execution time in minutes"
+        required: false
+        type: number
+        default: 30
+
+      debug_mode:
+        description: "Show full Claude Code output"
+        required: false
+        type: boolean
+        default: true
+
+    secrets:
+      ANTHROPIC_API_KEY:
+        description: "Anthropic API key for Claude Code"
+        required: true
+
+      WORKFLOW_PAT:
+        description: "PAT for pushing branches (optional)"
+        required: false
+
+jobs:
+  update-actions:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+      actions: read
+
+    steps:
+      # Security scanning
+      - name: Security scanning
+        uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+        with:
+          egress-policy: audit
+
+      # Checkout the update branch
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ inputs.branch_name }}
+          fetch-depth: 50
+          token: ${{ secrets.WORKFLOW_PAT || github.token }}
+
+      # Configure git
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # Build the prompt
+      - name: Build prompt
+        id: build-prompt
+        run: |
+          PROMPT=$(cat << 'PROMPT_EOF'
+          # GitHub Actions Version Update Task
+
+          You are tasked with updating all external GitHub Actions in this repository to their latest versions.
+
+          ## Context
+
+          - **Branch:** `${{ inputs.branch_name }}`
+          - **Target Branch:** `${{ inputs.target_branch }}`
+          - **Dry Run:** ${{ inputs.dry_run }}
+
+          ## Your Workflow
+
+          Follow these phases carefully:
+
+          ### Phase 1: Discovery (turns 1-15)
+
+          1. Use `Glob` to find all workflow files: `.github/workflows/*.yml`
+          2. Use `Read` to examine each workflow file
+          3. Extract all external action usages matching the pattern:
+             ```
+             uses: owner/repo@SHA # vX.Y.Z
+             ```
+          4. Build a deduplicated list of unique actions (owner/repo pairs)
+          5. Note the current SHA and version comment for each
+
+          **Important patterns to identify:**
+          - `uses: actions/checkout@SHA # v4`
+          - `uses: actions/setup-node@SHA # v4.0.0`
+          - `uses: anthropics/claude-code-action@SHA # v1.0.0`
+
+          **Skip these:**
+          - Local actions: `uses: ./.github/actions/...`
+          - Reusable workflows in same repo: `uses: ./.github/workflows/...`
+          - Actions without SHA pins (using tags directly)
+
+          ### Phase 2: Version Check (turns 16-40)
+
+          For each unique action found, check if a newer version exists:
+
+          ```bash
+          # Get latest release info
+          gh api repos/{owner}/{repo}/releases/latest --jq '.tag_name'
+
+          # Get the SHA for that tag
+          gh api repos/{owner}/{repo}/git/ref/tags/{tag} --jq '.object.sha'
+          ```
+
+          If the tag is a lightweight tag, you may need:
+          ```bash
+          # For annotated tags, dereference to get commit SHA
+          gh api repos/{owner}/{repo}/git/tags/{tag_sha} --jq '.object.sha'
+          ```
+
+          **Build a list of actions that need updating:**
+          - Action name (owner/repo)
+          - Current version (from comment)
+          - Current SHA
+          - Latest version (from release)
+          - Latest SHA
+          - Release URL (for changelog link)
+
+          ### Phase 3: Update Files (turns 41-60)
+
+          If `dry_run` is `false` and there are updates needed:
+
+          For each outdated action, update ALL occurrences across ALL workflow files:
+          - Use the `Edit` tool to replace the old SHA with the new SHA
+          - Update the version comment to match the new version
+          - Maintain the exact format: `owner/repo@FULL_40_CHAR_SHA # vX.Y.Z`
+
+          **Important:**
+          - The SHA must be the full 40-character commit SHA
+          - The version comment should match the release tag (e.g., `# v4.2.0` or `# v4`)
+          - Do not change the formatting or add extra spaces
+
+          ### Phase 4: Commit and Create PR (turns 61-80)
+
+          If changes were made:
+
+          1. Stage all workflow file changes:
+          ```bash
+          git add .github/workflows/
+          ```
+
+          2. Create a commit with a descriptive message:
+          ```bash
+          git commit -m "chore(deps): update GitHub Actions to latest versions
+
+          Updated actions:
+          - actions/checkout: v4.1.0 -> v4.2.0
+          - actions/setup-node: v4.0.0 -> v4.1.0
+          (list all updated actions)"
+          ```
+
+          3. Push the branch:
+          ```bash
+          git push origin ${{ inputs.branch_name }}
+          ```
+
+          4. Create the PR using gh CLI:
+          ```bash
+          gh pr create \
+            --title "chore(deps): update GitHub Actions to latest versions" \
+            --body "## Summary
+
+          Automated update of GitHub Action dependencies to their latest versions.
+
+          ## Updates
+
+          | Action | Previous | New | Changelog |
+          |--------|----------|-----|-----------|
+          | actions/checkout | v4.1.0 | v4.2.0 | [Release](https://github.com/actions/checkout/releases/tag/v4.2.0) |
+          | actions/setup-node | v4.0.0 | v4.1.0 | [Release](https://github.com/actions/setup-node/releases/tag/v4.1.0) |
+
+          ## Verification
+
+          Please review the changes and ensure all workflows still function correctly.
+
+          ---
+          *Automated by Claude Code on $(date +%Y-%m-%d)*" \
+            --base "${{ inputs.target_branch }}" \
+            --head "${{ inputs.branch_name }}"
+          ```
+
+          ### If Dry Run Mode
+
+          If `dry_run` is `true`:
+          - Complete Phase 1 and Phase 2
+          - Report findings but DO NOT modify any files
+          - DO NOT create commits or PRs
+          - Output a summary of what would be updated
+
+          ### If No Updates Needed
+
+          If all actions are already at their latest versions:
+          - Report that all actions are up to date
+          - DO NOT create empty commits or PRs
+          - Exit successfully
+
+          ## Guidelines
+
+          - Always use full 40-character SHAs, never abbreviated
+          - Preserve existing comment format (some use `# v4`, others use `# v4.0.0`)
+          - Skip actions that don't have GitHub releases (some use only tags)
+          - Skip private or archived repositories
+          - Handle rate limiting gracefully (gh CLI has built-in retry)
+          - If an action's repo doesn't exist or is inaccessible, skip it with a warning
+
+          ## Output Requirements
+
+          At the end, provide a clear summary:
+
+          ```
+          === GitHub Actions Version Update Summary ===
+
+          Actions Checked: X
+          Actions Updated: Y
+          Actions Skipped: Z (with reasons)
+
+          Updated:
+          - owner/repo: vOLD -> vNEW
+
+          Already Up-to-Date:
+          - owner/repo: vCURRENT
+
+          Skipped:
+          - owner/repo: reason (no releases, private, etc.)
+          ```
+          PROMPT_EOF
+          )
+
+          # Output using heredoc delimiter
+          echo "prompt<<PROMPT_DELIM" >> $GITHUB_OUTPUT
+          echo "$PROMPT" >> $GITHUB_OUTPUT
+          echo "PROMPT_DELIM" >> $GITHUB_OUTPUT
+
+      # Run Claude Code
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@8a1c4371755898f67cd97006ba7c97702d5fc4bf # v1.0.16
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: ${{ steps.build-prompt.outputs.prompt }}
+          show_full_output: ${{ inputs.debug_mode }}
+          claude_args: |
+            --model ${{ inputs.model }}
+            --max-turns 80
+            --dangerously-skip-permissions
+
+      # Check if a PR was created
+      - name: Check for PR
+        id: check-pr
+        if: inputs.dry_run != true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          BRANCH_NAME: ${{ inputs.branch_name }}
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+        run: |
+          PR_URL=$(gh pr list --head "$BRANCH_NAME" --base "$TARGET_BRANCH" --json url --jq '.[0].url' || echo "")
+
+          if [ -n "$PR_URL" ]; then
+            echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+            echo "pr_exists=true" >> $GITHUB_OUTPUT
+            echo "Found PR: $PR_URL"
+          else
+            echo "pr_exists=false" >> $GITHUB_OUTPUT
+            echo "No PR found"
+          fi
+
+      # Check commit count
+      - name: Check commit count
+        id: check-commits
+        if: inputs.dry_run != true
+        env:
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+        run: |
+          git fetch origin "$TARGET_BRANCH"
+          COMMITS=$(git log "origin/$TARGET_BRANCH"..HEAD --oneline 2>/dev/null | wc -l | tr -d ' ')
+          echo "commit_count=$COMMITS" >> $GITHUB_OUTPUT
+          echo "Commits made: $COMMITS"
+
+      # Create fallback PR if needed
+      - name: Create fallback PR (if needed)
+        id: fallback-pr
+        if: inputs.dry_run != true && steps.check-pr.outputs.pr_exists != 'true' && steps.check-commits.outputs.commit_count != '0'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+          BRANCH_NAME: ${{ inputs.branch_name }}
+          COMMIT_COUNT: ${{ steps.check-commits.outputs.commit_count }}
+          MODEL: ${{ inputs.model }}
+        run: |
+          echo "::warning::Claude made ${COMMIT_COUNT} commit(s) but did not create a PR. Creating fallback PR..."
+
+          COMMIT_LOG=$(git log "origin/$TARGET_BRANCH"..HEAD --oneline 2>/dev/null | head -20)
+
+          PR_URL=$(gh pr create \
+            --title "chore(deps): update GitHub Actions (fallback PR)" \
+            --body "## Fallback PR
+
+          Claude completed the action version updates but did not create a PR.
+          This fallback PR was automatically created to preserve the work.
+
+          **Commits made:** ${COMMIT_COUNT}
+
+          ### Commit Summary
+          \`\`\`
+          ${COMMIT_LOG}
+          \`\`\`
+
+          ---
+          *Fallback PR created automatically. Original task used ${MODEL}.*" \
+            --base "$TARGET_BRANCH" \
+            --head "$BRANCH_NAME")
+
+          echo "Created fallback PR: $PR_URL"
+          echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+          echo "pr_created=true" >> $GITHUB_OUTPUT
+
+      # Create job summary
+      - name: Create job summary
+        if: always()
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          BRANCH_NAME: ${{ inputs.branch_name }}
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+          MODEL: ${{ inputs.model }}
+          PR_EXISTS: ${{ steps.check-pr.outputs.pr_exists }}
+          PR_URL: ${{ steps.check-pr.outputs.pr_url }}
+          FALLBACK_PR_CREATED: ${{ steps.fallback-pr.outputs.pr_created }}
+          FALLBACK_PR_URL: ${{ steps.fallback-pr.outputs.pr_url }}
+          COMMIT_COUNT: ${{ steps.check-commits.outputs.commit_count }}
+        run: |
+          echo "## GitHub Actions Version Update" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`$BRANCH_NAME\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Target Branch:** \`$TARGET_BRANCH\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Model:** $MODEL" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$DRY_RUN" == "true" ]; then
+            echo "**Mode:** Dry Run (no changes made)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "> Review Claude's output above for the analysis results." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Commits Made:** ${COMMIT_COUNT:-0}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            if [ "$PR_EXISTS" == "true" ]; then
+              echo "**PR Created:** [$PR_URL]($PR_URL)" >> $GITHUB_STEP_SUMMARY
+            elif [ "$FALLBACK_PR_CREATED" == "true" ]; then
+              echo "**PR Created:** (fallback) [$FALLBACK_PR_URL]($FALLBACK_PR_URL)" >> $GITHUB_STEP_SUMMARY
+            elif [ "${COMMIT_COUNT:-0}" -eq 0 ]; then
+              echo "**Result:** No updates needed - all actions are up to date" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "**Result:** Updates made but PR creation may have failed" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
