@@ -6,6 +6,15 @@ This package contains agnostic command definitions for Claude Code. Commands are
 
 ### Recent Updates
 
+**New /refine-linear-task Command (2025-12-05)**: Added Linear task refinement command:
+
+- Analyzes Linear issues and enhances descriptions for clarity
+- Researches codebase context to inform technical details
+- Generates structured descriptions with acceptance criteria
+- Presents changes for user approval before updating
+- Supports focus areas (security, performance, testing, accessibility)
+- Integrates with Linear MCP tools for seamless workflow
+
 **Simplified /plan Command (2025-09-30)**: The `/plan` command now creates concise, actionable implementation plans:
 
 - Clear implementation breakdown (typically 5-7 steps for medium tasks)
@@ -133,6 +142,16 @@ Invoke **agent-name** with parameters
 - **auto-spec**: Fully autonomous spec-driven development with multi-agent consensus building
 - **split-stack**: Automatically split a monolithic branch into a logical, reviewable stack of PRs using semantic analysis and Graphite
 - **research**: Combine web search with codebase analysis
+
+### Linear Integration Commands
+
+- **refine-linear-task**: Refine and enhance Linear task descriptions for improved clarity, completeness, and actionability
+  - Fetches issue details via Linear MCP tools
+  - Analyzes current description for gaps (clarity, context, scope, acceptance criteria)
+  - Researches codebase for relevant technical context
+  - Generates structured, improved description
+  - Presents comparison for user approval before updating
+  - Supports focus areas: `--focus security`, `--focus performance`, `--focus testing`, `--focus accessibility`
 
 ### Infrastructure & Operations Commands
 
