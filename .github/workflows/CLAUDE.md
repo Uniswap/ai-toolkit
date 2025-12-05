@@ -61,6 +61,92 @@ These workflows are prefixed with `_` and may be called from other repositories:
 - `_generate-pr-metadata.yml` - AI-generated PR titles and descriptions
 - `_notify-release.yml` - Slack notification dispatcher
 
+### PR Code Review (`_claude-code-review.yml`)
+
+This workflow performs automated PR code reviews using Claude AI with the following features:
+
+**Key Features:**
+
+- Formal GitHub reviews (APPROVE/REQUEST_CHANGES/COMMENT)
+- Inline comments on specific lines of code (as `github-actions[bot]`)
+- Patch-ID based caching to skip rebases (no actual code changes)
+- Custom prompt support
+- Existing review comment context for re-reviews
+- Fast review mode for trivial PRs (< 20 lines)
+
+**Architecture:**
+
+This workflow uses a hybrid approach:
+
+1. Claude analyzes the PR and outputs structured JSON
+2. A TypeScript script (`post-review.ts`) parses the JSON and posts the review via `gh` CLI
+
+This ensures all comments appear as `github-actions[bot]` using the official Anthropic action without needing a fork.
+
+**Required Secrets:**
+
+| Secret              | Required    | Description                                                                                                                                                                    |
+| ------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ANTHROPIC_API_KEY` | Yes         | Anthropic API key for Claude access                                                                                                                                            |
+| `WORKFLOW_PAT`      | Conditional | Personal Access Token with `repo` scope for cross-repo access to fetch default prompts from ai-toolkit. **Required if not providing `custom_prompt` or `custom_prompt_path`.** Also used for resolving review threads via GraphQL API. |
+
+> **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
+>
+> **Note:** If you need assistance adding the `WORKFLOW_PAT` secret to your repository or installing the Claude GitHub App, please reach out to the **#pod-dev-ai** Slack channel.
+
+**Configuration Inputs:**
+
+| Input               | Required | Default                          | Description                                                                                                    |
+| ------------------- | -------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `pr_number`         | Yes      | -                                | Pull request number to review                                                                                  |
+| `base_ref`          | Yes      | -                                | Base branch name (e.g., main, master)                                                                          |
+| `model`             | No       | `claude-sonnet-4-5-20250929`     | Claude model to use for review                                                                                 |
+| `max_turns`         | No       | unlimited                        | Maximum conversation turns for Claude                                                                          |
+| `custom_prompt`     | No       | `""`                             | Custom prompt text (overrides prompt file and default)                                                         |
+| `custom_prompt_path`| No       | `.claude/prompts/claude-pr-bot.md` | Path to custom prompt file in repository                                                                     |
+| `timeout_minutes`   | No       | `30`                             | Job timeout in minutes                                                                                         |
+| `allowed_tools`     | No       | `""`                             | Comma-separated list of allowed tools for Claude                                                               |
+| `toolkit_ref`       | No       | `main`                           | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
+
+**Usage example:**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  base_ref: ${{ github.base_ref }}
+  model: 'claude-sonnet-4-5-20250929'
+  toolkit_ref: 'main' # or 'next' to test unreleased changes
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }} # Required for default prompt
+```
+
+**Prompt Configuration Options:**
+
+The workflow determines which prompt to use in this priority order:
+
+1. **`custom_prompt` input**: Explicit prompt text passed directly to the workflow
+2. **`custom_prompt_path` input**: Path to a prompt file in the calling repository (default: `.claude/prompts/claude-pr-bot.md`)
+3. **Default prompt from ai-toolkit**: Fetched from `Uniswap/ai-toolkit` repository (requires `WORKFLOW_PAT`)
+
+If using option 1 or 2, the `WORKFLOW_PAT` secret is not required for prompt fetching (but may still be needed for thread resolution).
+
+**Testing Unreleased Changes:**
+
+Use the `toolkit_ref` input to test changes to the post-review script before merging:
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  base_ref: ${{ github.base_ref }}
+  toolkit_ref: 'next' # Use the 'next' branch version of post-review.ts
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+```
+
 ### PR Metadata Generation (`_generate-pr-metadata.yml`)
 
 This workflow generates PR titles and descriptions using Claude AI with the following features:
@@ -374,7 +460,7 @@ Common secrets referenced:
 
 - `ANTHROPIC_API_KEY` - Claude AI API authentication (also requires the [Claude GitHub App](https://github.com/apps/claude) to be installed on the repository)
 - `NODE_AUTH_TOKEN` - NPM registry authentication (for publishing and installing `@uniswap` scoped packages)
-- `WORKFLOW_PAT` - Personal Access Token with `repo` scope for: (1) pushing commits/tags in force-publish, (2) cross-repo access to fetch default prompts from ai-toolkit in `_claude-code-review.yml` and `_generate-pr-metadata.yml`
+- `WORKFLOW_PAT` - Personal Access Token with `repo` scope for: (1) pushing commits/tags in force-publish, (2) cross-repo access to fetch default prompts from ai-toolkit in `_claude-code-review.yml` and `_generate-pr-metadata.yml`, (3) resolving review threads via GraphQL API in `_claude-code-review.yml` (the default `GITHUB_TOKEN` lacks permissions for the `resolveReviewThread` mutation). **Important:** The account that owns the PAT must have write, maintain, or admin access to the repository for thread resolution to work.
 - `SERVICE_ACCOUNT_GPG_PRIVATE_KEY` - GPG key for signed commits/tags
 - `LINEAR_API_KEY` - Linear API authentication (for autonomous tasks)
 - `SLACK_WEBHOOK_URL` - Slack notifications
