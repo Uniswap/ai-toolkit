@@ -202,90 +202,27 @@ function gh(args: string[], options?: GhOptions | string): string {
         commandSucceeded = true;
         return result.trim();
       } catch (execError) {
-        // On failure, read the temp file again to verify it still exists and has correct content
+        const err = execError as { stdout?: string; stderr?: string; message?: string };
+
+        // On failure, log diagnostic information
+        // Note: retry logic for review creation is handled in createReview()
         try {
           const fileOnError = readFileSync(tempFile, 'utf-8');
           logError(`[DEBUG] Temp file still exists on error, length: ${fileOnError.length} bytes`);
-          logError(`[DEBUG] Temp file contents on error:\n${fileOnError}`);
+          // Only log full contents for small files to avoid log spam
+          if (fileOnError.length < 2000) {
+            logError(`[DEBUG] Temp file contents on error:\n${fileOnError}`);
+          }
         } catch (readErr) {
           logError(`[DEBUG] Could not read temp file on error: ${(readErr as Error).message}`);
         }
 
-        // Try again with --include to see HTTP response headers
-        // This helps diagnose if the API is returning an error response
-        log(`[DEBUG] Retrying with --include to capture HTTP headers...`);
-        try {
-          // Insert --include after 'api' in the args
-          const debugArgs = [...modifiedArgs];
-          const apiIndex = debugArgs.indexOf('api');
-          if (apiIndex !== -1) {
-            debugArgs.splice(apiIndex + 1, 0, '--include');
-          }
-          const debugResult = execFileSync('gh', debugArgs, {
-            encoding: 'utf-8',
-            env,
-            maxBuffer: 10 * 1024 * 1024,
-          });
-          logError(
-            `[DEBUG] Retry with --include succeeded (unexpected):\n${debugResult.substring(
-              0,
-              2000
-            )}`
-          );
-        } catch (retryError) {
-          const retryErr = retryError as { stdout?: string; stderr?: string; message?: string };
-          logError(`[DEBUG] Retry with --include also failed`);
-          if (retryErr.stdout) {
-            logError(
-              `[DEBUG] Retry stdout (may contain HTTP headers):\n${retryErr.stdout.substring(
-                0,
-                2000
-              )}`
-            );
-          }
-          if (retryErr.stderr) {
-            logError(`[DEBUG] Retry stderr:\n${retryErr.stderr.substring(0, 1000)}`);
-          }
+        // Log the error details
+        if (err.stdout) {
+          logError(`[DEBUG] stdout: ${err.stdout.substring(0, 1000)}`);
         }
-
-        // Try with curl to get raw HTTP response for debugging
-        // Extract the API endpoint from args
-        const endpoint = modifiedArgs.find((arg) => arg.startsWith('repos/'));
-        const inputFile = modifiedArgs.find((arg) => arg.startsWith('/tmp/'));
-        if (endpoint && inputFile) {
-          log(`[DEBUG] Trying curl for raw HTTP response...`);
-          try {
-            const curlResult = execFileSync(
-              'curl',
-              [
-                '-s',
-                '-w',
-                '\\n---HTTP_CODE:%{http_code}---',
-                '-X',
-                'POST',
-                '-H',
-                'Accept: application/vnd.github+json',
-                '-H',
-                `Authorization: Bearer ${env.GH_TOKEN || env.GITHUB_TOKEN}`,
-                '-H',
-                'Content-Type: application/json',
-                '-d',
-                `@${inputFile}`,
-                `https://api.github.com/${endpoint}`,
-              ],
-              {
-                encoding: 'utf-8',
-                env,
-                maxBuffer: 10 * 1024 * 1024,
-              }
-            );
-            logError(`[DEBUG] curl response:\n${curlResult}`);
-          } catch (curlError) {
-            const curlErr = curlError as { stdout?: string; stderr?: string; message?: string };
-            logError(`[DEBUG] curl also failed: ${curlErr.message}`);
-            if (curlErr.stdout) logError(`[DEBUG] curl stdout:\n${curlErr.stdout}`);
-            if (curlErr.stderr) logError(`[DEBUG] curl stderr:\n${curlErr.stderr}`);
-          }
+        if (err.stderr) {
+          logError(`[DEBUG] stderr: ${err.stderr.substring(0, 500)}`);
         }
 
         throw execError;
@@ -441,6 +378,46 @@ function upsertReviewComment(
   }
 }
 
+/**
+ * Helper function to check if a recent bot review exists on the PR.
+ * Used to detect if a review was created despite a 500 error from GitHub.
+ *
+ * @returns The review object if found within maxAgeMs, null otherwise
+ */
+function findRecentBotReview(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  maxAgeMs: number = 5000
+): { id: number; html_url: string; state: string; submitted_at: string } | null {
+  try {
+    const reviewsResult = execFileSync(
+      'gh',
+      [
+        'api',
+        `repos/${owner}/${repo}/pulls/${prNumber}/reviews`,
+        '--jq',
+        '[.[] | select(.user.login == "github-actions[bot]")] | sort_by(.submitted_at) | last',
+      ],
+      { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 }
+    );
+
+    if (reviewsResult.trim()) {
+      const lastReview = JSON.parse(reviewsResult.trim());
+      const submittedAt = new Date(lastReview.submitted_at);
+      const now = new Date();
+      const ageMs = now.getTime() - submittedAt.getTime();
+
+      if (ageMs < maxAgeMs) {
+        return lastReview;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function createReview(params: CreateReviewParams): { id: number; html_url: string } {
   log(`Creating review with ${params.comments.length} inline comments...`);
   log(`Review event: ${params.event}`);
@@ -474,28 +451,75 @@ function createReview(params: CreateReviewParams): { id: number; html_url: strin
   log(`[DEBUG] Full review JSON payload length: ${jsonPayload.length} bytes`);
   log(`[DEBUG] Full review JSON payload:\n${jsonPayload}`);
 
-  // Use gh api with JSON input
-  const result = gh(
-    [
-      'api',
-      '--method',
-      'POST',
-      `repos/${params.owner}/${params.repo}/pulls/${params.pull_number}/reviews`,
-      '--input',
-      '-',
-    ],
-    jsonPayload
-  );
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY_MS = 5000;
 
-  try {
-    const response = JSON.parse(result) as { id: number; html_url: string };
-    log(`Review successfully created with ID: ${response.id}`);
-    return response;
-  } catch {
-    logError('Failed to parse review creation response');
-    logError(`[DEBUG] Raw response from gh: ${result}`);
-    throw new Error('Failed to create review');
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    log(`[DEBUG] Review creation attempt ${attempt}/${MAX_RETRIES}`);
+
+    try {
+      // Use gh api with JSON input
+      const result = gh(
+        [
+          'api',
+          '--method',
+          'POST',
+          `repos/${params.owner}/${params.repo}/pulls/${params.pull_number}/reviews`,
+          '--input',
+          '-',
+        ],
+        jsonPayload
+      );
+
+      try {
+        const response = JSON.parse(result) as { id: number; html_url: string };
+        log(`Review successfully created with ID: ${response.id}`);
+        return response;
+      } catch {
+        logError('Failed to parse review creation response');
+        logError(`[DEBUG] Raw response from gh: ${result}`);
+        throw new Error('Failed to create review');
+      }
+    } catch (error) {
+      logError(`[DEBUG] Review creation attempt ${attempt} failed: ${(error as Error).message}`);
+
+      // Check if the review was actually created despite the error (GitHub 500 quirk)
+      log(`[DEBUG] Checking if review was created despite error...`);
+      const existingReview = findRecentBotReview(
+        params.owner,
+        params.repo,
+        params.pull_number,
+        5000 // 5 seconds
+      );
+
+      if (existingReview) {
+        log(
+          `[DEBUG] ✅ Review WAS created despite error! ID: ${existingReview.id}, state: ${existingReview.state}`
+        );
+        log(`[DEBUG] Review submitted at: ${existingReview.submitted_at}`);
+        return { id: existingReview.id, html_url: existingReview.html_url };
+      }
+
+      log(`[DEBUG] No recent bot review found - the error was a real failure`);
+
+      // If this wasn't the last attempt, wait and retry
+      if (attempt < MAX_RETRIES) {
+        log(`[DEBUG] Waiting ${RETRY_DELAY_MS}ms before retry...`);
+        // Use synchronous sleep since we're in a sync function
+        const start = Date.now();
+        while (Date.now() - start < RETRY_DELAY_MS) {
+          // Busy wait - not ideal but works for sync context
+        }
+        log(`[DEBUG] Retrying...`);
+      } else {
+        // Last attempt failed, throw the error
+        throw error;
+      }
+    }
   }
+
+  // Should never reach here, but TypeScript needs this
+  throw new Error('Failed to create review after all retries');
 }
 
 function replyToComment(
