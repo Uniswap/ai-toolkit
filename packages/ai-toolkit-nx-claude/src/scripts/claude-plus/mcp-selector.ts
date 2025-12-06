@@ -9,6 +9,22 @@ import { spawn } from 'child_process';
 import { displaySuccess, displayWarning, displayDebug } from './display';
 
 /**
+ * Creates a clean environment for spawning child npx processes.
+ *
+ * When this script is invoked via `npx -p <package> <binary>`, npx sets
+ * npm_config_package to the parent package path. This environment variable
+ * confuses child npx processes and causes them to fail with errors like:
+ * "sh: @package/name: No such file or directory"
+ *
+ * By removing npm_config_package, we allow child npx processes to work correctly.
+ */
+function getCleanEnvForNpx(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  delete env.npm_config_package;
+  return env;
+}
+
+/**
  * Run the MCP server selector using claude-mcp-helper
  *
  * This spawns the claude-mcp-helper interactive mode which presents
@@ -19,12 +35,13 @@ export async function runMcpSelector(verbose?: boolean): Promise<void> {
     displayDebug('Running claude-mcp-helper interactive mode...', verbose);
 
     // Try to run claude-mcp-helper via npx
-    // Don't use shell: true - let Node handle arguments directly
+    // Use clean environment to avoid npm_config_package interference
     const child = spawn(
       'npx',
       ['-y', '@uniswap/ai-toolkit-claude-mcp-helper@latest', 'interactive'],
       {
         stdio: 'inherit',
+        env: getCleanEnvForNpx(),
       }
     );
 
