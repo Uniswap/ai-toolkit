@@ -19,11 +19,14 @@ export async function runMcpSelector(verbose?: boolean): Promise<void> {
     displayDebug('Running claude-mcp-helper interactive mode...', verbose);
 
     // Try to run claude-mcp-helper via npx
-    // Use full command string with shell: true to avoid issues with @ in package name
-    const child = spawn('npx -y @uniswap/ai-toolkit-claude-mcp-helper@latest interactive', [], {
-      stdio: 'inherit',
-      shell: true,
-    });
+    // Don't use shell: true - let Node handle arguments directly
+    const child = spawn(
+      'npx',
+      ['-y', '@uniswap/ai-toolkit-claude-mcp-helper@latest', 'interactive'],
+      {
+        stdio: 'inherit',
+      }
+    );
 
     child.on('error', (error) => {
       // If npx fails, try running directly (in case it's installed globally)
@@ -31,7 +34,6 @@ export async function runMcpSelector(verbose?: boolean): Promise<void> {
 
       const directChild = spawn('claude-mcp-helper', ['interactive'], {
         stdio: 'inherit',
-        shell: true,
       });
 
       directChild.on('error', () => {
