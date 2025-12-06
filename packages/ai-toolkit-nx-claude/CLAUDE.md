@@ -25,6 +25,8 @@ packages/ai-toolkit-nx-claude/
 │ │ ├── hooks/ # Notification hooks installer
 │ │ ├── add-command/ # Add individual commands
 │ │ └── add-agent/ # Add individual agents
+│ ├── scripts/
+│ │ └── claude-plus/ # Enhanced Claude launcher with MCP + Slack
 │ └── index.ts # Package exports
 ├── generators.json # Generator registration
 └── package.json # Package configuration
@@ -123,6 +125,41 @@ npx nx generate @uniswap/ai-toolkit-nx-claude:add-agent
 ```
 
 **Status**: Placeholder implementation - needs completion
+
+## Standalone Scripts
+
+### claude-plus - Enhanced Claude Launcher
+
+**Purpose**: Streamlined Claude Code startup with MCP server selection and Slack token management.
+
+**Usage**:
+
+```bash
+npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus
+```
+
+**Key Features**:
+
+- **MCP Server Selection**: Runs claude-mcp-helper to interactively select which MCP servers to enable
+- **Slack Token Management**: Validates Slack OAuth tokens and refreshes them if expired
+- **Claude Launch**: Starts Claude Code after setup is complete
+- **Graceful Degradation**: Continues even if MCP helper or Slack config is missing
+
+**Options**:
+
+- `--skip-mcp`: Skip MCP server selection
+- `--skip-slack`: Skip Slack token validation
+- `--dry-run`: Preview actions without executing
+- `--verbose`: Show detailed output
+
+**Shell Alias Setup**:
+
+```bash
+# Add to ~/.zshrc or ~/.bashrc
+alias claude-plus="npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus"
+```
+
+**Documentation**: [src/scripts/claude-plus/CLAUDE.md](src/scripts/claude-plus/CLAUDE.md)
 
 ## Generator Development Patterns
 

@@ -5,6 +5,7 @@ import { config } from './config';
 import { logger } from './utils/logger';
 import { errorHandler } from './utils/errors';
 import oauthRoutes from './routes/oauth';
+import refreshRoutes from './routes/refresh';
 import indexRoutes from './routes/index';
 import {
   securityHeaders,
@@ -57,6 +58,7 @@ export function createServer(): Express {
   // Routes
   app.use('/', indexRoutes);
   app.use('/slack/oauth', oauthRoutes);
+  app.use('/slack/refresh', refreshRoutes);
 
   // 404 handler
   app.use((req: Request, res: Response) => {
@@ -110,9 +112,7 @@ export async function startServer(): Promise<void> {
 
         try {
           // Clean up resources
-          const { clearSlackCaches, getCacheStats } = await import(
-            './slack/client.js'
-          );
+          const { clearSlackCaches, getCacheStats } = await import('./slack/client.js');
           const { tokenValidationCache } = await import('./utils/cache.js');
 
           // Log cache statistics before cleanup

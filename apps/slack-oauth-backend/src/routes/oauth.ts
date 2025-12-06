@@ -2,11 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { Router } from 'express';
 import { createOAuthHandler } from '../oauth/handler';
 import { createSlackClient } from '../slack/client';
-import {
-  formatTokenMessage,
-  formatSuccessPage,
-  formatErrorPage,
-} from '../messages/formatter';
+import { formatTokenMessage, formatSuccessPage, formatErrorPage } from '../messages/formatter';
 import { logger } from '../utils/logger';
 import { OAuthError, ValidationError } from '../utils/errors';
 import type { OAuthCallbackParams } from '../oauth/types';
@@ -47,8 +43,7 @@ router.get(
       // Check for OAuth errors from Slack
       if (params.error) {
         throw new OAuthError(
-          params.error_description ||
-            `OAuth authorization failed: ${params.error}`,
+          params.error_description || `OAuth authorization failed: ${params.error}`,
           'INVALID_CODE',
           { error: params.error }
         );
@@ -76,10 +71,7 @@ router.get(
         });
 
         // Send error page
-        const errorPage = formatErrorPage(
-          result.errorCode || 'unknown',
-          result.error
-        );
+        const errorPage = formatErrorPage(result.errorCode || 'unknown', result.error);
 
         res.status(400).send(errorPage);
         return;
@@ -97,7 +89,8 @@ router.get(
           const slackClient = createSlackClient();
           const tokenMessage = formatTokenMessage(
             result.accessToken,
-            result.user.name
+            result.user.name,
+            result.refreshToken
           );
 
           await slackClient.sendDirectMessage(
@@ -120,9 +113,13 @@ router.get(
       }
 
       // Send success page with token displayed if DM failed
+      // Generate refresh URL based on request host
+      const refreshUrl = `${req.protocol}://${req.get('host')}/slack/refresh`;
       const successPage = formatSuccessPage(
         result.user?.name,
-        dmSent ? undefined : result.accessToken
+        dmSent ? undefined : result.accessToken,
+        dmSent ? undefined : result.refreshToken,
+        dmSent ? undefined : refreshUrl
       );
       res.send(successPage);
     } catch (error) {

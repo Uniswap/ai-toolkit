@@ -254,13 +254,26 @@ router.get('/health', async (req: Request, res: Response) => {
   const memoryUsage = process.memoryUsage();
 
   try {
-    // Test Slack bot authentication
+    // Test Slack bot authentication (if bot token is configured)
     const slackClient = createSlackClient();
     const authTest = await slackClient.testAuth();
 
     // Get cache statistics
     const { getCacheStats } = await import('../slack/client.js');
     const cacheStats = getCacheStats();
+
+    // Determine slack status based on whether bot token is configured
+    const slackStatus = authTest
+      ? {
+          connected: authTest.success,
+          teamName: authTest.teamName,
+          botId: authTest.botId,
+        }
+      : {
+          connected: false,
+          mode: 'token_rotation',
+          note: 'Bot token not configured - using token rotation mode',
+        };
 
     res.json({
       status: 'healthy',
@@ -277,11 +290,7 @@ router.get('/health', async (req: Request, res: Response) => {
           rss: `${Math.round(memoryUsage.rss / 1024 / 1024)}MB`,
         },
       },
-      slack: {
-        connected: authTest.success,
-        teamName: authTest.teamName,
-        botId: authTest.botId,
-      },
+      slack: slackStatus,
       cache: {
         userInfo: {
           size: cacheStats.userInfo.size,

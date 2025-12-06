@@ -77,8 +77,7 @@ export class SlackOAuthHandler implements OAuthHandler {
       // Check for OAuth errors from Slack
       if (params.error) {
         throw new OAuthError(
-          params.error_description ||
-            `OAuth authorization failed: ${params.error}`,
+          params.error_description || `OAuth authorization failed: ${params.error}`,
           'invalid_code',
           { error: params.error, description: params.error_description }
         );
@@ -91,11 +90,9 @@ export class SlackOAuthHandler implements OAuthHandler {
 
       // Validate state parameter for CSRF protection
       if (!this.validateState(params.state)) {
-        throw new OAuthError(
-          'Invalid or missing state parameter',
-          'state_mismatch',
-          { providedState: params.state }
-        );
+        throw new OAuthError('Invalid or missing state parameter', 'state_mismatch', {
+          providedState: params.state,
+        });
       }
 
       // Exchange authorization code for access token
@@ -109,9 +106,10 @@ export class SlackOAuthHandler implements OAuthHandler {
         );
       }
 
-      // Get user information using the bot token
+      // Get user information using the bot token (if available)
+      // With token rotation, bot token may not be available
       let userInfo: SlackUserInfo | undefined;
-      if (tokenResponse.authed_user?.id) {
+      if (tokenResponse.authed_user?.id && config.slackBotToken) {
         userInfo = await this.getUserInfo(
           tokenResponse.authed_user.id,
           config.slackBotToken // Use bot token to get user info
@@ -125,6 +123,7 @@ export class SlackOAuthHandler implements OAuthHandler {
       return {
         success: true,
         accessToken: selectedToken,
+        refreshToken: tokenResponse.refresh_token,
         user: userInfo,
         details: {
           team: tokenResponse.team,
@@ -144,8 +143,7 @@ export class SlackOAuthHandler implements OAuthHandler {
       }
 
       // Handle unexpected errors
-      const message =
-        error instanceof Error ? error.message : 'Unknown error occurred';
+      const message = error instanceof Error ? error.message : 'Unknown error occurred';
       return {
         success: false,
         error: message,
@@ -158,9 +156,7 @@ export class SlackOAuthHandler implements OAuthHandler {
   /**
    * Exchange authorization code for access token
    */
-  private async exchangeCodeForToken(
-    code: string
-  ): Promise<OAuthTokenResponse> {
+  private async exchangeCodeForToken(code: string): Promise<OAuthTokenResponse> {
     try {
       const response = await this.webClient.oauth.v2.access({
         client_id: this.clientId,
@@ -175,11 +171,9 @@ export class SlackOAuthHandler implements OAuthHandler {
       logger.error('Token exchange failed:', error);
 
       if (error instanceof Error) {
-        throw new OAuthError(
-          `Token exchange failed: ${error.message}`,
-          'token_exchange_failed',
-          { originalError: error.message }
-        );
+        throw new OAuthError(`Token exchange failed: ${error.message}`, 'token_exchange_failed', {
+          originalError: error.message,
+        });
       }
 
       throw new OAuthError('Token exchange failed', 'token_exchange_failed');
@@ -189,10 +183,7 @@ export class SlackOAuthHandler implements OAuthHandler {
   /**
    * Get user information from Slack
    */
-  private async getUserInfo(
-    userId: string,
-    token: string
-  ): Promise<SlackUserInfo | undefined> {
+  private async getUserInfo(userId: string, token: string): Promise<SlackUserInfo | undefined> {
     try {
       const client = new WebClient(token);
       const response = await client.users.info({ user: userId });

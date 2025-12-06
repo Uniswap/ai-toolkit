@@ -1,6 +1,6 @@
 {
   "name": "@uniswap/ai-toolkit-nx-claude",
-  "version": "0.5.20",
+  "version": "0.5.21-next.4",
   "private": false,
   "main": "./dist/index.cjs",
   "module": "./dist/index.cjs",
@@ -14,7 +14,8 @@
     "access": "restricted"
   },
   "bin": {
-    "ai-toolkit-nx-claude": "dist/cli-generator.cjs"
+    "ai-toolkit-nx-claude": "dist/cli-generator.cjs",
+    "claude-plus": "dist/scripts/claude-plus/index.cjs"
   },
   "exports": {
     "./package.json": "./package.json",
@@ -45,6 +46,7 @@
           "main": "packages/ai-toolkit-nx-claude/src/cli-generator.ts",
           "additionalEntryPoints": [
             "packages/ai-toolkit-nx-claude/src/index.ts",
+            "packages/ai-toolkit-nx-claude/src/scripts/claude-plus/index.ts",
             "packages/ai-toolkit-nx-claude/src/generators/add-agent/generator.ts",
             "packages/ai-toolkit-nx-claude/src/generators/add-command/generator.ts",
             "packages/ai-toolkit-nx-claude/src/generators/addons/generator.ts",
@@ -135,7 +137,11 @@
       "postbuild": {
         "executor": "nx:run-commands",
         "options": {
-          "command": "chmod +x packages/ai-toolkit-nx-claude/dist/cli-generator.cjs"
+          "commands": [
+            "chmod +x packages/ai-toolkit-nx-claude/dist/cli-generator.cjs",
+            "chmod +x packages/ai-toolkit-nx-claude/dist/scripts/claude-plus/index.cjs"
+          ],
+          "parallel": true
         },
         "dependsOn": [
           "build"
@@ -145,6 +151,15 @@
         "executor": "nx:run-commands",
         "options": {
           "command": "node packages/ai-toolkit-nx-claude/dist/cli-generator.cjs"
+        },
+        "dependsOn": [
+          "build"
+        ]
+      },
+      "claude-plus:exec": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "node packages/ai-toolkit-nx-claude/dist/scripts/claude-plus/index.cjs"
         },
         "dependsOn": [
           "build"

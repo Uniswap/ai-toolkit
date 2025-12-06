@@ -6,6 +6,9 @@ on:
       - opened
       - edited
       - synchronize
+  workflow_run:
+    workflows: ["Claude: Generate PR Title & Description"]
+    types: [completed]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -13,6 +16,7 @@ concurrency:
 
 jobs:
   check-pr-title:
+    if: ${{ github.event_name == 'pull_request_target' || github.event.workflow_run.conclusion == 'success' }}
     name: 🔡 Check PR Title
     runs-on: ubuntu-latest
     steps:
