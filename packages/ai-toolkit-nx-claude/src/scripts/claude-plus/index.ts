@@ -9,7 +9,7 @@
  * 3. Launching Claude Code
  *
  * Usage:
- *   npx @uniswap/ai-toolkit-nx-claude:claude-plus
+ *   npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus
  *
  * Environment Variables:
  *   SLACK_REFRESH_URL   - Backend URL for token refresh (default: https://ai-toolkit-slack-oauth-backend.vercel.app)
@@ -91,7 +91,7 @@ function displayHelp(): void {
 claude-plus - Enhanced Claude Code launcher
 
 Usage:
-  npx @uniswap/ai-toolkit-nx-claude:claude-plus [options] [-- claude-args...]
+  npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus [options] [-- claude-args...]
 
 Options:
   --skip-mcp     Skip the MCP server selector
@@ -131,25 +131,25 @@ Configuration Files:
 
 Examples:
   # Full startup flow (prompts for Slack setup if needed)
-  npx @uniswap/ai-toolkit-nx-claude:claude-plus
+  npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus
 
   # Configure or update Slack credentials
-  npx @uniswap/ai-toolkit-nx-claude:claude-plus --setup-slack
+  npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --setup-slack
 
   # Skip MCP selection (use existing config)
-  npx @uniswap/ai-toolkit-nx-claude:claude-plus --skip-mcp
+  npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --skip-mcp
 
   # Skip Slack token refresh
-  npx @uniswap/ai-toolkit-nx-claude:claude-plus --skip-slack
+  npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --skip-slack
 
   # Preview what would happen
-  npx @uniswap/ai-toolkit-nx-claude:claude-plus --dry-run
+  npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --dry-run
 
   # Pass arguments to claude (e.g., resume previous session)
-  npx @uniswap/ai-toolkit-nx-claude:claude-plus --resume
+  npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --resume
 
   # Combine claude-plus flags with claude flags
-  npx @uniswap/ai-toolkit-nx-claude:claude-plus --skip-mcp --resume
+  npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --skip-mcp --resume
 `);
 }
 

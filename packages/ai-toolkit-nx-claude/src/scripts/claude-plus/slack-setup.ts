@@ -173,7 +173,7 @@ export async function runSlackSetupWizard(_verbose?: boolean): Promise<boolean> 
     if (!shouldProceed) {
       console.log('');
       displayInfo('Setup skipped. You can run this setup later by running:');
-      console.log('  npx @uniswap/ai-toolkit-nx-claude:claude-plus --setup-slack');
+      console.log('  npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --setup-slack');
       console.log('');
       displayInfo('Or manually create ~/.config/claude-code/slack-env.sh with:');
       console.log('  export SLACK_REFRESH_URL="https://your-backend-url.com"');
@@ -230,7 +230,7 @@ export async function offerSlackSetup(verbose?: boolean): Promise<boolean> {
     console.log('');
     displayInfo('Skipping Slack setup. Token validation will be skipped.');
     displayInfo(
-      'To set up later, run: npx @uniswap/ai-toolkit-nx-claude:claude-plus --setup-slack'
+      'To set up later, run: npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --setup-slack'
     );
     console.log('');
     return false;

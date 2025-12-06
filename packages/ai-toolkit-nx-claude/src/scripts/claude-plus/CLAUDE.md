@@ -218,10 +218,10 @@ export async function launchClaude(): Promise<void>;
 ### Usage via npx
 
 ```bash
-npx @uniswap/ai-toolkit-nx-claude:claude-plus
+npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus
 ```
 
-The `:claude-plus` syntax tells npm to use the `claude-plus` binary from the package.
+The `-p` flag tells npx to install the package, and then run the `claude-plus` binary from it.
 
 ## Error Handling Patterns
 

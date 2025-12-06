@@ -14,8 +14,8 @@ Enhanced Claude Code launcher that streamlines your startup experience with MCP 
 The `claude-plus` command is included in the `@uniswap/ai-toolkit-nx-claude` package:
 
 ```bash
-# Run directly via npx
-npx @uniswap/ai-toolkit-nx-claude:claude-plus
+# Run directly via npx (-p installs the package, then runs the claude-plus binary)
+npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus
 
 # Or install globally and run
 npm install -g @uniswap/ai-toolkit-nx-claude
@@ -27,22 +27,22 @@ claude-plus
 ```bash
 # Full startup flow (MCP selection + Slack token check + launch Claude)
 # On first run, prompts to set up Slack credentials if not configured
-npx @uniswap/ai-toolkit-nx-claude:claude-plus
+npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus
 
 # Run the Slack OAuth setup wizard (create or update credentials)
-npx @uniswap/ai-toolkit-nx-claude:claude-plus --setup-slack
+npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --setup-slack
 
 # Skip MCP selection (use existing configuration)
-npx @uniswap/ai-toolkit-nx-claude:claude-plus --skip-mcp
+npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --skip-mcp
 
 # Skip Slack token validation
-npx @uniswap/ai-toolkit-nx-claude:claude-plus --skip-slack
+npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --skip-slack
 
 # Preview what would happen (dry run)
-npx @uniswap/ai-toolkit-nx-claude:claude-plus --dry-run
+npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --dry-run
 
 # Show verbose output
-npx @uniswap/ai-toolkit-nx-claude:claude-plus --verbose
+npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --verbose
 ```
 
 ## Shell Alias Setup
@@ -52,13 +52,13 @@ For convenience, add an alias to your shell configuration:
 ### Bash/Zsh (~/.bashrc or ~/.zshrc)
 
 ```bash
-alias claude-plus="npx -y @uniswap/ai-toolkit-nx-claude:claude-plus"
+alias claude-plus="npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus"
 ```
 
 ### Fish (~/.config/fish/config.fish)
 
 ```fish
-abbr claude-plus 'npx -y @uniswap/ai-toolkit-nx-claude:claude-plus'
+abbr claude-plus 'npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus'
 ```
 
 After adding the alias, reload your shell configuration:
@@ -78,7 +78,7 @@ To enable automatic Slack token refresh, you need to configure a backend refresh
 Run the setup wizard which will guide you through the process and create the config file automatically:
 
 ```bash
-npx @uniswap/ai-toolkit-nx-claude:claude-plus --setup-slack
+npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --setup-slack
 ```
 
 This will:

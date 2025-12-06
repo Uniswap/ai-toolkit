@@ -135,7 +135,7 @@ npx nx generate @uniswap/ai-toolkit-nx-claude:add-agent
 **Usage**:
 
 ```bash
-npx @uniswap/ai-toolkit-nx-claude:claude-plus
+npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus
 ```
 
 **Key Features**:
@@ -156,7 +156,7 @@ npx @uniswap/ai-toolkit-nx-claude:claude-plus
 
 ```bash
 # Add to ~/.zshrc or ~/.bashrc
-alias claude-plus="npx -y @uniswap/ai-toolkit-nx-claude:claude-plus"
+alias claude-plus="npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus"
 ```
 
 **Documentation**: [src/scripts/claude-plus/CLAUDE.md](src/scripts/claude-plus/CLAUDE.md)
