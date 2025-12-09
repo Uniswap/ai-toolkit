@@ -120,10 +120,15 @@ export class SlackOAuthHandler implements OAuthHandler {
       const userToken = tokenResponse.authed_user?.access_token;
       const selectedToken = userToken || tokenResponse.access_token;
 
+      // Use the refresh token that corresponds to the selected access token
+      // If we selected user token, use user's refresh token; otherwise use bot's refresh token
+      const userRefreshToken = tokenResponse.authed_user?.refresh_token;
+      const selectedRefreshToken = userToken ? userRefreshToken : tokenResponse.refresh_token;
+
       return {
         success: true,
         accessToken: selectedToken,
-        refreshToken: tokenResponse.refresh_token,
+        refreshToken: selectedRefreshToken,
         user: userInfo,
         details: {
           team: tokenResponse.team,

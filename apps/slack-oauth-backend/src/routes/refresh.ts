@@ -34,11 +34,7 @@ const refreshRateLimiter = rateLimit({
 /**
  * Validate refresh token request body
  */
-const validateRefreshRequest = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void => {
+const validateRefreshRequest = (req: Request, res: Response, next: NextFunction): void => {
   const { refresh_token } = req.body;
 
   // Validate refresh_token is present
@@ -131,8 +127,7 @@ router.post(
 
       // Check if the response is successful
       if (!response.ok) {
-        const errorMessage =
-          (response as { error?: string }).error || 'token_refresh_failed';
+        const errorMessage = (response as { error?: string }).error || 'token_refresh_failed';
         requestLogger.warn('Token refresh failed', {
           error: errorMessage,
         });
@@ -145,9 +140,25 @@ router.post(
       }
 
       // Extract tokens from successful response
-      const accessToken = (response as { access_token?: string }).access_token;
-      const newRefreshToken = (response as { refresh_token?: string })
-        .refresh_token;
+      // Prefer User OAuth Token (xoxp) if present; otherwise fall back to Bot token (xoxb)
+      // This matches the logic in oauth/handler.ts handleCallback
+      const typedResponse = response as {
+        access_token?: string;
+        refresh_token?: string;
+        authed_user?: {
+          access_token?: string;
+          refresh_token?: string;
+        };
+      };
+
+      const userToken = typedResponse.authed_user?.access_token;
+      const botToken = typedResponse.access_token;
+      const accessToken = userToken || botToken;
+
+      // For refresh tokens, also prefer the user's refresh token if available
+      const userRefreshToken = typedResponse.authed_user?.refresh_token;
+      const botRefreshToken = typedResponse.refresh_token;
+      const newRefreshToken = userRefreshToken || botRefreshToken;
 
       if (!accessToken) {
         requestLogger.error('Token refresh succeeded but no access token returned');
@@ -161,6 +172,7 @@ router.post(
       requestLogger.info('Token refresh successful', {
         hasAccessToken: !!accessToken,
         hasRefreshToken: !!newRefreshToken,
+        tokenType: userToken ? 'user' : 'bot',
       });
 
       // Return the new tokens

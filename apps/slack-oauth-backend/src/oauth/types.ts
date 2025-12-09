@@ -50,6 +50,8 @@ export interface OAuthTokenResponse {
     scope?: string;
     access_token?: string;
     token_type?: string;
+    /** Refresh token for user token rotation (when token rotation is enabled) */
+    refresh_token?: string;
   };
   /** Error message if failed */
   error?: string;

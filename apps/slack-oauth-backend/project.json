@@ -76,7 +76,8 @@
       "dependsOn": ["build"],
       "options": {
         "buildTarget": "slack-oauth-backend:build",
-        "runBuildTargetDependencies": false
+        "runBuildTargetDependencies": false,
+        "watch": false
       },
       "configurations": {
         "development": {
