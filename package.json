@@ -80,6 +80,7 @@
     "packages/*",
     "packages/commands/*",
     "packages/agents/*",
+    "packages/skills/*",
     "apps/*"
   ],
   "overrides": {

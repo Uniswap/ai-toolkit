@@ -1,0 +1,66 @@
+{
+  "name": "@ai-toolkit/skills-agnostic",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js",
+      "default": "./dist/src/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "nx": {
+    "targets": {
+      "generate-index": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "npx tsx scripts/generate.ts",
+          "cwd": "packages/skills/agnostic"
+        },
+        "dependsOn": [
+          "@ai-toolkit/utils:build"
+        ],
+        "inputs": [
+          "{projectRoot}/src/*/SKILL.md",
+          "{projectRoot}/scripts/generate.ts"
+        ],
+        "outputs": [
+          "{projectRoot}/src/index.ts"
+        ]
+      },
+      "build": {
+        "executor": "@nx/js:tsc",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "options": {
+          "outputPath": "packages/skills/agnostic/dist",
+          "main": "packages/skills/agnostic/src/index.ts",
+          "tsConfig": "packages/skills/agnostic/tsconfig.lib.json",
+          "assets": [
+            {
+              "input": "packages/skills/agnostic/src",
+              "glob": "**/SKILL.md",
+              "output": "."
+            },
+            {
+              "input": "packages/skills/agnostic/src",
+              "glob": "**/*.md",
+              "output": "."
+            }
+          ]
+        },
+        "dependsOn": [
+          "generate-index"
+        ]
+      }
+    }
+  },
+  "dependencies": {
+    "@ai-toolkit/utils": "0.2.12-next.7"
+  }
+}

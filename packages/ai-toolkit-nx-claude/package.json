@@ -51,7 +51,8 @@
             "packages/ai-toolkit-nx-claude/src/generators/add-command/generator.ts",
             "packages/ai-toolkit-nx-claude/src/generators/addons/generator.ts",
             "packages/ai-toolkit-nx-claude/src/generators/hooks/generator.ts",
-            "packages/ai-toolkit-nx-claude/src/generators/init/generator.ts"
+            "packages/ai-toolkit-nx-claude/src/generators/init/generator.ts",
+            "packages/ai-toolkit-nx-claude/src/generators/skills/generator.ts"
           ],
           "tsConfig": "packages/ai-toolkit-nx-claude/tsconfig.lib.json",
           "bundle": true,
@@ -91,6 +92,11 @@
               "input": "./packages/agents/agnostic/src",
               "glob": "**/*.md",
               "output": "content/agents/agnostic"
+            },
+            {
+              "input": "./packages/skills/agnostic/src",
+              "glob": "**/*.md",
+              "output": "content/skills/agnostic"
             }
           ]
         }
@@ -129,6 +135,12 @@
           {
             "projects": [
               "@ai-toolkit/commands-agnostic"
+            ],
+            "target": "build"
+          },
+          {
+            "projects": [
+              "@ai-toolkit/skills-agnostic"
             ],
             "target": "build"
           }
@@ -184,6 +196,7 @@
   },
   "devDependencies": {
     "@ai-toolkit/commands-agnostic": "0.1.16-next.7",
-    "@ai-toolkit/agents-agnostic": "0.2.12-next.7"
+    "@ai-toolkit/agents-agnostic": "0.2.12-next.7",
+    "@ai-toolkit/skills-agnostic": "0.1.0"
   }
 }

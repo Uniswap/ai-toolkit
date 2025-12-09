@@ -10,8 +10,11 @@ export interface InitGeneratorSchema {
   hooksMode?: 'sound' | 'speech' | 'both';
   installAddons?: boolean;
   addonSelectionMode?: 'all' | 'specific';
+  installSkills?: boolean;
+  skillSelectionMode?: 'all' | 'specific';
   commands?: string[];
   agents?: string[];
+  skills?: string[];
   dry?: boolean;
   nonInteractive?: boolean;
   force?: boolean;

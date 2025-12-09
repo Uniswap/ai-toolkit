@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "$id": "SchemaForSkills",
+  "title": "Skills Installation",
+  "type": "object",
+  "description": "Install and configure Claude Code skills using the plugin system.",
+  "properties": {
+    "selectionMode": {
+      "type": "string",
+      "description": "Selection mode for which skills to install",
+      "enum": ["all", "specific"],
+      "default": "all",
+      "x-prompt": {
+        "message": "🎯 What would you like to install?",
+        "type": "list",
+        "items": [
+          {
+            "value": "all",
+            "label": "All available skills"
+          },
+          {
+            "value": "specific",
+            "label": "Select specific skills"
+          }
+        ]
+      }
+    },
+    "skills": {
+      "type": "array",
+      "description": "The skills to install",
+      "items": {
+        "type": "string",
+        "enum": [
+          "pdf",
+          "xlsx",
+          "jupyter-notebook"
+        ]
+      },
+      "prompt-when": "selectionMode === 'specific'",
+      "prompt-type": "multiselect",
+      "prompt-message": "📦 Select skills to install"
+    },
+    "installationType": {
+      "type": "string",
+      "description": "Where to install skills",
+      "enum": ["global", "local"],
+      "default": "global",
+      "x-prompt": {
+        "message": "📍 Where should skills be installed?",
+        "type": "list",
+        "items": [
+          {
+            "value": "global",
+            "label": "Global (~/.claude/skills/) - Available in all projects"
+          },
+          {
+            "value": "local",
+            "label": "Local (./.claude/skills/) - Project-specific"
+          }
+        ]
+      }
+    },
+    "force": {
+      "type": "boolean",
+      "description": "Force installation even if skill already exists",
+      "default": false
+    },
+    "dry": {
+      "type": "boolean",
+      "description": "Dry run mode - preview changes without making them",
+      "default": false
+    },
+    "installMode": {
+      "type": "string",
+      "description": "Installation mode from parent generator (default or custom)",
+      "enum": ["default", "custom"],
+      "hidden": true
+    }
+  },
+  "required": []
+}

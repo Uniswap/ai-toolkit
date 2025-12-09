@@ -24,6 +24,11 @@
       "factory": "./dist/generators/addons/generator",
       "schema": "./dist/generators/addons/schema.json",
       "description": "Install and configure Claude Code addons including MCP servers"
+    },
+    "skills": {
+      "factory": "./dist/generators/skills/generator",
+      "schema": "./dist/generators/skills/schema.json",
+      "description": "Install Claude Code skills using the plugin system"
     }
   }
 }

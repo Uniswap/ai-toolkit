@@ -156,6 +156,43 @@
         }
       ]
     },
+    "installSkills": {
+      "type": "boolean",
+      "description": "Install Claude Code skills (model-invoked capabilities)",
+      "default": true,
+      "prompt-when": "installMode === 'custom'",
+      "prompt-message": "📦 Install skills? (model-invoked capabilities for PDF, Excel, Jupyter, etc.)",
+      "prompt-type": "confirm"
+    },
+    "skillSelectionMode": {
+      "type": "string",
+      "description": "Whether to install all skills or select specific ones",
+      "enum": ["all", "specific"],
+      "prompt-when": "installMode === 'custom' && installSkills === true",
+      "prompt-message": "📦 Select skills to install:",
+      "prompt-type": "list",
+      "prompt-items": [
+        {
+          "value": "all",
+          "label": "All skills"
+        },
+        {
+          "value": "specific",
+          "label": "Select specific skills"
+        }
+      ]
+    },
+    "skills": {
+      "type": "array",
+      "description": "Specific skills to install",
+      "items": {
+        "type": "string",
+        "enum": ["pdf", "xlsx", "jupyter-notebook"]
+      },
+      "prompt-when": "installMode === 'custom' && installSkills === true && skillSelectionMode === 'specific'",
+      "prompt-type": "multiselect",
+      "prompt-message": "📦 Select skills to install"
+    },
     "dry": {
       "type": "boolean",
       "description": "Preview installation without making changes",

@@ -18,19 +18,14 @@ import {
   installUpdateChecker,
 } from '../../utils/auto-update-utils';
 
-// Import available commands and agents from content packages
+// Import available commands, agents, and skills from content packages
 import { commands as agnosticCommands } from '@ai-toolkit/commands-agnostic';
 import { agents as agnosticAgents } from '@ai-toolkit/agents-agnostic';
-import { addonsGenerator, hooksGenerator } from '../../index';
+import { skills as agnosticSkills } from '@ai-toolkit/skills-agnostic';
+import { addonsGenerator, hooksGenerator, skillsGenerator } from '../../index';
 
 // Recommended default commands for most users
-const DEFAULT_COMMANDS = [
-  'explore',
-  'plan',
-  'review-plan',
-  'execute-plan',
-  'address-pr-issues',
-];
+const DEFAULT_COMMANDS = ['explore', 'plan', 'review-plan', 'execute-plan', 'address-pr-issues'];
 
 // Recommended default agents for most users
 const DEFAULT_AGENTS = [
@@ -41,6 +36,9 @@ const DEFAULT_AGENTS = [
   'doc-writer',
   'pr-reviewer',
 ];
+
+// All skills are installed by default
+const DEFAULT_SKILLS = Object.keys(agnosticSkills);
 
 interface Manifest {
   version: string;
@@ -103,9 +101,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     logger.info('🔍 DRY RUN: Claude CLI is not installed');
     logger.info('Would attempt installation in this order:');
     logger.info('  1. curl -fsSL https://claude.ai/install.sh | bash');
-    logger.info(
-      '  2. npm install -g @anthropic-ai/claude-code (if curl fails)'
-    );
+    logger.info('  2. npm install -g @anthropic-ai/claude-code (if curl fails)');
     logger.info('  3. Manual instructions (if both fail)');
   }
 
@@ -115,17 +111,17 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   // Apply defaults for "default" mode
   if (installMode === 'default') {
     logger.info('📦 Default Installation Mode');
-    logger.info(
-      '   Installing recommended setup with pre-selected components\n'
-    );
+    logger.info('   Installing recommended setup with pre-selected components\n');
 
     // Set all default mode options
     options.installMode = 'default'; // Explicitly set to ensure it's in options
     options.installationType = 'global';
     options.commands = DEFAULT_COMMANDS;
     options.agents = DEFAULT_AGENTS;
+    options.skills = DEFAULT_SKILLS;
     options.installCommands = true;
     options.installAgents = true;
+    options.installSkills = true; // Auto-install skills in default mode
     options.installHooks = true; // Auto-install hooks in default mode
     options.hooksMode = 'sound'; // Use sound notifications
     options.installAddons = true; // Install all MCPs in default mode
@@ -134,6 +130,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     logger.info('📍 Location: Global (~/.claude)');
     logger.info(`📝 Commands: ${DEFAULT_COMMANDS.length} pre-selected`);
     logger.info(`🤖 Agents: ${DEFAULT_AGENTS.length} pre-selected`);
+    logger.info(`📦 Skills: ${DEFAULT_SKILLS.length} pre-selected`);
     logger.info(`🔌 MCPs: All recommended servers will be installed\n`);
 
     // Mark all default mode options as explicitly provided to skip prompts
@@ -142,29 +139,28 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     explicitlyProvided.set('installationType', 'global');
     explicitlyProvided.set('installCommands', true);
     explicitlyProvided.set('installAgents', true);
+    explicitlyProvided.set('installSkills', true);
     explicitlyProvided.set('installHooks', true);
     explicitlyProvided.set('hooksMode', 'sound');
     explicitlyProvided.set('installAddons', true);
     explicitlyProvided.set('dry', false);
     explicitlyProvided.set('commands', DEFAULT_COMMANDS);
     explicitlyProvided.set('agents', DEFAULT_AGENTS);
+    explicitlyProvided.set('skills', DEFAULT_SKILLS);
   }
 
   // Handle interactive mode with schema-driven prompts
   const schemaPath = path.join(__dirname, 'schema.json');
 
-  // Extract command and agent descriptions from the new structure
+  // Extract command, agent, and skill descriptions from the new structure
   const commandDescriptions = Object.fromEntries(
-    Object.entries(agnosticCommands).map(([key, value]) => [
-      key,
-      value.description,
-    ])
+    Object.entries(agnosticCommands).map(([key, value]) => [key, value.description])
   );
   const agentDescriptions = Object.fromEntries(
-    Object.entries(agnosticAgents).map(([key, value]) => [
-      key,
-      value.description,
-    ])
+    Object.entries(agnosticAgents).map(([key, value]) => [key, value.description])
+  );
+  const skillDescriptions = Object.fromEntries(
+    Object.entries(agnosticSkills).map(([key, value]) => [key, value.description])
   );
 
   // Define directory paths
@@ -179,21 +175,13 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     'commands',
     Object.keys(agnosticCommands)
   );
-  const globalExistingAgents = checkExistingFiles(
-    globalDir,
-    'agents',
-    Object.keys(agnosticAgents)
-  );
+  const globalExistingAgents = checkExistingFiles(globalDir, 'agents', Object.keys(agnosticAgents));
   const localExistingCommands = checkExistingFiles(
     localDir,
     'commands',
     Object.keys(agnosticCommands)
   );
-  const localExistingAgents = checkExistingFiles(
-    localDir,
-    'agents',
-    Object.keys(agnosticAgents)
-  );
+  const localExistingAgents = checkExistingFiles(localDir, 'agents', Object.keys(agnosticAgents));
 
   // Pass the no-interactive flag to prompt-utils via options
   const optionsWithNoInteractive = {
@@ -209,14 +197,17 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
       {
         availableCommands: Object.keys(agnosticCommands),
         availableAgents: Object.keys(agnosticAgents),
+        availableSkills: Object.keys(agnosticSkills),
         commandDescriptions,
         agentDescriptions,
+        skillDescriptions,
         globalExistingCommands,
         globalExistingAgents,
         localExistingCommands,
         localExistingAgents,
         defaultCommands: DEFAULT_COMMANDS,
         defaultAgents: DEFAULT_AGENTS,
+        defaultSkills: DEFAULT_SKILLS,
       },
       explicitlyProvided
     );
@@ -239,15 +230,11 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   // Handle 'all' selection modes
   if (normalizedOptions.commandSelectionMode === 'all') {
     normalizedOptions.commands = Object.keys(agnosticCommands);
-    logger.info(
-      `📝 All commands selected (${normalizedOptions.commands.length} total)`
-    );
+    logger.info(`📝 All commands selected (${normalizedOptions.commands.length} total)`);
   }
   if (normalizedOptions.agentSelectionMode === 'all') {
     normalizedOptions.agents = Object.keys(agnosticAgents);
-    logger.info(
-      `🤖 All agents selected (${normalizedOptions.agents.length} total)`
-    );
+    logger.info(`🤖 All agents selected (${normalizedOptions.agents.length} total)`);
   }
 
   // Skip command/agent arrays if install flags are false
@@ -268,9 +255,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     : path.join(workspaceRoot, '.claude');
 
   // Calculate relative path from workspace root for tree.write()
-  const relativeTargetDir = isGlobalInstall
-    ? path.relative(workspaceRoot, targetDir)
-    : '.claude';
+  const relativeTargetDir = isGlobalInstall ? path.relative(workspaceRoot, targetDir) : '.claude';
 
   // Check for existing installation and handle force prompt (skip in dry-run mode)
   const relativeManifestPath = path.join(relativeTargetDir, 'manifest.json');
@@ -308,28 +293,16 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     let sourcePath: string | null = null;
 
     // First check for bundled content (when running as standalone package)
-    const bundledContentDir = path.join(
-      __dirname,
-      '..',
-      '..',
-      'content',
-      'commands'
-    );
+    const bundledContentDir = path.join(__dirname, '..', '..', 'content', 'commands');
     if (fs.existsSync(bundledContentDir)) {
       // Check in bundled content subdirectories
-      const contentSubDirs = fs
-        .readdirSync(bundledContentDir)
-        .filter((item) => {
-          const itemPath = path.join(bundledContentDir, item);
-          return fs.statSync(itemPath).isDirectory();
-        });
+      const contentSubDirs = fs.readdirSync(bundledContentDir).filter((item) => {
+        const itemPath = path.join(bundledContentDir, item);
+        return fs.statSync(itemPath).isDirectory();
+      });
 
       for (const subDir of contentSubDirs) {
-        const potentialPath = path.join(
-          bundledContentDir,
-          subDir,
-          `${commandName}.md`
-        );
+        const potentialPath = path.join(bundledContentDir, subDir, `${commandName}.md`);
         if (fs.existsSync(potentialPath)) {
           sourcePath = potentialPath;
           break;
@@ -345,21 +318,14 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
       // Check if commands directory exists
       if (fs.existsSync(commandsBaseDir)) {
         // Get all subdirectories (agnostic, mobile, web, etc.)
-        const commandSubDirs = fs
-          .readdirSync(commandsBaseDir)
-          .filter((item) => {
-            const itemPath = path.join(commandsBaseDir, item);
-            return fs.statSync(itemPath).isDirectory();
-          });
+        const commandSubDirs = fs.readdirSync(commandsBaseDir).filter((item) => {
+          const itemPath = path.join(commandsBaseDir, item);
+          return fs.statSync(itemPath).isDirectory();
+        });
 
         // Search for the command file in each subdirectory's src folder
         for (const subDir of commandSubDirs) {
-          const potentialPath = path.join(
-            commandsBaseDir,
-            subDir,
-            'src',
-            `${commandName}.md`
-          );
+          const potentialPath = path.join(commandsBaseDir, subDir, 'src', `${commandName}.md`);
           if (fs.existsSync(potentialPath)) {
             sourcePath = potentialPath;
             break;
@@ -369,10 +335,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     }
 
     const destPath = path.join(commandsDir, `${commandName}.md`);
-    const relativeDestPath = path.join(
-      relativeCommandsDir,
-      `${commandName}.md`
-    );
+    const relativeDestPath = path.join(relativeCommandsDir, `${commandName}.md`);
 
     try {
       if (sourcePath && fs.existsSync(sourcePath)) {
@@ -397,28 +360,16 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     let sourcePath: string | null = null;
 
     // First check for bundled content (when running as standalone package)
-    const bundledContentDir = path.join(
-      __dirname,
-      '..',
-      '..',
-      'content',
-      'agents'
-    );
+    const bundledContentDir = path.join(__dirname, '..', '..', 'content', 'agents');
     if (fs.existsSync(bundledContentDir)) {
       // Check in bundled content subdirectories
-      const contentSubDirs = fs
-        .readdirSync(bundledContentDir)
-        .filter((item) => {
-          const itemPath = path.join(bundledContentDir, item);
-          return fs.statSync(itemPath).isDirectory();
-        });
+      const contentSubDirs = fs.readdirSync(bundledContentDir).filter((item) => {
+        const itemPath = path.join(bundledContentDir, item);
+        return fs.statSync(itemPath).isDirectory();
+      });
 
       for (const subDir of contentSubDirs) {
-        const potentialPath = path.join(
-          bundledContentDir,
-          subDir,
-          `${agentName}.md`
-        );
+        const potentialPath = path.join(bundledContentDir, subDir, `${agentName}.md`);
         if (fs.existsSync(potentialPath)) {
           sourcePath = potentialPath;
           break;
@@ -441,12 +392,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
 
         // Search for the agent file in each subdirectory's src folder
         for (const subDir of agentSubDirs) {
-          const potentialPath = path.join(
-            agentsBaseDir,
-            subDir,
-            'src',
-            `${agentName}.md`
-          );
+          const potentialPath = path.join(agentsBaseDir, subDir, 'src', `${agentName}.md`);
           if (fs.existsSync(potentialPath)) {
             sourcePath = potentialPath;
             break;
@@ -498,9 +444,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     logger.info('  - Add update check script to your shell configuration');
     logger.info('  - Checks once per week for new versions');
     logger.info('  - Runs in background (non-blocking)');
-    logger.info(
-      '  - Can be disabled with: export AI_TOOLKIT_SKIP_UPDATE_CHECK=1'
-    );
+    logger.info('  - Can be disabled with: export AI_TOOLKIT_SKIP_UPDATE_CHECK=1');
 
     return;
   }
@@ -533,9 +477,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
       installUpdateChecker(shell, version);
     } catch (error) {
       logger.warn(`⚠️  Failed to install update checker: ${error}`);
-      logger.info(
-        'This is a bug in ai-toolkit, please report it to the #pod-dev-ai Slack channel'
-      );
+      logger.info('This is a bug in ai-toolkit, please report it to the #pod-dev-ai Slack channel');
     }
 
     // Install hooks if requested
@@ -586,10 +528,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
           skipVerification: false,
           dashboardMode: 'always' as const,
           port: 0,
-          installMode:
-            normalizedOptions.addonSelectionMode === 'specific'
-              ? 'custom'
-              : 'default',
+          installMode: normalizedOptions.addonSelectionMode === 'specific' ? 'custom' : 'default',
         });
         logger.info('✅ Addons installed successfully');
         addonsInstalled = true;
@@ -598,6 +537,42 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
         logger.error(error.message);
         logger.info('   Continuing with installation...');
         // Continue anyway - addons are optional
+      }
+    }
+
+    // Install skills if requested
+    let skillsInstalled = false;
+    const shouldInstallSkills = normalizedOptions.installSkills === true;
+
+    if (shouldInstallSkills) {
+      try {
+        logger.info('\n📦 Installing skills...');
+        if (!skillsGenerator) {
+          throw new Error('skillsGenerator export not found');
+        }
+
+        // Determine skill installation mode based on skillSelectionMode
+        const skillInstallMode =
+          normalizedOptions.installMode === 'default' ||
+          normalizedOptions.skillSelectionMode === 'all'
+            ? ('all' as const)
+            : ('specific' as const);
+
+        await skillsGenerator(tree, {
+          dry: normalizedOptions.dry || false,
+          selectionMode: skillInstallMode,
+          skills: normalizedOptions.skills,
+          installationType: normalizedOptions.installationType || 'global',
+          force: normalizedOptions.force || false,
+          installMode: normalizedOptions.skillSelectionMode === 'specific' ? 'custom' : 'default',
+        });
+        logger.info('✅ Skills installed successfully');
+        skillsInstalled = true;
+      } catch (error: any) {
+        logger.error('❌ Failed to install skills');
+        logger.error(error.message);
+        logger.info('   Continuing with installation...');
+        // Continue anyway - skills are optional
       }
     }
 
@@ -615,25 +590,23 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     if (addonsInstalled) {
       logger.info('   Addons: ✅ Installed');
     }
+    if (skillsInstalled) {
+      logger.info('   Skills: ✅ Installed');
+    }
   } else {
     // Dry-run mode - show what would be installed for hooks/addons
     if (normalizedOptions.installHooks) {
-      logger.info(
-        '\n🔍 DRY RUN: Would install notification hooks (sound mode)'
-      );
+      logger.info('\n🔍 DRY RUN: Would install notification hooks (sound mode)');
     }
     // In custom mode, the addons prompt occurs after hooks
     const installAddonsExplicit =
-      explicitlyProvided.has('installAddons') ||
-      explicitlyProvided.has('install-addons');
+      explicitlyProvided.has('installAddons') || explicitlyProvided.has('install-addons');
     if (
       normalizedOptions.installMode === 'custom' &&
       !installAddonsExplicit &&
       !normalizedOptions.nonInteractive
     ) {
-      logger.info(
-        '\n🔍 DRY RUN: Would prompt to install spec-mcp-workflow addon after hooks'
-      );
+      logger.info('\n🔍 DRY RUN: Would prompt to install spec-mcp-workflow addon after hooks');
     } else if (normalizedOptions.installAddons) {
       logger.info('\n🔍 DRY RUN: Would install spec-mcp-workflow addon');
     }
@@ -739,10 +712,7 @@ async function installViaNpm(): Promise<boolean> {
     if (error.code === 'ENOENT') {
       logger.error('❌ npm not found. Please install Node.js and npm first.');
       logger.info('Visit https://nodejs.org/ to install Node.js');
-    } else if (
-      error.message?.includes('permission') ||
-      error.message?.includes('EACCES')
-    ) {
+    } else if (error.message?.includes('permission') || error.message?.includes('EACCES')) {
       logger.error('❌ npm installation failed due to permissions.');
       logger.info('Try running: npm install -g @anthropic-ai/claude-code');
       logger.info('Then run: claude migrate-installer');
@@ -765,9 +735,7 @@ async function verifyInstallation(method: 'curl' | 'npm'): Promise<void> {
     logger.info('You can also run "claude --version" to verify');
   } catch {
     logger.warn('⚠️  Claude CLI not found in PATH');
-    logger.info(
-      'You may need to restart your terminal or add Claude to your PATH'
-    );
+    logger.info('You may need to restart your terminal or add Claude to your PATH');
   }
 }
 
@@ -779,12 +747,8 @@ function provideManualInstructions(): void {
   logger.info('\n📚 Manual Installation Instructions:');
   logger.info('1. Via curl: curl -fsSL https://claude.ai/install.sh | bash');
   logger.info('2. Via npm: npm install -g @anthropic-ai/claude-code');
-  logger.info(
-    '3. Visit: https://claude.ai/download for platform-specific instructions'
-  );
-  logger.info(
-    '\nFor troubleshooting, run "claude doctor" after manual installation'
-  );
+  logger.info('3. Visit: https://claude.ai/download for platform-specific instructions');
+  logger.info('\nFor troubleshooting, run "claude doctor" after manual installation');
 }
 
 export default initGenerator;
