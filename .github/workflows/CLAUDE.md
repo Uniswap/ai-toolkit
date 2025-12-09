@@ -73,6 +73,21 @@ This workflow performs automated PR code reviews using Claude AI with the follow
 - Custom prompt support
 - Existing review comment context for re-reviews
 - Fast review mode for trivial PRs (< 20 lines)
+- **Built-in Verdict Decision Rules** - Ensures consistent, predictable review verdicts
+
+**Verdict Decision Rules:**
+
+The workflow includes mandatory verdict decision rules that ensure Claude returns appropriate review verdicts:
+
+| Verdict | When to Use |
+|---------|-------------|
+| **APPROVE** | No bugs or security issues found. Suggestions, questions, and style feedback are NOT blocking. |
+| **REQUEST_CHANGES** | Bugs, security vulnerabilities, data corruption risks, or breaking changes found. |
+| **COMMENT** | Used sparingly when multiple near-blocking issues exist or significant rework is needed, but no specific bug can be identified. |
+
+**Key principle:** Questions, considerations, "nice-to-haves", and teaching moments are NOT blocking issues. If Claude's review is positive overall with suggestions, it should APPROVE, not COMMENT.
+
+This logic is built into the workflow's system prompt, so all consumers get consistent verdict behavior regardless of their custom prompt content. Custom prompts should focus on *how to review* (priorities, tone, patterns to look for), not *how to decide the verdict*.
 
 **Architecture:**
 
