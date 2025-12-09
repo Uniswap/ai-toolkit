@@ -1,6 +1,6 @@
 {
   "name": "@uniswap/ai-toolkit-linear-task-utils",
-  "version": "0.0.7-next.0",
+  "version": "0.0.7",
   "private": false,
   "type": "commonjs",
   "description": "CLI tool to query Linear issues for autonomous Claude Code task processing",
