@@ -8,26 +8,85 @@ name: Claude Code Review
 # - Auto-resolution of fixed issues on subsequent reviews
 # - Patch-ID based caching to skip rebases (no duplicate reviews)
 # - Iterative review tracking of previous comments
+# - Re-request review support (via GitHub UI "re-request review" button)
+#
+# TRIGGERS:
+# - Automatic: On PR open, synchronize (push), or ready_for_review
+# - Re-request: Click "re-request review" from github-actions[bot] in the PR UI
+# - Manual: Via workflow_dispatch with PR number and optional force_review flag
+#
+# RE-REQUEST REVIEW (Easiest Method):
+# In the GitHub PR UI, find the github-actions[bot] reviewer and click the
+# "re-request review" button (circular arrow icon). This bypasses the cache
+# and runs a fresh review even if the code hasn't changed.
+#
+# MANUAL TRIGGER (workflow_dispatch):
+# Alternatively, use the Actions tab to manually trigger a review:
+#   gh workflow run "Claude Code Review" -f pr_number=123
 #
 # The review uses the default prompt from this repository's
 # .github/prompts/default-pr-review.md
 
 on:
   pull_request:
-    types: [opened, synchronize, ready_for_review]
+    types:
+      - opened
+      - synchronize
+      - ready_for_review
+      - review_requested # Triggered when review is requested/re-requested
+
+  # Manual trigger for re-requesting a review
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Pull request number to review"
+        required: true
+        type: string
+      force_review:
+        description: "Force a full review even if the code hasn't changed (bypasses cache)"
+        required: false
+        type: boolean
+        default: true
 
 # Ensure only one review runs at a time per PR
 # New reviews wait for the current one to complete before starting
 concurrency:
-  group: claude-review-${{ github.event.pull_request.number }}
+  group: claude-review-${{ github.event.pull_request.number || inputs.pr_number }}
   cancel-in-progress: false
 
 jobs:
-  claude-review:
-    # Skip merge queue PRs, draft PRs (unless authored by claude[bot]), and release promotion PRs
-    # DEV-131 requirement #6: Skip workflow for production promotion PRs
-    # Exception: Always run on PRs authored by claude[bot] (autonomous task PRs)
+  # Fetch PR details for manual triggers (workflow_dispatch)
+  # This job retrieves base_ref which isn't available in workflow_dispatch context
+  get-pr-info:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      base_ref: ${{ steps.pr-info.outputs.base_ref }}
+      head_ref: ${{ steps.pr-info.outputs.head_ref }}
+    steps:
+      - name: Get PR Info
+        id: pr-info
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+        run: |
+          echo "ℹ️  Fetching PR #$PR_NUMBER info..."
+          PR_DATA=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER)
+
+          BASE_REF=$(echo "$PR_DATA" | jq -r '.base.ref')
+          HEAD_REF=$(echo "$PR_DATA" | jq -r '.head.ref')
+
+          echo "base_ref=$BASE_REF" >> $GITHUB_OUTPUT
+          echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
+
+          echo "✅ PR #$PR_NUMBER: base=$BASE_REF, head=$HEAD_REF"
+
+  # Automatic review triggered by pull_request events (opened, synchronize, ready_for_review)
+  # Does NOT run for review_requested events (those are handled by claude-review-rerequest)
+  claude-review-auto:
     if: |
+      github.event_name == 'pull_request' &&
+      github.event.action != 'review_requested' &&
       !contains(github.head_ref, 'gh-readonly-queue/') &&
       !startsWith(github.head_ref, 'release/next-to-main-') &&
       (
@@ -40,6 +99,7 @@ jobs:
     with:
       pr_number: ${{ github.event.pull_request.number }}
       base_ref: ${{ github.base_ref }}
+      force_review: false
 
       # Use Opus 4.5 for comprehensive reviews with reliable inline comments
       # Opus is more capable at following complex multi-step instructions
@@ -61,13 +121,68 @@ jobs:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
 
-  # Auto-merge Dependabot security updates after successful review
-  auto-merge-dependabot:
-    needs: claude-review
+  # Re-request review triggered when someone clicks "re-request review" from github-actions[bot]
+  # This forces a fresh review even if the code hasn't changed (bypasses patch-ID cache)
+  # NOTE: Unlike claude-review-auto, this intentionally does NOT check for draft PRs.
+  # Users who explicitly re-request a review on a draft PR want a review.
+  claude-review-rerequest:
     if: |
+      github.event_name == 'pull_request' &&
+      github.event.action == 'review_requested' &&
+      github.event.requested_reviewer.login == 'github-actions[bot]' &&
+      !contains(github.head_ref, 'gh-readonly-queue/') &&
+      !startsWith(github.head_ref, 'release/next-to-main-')
+
+    uses: ./.github/workflows/_claude-code-review.yml
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      base_ref: ${{ github.base_ref }}
+      force_review: true # Always force when re-requesting
+
+      # Use Opus 4.5 for comprehensive reviews with reliable inline comments
+      model: 'claude-opus-4-5'
+
+      # Standard timeout for most PRs
+      timeout_minutes: 20
+
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+
+  # Manual review triggered by workflow_dispatch
+  # This runs after get-pr-info to have access to PR metadata
+  claude-review-manual:
+    needs: get-pr-info
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      !contains(needs.get-pr-info.outputs.head_ref, 'gh-readonly-queue/') &&
+      !startsWith(needs.get-pr-info.outputs.head_ref, 'release/next-to-main-')
+
+    uses: ./.github/workflows/_claude-code-review.yml
+    with:
+      pr_number: ${{ inputs.pr_number }}
+      base_ref: ${{ needs.get-pr-info.outputs.base_ref }}
+      force_review: ${{ inputs.force_review }}
+
+      # Use Opus 4.5 for comprehensive reviews with reliable inline comments
+      model: 'claude-opus-4-5'
+
+      # Standard timeout for most PRs
+      timeout_minutes: 20
+
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+
+  # Auto-merge Dependabot security updates after successful review
+  # Only runs for pull_request events (dependabot only triggers pull_request)
+  auto-merge-dependabot:
+    needs: claude-review-auto
+    if: |
+      github.event_name == 'pull_request' &&
       github.actor == 'dependabot[bot]' &&
       (contains(github.event.pull_request.title, 'security') || contains(github.event.pull_request.title, 'Bump')) &&
-      needs.claude-review.result == 'success'
+      needs.claude-review-auto.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
