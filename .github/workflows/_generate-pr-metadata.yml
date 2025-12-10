@@ -790,6 +790,12 @@ jobs:
 
               # Add preserved content before markers (if any)
               if [ -n "$CONTENT_BEFORE" ]; then
+                # Only strip trailing --- if it was our separator (directly before the start marker)
+                # Check if the original body had "---" immediately before the start marker
+                if echo "$CURRENT_BODY" | grep -qE "---[[:space:]]*\n[[:space:]]*${START_MARKER}"; then
+                  # Strip the trailing --- since it's our separator that we'll re-add
+                  CONTENT_BEFORE=$(echo "$CONTENT_BEFORE" | sed -E 's/[[:space:]]*---[[:space:]]*$//')
+                fi
                 NEW_DESCRIPTION="${CONTENT_BEFORE}"$'\n\n'
               fi
 
