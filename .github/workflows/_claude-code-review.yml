@@ -132,11 +132,24 @@ jobs:
         with:
           egress-policy: audit
 
-      # Checkout code with full history for patch-ID calculation
+      # Get PR head SHA via API to checkout the exact commit (not GitHub's merge commit)
+      # This ensures we only review the PR's actual changes, not other commits merged to the base branch
+      - name: Get PR Head SHA
+        id: pr-head
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+        run: |
+          HEAD_SHA=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.head.sha')
+          echo "head_sha=$HEAD_SHA" >> $GITHUB_OUTPUT
+          echo "📍 PR head SHA: $HEAD_SHA"
+
+      # Checkout the exact PR head commit (not GitHub's merge commit)
       - name: Checkout Repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
-          fetch-depth: 0 # Full history needed for git merge-base
+          ref: ${{ steps.pr-head.outputs.head_sha }}
+          fetch-depth: 0 # Full history needed for accurate diff calculation
 
       # Setup Node.js early so we can post status updates
       - name: Setup Node.js (Early)
@@ -185,14 +198,18 @@ jobs:
         env:
           BASE_REF: ${{ inputs.base_ref }}
         run: |
-          # Find the merge base between base branch and HEAD
+          # Find where the PR branch diverged from the base branch
+          # HEAD is the PR head commit (checked out via inputs.head_sha)
           MERGE_BASE=$(git merge-base origin/$BASE_REF HEAD)
+          echo "merge_base=$MERGE_BASE" >> $GITHUB_OUTPUT
 
           # Calculate stable patch-ID (same code = same ID, even after rebase)
+          # This diff contains ONLY the PR's changes, not other commits merged to base
           PATCH_ID=$(git diff ${MERGE_BASE}..HEAD | git patch-id --stable | cut -d' ' -f1)
 
           echo "patch_id=$PATCH_ID" >> $GITHUB_OUTPUT
           echo "📊 Patch-ID: ${PATCH_ID:0:12}... (first 12 chars)"
+          echo "📍 Merge base: $MERGE_BASE"
           echo "   This ID stays the same across rebases if code hasn't changed"
 
       # Check cache BEFORE posting in-progress to preserve existing review
@@ -255,10 +272,10 @@ jobs:
         id: pr-size
         if: steps.cache-check.outputs.cache-hit != 'true'
         env:
-          BASE_REF: ${{ inputs.base_ref }}
+          MERGE_BASE: ${{ steps.patch-id.outputs.merge_base }}
         run: |
-          # Find the merge base between base branch and HEAD
-          MERGE_BASE=$(git merge-base origin/$BASE_REF HEAD)
+          # Reuse merge base from patch-id step (already calculated)
+          echo "📍 Using merge base from patch-id step: $MERGE_BASE"
 
           # Count lines changed (additions + deletions)
           STATS=$(git diff --shortstat ${MERGE_BASE}..HEAD)
@@ -335,6 +352,39 @@ jobs:
             echo "ℹ️  No existing review comments found (initial review)"
           fi
 
+      # Generate the PR diff for Claude to review
+      # This ensures Claude reviews ONLY the PR's changes, not other commits merged to main
+      - name: Generate PR Diff
+        if: steps.cache-check.outputs.cache-hit != 'true'
+        id: pr-diff
+        env:
+          MERGE_BASE: ${{ steps.patch-id.outputs.merge_base }}
+        run: |
+          set -euo pipefail
+
+          echo "ℹ️  Generating PR diff..."
+
+          # Reuse merge base from patch-id step (already calculated)
+          # This ensures consistency across all steps using the merge base
+          echo "📍 Using merge base from patch-id step: $MERGE_BASE"
+
+          # Generate the list of changed files (for reference)
+          CHANGED_FILES=$(git diff --name-only ${MERGE_BASE}..HEAD)
+          FILE_COUNT=$(echo "$CHANGED_FILES" | grep -c . || echo "0")
+          echo "📁 Files changed: $FILE_COUNT"
+
+          # Generate the full diff
+          # This is the ONLY diff Claude should review - it contains exactly the PR's changes
+          git diff ${MERGE_BASE}..HEAD > /tmp/pr-diff.txt
+
+          DIFF_SIZE=$(wc -c < /tmp/pr-diff.txt)
+          echo "📊 Diff size: $DIFF_SIZE bytes"
+
+          # Save changed files list
+          echo "$CHANGED_FILES" > /tmp/changed-files.txt
+
+          echo "✅ PR diff generated successfully"
+
       # Build final prompt with custom content
       - name: Build Review Prompt
         if: steps.cache-check.outputs.cache-hit != 'true'
@@ -349,6 +399,7 @@ jobs:
           PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
           EXISTING_COMMENT_COUNT: ${{ steps.existing-comments.outputs.existing_comment_count }}
           TOOLKIT_REF: ${{ inputs.toolkit_ref }}
+          MERGE_BASE: ${{ steps.patch-id.outputs.merge_base }}
         run: |
           CUSTOM_PROMPT=""
 
@@ -402,6 +453,28 @@ jobs:
           **PR Number:** $PR_NUMBER
           **Base Branch:** $BASE_REF
           **Patch ID:** $PATCH_ID
+
+          ---
+
+          # ⚠️ IMPORTANT: PR Diff Instructions
+
+          The diff below contains **ONLY** the changes in this PR. Do NOT run \`git diff\` yourself - the diff
+          has already been computed correctly using the merge-base between the PR branch and \`$BASE_REF\`.
+
+          **To get the correct diff, use this command:**
+          \`\`\`bash
+          git diff ${MERGE_BASE}..HEAD
+          \`\`\`
+
+          **Files changed in this PR:**
+          \`\`\`
+          $(cat /tmp/changed-files.txt)
+          \`\`\`
+
+          **Full PR Diff:**
+          \`\`\`diff
+          $(cat /tmp/pr-diff.txt)
+          \`\`\`
 
           ---
 
