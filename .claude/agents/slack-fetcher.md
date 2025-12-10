@@ -59,11 +59,10 @@ For each channel in the input:
 1. Call `mcp__slack__slack_get_channel_history`:
 
 ```typescript
-mcp__ -
-  slack__slack_get_channel_history({
-    channel_id: channel.id,
-    limit: limit_per_channel,
-  });
+mcp__slack__slack_get_channel_history({
+  channel_id: channel.id,
+  limit: limit_per_channel,
+});
 ```
 
 2. Log the fetch operation:
