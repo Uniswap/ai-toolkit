@@ -799,9 +799,9 @@ jobs:
                 fi
               fi
 
-              # Add horizontal rule separator and the marked generated content with header
-              NEW_DESCRIPTION="${NEW_DESCRIPTION}---"$'\n'
+              # Add the start marker, then horizontal rule separator inside it
               NEW_DESCRIPTION="${NEW_DESCRIPTION}${START_MARKER}"$'\n'
+              NEW_DESCRIPTION="${NEW_DESCRIPTION}---"$'\n'
               NEW_DESCRIPTION="${NEW_DESCRIPTION}## :sparkles: Claude-Generated Content"$'\n\n'
               NEW_DESCRIPTION="${NEW_DESCRIPTION}${GENERATED_DESCRIPTION}"$'\n'
               NEW_DESCRIPTION="${NEW_DESCRIPTION}${END_MARKER}"

@@ -260,14 +260,14 @@ This allows users to add custom notes, disclaimers, or additional context that s
 > **Note:** This PR requires manual QA testing before merge.
 
 <!-- claude-pr-description-start -->
+---
+## :sparkles: Claude-Generated Content
 
 ## Summary
 
 - Added new authentication flow
 - Updated user session handling
 <!-- claude-pr-description-end -->
-
----
 
 **Related Issues:** #123, #456
 ```
