@@ -775,7 +775,14 @@ jobs:
                   echo "  Preserved ${#CONTENT_AFTER} chars of user content after markers"
                 fi
               else
-                echo "No existing markers found, this appears to be a fresh generation"
+                # No markers found - preserve entire existing body as content before markers
+                # This ensures we APPEND the generated content below existing content on first run
+                if [ -n "$CURRENT_BODY" ]; then
+                  echo "No existing markers found - preserving existing PR body (${#CURRENT_BODY} chars)"
+                  CONTENT_BEFORE="$CURRENT_BODY"
+                else
+                  echo "No existing markers or body found, this is a fresh PR"
+                fi
               fi
 
               # Build final description with markers and preserved content

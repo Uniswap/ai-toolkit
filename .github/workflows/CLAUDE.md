@@ -176,7 +176,13 @@ The workflow wraps generated descriptions in HTML comment markers to enable sele
 <!-- claude-pr-description-end -->
 ```
 
-When regenerating a PR description:
+**First run behavior:**
+
+- If the PR already has a description (no markers yet), the existing content is preserved above the markers
+- The AI-generated content is **appended** below the existing description, wrapped in markers
+- This ensures existing PR descriptions are never lost
+
+**Subsequent runs:**
 
 - Content **before** `<!-- claude-pr-description-start -->` is preserved (user's prefix)
 - Content **after** `<!-- claude-pr-description-end -->` is preserved (user's suffix)
