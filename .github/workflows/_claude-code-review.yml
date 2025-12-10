@@ -50,6 +50,12 @@ on:
         required: true
         type: string
 
+      force_review:
+        description: "Force a full review even if the code hasn't changed (bypasses patch-ID cache)"
+        required: false
+        type: boolean
+        default: false
+
       model:
         description: "Claude model to use for review"
         required: false
@@ -171,17 +177,27 @@ jobs:
           fi
 
       # Check cache to see if we've already reviewed this exact code
+      # Skip cache check entirely when force_review is enabled
       - name: Check Review Cache
         id: cache-check
+        if: inputs.force_review != true
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .review-cache
           key: review-pr${{ inputs.pr_number }}-patch-${{ steps.patch-id.outputs.patch_id }}
           lookup-only: true # Just check, don't restore
 
+      # Log when force review is enabled
+      - name: Force Review Enabled
+        if: inputs.force_review == true
+        run: |
+          echo "🔄 Force review enabled - bypassing cache check"
+          echo "   A full review will run regardless of previous reviews for this code"
+
       # Early exit if we've already reviewed this code (rebase detected)
+      # Never skip when force_review is enabled
       - name: Skip Review if No Changes
-        if: steps.cache-check.outputs.cache-hit == 'true'
+        if: steps.cache-check.outputs.cache-hit == 'true' && inputs.force_review != true
         run: |
           echo "✅ Skipping review - no actual code changes detected"
           echo ""
@@ -189,6 +205,8 @@ jobs:
           echo "Patch-ID: ${{ steps.patch-id.outputs.patch_id }}"
           echo ""
           echo "We've already reviewed this exact code, so skipping to save API costs."
+          echo ""
+          echo "💡 To force a new review, use the manual trigger with force_review: true"
           exit 0
 
       # Fetch existing review comments for context

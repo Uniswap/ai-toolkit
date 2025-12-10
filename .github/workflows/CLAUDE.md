@@ -70,6 +70,7 @@ This workflow performs automated PR code reviews using Claude AI with the follow
 - Formal GitHub reviews (APPROVE/REQUEST_CHANGES/COMMENT)
 - Inline comments on specific lines of code (as `github-actions[bot]`)
 - Patch-ID based caching to skip rebases (no actual code changes)
+- Manual trigger support for re-requesting reviews (bypasses cache)
 - Custom prompt support
 - Existing review comment context for re-reviews
 - Fast review mode for trivial PRs (< 20 lines)
@@ -115,6 +116,7 @@ This ensures all comments appear as `github-actions[bot]` using the official Ant
 | -------------------- | -------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | `pr_number`          | Yes      | -                                  | Pull request number to review                                                                                                  |
 | `base_ref`           | Yes      | -                                  | Base branch name (e.g., main, master)                                                                                          |
+| `force_review`       | No       | `false`                            | Force a full review even if the code hasn't changed (bypasses patch-ID cache)                                                  |
 | `model`              | No       | `claude-sonnet-4-5-20250929`       | Claude model to use for review                                                                                                 |
 | `max_turns`          | No       | unlimited                          | Maximum conversation turns for Claude                                                                                          |
 | `custom_prompt`      | No       | `""`                               | Custom prompt text (overrides prompt file and default)                                                                         |
@@ -161,6 +163,47 @@ secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
   WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
 ```
+
+**Re-requesting a Review (Easiest Method):**
+
+The easiest way to trigger a fresh Claude review is through the GitHub PR UI:
+
+1. In your PR, find the `github-actions[bot]` reviewer in the "Reviewers" section
+2. Click the **re-request review** button (circular arrow icon ↻) next to it
+3. A new review will start automatically, bypassing the cache
+
+This is the same UX as re-requesting a review from any human reviewer!
+
+**When to use re-request:**
+
+- After addressing review comments without pushing new code
+- After infrastructure changes (e.g., updated prompts, new model)
+- When a previous review timed out or encountered errors
+- When you want a fresh perspective on unchanged code
+
+**Alternative: Manual Trigger via workflow_dispatch:**
+
+For advanced use cases, you can also trigger a review via the Actions tab:
+
+**Via GitHub CLI:**
+
+```bash
+# Trigger a forced review for PR #123
+gh workflow run "Claude Code Review" -f pr_number=123
+
+# Trigger without forcing (will respect cache)
+gh workflow run "Claude Code Review" -f pr_number=123 -f force_review=false
+```
+
+**Via GitHub UI:**
+
+1. Navigate to Actions → Claude Code Review
+2. Click "Run workflow"
+3. Enter the PR number
+4. Optionally toggle `force_review` (defaults to `true`)
+5. Click "Run workflow"
+
+When `force_review` is `true`, the workflow bypasses the patch-ID cache and runs a complete review even if the same code was previously reviewed.
 
 ### PR Metadata Generation (`_generate-pr-metadata.yml`)
 
