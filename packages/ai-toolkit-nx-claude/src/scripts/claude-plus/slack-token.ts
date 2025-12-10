@@ -80,7 +80,7 @@ function getCurrentToken(): string | null {
 
   try {
     const config = JSON.parse(fs.readFileSync(CLAUDE_CONFIG_PATH, 'utf-8'));
-    return config?.mcpServers?.['zencoder-slack']?.env?.SLACK_BOT_TOKEN || null;
+    return config?.mcpServers?.['slack']?.env?.SLACK_BOT_TOKEN || null;
   } catch {
     return null;
   }
@@ -235,14 +235,14 @@ function updateClaudeConfig(newToken: string, verbose?: boolean): void {
     config.mcpServers = {};
   }
   const mcpServers = config.mcpServers as Record<string, unknown>;
-  if (!mcpServers['zencoder-slack']) {
-    mcpServers['zencoder-slack'] = {};
+  if (!mcpServers['slack']) {
+    mcpServers['slack'] = {};
   }
-  const zencoderSlack = mcpServers['zencoder-slack'] as Record<string, unknown>;
-  if (!zencoderSlack.env) {
-    zencoderSlack.env = {};
+  const slack = mcpServers['slack'] as Record<string, unknown>;
+  if (!slack.env) {
+    slack.env = {};
   }
-  const env = zencoderSlack.env as Record<string, string>;
+  const env = slack.env as Record<string, string>;
 
   // Update the token
   env.SLACK_BOT_TOKEN = newToken;
