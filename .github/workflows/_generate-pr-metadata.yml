@@ -89,14 +89,24 @@ on:
 
       generation_mode:
         description: |
-          What to generate. Options:
-          - "both" (default): Generate both title and description
-          - "both-deferred-title": Generate description always; only generate title if the existing PR title is inadequate (doesn't follow conventions or is inaccurate)
-          - "title": Generate only the PR title
-          - "description": Generate only the PR description
+          Comma-separated list of what to generate. Combine values as needed.
+
+          Values:
+          - "title": Generate and set the PR title (overwrites existing)
+          - "description": Generate the PR description
+          - "title-suggestion": Include a suggested title in the description (non-intrusive)
+          - "deferred-title": Only generate title if existing is inadequate (doesn't follow conventions)
+
+          Common combinations:
+          - "description": Only generate description, leave title alone
+          - "title,description": Generate both title and description
+          - "description,title-suggestion" (default): Generate description with suggested title for manual copy
+          - "deferred-title,description": Generate description; only update title if inadequate
+
+          Note: "title" and "deferred-title" are mutually exclusive. "title" and "title-suggestion" are mutually exclusive.
         required: false
         type: string
-        default: "both"
+        default: "description,title-suggestion"
 
     secrets:
       ANTHROPIC_API_KEY:
@@ -377,8 +387,43 @@ jobs:
           # Append custom prompt content
           echo "$CUSTOM_PROMPT" >> /tmp/final-prompt.txt
 
-          # Append output writing requirements based on generation mode
+          # Parse comma-separated generation modes into flags
           echo "📋 Generation mode: $GENERATION_MODE"
+
+          # Initialize mode flags
+          MODE_TITLE=false
+          MODE_DESCRIPTION=false
+          MODE_TITLE_SUGGESTION=false
+          MODE_DEFERRED_TITLE=false
+
+          # Parse comma-separated values
+          IFS=',' read -ra MODES <<< "$GENERATION_MODE"
+          for mode in "${MODES[@]}"; do
+            # Trim whitespace
+            mode=$(echo "$mode" | xargs)
+            case "$mode" in
+              title) MODE_TITLE=true ;;
+              description) MODE_DESCRIPTION=true ;;
+              title-suggestion) MODE_TITLE_SUGGESTION=true ;;
+              deferred-title) MODE_DEFERRED_TITLE=true ;;
+              *) echo "⚠️ Unknown generation mode: $mode" ;;
+            esac
+          done
+
+          echo "  - Title: $MODE_TITLE"
+          echo "  - Description: $MODE_DESCRIPTION"
+          echo "  - Title Suggestion: $MODE_TITLE_SUGGESTION"
+          echo "  - Deferred Title: $MODE_DEFERRED_TITLE"
+
+          # Validate mutually exclusive modes
+          if [ "$MODE_TITLE" = true ] && [ "$MODE_DEFERRED_TITLE" = true ]; then
+            echo "⚠️ Warning: 'title' and 'deferred-title' are mutually exclusive. Using 'title'."
+            MODE_DEFERRED_TITLE=false
+          fi
+          if [ "$MODE_TITLE" = true ] && [ "$MODE_TITLE_SUGGESTION" = true ]; then
+            echo "⚠️ Warning: 'title' and 'title-suggestion' are mutually exclusive. Using 'title'."
+            MODE_TITLE_SUGGESTION=false
+          fi
 
           cat >> /tmp/final-prompt.txt <<'OUTPUT_HEADER_EOF'
 
@@ -390,9 +435,8 @@ jobs:
 
           OUTPUT_HEADER_EOF
 
-          # Conditionally include title instructions based on generation mode
-          if [ "$GENERATION_MODE" = "both" ] || [ "$GENERATION_MODE" = "title" ]; then
-            # Standard title generation - always generate
+          # Title generation instructions (if mode includes title)
+          if [ "$MODE_TITLE" = true ]; then
             cat >> /tmp/final-prompt.txt <<'TITLE_EOF'
           ## Title Output: `$GITHUB_WORKSPACE/.claude-pr-title.txt`
 
@@ -410,8 +454,10 @@ jobs:
           ```
 
           TITLE_EOF
-          elif [ "$GENERATION_MODE" = "both-deferred-title" ]; then
-            # Deferred title generation - only generate if existing title is inadequate
+          fi
+
+          # Deferred title generation instructions (if mode includes deferred-title)
+          if [ "$MODE_DEFERRED_TITLE" = true ]; then
             cat >> /tmp/final-prompt.txt <<'TITLE_DEFERRED_EOF'
           ## Title Output: `$GITHUB_WORKSPACE/.claude-pr-title.txt` (CONDITIONAL)
 
@@ -438,9 +484,49 @@ jobs:
           TITLE_DEFERRED_EOF
           fi
 
-          # Conditionally include description instructions
-          if [ "$GENERATION_MODE" = "both" ] || [ "$GENERATION_MODE" = "both-deferred-title" ] || [ "$GENERATION_MODE" = "description" ]; then
-            cat >> /tmp/final-prompt.txt <<'DESC_EOF'
+          # Description generation instructions (if mode includes description)
+          if [ "$MODE_DESCRIPTION" = true ]; then
+            # Check if title-suggestion is also enabled
+            if [ "$MODE_TITLE_SUGGESTION" = true ]; then
+              # Description with embedded title suggestion
+              cat >> /tmp/final-prompt.txt <<'DESC_SUGGEST_EOF'
+          ## Description Output: `$GITHUB_WORKSPACE/.claude-pr-description.md`
+
+          **IMPORTANT:** Write this file to the full path: `$GITHUB_WORKSPACE/.claude-pr-description.md`
+
+          Contains the full PR description in markdown format with a **Suggested Title** section at the top. The structure should be:
+
+          ```markdown
+          ## Suggested Title
+
+          > <type>(<scope>): <description>
+
+          ---
+
+          ## Summary
+
+          [Rest of the PR description...]
+          ```
+
+          **Suggested Title Requirements:**
+          - Must follow conventional commit format: `<type>(<scope>): <description>`
+          - Types: feat, fix, chore, docs, style, refactor, perf, test, build, ci
+          - Scope should be derived from the primary area of change
+          - Description should be concise but descriptive (max 72 characters total)
+          - Format as a blockquote (>) so it's easy to copy
+
+          **Description Requirements:**
+          - Summary of changes
+          - Key modifications listed as bullet points
+          - Any breaking changes or important notes
+          - Follow the template patterns observed from recent PRs
+
+          **NOTE:** The suggested title is included in the description for the author to manually copy if desired. It does NOT automatically update the PR title.
+
+          DESC_SUGGEST_EOF
+            else
+              # Standard description without title suggestion
+              cat >> /tmp/final-prompt.txt <<'DESC_EOF'
           ## Description Output: `$GITHUB_WORKSPACE/.claude-pr-description.md`
 
           **IMPORTANT:** Write this file to the full path: `$GITHUB_WORKSPACE/.claude-pr-description.md`
@@ -452,19 +538,25 @@ jobs:
           - Follow the template patterns observed from recent PRs
 
           DESC_EOF
+            fi
           fi
 
-          # Add appropriate footer based on mode
-          if [ "$GENERATION_MODE" = "both-deferred-title" ]; then
-            cat >> /tmp/final-prompt.txt <<'OUTPUT_FOOTER_DEFERRED_EOF'
+          # Build output requirements footer
+          OUTPUT_REQS=""
+          if [ "$MODE_DESCRIPTION" = true ]; then
+            OUTPUT_REQS="- The description file is **required** - you must create it."
+          fi
+          if [ "$MODE_TITLE" = true ]; then
+            OUTPUT_REQS="${OUTPUT_REQS}\n- The title file is **required** - you must create it."
+          fi
+          if [ "$MODE_DEFERRED_TITLE" = true ]; then
+            OUTPUT_REQS="${OUTPUT_REQS}\n- The title file is **conditional** - only create it if the existing title is inadequate (see criteria above)."
+          fi
+
+          if [ -n "$OUTPUT_REQS" ]; then
+            cat >> /tmp/final-prompt.txt <<OUTPUT_FOOTER_EOF
           **Output Requirements:**
-          - The description file is **required** - you must create it.
-          - The title file is **conditional** - only create it if the existing title is inadequate (see criteria above).
-          OUTPUT_FOOTER_DEFERRED_EOF
-          else
-            cat >> /tmp/final-prompt.txt <<'OUTPUT_FOOTER_EOF'
-          **The output file(s) above are required** for the PR to be updated.
-          If you don't create them, the workflow will fail.
+          $(echo -e "$OUTPUT_REQS")
           OUTPUT_FOOTER_EOF
           fi
 
@@ -578,14 +670,30 @@ jobs:
 
           echo "Starting PR metadata update for PR #$PR_NUMBER (mode: $GENERATION_MODE)"
 
+          # Parse comma-separated generation modes into flags
+          MODE_TITLE=false
+          MODE_DESCRIPTION=false
+          MODE_DEFERRED_TITLE=false
+
+          IFS=',' read -ra MODES <<< "$GENERATION_MODE"
+          for mode in "${MODES[@]}"; do
+            mode=$(echo "$mode" | xargs)
+            case "$mode" in
+              title) MODE_TITLE=true ;;
+              description) MODE_DESCRIPTION=true ;;
+              title-suggestion) ;; # Handled within description, no separate action needed
+              deferred-title) MODE_DEFERRED_TITLE=true ;;
+            esac
+          done
+
           # Initialize variables and flags
           NEW_TITLE=""
           NEW_DESCRIPTION=""
           SHOULD_UPDATE_TITLE=false
           SHOULD_UPDATE_DESCRIPTION=false
 
-          # Read title from file if needed (mode involves title generation)
-          if [ "$GENERATION_MODE" = "both" ] || [ "$GENERATION_MODE" = "both-deferred-title" ] || [ "$GENERATION_MODE" = "title" ]; then
+          # Read title from file if needed (mode involves title or deferred-title)
+          if [ "$MODE_TITLE" = true ] || [ "$MODE_DEFERRED_TITLE" = true ]; then
             if [ -f "$TITLE_FILE" ]; then
               NEW_TITLE=$(cat "$TITLE_FILE" | tr -d '\n' | head -c 200)
               echo "Read title from file: $NEW_TITLE"
@@ -600,7 +708,7 @@ jobs:
               fi
             else
               # Different messaging based on mode
-              if [ "$GENERATION_MODE" = "both-deferred-title" ]; then
+              if [ "$MODE_DEFERRED_TITLE" = true ]; then
                 echo "ℹ️ Existing PR title was deemed acceptable - no title file generated"
                 echo "   The current PR title will be preserved."
               else
@@ -610,8 +718,8 @@ jobs:
             fi
           fi
 
-          # Read and process description if needed (mode involves description generation)
-          if [ "$GENERATION_MODE" = "both" ] || [ "$GENERATION_MODE" = "both-deferred-title" ] || [ "$GENERATION_MODE" = "description" ]; then
+          # Read and process description if needed (mode involves description)
+          if [ "$MODE_DESCRIPTION" = true ]; then
             if [ -f "$DESCRIPTION_FILE" ]; then
               GENERATED_DESCRIPTION=$(cat "$DESCRIPTION_FILE")
               echo "Read description from file (${#GENERATED_DESCRIPTION} chars)"

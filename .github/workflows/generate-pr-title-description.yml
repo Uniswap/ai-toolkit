@@ -41,7 +41,7 @@ jobs:
 
     uses: ./.github/workflows/_generate-pr-metadata.yml
     with:
-      generation_mode: "both"
+      generation_mode: "title,description"
       pr_number: ${{ github.event.pull_request.number }}
       base_ref: ${{ github.base_ref }}
       # Use default model (claude-sonnet-4-5-20250929)

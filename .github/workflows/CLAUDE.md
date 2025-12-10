@@ -79,15 +79,15 @@ This workflow performs automated PR code reviews using Claude AI with the follow
 
 The workflow includes mandatory verdict decision rules that ensure Claude returns appropriate review verdicts:
 
-| Verdict | When to Use |
-|---------|-------------|
-| **APPROVE** | No bugs or security issues found. Suggestions, questions, and style feedback are NOT blocking. |
-| **REQUEST_CHANGES** | Bugs, security vulnerabilities, data corruption risks, or breaking changes found. |
-| **COMMENT** | Used sparingly when multiple near-blocking issues exist or significant rework is needed, but no specific bug can be identified. |
+| Verdict             | When to Use                                                                                                                     |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **APPROVE**         | No bugs or security issues found. Suggestions, questions, and style feedback are NOT blocking.                                  |
+| **REQUEST_CHANGES** | Bugs, security vulnerabilities, data corruption risks, or breaking changes found.                                               |
+| **COMMENT**         | Used sparingly when multiple near-blocking issues exist or significant rework is needed, but no specific bug can be identified. |
 
 **Key principle:** Questions, considerations, "nice-to-haves", and teaching moments are NOT blocking issues. If Claude's review is positive overall with suggestions, it should APPROVE, not COMMENT.
 
-This logic is built into the workflow's system prompt, so all consumers get consistent verdict behavior regardless of their custom prompt content. Custom prompts should focus on *how to review* (priorities, tone, patterns to look for), not *how to decide the verdict*.
+This logic is built into the workflow's system prompt, so all consumers get consistent verdict behavior regardless of their custom prompt content. Custom prompts should focus on _how to review_ (priorities, tone, patterns to look for), not _how to decide the verdict_.
 
 **Architecture:**
 
@@ -204,16 +204,31 @@ This allows users to add custom notes, disclaimers, or additional context that s
 
 **Generation Mode:**
 
-The `generation_mode` input controls what the workflow generates:
+The `generation_mode` input is a comma-separated list that controls what the workflow generates. Combine values as needed.
 
-| Mode                  | Description                                                                                                           | Default |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------- | ------- |
-| `both`                | Generate both title and description                                                                                   | Yes     |
-| `both-deferred-title` | Generate description always; only generate title if the existing PR title is inadequate or doesn't follow conventions | No      |
-| `title`               | Generate only the PR title                                                                                            | No      |
-| `description`         | Generate only the PR description                                                                                      | No      |
+| Value              | Description                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| `title`            | Generate and set the PR title (overwrites existing)                                |
+| `description`      | Generate the PR description                                                        |
+| `title-suggestion` | Include a suggested title in the description (non-intrusive, doesn't modify title) |
+| `deferred-title`   | Only generate title if existing is inadequate (doesn't follow conventions)         |
 
-**Note on `both-deferred-title` mode:** In this mode, Claude evaluates the existing PR title against conventional commit patterns and repository history. If the existing title is acceptable (follows conventions, has appropriate type/scope, accurately describes the changes), Claude will preserve it and only generate the description. This is useful when users have already entered a meaningful title that shouldn't be overwritten.
+**Common Combinations:**
+
+| Combination                    | Description                                               | Default |
+| ------------------------------ | --------------------------------------------------------- | ------- |
+| `description`                  | Only generate description, leave title alone              | Yes     |
+| `title,description`            | Generate both title and description                       | No      |
+| `description,title-suggestion` | Generate description with suggested title for manual copy | No      |
+| `deferred-title,description`   | Generate description; only update title if inadequate     | No      |
+
+**Notes:**
+
+- `title` and `deferred-title` are mutually exclusive
+- `title` and `title-suggestion` are mutually exclusive
+- `title-suggestion` requires `description` to be included (the suggestion is embedded in the description)
+
+**Note on `deferred-title`:** In this mode, Claude evaluates the existing PR title against conventional commit patterns and repository history. If the existing title is acceptable (follows conventions, has appropriate type/scope, accurately describes the changes), Claude will preserve it and only generate the description. This is useful when users have already entered a meaningful title that shouldn't be overwritten.
 
 **Required Secrets:**
 
@@ -226,17 +241,30 @@ The `generation_mode` input controls what the workflow generates:
 >
 > **Note:** If you need assistance adding the `WORKFLOW_PAT` secret to your repository or installing the Claude GitHub App, please reach out to the **#pod-dev-ai** Slack channel.
 
-**Usage example:**
+**Usage examples:**
 
 ```yaml
+# Generate description with suggested title (non-intrusive)
 uses: Uniswap/ai-toolkit/.github/workflows/_generate-pr-metadata.yml@main
 with:
   pr_number: ${{ github.event.pull_request.number }}
   base_ref: ${{ github.base_ref }}
-  generation_mode: 'title' # Only generate title, leave description unchanged
+  generation_mode: 'description,title-suggestion'
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
   WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }} # Required for default prompt
+```
+
+```yaml
+# Generate both title and description
+uses: Uniswap/ai-toolkit/.github/workflows/_generate-pr-metadata.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  base_ref: ${{ github.base_ref }}
+  generation_mode: 'title,description'
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
 ```
 
 **Prompt Configuration Options:**
