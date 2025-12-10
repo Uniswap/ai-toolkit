@@ -53,9 +53,10 @@ on:
         type: string
 
       base_ref:
-        description: "Base branch name (e.g., main, master)"
-        required: true
+        description: "Base branch name (e.g., main, master). Optional - if not provided, will be fetched via GitHub API."
+        required: false
         type: string
+        default: ""
 
       force_review:
         description: "Force a full review even if the code hasn't changed (bypasses patch-ID cache)"
@@ -132,23 +133,41 @@ jobs:
         with:
           egress-policy: audit
 
-      # Get PR head SHA via API to checkout the exact commit (not GitHub's merge commit)
-      # This ensures we only review the PR's actual changes, not other commits merged to the base branch
-      - name: Get PR Head SHA
-        id: pr-head
+      # Fetch PR metadata via API:
+      # - head_sha: Checkout the exact PR commit (not GitHub's merge commit)
+      # - base_ref: Use provided value or fetch from API (makes base_ref input optional)
+      - name: Get PR Info
+        id: pr-info
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ inputs.pr_number }}
+          INPUT_BASE_REF: ${{ inputs.base_ref }}
         run: |
-          HEAD_SHA=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.head.sha')
+          echo "ℹ️  Fetching PR #$PR_NUMBER info..."
+
+          # Fetch PR data once
+          PR_DATA=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER)
+
+          # Extract head SHA (always needed)
+          HEAD_SHA=$(echo "$PR_DATA" | jq -r '.head.sha')
           echo "head_sha=$HEAD_SHA" >> $GITHUB_OUTPUT
           echo "📍 PR head SHA: $HEAD_SHA"
+
+          # Use provided base_ref or fetch from API
+          if [ -n "$INPUT_BASE_REF" ]; then
+            BASE_REF="$INPUT_BASE_REF"
+            echo "📍 Base ref (from input): $BASE_REF"
+          else
+            BASE_REF=$(echo "$PR_DATA" | jq -r '.base.ref')
+            echo "📍 Base ref (from API): $BASE_REF"
+          fi
+          echo "base_ref=$BASE_REF" >> $GITHUB_OUTPUT
 
       # Checkout the exact PR head commit (not GitHub's merge commit)
       - name: Checkout Repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
-          ref: ${{ steps.pr-head.outputs.head_sha }}
+          ref: ${{ steps.pr-info.outputs.head_sha }}
           fetch-depth: 0 # Full history needed for accurate diff calculation
 
       # Setup Node.js early so we can post status updates
@@ -196,10 +215,10 @@ jobs:
       - name: Calculate Patch ID
         id: patch-id
         env:
-          BASE_REF: ${{ inputs.base_ref }}
+          BASE_REF: ${{ steps.pr-info.outputs.base_ref }}
         run: |
           # Find where the PR branch diverged from the base branch
-          # HEAD is the PR head commit (checked out via inputs.head_sha)
+          # HEAD is the PR head commit (checked out via pr-info step)
           MERGE_BASE=$(git merge-base origin/$BASE_REF HEAD)
           echo "merge_base=$MERGE_BASE" >> $GITHUB_OUTPUT
 
@@ -395,7 +414,7 @@ jobs:
           WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ inputs.pr_number }}
-          BASE_REF: ${{ inputs.base_ref }}
+          BASE_REF: ${{ steps.pr-info.outputs.base_ref }}
           PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
           EXISTING_COMMENT_COUNT: ${{ steps.existing-comments.outputs.existing_comment_count }}
           TOOLKIT_REF: ${{ inputs.toolkit_ref }}
