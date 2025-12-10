@@ -125,7 +125,7 @@ source ~/.config/claude-code/slack-env.sh && claude-plus
 
 ### Claude Configuration
 
-The tool reads and updates `~/.claude.json` to manage the Slack bot token for the `zencoder-slack` MCP server.
+The tool reads and updates `~/.claude.json` to manage the Slack bot token for the `slack` MCP server.
 
 ## How It Works
 

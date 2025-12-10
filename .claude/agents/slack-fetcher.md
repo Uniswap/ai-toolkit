@@ -56,10 +56,10 @@ Fetch messages from specified Slack channels and return a minimal, filtered data
 
 For each channel in the input:
 
-1. Call `mcp__zencoder-slack__slack_get_channel_history`:
+1. Call `mcp__slack__slack_get_channel_history`:
 
 ```typescript
-mcp__zencoder -
+mcp__ -
   slack__slack_get_channel_history({
     channel_id: channel.id,
     limit: limit_per_channel,
