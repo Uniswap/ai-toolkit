@@ -790,17 +790,17 @@ jobs:
 
               # Add preserved content before markers (if any)
               if [ -n "$CONTENT_BEFORE" ]; then
-                # Only strip trailing --- if it was our separator (directly before the start marker)
-                # Check if the original body had "---" immediately before the start marker
-                if echo "$CURRENT_BODY" | grep -qE "---[[:space:]]*\n[[:space:]]*${START_MARKER}"; then
-                  # Strip the trailing --- since it's our separator that we'll re-add
-                  CONTENT_BEFORE=$(echo "$CONTENT_BEFORE" | sed -E 's/[[:space:]]*---[[:space:]]*$//')
+                # Strip trailing --- if it exists (our separator from previous runs)
+                # We always re-add it below, so strip to avoid duplicates
+                CONTENT_BEFORE=$(echo "$CONTENT_BEFORE" | sed -E 's/[[:space:]]*---[[:space:]]*$//')
+                # Only add content if there's something left after stripping
+                if [ -n "$CONTENT_BEFORE" ]; then
+                  NEW_DESCRIPTION="${CONTENT_BEFORE}"$'\n\n'
                 fi
-                NEW_DESCRIPTION="${CONTENT_BEFORE}"$'\n\n'
               fi
 
               # Add horizontal rule separator and the marked generated content with header
-              NEW_DESCRIPTION="${NEW_DESCRIPTION}---"$'\n\n'
+              NEW_DESCRIPTION="${NEW_DESCRIPTION}---"$'\n'
               NEW_DESCRIPTION="${NEW_DESCRIPTION}${START_MARKER}"$'\n'
               NEW_DESCRIPTION="${NEW_DESCRIPTION}## :sparkles: Claude-Generated Content"$'\n\n'
               NEW_DESCRIPTION="${NEW_DESCRIPTION}${GENERATED_DESCRIPTION}"$'\n'
