@@ -276,6 +276,12 @@ ${suggestion}
 /** HTML comment marker used to identify and update the bot's review comment */
 const REVIEW_COMMENT_MARKER = '<!-- claude-pr-review-bot -->';
 
+/** Footer added to the main review comment explaining how to trigger a re-review */
+const REVIEW_FOOTER = `
+---
+
+<sub>💡 **Want a fresh review?** Add a comment containing \`@request-claude-review\` to trigger a new review at any time.</sub>`;
+
 // =============================================================================
 // GitHub API Functions
 // =============================================================================
@@ -1048,6 +1054,9 @@ async function main(): Promise<void> {
       .join('\n\n')}\n\n</details>`;
     reviewBody += skippedSection;
   }
+
+  // Add footer with instructions for triggering a re-review
+  reviewBody += REVIEW_FOOTER;
 
   // HYBRID APPROACH:
   // 1. Create/update an editable PR comment with the full review content

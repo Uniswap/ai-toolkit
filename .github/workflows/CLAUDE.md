@@ -70,7 +70,8 @@ This workflow performs automated PR code reviews using Claude AI with the follow
 - Formal GitHub reviews (APPROVE/REQUEST_CHANGES/COMMENT)
 - Inline comments on specific lines of code (as `github-actions[bot]`)
 - Patch-ID based caching to skip rebases (no actual code changes)
-- Manual trigger support for re-requesting reviews (bypasses cache)
+- **Comment trigger**: Add `@request-claude-review` to any PR comment to force a fresh review
+- Manual trigger via workflow_dispatch to force a new review (bypasses cache)
 - Custom prompt support
 - Existing review comment context for re-reviews
 - Fast review mode for trivial PRs (< 20 lines)
@@ -164,26 +165,33 @@ secrets:
   WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
 ```
 
-**Re-requesting a Review (Easiest Method):**
+**Triggering a New Review Without Code Changes:**
 
-The easiest way to trigger a fresh Claude review is through the GitHub PR UI:
+The easiest way to trigger a fresh Claude review is to add a comment containing `@request-claude-review` to the PR. This works with both regular PR comments and inline review comments.
 
-1. In your PR, find the `github-actions[bot]` reviewer in the "Reviewers" section
-2. Click the **re-request review** button (circular arrow icon ↻) next to it
-3. A new review will start automatically, bypassing the cache
+> **Note:** Re-requesting a review from `github-actions[bot]` via the GitHub UI does **NOT** work. GitHub does not fire the `review_requested` event when re-requesting reviews from bot accounts. Use the comment trigger or manual workflow_dispatch instead.
 
-This is the same UX as re-requesting a review from any human reviewer!
-
-**When to use re-request:**
+**When to trigger a new review:**
 
 - After addressing review comments without pushing new code
 - After infrastructure changes (e.g., updated prompts, new model)
 - When a previous review timed out or encountered errors
 - When you want a fresh perspective on unchanged code
 
-**Alternative: Manual Trigger via workflow_dispatch:**
+**Option 1: Comment Trigger (Easiest)**
 
-For advanced use cases, you can also trigger a review via the Actions tab:
+Simply add a comment to the PR containing `@request-claude-review`:
+
+```text
+@request-claude-review
+```
+
+This triggers a fresh review, bypassing the cache. Works in:
+
+- Regular PR comments
+- Inline review comments (comments on specific lines of code)
+
+**Option 2: Manual Trigger via workflow_dispatch**
 
 **Via GitHub CLI:**
 

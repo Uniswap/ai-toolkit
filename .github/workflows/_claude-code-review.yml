@@ -29,6 +29,13 @@ name: "[claude] Claude Code Review"
 # - Creates inline comments like human reviewers
 # - Submits formal reviews for merge protection
 # - Supports custom prompts
+# - Comment trigger: "@request-claude-review" in any PR comment forces a new review
+# - Manual trigger via workflow_dispatch to force a new review
+#
+# NOTE: Re-requesting a review from github-actions[bot] via the GitHub UI
+# does NOT trigger this workflow. GitHub does not fire the review_requested
+# event when re-requesting reviews from bot accounts. Use the comment trigger
+# or manual workflow_dispatch instead.
 #
 # PERMISSIONS REQUIRED (calling workflow must grant these):
 #   contents: read
