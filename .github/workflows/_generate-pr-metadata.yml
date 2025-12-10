@@ -793,7 +793,8 @@ jobs:
                 NEW_DESCRIPTION="${CONTENT_BEFORE}"$'\n\n'
               fi
 
-              # Add the marked generated content with header
+              # Add horizontal rule separator and the marked generated content with header
+              NEW_DESCRIPTION="${NEW_DESCRIPTION}---"$'\n\n'
               NEW_DESCRIPTION="${NEW_DESCRIPTION}${START_MARKER}"$'\n'
               NEW_DESCRIPTION="${NEW_DESCRIPTION}## :sparkles: Claude-Generated Content"$'\n\n'
               NEW_DESCRIPTION="${NEW_DESCRIPTION}${GENERATED_DESCRIPTION}"$'\n'
