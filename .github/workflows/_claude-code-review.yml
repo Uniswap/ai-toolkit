@@ -138,7 +138,48 @@ jobs:
         with:
           fetch-depth: 0 # Full history needed for git merge-base
 
+      # Setup Node.js early so we can post status updates
+      - name: Setup Node.js (Early)
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: "22"
+
+      # Download or use local post-review script (needed for status updates)
+      - name: Setup Post Review Script (Early)
+        id: setup-script-early
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
+        run: |
+          set -euo pipefail
+
+          # Check if we're running from the ai-toolkit repository
+          if [ "$GITHUB_REPOSITORY" = "Uniswap/ai-toolkit" ]; then
+            echo "ℹ️  Running from ai-toolkit - using local post-review.ts"
+            echo "script_path=.github/scripts/post-review.ts" >> $GITHUB_OUTPUT
+          else
+            echo "ℹ️  Running from external repository - downloading post-review.ts from Uniswap/ai-toolkit"
+            echo "ℹ️  Using toolkit ref: $TOOLKIT_REF"
+
+            # Download the script from ai-toolkit repository at the specified ref
+            if ! curl -fSs -H "Authorization: token $WORKFLOW_PAT" \
+                      -H "Accept: application/vnd.github.v4.raw" \
+                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/scripts/post-review.ts?ref=${TOOLKIT_REF}" \
+                      -o /tmp/post-review.ts 2>&1 | tee /tmp/curl-error.log; then
+              echo "❌ Failed to download post-review.ts from Uniswap/ai-toolkit@${TOOLKIT_REF}"
+              echo "   Error details:"
+              cat /tmp/curl-error.log | head -5
+              exit 1
+            fi
+
+            echo "✅ Downloaded post-review.ts from SHA: $TOOLKIT_REF"
+            echo "script_path=/tmp/post-review.ts" >> $GITHUB_OUTPUT
+          fi
+
       # Calculate patch-ID (stable hash of code changes, survives rebases)
+      # This must run BEFORE posting in-progress so we can check cache first
       - name: Calculate Patch ID
         id: patch-id
         env:
@@ -154,9 +195,65 @@ jobs:
           echo "📊 Patch-ID: ${PATCH_ID:0:12}... (first 12 chars)"
           echo "   This ID stays the same across rebases if code hasn't changed"
 
+      # Check cache BEFORE posting in-progress to preserve existing review
+      # Skip cache check entirely when force_review is enabled
+      - name: Check Review Cache
+        id: cache-check
+        if: inputs.force_review != true
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .review-cache
+          key: review-pr${{ inputs.pr_number }}-patch-${{ steps.patch-id.outputs.patch_id }}
+          lookup-only: true # Just check, don't restore
+
+      # Early exit if we've already reviewed this code (rebase detected)
+      # Never skip when force_review is enabled
+      # IMPORTANT: This runs BEFORE posting in-progress to preserve existing review content
+      - name: Skip Review if No Changes
+        if: steps.cache-check.outputs.cache-hit == 'true' && inputs.force_review != true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          POST_REVIEW_SCRIPT: ${{ steps.setup-script-early.outputs.script_path }}
+        run: |
+          echo "✅ Skipping review - no actual code changes detected"
+          echo ""
+          echo "This push appears to be a rebase or merge without new code changes."
+          echo "Patch-ID: ${{ steps.patch-id.outputs.patch_id }}"
+          echo ""
+          echo "We've already reviewed this exact code, so skipping to save API costs."
+          echo ""
+          echo "💡 To force a new review, use the manual trigger with force_review: true"
+
+          # Add status banner to existing review (preserving full content)
+          echo ""
+          echo "ℹ️  Adding 'still valid' status banner to existing review..."
+
+          REPO_OWNER=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)
+          REPO_NAME=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
+
+          npx tsx "$POST_REVIEW_SCRIPT" \
+            --mode skipped \
+            --owner "$REPO_OWNER" \
+            --repo "$REPO_NAME" \
+            --pr-number "$PR_NUMBER"
+
+          echo "✅ Review preserved with status banner"
+          exit 0
+
+      # Log when force review is enabled
+      - name: Force Review Enabled
+        if: inputs.force_review == true
+        run: |
+          echo "🔄 Force review enabled - bypassing cache check"
+          echo "   A full review will run regardless of previous reviews for this code"
+
       # Detect trivial PRs for fast-path review
+      # Only runs if we're actually going to do a review (not cached)
       - name: Detect Trivial PR
         id: pr-size
+        if: steps.cache-check.outputs.cache-hit != 'true'
         env:
           BASE_REF: ${{ inputs.base_ref }}
         run: |
@@ -183,38 +280,33 @@ jobs:
             echo "📝 Standard PR - will use comprehensive review mode"
           fi
 
-      # Check cache to see if we've already reviewed this exact code
-      # Skip cache check entirely when force_review is enabled
-      - name: Check Review Cache
-        id: cache-check
-        if: inputs.force_review != true
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: .review-cache
-          key: review-pr${{ inputs.pr_number }}-patch-${{ steps.patch-id.outputs.patch_id }}
-          lookup-only: true # Just check, don't restore
-
-      # Log when force review is enabled
-      - name: Force Review Enabled
-        if: inputs.force_review == true
+      # Post "Review in Progress" comment ONLY if we're actually going to review
+      # This runs AFTER cache check to preserve existing review on cache hits
+      - name: Post Review In Progress
+        id: in-progress
+        if: steps.cache-check.outputs.cache-hit != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          POST_REVIEW_SCRIPT: ${{ steps.setup-script-early.outputs.script_path }}
         run: |
-          echo "🔄 Force review enabled - bypassing cache check"
-          echo "   A full review will run regardless of previous reviews for this code"
+          set -euo pipefail
 
-      # Early exit if we've already reviewed this code (rebase detected)
-      # Never skip when force_review is enabled
-      - name: Skip Review if No Changes
-        if: steps.cache-check.outputs.cache-hit == 'true' && inputs.force_review != true
-        run: |
-          echo "✅ Skipping review - no actual code changes detected"
-          echo ""
-          echo "This push appears to be a rebase or merge without new code changes."
-          echo "Patch-ID: ${{ steps.patch-id.outputs.patch_id }}"
-          echo ""
-          echo "We've already reviewed this exact code, so skipping to save API costs."
-          echo ""
-          echo "💡 To force a new review, use the manual trigger with force_review: true"
-          exit 0
+          echo "ℹ️  Posting 'review in progress' status..."
+
+          # Parse owner and repo
+          REPO_OWNER=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)
+          REPO_NAME=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
+
+          # Post in-progress comment (creates or updates the bot's comment)
+          npx tsx "$POST_REVIEW_SCRIPT" \
+            --mode in-progress \
+            --owner "$REPO_OWNER" \
+            --repo "$REPO_NAME" \
+            --pr-number "$PR_NUMBER"
+
+          echo "✅ In-progress status posted"
 
       # Fetch existing review comments for context
       - name: Fetch Existing Review Comments
@@ -588,12 +680,7 @@ jobs:
           additional_permissions: |
             actions: read
 
-      # Setup Node.js for the post-review script
-      - name: Setup Node.js
-        if: steps.cache-check.outputs.cache-hit != 'true' && success()
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
-        with:
-          node-version: "22"
+      # Note: Node.js is already set up earlier for posting in-progress status
 
       # Extract Claude's structured output (validated JSON from --json-schema)
       - name: Extract Claude Response
@@ -633,42 +720,7 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
-      # Download post-review script if running from external repository
-      # When running from ai-toolkit itself, use the local file
-      - name: Setup Post Review Script
-        if: steps.cache-check.outputs.cache-hit != 'true' && success()
-        id: setup-script
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
-          # Explicit ref input - defaults to 'main', can be set to 'next' or a SHA for testing
-          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
-        run: |
-          set -euo pipefail
-
-          # Check if we're running from the ai-toolkit repository
-          if [ "$GITHUB_REPOSITORY" = "Uniswap/ai-toolkit" ]; then
-            echo "ℹ️  Running from ai-toolkit - using local post-review.ts"
-            echo "script_path=.github/scripts/post-review.ts" >> $GITHUB_OUTPUT
-          else
-            echo "ℹ️  Running from external repository - downloading post-review.ts from Uniswap/ai-toolkit"
-            echo "ℹ️  Using toolkit ref: $TOOLKIT_REF"
-
-            # Download the script from ai-toolkit repository at the specified ref
-            if ! curl -fSs -H "Authorization: token $WORKFLOW_PAT" \
-                      -H "Accept: application/vnd.github.v4.raw" \
-                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/scripts/post-review.ts?ref=${TOOLKIT_REF}" \
-                      -o /tmp/post-review.ts 2>&1 | tee /tmp/curl-error.log; then
-              echo "❌ Failed to download post-review.ts from Uniswap/ai-toolkit@${TOOLKIT_REF}"
-              echo "   Error details:"
-              cat /tmp/curl-error.log | head -5
-              exit 1
-            fi
-
-            echo "✅ Downloaded post-review.ts from SHA: $TOOLKIT_REF"
-            echo "script_path=/tmp/post-review.ts" >> $GITHUB_OUTPUT
-          fi
+      # Note: Post-review script is already downloaded/located earlier for in-progress status
 
       # Post the review using our script (all comments as github-actions[bot])
       - name: Post Review via Script
@@ -684,8 +736,8 @@ jobs:
           # Pass file path instead of content to avoid shell injection risks
           # The script reads the file directly, avoiding shell expansion of content
           REVIEW_JSON_FILE: /tmp/claude-review-response.txt
-          # Script path determined by setup-script step (local or downloaded)
-          POST_REVIEW_SCRIPT: ${{ steps.setup-script.outputs.script_path }}
+          # Script path determined by early setup step (local or downloaded)
+          POST_REVIEW_SCRIPT: ${{ steps.setup-script-early.outputs.script_path }}
         run: |
           set -euo pipefail
 

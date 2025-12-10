@@ -69,6 +69,7 @@ This workflow performs automated PR code reviews using Claude AI with the follow
 
 - Formal GitHub reviews (APPROVE/REQUEST_CHANGES/COMMENT)
 - Inline comments on specific lines of code (as `github-actions[bot]`)
+- **Real-time status updates**: Shows "review in progress" immediately when workflow starts
 - Patch-ID based caching to skip rebases (no actual code changes)
 - **Comment trigger**: Add `@request-claude-review` to any PR comment to force a fresh review
 - Manual trigger via workflow_dispatch to force a new review (bypasses cache)
@@ -99,6 +100,18 @@ This workflow uses a hybrid approach:
 2. A TypeScript script (`post-review.ts`) parses the JSON and posts the review via `gh` CLI
 
 This ensures all comments appear as `github-actions[bot]` using the official Anthropic action without needing a fork.
+
+**Real-Time Status Updates:**
+
+The workflow provides immediate feedback to PR authors:
+
+| Status                  | When Shown                                            | Message                                              |
+| ----------------------- | ----------------------------------------------------- | ---------------------------------------------------- |
+| 🔄 **In Progress**      | Immediately when workflow starts                      | "Claude is currently analyzing this pull request..." |
+| ✅ **No Review Needed** | When cache hit detected (rebase with no code changes) | "No new code changes since the last review"          |
+| 📋 **Review Complete**  | After Claude finishes analysis                        | Full review with verdict and inline comments         |
+
+This eliminates the "is it running?" uncertainty by posting a status comment as the very first action in the workflow, before any analysis begins. The same comment is then updated with the final review or skipped status.
 
 **Required Secrets:**
 
