@@ -69,7 +69,10 @@ This workflow performs automated PR code reviews using Claude AI with the follow
 
 - Formal GitHub reviews (APPROVE/REQUEST_CHANGES/COMMENT)
 - Inline comments on specific lines of code (as `github-actions[bot]`)
+- **Real-time status updates**: Shows "review in progress" immediately when workflow starts
 - Patch-ID based caching to skip rebases (no actual code changes)
+- **Comment trigger**: Add `@request-claude-review` to any PR comment to force a fresh review
+- Manual trigger via workflow_dispatch to force a new review (bypasses cache)
 - Custom prompt support
 - Existing review comment context for re-reviews
 - Fast review mode for trivial PRs (< 20 lines)
@@ -79,15 +82,15 @@ This workflow performs automated PR code reviews using Claude AI with the follow
 
 The workflow includes mandatory verdict decision rules that ensure Claude returns appropriate review verdicts:
 
-| Verdict | When to Use |
-|---------|-------------|
-| **APPROVE** | No bugs or security issues found. Suggestions, questions, and style feedback are NOT blocking. |
-| **REQUEST_CHANGES** | Bugs, security vulnerabilities, data corruption risks, or breaking changes found. |
-| **COMMENT** | Used sparingly when multiple near-blocking issues exist or significant rework is needed, but no specific bug can be identified. |
+| Verdict             | When to Use                                                                                                                     |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **APPROVE**         | No bugs or security issues found. Suggestions, questions, and style feedback are NOT blocking.                                  |
+| **REQUEST_CHANGES** | Bugs, security vulnerabilities, data corruption risks, or breaking changes found.                                               |
+| **COMMENT**         | Used sparingly when multiple near-blocking issues exist or significant rework is needed, but no specific bug can be identified. |
 
 **Key principle:** Questions, considerations, "nice-to-haves", and teaching moments are NOT blocking issues. If Claude's review is positive overall with suggestions, it should APPROVE, not COMMENT.
 
-This logic is built into the workflow's system prompt, so all consumers get consistent verdict behavior regardless of their custom prompt content. Custom prompts should focus on *how to review* (priorities, tone, patterns to look for), not *how to decide the verdict*.
+This logic is built into the workflow's system prompt, so all consumers get consistent verdict behavior regardless of their custom prompt content. Custom prompts should focus on _how to review_ (priorities, tone, patterns to look for), not _how to decide the verdict_.
 
 **Architecture:**
 
@@ -97,6 +100,18 @@ This workflow uses a hybrid approach:
 2. A TypeScript script (`post-review.ts`) parses the JSON and posts the review via `gh` CLI
 
 This ensures all comments appear as `github-actions[bot]` using the official Anthropic action without needing a fork.
+
+**Real-Time Status Updates:**
+
+The workflow provides immediate feedback to PR authors:
+
+| Status                  | When Shown                                            | Message                                              |
+| ----------------------- | ----------------------------------------------------- | ---------------------------------------------------- |
+| 🔄 **In Progress**      | Immediately when workflow starts                      | "Claude is currently analyzing this pull request..." |
+| ✅ **No Review Needed** | When cache hit detected (rebase with no code changes) | "No new code changes since the last review"          |
+| 📋 **Review Complete**  | After Claude finishes analysis                        | Full review with verdict and inline comments         |
+
+This eliminates the "is it running?" uncertainty by posting a status comment as the very first action in the workflow, before any analysis begins. The same comment is then updated with the final review or skipped status.
 
 **Required Secrets:**
 
@@ -115,6 +130,7 @@ This ensures all comments appear as `github-actions[bot]` using the official Ant
 | -------------------- | -------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | `pr_number`          | Yes      | -                                  | Pull request number to review                                                                                                  |
 | `base_ref`           | Yes      | -                                  | Base branch name (e.g., main, master)                                                                                          |
+| `force_review`       | No       | `false`                            | Force a full review even if the code hasn't changed (bypasses patch-ID cache)                                                  |
 | `model`              | No       | `claude-sonnet-4-5-20250929`       | Claude model to use for review                                                                                                 |
 | `max_turns`          | No       | unlimited                          | Maximum conversation turns for Claude                                                                                          |
 | `custom_prompt`      | No       | `""`                               | Custom prompt text (overrides prompt file and default)                                                                         |
@@ -162,6 +178,54 @@ secrets:
   WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
 ```
 
+**Triggering a New Review Without Code Changes:**
+
+The easiest way to trigger a fresh Claude review is to add a comment containing `@request-claude-review` to the PR. This works with both regular PR comments and inline review comments.
+
+> **Note:** Re-requesting a review from `github-actions[bot]` via the GitHub UI does **NOT** work. GitHub does not fire the `review_requested` event when re-requesting reviews from bot accounts. Use the comment trigger or manual workflow_dispatch instead.
+
+**When to trigger a new review:**
+
+- After addressing review comments without pushing new code
+- After infrastructure changes (e.g., updated prompts, new model)
+- When a previous review timed out or encountered errors
+- When you want a fresh perspective on unchanged code
+
+**Option 1: Comment Trigger (Easiest)**
+
+Simply add a comment to the PR containing `@request-claude-review`:
+
+```text
+@request-claude-review
+```
+
+This triggers a fresh review, bypassing the cache. Works in:
+
+- Regular PR comments
+- Inline review comments (comments on specific lines of code)
+
+**Option 2: Manual Trigger via workflow_dispatch**
+
+**Via GitHub CLI:**
+
+```bash
+# Trigger a forced review for PR #123
+gh workflow run "Claude Code Review" -f pr_number=123
+
+# Trigger without forcing (will respect cache)
+gh workflow run "Claude Code Review" -f pr_number=123 -f force_review=false
+```
+
+**Via GitHub UI:**
+
+1. Navigate to Actions → Claude Code Review
+2. Click "Run workflow"
+3. Enter the PR number
+4. Optionally toggle `force_review` (defaults to `true`)
+5. Click "Run workflow"
+
+When `force_review` is `true`, the workflow bypasses the patch-ID cache and runs a complete review even if the same code was previously reviewed.
+
 ### PR Metadata Generation (`_generate-pr-metadata.yml`)
 
 This workflow generates PR titles and descriptions using Claude AI with the following features:
@@ -176,7 +240,13 @@ The workflow wraps generated descriptions in HTML comment markers to enable sele
 <!-- claude-pr-description-end -->
 ```
 
-When regenerating a PR description:
+**First run behavior:**
+
+- If the PR already has a description (no markers yet), the existing content is preserved above the markers
+- The AI-generated content is **appended** below the existing description, wrapped in markers
+- This ensures existing PR descriptions are never lost
+
+**Subsequent runs:**
 
 - Content **before** `<!-- claude-pr-description-start -->` is preserved (user's prefix)
 - Content **after** `<!-- claude-pr-description-end -->` is preserved (user's suffix)
@@ -190,6 +260,8 @@ This allows users to add custom notes, disclaimers, or additional context that s
 > **Note:** This PR requires manual QA testing before merge.
 
 <!-- claude-pr-description-start -->
+---
+## :sparkles: Claude-Generated Content
 
 ## Summary
 
@@ -197,23 +269,36 @@ This allows users to add custom notes, disclaimers, or additional context that s
 - Updated user session handling
 <!-- claude-pr-description-end -->
 
----
-
 **Related Issues:** #123, #456
 ```
 
 **Generation Mode:**
 
-The `generation_mode` input controls what the workflow generates:
+The `generation_mode` input is a comma-separated list that controls what the workflow generates. Combine values as needed.
 
-| Mode                  | Description                                                                                                           | Default |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------- | ------- |
-| `both`                | Generate both title and description                                                                                   | Yes     |
-| `both-deferred-title` | Generate description always; only generate title if the existing PR title is inadequate or doesn't follow conventions | No      |
-| `title`               | Generate only the PR title                                                                                            | No      |
-| `description`         | Generate only the PR description                                                                                      | No      |
+| Value              | Description                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| `title`            | Generate and set the PR title (overwrites existing)                                |
+| `description`      | Generate the PR description                                                        |
+| `title-suggestion` | Include a suggested title in the description (non-intrusive, doesn't modify title) |
+| `deferred-title`   | Only generate title if existing is inadequate (doesn't follow conventions)         |
 
-**Note on `both-deferred-title` mode:** In this mode, Claude evaluates the existing PR title against conventional commit patterns and repository history. If the existing title is acceptable (follows conventions, has appropriate type/scope, accurately describes the changes), Claude will preserve it and only generate the description. This is useful when users have already entered a meaningful title that shouldn't be overwritten.
+**Common Combinations:**
+
+| Combination                    | Description                                               | Default |
+| ------------------------------ | --------------------------------------------------------- | ------- |
+| `description`                  | Only generate description, leave title alone              | Yes     |
+| `title,description`            | Generate both title and description                       | No      |
+| `description,title-suggestion` | Generate description with suggested title for manual copy | No      |
+| `deferred-title,description`   | Generate description; only update title if inadequate     | No      |
+
+**Notes:**
+
+- `title` and `deferred-title` are mutually exclusive
+- `title` and `title-suggestion` are mutually exclusive
+- `title-suggestion` requires `description` to be included (the suggestion is embedded in the description)
+
+**Note on `deferred-title`:** In this mode, Claude evaluates the existing PR title against conventional commit patterns and repository history. If the existing title is acceptable (follows conventions, has appropriate type/scope, accurately describes the changes), Claude will preserve it and only generate the description. This is useful when users have already entered a meaningful title that shouldn't be overwritten.
 
 **Required Secrets:**
 
@@ -226,17 +311,30 @@ The `generation_mode` input controls what the workflow generates:
 >
 > **Note:** If you need assistance adding the `WORKFLOW_PAT` secret to your repository or installing the Claude GitHub App, please reach out to the **#pod-dev-ai** Slack channel.
 
-**Usage example:**
+**Usage examples:**
 
 ```yaml
+# Generate description with suggested title (non-intrusive)
 uses: Uniswap/ai-toolkit/.github/workflows/_generate-pr-metadata.yml@main
 with:
   pr_number: ${{ github.event.pull_request.number }}
   base_ref: ${{ github.base_ref }}
-  generation_mode: 'title' # Only generate title, leave description unchanged
+  generation_mode: 'description,title-suggestion'
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
   WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }} # Required for default prompt
+```
+
+```yaml
+# Generate both title and description
+uses: Uniswap/ai-toolkit/.github/workflows/_generate-pr-metadata.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  base_ref: ${{ github.base_ref }}
+  generation_mode: 'title,description'
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
 ```
 
 **Prompt Configuration Options:**

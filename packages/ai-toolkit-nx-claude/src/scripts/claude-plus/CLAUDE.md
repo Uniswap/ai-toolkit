@@ -102,7 +102,7 @@ function updateRefreshToken(newRefreshToken: string, verbose?: boolean): void;
 
 **Token Storage**:
 
-- Access token: `~/.claude.json` → `mcpServers["zencoder-slack"].env.SLACK_BOT_TOKEN`
+- Access token: `~/.claude.json` → `mcpServers["slack"].env.SLACK_BOT_TOKEN`
 - Refresh token: `~/.config/claude-code/slack-env.sh` (updated in-place)
 
 **API Endpoints**:

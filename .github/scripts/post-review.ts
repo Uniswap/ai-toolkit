@@ -9,18 +9,39 @@
  * validated JSON directly via `structured_output`. This script expects clean
  * JSON input (no preamble text or code fences needed).
  *
+ * MODES:
+ * - review (default): Posts a full review from Claude's JSON output
+ * - in-progress: Posts a "review in progress" placeholder comment
+ * - skipped: Preserves existing review content with a "still valid" status banner (cache hit)
+ *            If no substantial review exists, posts a fallback "no review needed" message
+ *
  * @usage
+ *   # Full review mode (default)
  *   npx tsx .github/scripts/post-review.ts \
+ *     --owner "Uniswap" \
+ *     --repo "ai-toolkit" \
+ *     --pr-number 123
+ *
+ *   # In-progress mode (no JSON needed)
+ *   npx tsx .github/scripts/post-review.ts \
+ *     --mode in-progress \
+ *     --owner "Uniswap" \
+ *     --repo "ai-toolkit" \
+ *     --pr-number 123
+ *
+ *   # Skipped mode (cache hit, no JSON needed)
+ *   npx tsx .github/scripts/post-review.ts \
+ *     --mode skipped \
  *     --owner "Uniswap" \
  *     --repo "ai-toolkit" \
  *     --pr-number 123
  *
  * @environment
  *   GITHUB_TOKEN - GitHub token for API authentication (required)
- *   REVIEW_JSON_FILE - Path to file containing review JSON (preferred)
- *   REVIEW_JSON - Direct JSON content (alternative to file)
+ *   REVIEW_JSON_FILE - Path to file containing review JSON (for 'review' mode)
+ *   REVIEW_JSON - Direct JSON content (alternative to file, for 'review' mode)
  *
- * @input The review JSON must match this schema:
+ * @input The review JSON must match this schema (only for 'review' mode):
  *   {
  *     "pr_review_body": string,        // Markdown review content
  *     "pr_review_outcome": string,     // "APPROVE" | "REQUEST_CHANGES" | "COMMENT"
@@ -273,8 +294,145 @@ ${suggestion}
 // Constants
 // =============================================================================
 
-/** HTML comment marker used to identify and update the bot's review comment */
+/** HTML comment marker used to identify the bot's review comment */
 const REVIEW_COMMENT_MARKER = '<!-- claude-pr-review-bot -->';
+
+/** Markers for the status section (updated on every mode change) */
+const STATUS_START_MARKER = '<!-- claude-pr-review-status-start -->';
+const STATUS_END_MARKER = '<!-- claude-pr-review-status-end -->';
+
+/** Markers for the content section (only updated when review completes) */
+const CONTENT_START_MARKER = '<!-- claude-pr-review-content-start -->';
+const CONTENT_END_MARKER = '<!-- claude-pr-review-content-end -->';
+
+/** Footer added to the main review comment explaining how to trigger a re-review */
+const REVIEW_FOOTER = `
+
+---
+
+<sub>💡 **Want a fresh review?** Add a comment containing \`@request-claude-review\` to trigger a new review at any time.</sub>`;
+
+// -----------------------------------------------------------------------------
+// Status Templates
+// -----------------------------------------------------------------------------
+
+/** Status shown while Claude is analyzing the PR */
+const STATUS_IN_PROGRESS = `## 🤖 Claude Code Review
+
+> 🔄 **Review in progress...** Claude is analyzing this pull request. If a review can be seen below, it will be replaced by the results of this one.
+>
+> <sub>⏱️ Reviews typically complete within 5-15 minutes depending on PR size.</sub>`;
+
+/** Status shown when review completes successfully */
+const STATUS_COMPLETE = `## 🤖 Claude Code Review
+
+> ✅ **Review complete**`;
+
+/** Status shown when cache hit detected (no code changes since last review) */
+const STATUS_SKIPPED = `## 🤖 Claude Code Review
+
+> ✅ **Review still valid** — No new code changes detected since the last review.
+>
+> <sub>💡 To force a fresh review, add a comment containing \`@request-claude-review\`.</sub>`;
+
+/** Status shown when review fails */
+const STATUS_FAILED = `## 🤖 Claude Code Review
+
+> ❌ **Review failed** — An error occurred during analysis. Check the workflow logs for details.
+>
+> <sub>💡 To retry, add a comment containing \`@request-claude-review\`.</sub>`;
+
+// -----------------------------------------------------------------------------
+// Content Templates
+// -----------------------------------------------------------------------------
+
+/** Placeholder content shown before first review completes */
+const CONTENT_PLACEHOLDER = `*Waiting for review to complete...*`;
+
+/** Content shown when no review exists and cache hit (first PR with no changes) */
+const CONTENT_NO_REVIEW_NEEDED = `This PR has no code changes that require review.`;
+
+// =============================================================================
+// Comment Structure Helpers
+// =============================================================================
+
+/**
+ * Represents the parsed structure of a review comment.
+ */
+interface ParsedReviewComment {
+  /** Content of the status section (between status markers) */
+  status: string;
+  /** Content of the review section (between content markers) */
+  content: string;
+  /** Whether the comment had valid marker structure */
+  hasValidStructure: boolean;
+}
+
+/**
+ * Parses an existing comment body to extract status and content sections.
+ * Returns default empty values if markers are not found.
+ */
+function parseReviewComment(body: string): ParsedReviewComment {
+  const statusStartIdx = body.indexOf(STATUS_START_MARKER);
+  const statusEndIdx = body.indexOf(STATUS_END_MARKER);
+  const contentStartIdx = body.indexOf(CONTENT_START_MARKER);
+  const contentEndIdx = body.indexOf(CONTENT_END_MARKER);
+
+  // Check if all markers are present and in correct order
+  const hasValidStructure =
+    statusStartIdx !== -1 &&
+    statusEndIdx !== -1 &&
+    contentStartIdx !== -1 &&
+    contentEndIdx !== -1 &&
+    statusStartIdx < statusEndIdx &&
+    statusEndIdx < contentStartIdx &&
+    contentStartIdx < contentEndIdx;
+
+  if (!hasValidStructure) {
+    return {
+      status: '',
+      content: '',
+      hasValidStructure: false,
+    };
+  }
+
+  const status = body.substring(statusStartIdx + STATUS_START_MARKER.length, statusEndIdx).trim();
+
+  const content = body
+    .substring(contentStartIdx + CONTENT_START_MARKER.length, contentEndIdx)
+    .trim();
+
+  return {
+    status,
+    content,
+    hasValidStructure: true,
+  };
+}
+
+/**
+ * Builds a complete review comment body with the marker structure.
+ *
+ * Structure:
+ * ```
+ * <!-- claude-pr-review-bot -->
+ * <!-- claude-pr-review-status-start -->
+ * {status content}
+ * <!-- claude-pr-review-status-end -->
+ * <!-- claude-pr-review-content-start -->
+ * {review content}
+ * <!-- claude-pr-review-content-end -->
+ * {footer}
+ * ```
+ */
+function buildReviewComment(status: string, content: string): string {
+  return `${REVIEW_COMMENT_MARKER}
+${STATUS_START_MARKER}
+${status}
+${STATUS_END_MARKER}
+${CONTENT_START_MARKER}
+${content}
+${CONTENT_END_MARKER}${REVIEW_FOOTER}`;
+}
 
 // =============================================================================
 // GitHub API Functions
@@ -313,23 +471,90 @@ function findExistingBotComment(owner: string, repo: string, prNumber: number): 
 }
 
 /**
- * Creates or updates the main review comment on the PR.
- * This is an editable issue comment (not a review) that persists across reviews.
+ * Gets the body content of an existing PR comment by ID.
+ * Returns the comment body if found, null otherwise.
+ */
+function getCommentBody(owner: string, repo: string, commentId: number): string | null {
+  log(`Fetching body of comment ${commentId}...`);
+
+  try {
+    const result = gh([
+      'api',
+      `repos/${owner}/${repo}/issues/comments/${commentId}`,
+      '--jq',
+      '.body',
+    ]);
+
+    if (result) {
+      log(`Retrieved comment body (${result.length} chars)`);
+      return result;
+    }
+
+    log('Comment body was empty');
+    return null;
+  } catch (err) {
+    log(`Failed to fetch comment body: ${(err as Error).message}`);
+    return null;
+  }
+}
+
+/**
+ * Options for upserting a review comment.
+ */
+interface UpsertReviewCommentOptions {
+  /** The status section content */
+  status: string;
+  /** The content section (review body). If undefined, preserves existing content. */
+  content?: string;
+}
+
+/**
+ * Creates or updates the main review comment on the PR using marker-based structure.
  *
- * @returns The comment URL
+ * - If no existing comment: creates new comment with status and content
+ * - If existing comment with valid structure: updates sections as specified
+ * - If existing comment without valid structure: replaces entire comment
+ *
+ * When `content` is undefined, only the status section is updated (preserving existing content).
+ *
+ * @returns The comment ID and URL
  */
 function upsertReviewComment(
   owner: string,
   repo: string,
   prNumber: number,
-  body: string
+  options: UpsertReviewCommentOptions
 ): { id: number; html_url: string } {
-  // Prepend the marker to the body
-  const markedBody = `${REVIEW_COMMENT_MARKER}\n${body}`;
-
   const existingCommentId = findExistingBotComment(owner, repo, prNumber);
 
+  let finalBody: string;
+
   if (existingCommentId) {
+    // Fetch existing comment to check structure
+    const existingBody = getCommentBody(owner, repo, existingCommentId);
+
+    if (existingBody) {
+      const parsed = parseReviewComment(existingBody);
+
+      if (parsed.hasValidStructure && options.content === undefined) {
+        // Status-only update: preserve existing content
+        log('Updating status section only, preserving content...');
+        finalBody = buildReviewComment(options.status, parsed.content);
+      } else if (parsed.hasValidStructure && options.content !== undefined) {
+        // Full update: replace both sections
+        log('Updating both status and content sections...');
+        finalBody = buildReviewComment(options.status, options.content);
+      } else {
+        // No valid structure, replace entire comment
+        log('Existing comment has no valid marker structure, replacing entirely...');
+        finalBody = buildReviewComment(options.status, options.content ?? CONTENT_PLACEHOLDER);
+      }
+    } else {
+      // Couldn't fetch existing body, create fresh
+      log('Could not fetch existing comment body, creating fresh structure...');
+      finalBody = buildReviewComment(options.status, options.content ?? CONTENT_PLACEHOLDER);
+    }
+
     log(`Updating existing comment ${existingCommentId}...`);
 
     const result = gh(
@@ -341,7 +566,7 @@ function upsertReviewComment(
         '--input',
         '-',
       ],
-      JSON.stringify({ body: markedBody })
+      JSON.stringify({ body: finalBody })
     );
 
     try {
@@ -353,7 +578,9 @@ function upsertReviewComment(
       throw new Error('Failed to update comment');
     }
   } else {
+    // No existing comment, create new one
     log('Creating new review comment...');
+    finalBody = buildReviewComment(options.status, options.content ?? CONTENT_PLACEHOLDER);
 
     const result = gh(
       [
@@ -364,7 +591,7 @@ function upsertReviewComment(
         '--input',
         '-',
       ],
-      JSON.stringify({ body: markedBody })
+      JSON.stringify({ body: finalBody })
     );
 
     try {
@@ -925,6 +1152,7 @@ async function main(): Promise<void> {
       'pr-number': { type: 'string' },
       'review-json': { type: 'string' },
       'dry-run': { type: 'boolean', default: false },
+      mode: { type: 'string', default: 'review' }, // 'review' | 'in-progress' | 'skipped'
     },
     strict: true,
   });
@@ -933,11 +1161,66 @@ async function main(): Promise<void> {
   const repo = values.repo;
   const prNumber = parseInt(values['pr-number'] || '', 10);
   const dryRun = values['dry-run'];
+  const mode = values.mode as 'review' | 'in-progress' | 'skipped';
 
   // Validate required inputs
   if (!owner || !repo || isNaN(prNumber)) {
     logError('Missing required arguments: --owner, --repo, --pr-number');
     process.exit(1);
+  }
+
+  // Handle special modes that don't require review JSON
+  if (mode === 'in-progress') {
+    log(`Running in ${mode} mode for ${owner}/${repo}#${prNumber}`);
+
+    // In-progress mode: update status only, preserve existing content
+    // If no existing content, show placeholder
+    if (dryRun) {
+      log(`DRY RUN - Would update status to in-progress (preserving content)`);
+      console.log(buildReviewComment(STATUS_IN_PROGRESS, CONTENT_PLACEHOLDER));
+      process.exit(0);
+    }
+
+    try {
+      // Pass undefined for content to preserve existing review content
+      const result = upsertReviewComment(owner, repo, prNumber, {
+        status: STATUS_IN_PROGRESS,
+        // content: undefined - preserves existing content
+      });
+      log(`In-progress status posted: ${result.html_url}`);
+      console.log(`comment_url=${result.html_url}`);
+      console.log(`comment_id=${result.id}`);
+      process.exit(0);
+    } catch (error) {
+      logError(`Failed to post ${mode} comment: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  }
+
+  // Handle skipped mode - update status only, preserve existing review content
+  if (mode === 'skipped') {
+    log(`Running in skipped mode for ${owner}/${repo}#${prNumber}`);
+
+    if (dryRun) {
+      log(`DRY RUN - Would update status to skipped (preserving content)`);
+      console.log(buildReviewComment(STATUS_SKIPPED, CONTENT_PLACEHOLDER));
+      process.exit(0);
+    }
+
+    try {
+      // Pass undefined for content to preserve existing review content
+      const result = upsertReviewComment(owner, repo, prNumber, {
+        status: STATUS_SKIPPED,
+        // content: undefined - preserves existing content
+      });
+      log(`Skipped status posted: ${result.html_url}`);
+      console.log(`comment_url=${result.html_url}`);
+      console.log(`comment_id=${result.id}`);
+      process.exit(0);
+    } catch (error) {
+      logError(`Failed to post skipped comment: ${(error as Error).message}`);
+      process.exit(1);
+    }
   }
 
   // Get review JSON from sources (priority order):
@@ -1033,8 +1316,9 @@ async function main(): Promise<void> {
     side: comment.side || ('RIGHT' as const),
   }));
 
-  // Build the full review body for the editable comment
-  let reviewBody = reviewOutput.pr_review_body;
+  // Build the review content (Claude's review body + optional skipped comments)
+  // Note: The footer is handled by buildReviewComment, not added here
+  let reviewContent = reviewOutput.pr_review_body;
   if (skippedComments.length > 0) {
     const skippedSection = `\n\n---\n\n<details>\n<summary>ℹ️ ${
       skippedComments.length
@@ -1046,24 +1330,28 @@ async function main(): Promise<void> {
           }`
       )
       .join('\n\n')}\n\n</details>`;
-    reviewBody += skippedSection;
+    reviewContent += skippedSection;
   }
 
   // HYBRID APPROACH:
-  // 1. Create/update an editable PR comment with the full review content
+  // 1. Create/update an editable PR comment with marker-based structure
   // 2. Submit a minimal formal review with just the verdict (and inline comments)
   //
   // This ensures:
   // - Only ONE main review comment exists at any time (editable)
+  // - Status and content sections can be updated independently
   // - Formal review verdict is still recorded for branch protection
   // - Inline comments are attached to specific lines
 
   let commentResult: { id: number; html_url: string } | null = null;
   let reviewResult: { id: number; html_url: string } | null = null;
 
-  // Step 1: Create or update the main review comment (editable)
+  // Step 1: Create or update the main review comment (editable) with both status and content
   try {
-    commentResult = upsertReviewComment(owner, repo, prNumber, reviewBody);
+    commentResult = upsertReviewComment(owner, repo, prNumber, {
+      status: STATUS_COMPLETE,
+      content: reviewContent,
+    });
     log(`Review comment ${commentResult.id} saved at: ${commentResult.html_url}`);
   } catch (error) {
     logError(`Failed to upsert review comment: ${(error as Error).message}`);
@@ -1081,7 +1369,7 @@ async function main(): Promise<void> {
         (formattedComments.length > 0
           ? ` _${formattedComments.length} inline comment(s) are attached below._`
           : '')
-      : reviewBody; // Fallback to full body if comment failed
+      : reviewContent; // Fallback to review content if comment failed
 
     reviewResult = createReview({
       owner,
