@@ -2,8 +2,10 @@ import * as dotenv from 'dotenv';
 import { resolve } from 'path';
 
 // Load environment variables from .env file in development
+// Note: __dirname is apps/slack-oauth-backend/dist when running built code,
+// so ../.env resolves to apps/slack-oauth-backend/.env
 if (process.env['NODE_ENV'] !== 'production') {
-  dotenv.config({ path: resolve(__dirname, '../../.env') });
+  dotenv.config({ path: resolve(__dirname, '../.env') });
 }
 
 export interface Config {
@@ -16,8 +18,8 @@ export interface Config {
   slackClientSecret: string;
   slackRedirectUri: string;
 
-  // Slack Bot configuration
-  slackBotToken: string;
+  // Slack Bot configuration (optional - not available with token rotation)
+  slackBotToken?: string;
 
   // Security
   sessionSecret: string;
@@ -63,8 +65,8 @@ function createConfig(): Config {
       slackClientSecret: getRequiredEnv('SLACK_CLIENT_SECRET'),
       slackRedirectUri: getRequiredEnv('SLACK_REDIRECT_URI'),
 
-      // Slack Bot configuration
-      slackBotToken: getRequiredEnv('SLACK_BOT_TOKEN'),
+      // Slack Bot configuration (optional - not available with token rotation)
+      slackBotToken: process.env['SLACK_BOT_TOKEN'],
 
       // Security
       sessionSecret: getRequiredEnv('SESSION_SECRET'),
@@ -101,7 +103,6 @@ export function validateConfig(): void {
     'slackClientId',
     'slackClientSecret',
     'slackRedirectUri',
-    'slackBotToken',
     'sessionSecret',
   ];
 

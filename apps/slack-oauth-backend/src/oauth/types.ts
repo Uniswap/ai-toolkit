@@ -24,6 +24,8 @@ export interface OAuthTokenResponse {
   ok: boolean;
   /** Access token for the workspace */
   access_token?: string;
+  /** Refresh token for token rotation (when token rotation is enabled) */
+  refresh_token?: string;
   /** Token type (usually "bot") */
   token_type?: string;
   /** OAuth scopes granted */
@@ -48,6 +50,8 @@ export interface OAuthTokenResponse {
     scope?: string;
     access_token?: string;
     token_type?: string;
+    /** Refresh token for user token rotation (when token rotation is enabled) */
+    refresh_token?: string;
   };
   /** Error message if failed */
   error?: string;
@@ -91,6 +95,8 @@ export interface OAuthResult {
   success: boolean;
   /** Access token if successful */
   accessToken?: string;
+  /** Refresh token if successful (when token rotation is enabled) */
+  refreshToken?: string;
   /** User information if successful */
   user?: SlackUserInfo;
   /** Error message if failed */

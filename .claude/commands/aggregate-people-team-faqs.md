@@ -188,7 +188,7 @@ async function retryMCP(toolCall, toolName, maxRetries = 2) {
 
 // Usage example:
 // const messages = await retryMCP(
-//   () => mcp__zencoder-slack__slack_get_channel_history({ channel_id: "C123", limit: 30 }),
+//   () => mcp__slack__slack_get_channel_history({ channel_id: "C123", limit: 30 }),
 //   "Slack MCP - channel history"
 // );
 ```
@@ -556,12 +556,10 @@ For questions that have thread replies, attempt to automatically extract the ans
 
 ```typescript
 if (question.has_thread) {
-  const replies =
-    (await mcp__zencoder) -
-    slack__slack_get_thread_replies({
-      channel_id: question.channel_id,
-      thread_ts: question.thread_ts,
-    });
+  const replies = await mcp__slack__slack_get_thread_replies({
+    channel_id: question.channel_id,
+    thread_ts: question.thread_ts,
+  });
 
   // Limit to first 10 replies
   const limitedReplies = replies.slice(0, 10);

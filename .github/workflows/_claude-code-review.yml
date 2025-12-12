@@ -29,6 +29,13 @@ name: "[claude] Claude Code Review"
 # - Creates inline comments like human reviewers
 # - Submits formal reviews for merge protection
 # - Supports custom prompts
+# - Comment trigger: "@request-claude-review" in any PR comment forces a new review
+# - Manual trigger via workflow_dispatch to force a new review
+#
+# NOTE: Re-requesting a review from github-actions[bot] via the GitHub UI
+# does NOT trigger this workflow. GitHub does not fire the review_requested
+# event when re-requesting reviews from bot accounts. Use the comment trigger
+# or manual workflow_dispatch instead.
 #
 # PERMISSIONS REQUIRED (calling workflow must grant these):
 #   contents: read
@@ -46,9 +53,16 @@ on:
         type: string
 
       base_ref:
-        description: "Base branch name (e.g., main, master)"
-        required: true
+        description: "Base branch name (e.g., main, master). Optional - if not provided, will be fetched via GitHub API."
+        required: false
         type: string
+        default: ""
+
+      force_review:
+        description: "Force a full review even if the code hasn't changed (bypasses patch-ID cache)"
+        required: false
+        type: boolean
+        default: false
 
       model:
         description: "Claude model to use for review"
@@ -85,6 +99,12 @@ on:
         type: string
         default: ""
 
+      toolkit_ref:
+        description: "Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Defaults to 'main'. Use 'next' or a specific SHA to test unreleased changes."
+        required: false
+        type: string
+        default: "main"
+
     secrets:
       ANTHROPIC_API_KEY:
         description: "Anthropic API key for Claude access"
@@ -113,36 +133,168 @@ jobs:
         with:
           egress-policy: audit
 
-      # Checkout code with full history for patch-ID calculation
+      # Fetch PR metadata via API:
+      # - head_sha: Checkout the exact PR commit (not GitHub's merge commit)
+      # - base_ref: Use provided value or fetch from API (makes base_ref input optional)
+      - name: Get PR Info
+        id: pr-info
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          INPUT_BASE_REF: ${{ inputs.base_ref }}
+        run: |
+          echo "ℹ️  Fetching PR #$PR_NUMBER info..."
+
+          # Fetch PR data once
+          PR_DATA=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER)
+
+          # Extract head SHA (always needed)
+          HEAD_SHA=$(echo "$PR_DATA" | jq -r '.head.sha')
+          echo "head_sha=$HEAD_SHA" >> $GITHUB_OUTPUT
+          echo "📍 PR head SHA: $HEAD_SHA"
+
+          # Use provided base_ref or fetch from API
+          if [ -n "$INPUT_BASE_REF" ]; then
+            BASE_REF="$INPUT_BASE_REF"
+            echo "📍 Base ref (from input): $BASE_REF"
+          else
+            BASE_REF=$(echo "$PR_DATA" | jq -r '.base.ref')
+            echo "📍 Base ref (from API): $BASE_REF"
+          fi
+          echo "base_ref=$BASE_REF" >> $GITHUB_OUTPUT
+
+      # Checkout the exact PR head commit (not GitHub's merge commit)
       - name: Checkout Repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
-          fetch-depth: 0 # Full history needed for git merge-base
+          ref: ${{ steps.pr-info.outputs.head_sha }}
+          fetch-depth: 0 # Full history needed for accurate diff calculation
+
+      # Setup Node.js early so we can post status updates
+      - name: Setup Node.js (Early)
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: "22"
+
+      # Download or use local post-review script (needed for status updates)
+      - name: Setup Post Review Script (Early)
+        id: setup-script-early
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
+        run: |
+          set -euo pipefail
+
+          # Check if we're running from the ai-toolkit repository
+          if [ "$GITHUB_REPOSITORY" = "Uniswap/ai-toolkit" ]; then
+            echo "ℹ️  Running from ai-toolkit - using local post-review.ts"
+            echo "script_path=.github/scripts/post-review.ts" >> $GITHUB_OUTPUT
+          else
+            echo "ℹ️  Running from external repository - downloading post-review.ts from Uniswap/ai-toolkit"
+            echo "ℹ️  Using toolkit ref: $TOOLKIT_REF"
+
+            # Download the script from ai-toolkit repository at the specified ref
+            if ! curl -fSs -H "Authorization: token $WORKFLOW_PAT" \
+                      -H "Accept: application/vnd.github.v4.raw" \
+                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/scripts/post-review.ts?ref=${TOOLKIT_REF}" \
+                      -o /tmp/post-review.ts 2>&1 | tee /tmp/curl-error.log; then
+              echo "❌ Failed to download post-review.ts from Uniswap/ai-toolkit@${TOOLKIT_REF}"
+              echo "   Error details:"
+              cat /tmp/curl-error.log | head -5
+              exit 1
+            fi
+
+            echo "✅ Downloaded post-review.ts from SHA: $TOOLKIT_REF"
+            echo "script_path=/tmp/post-review.ts" >> $GITHUB_OUTPUT
+          fi
 
       # Calculate patch-ID (stable hash of code changes, survives rebases)
+      # This must run BEFORE posting in-progress so we can check cache first
       - name: Calculate Patch ID
         id: patch-id
         env:
-          BASE_REF: ${{ inputs.base_ref }}
+          BASE_REF: ${{ steps.pr-info.outputs.base_ref }}
         run: |
-          # Find the merge base between base branch and HEAD
+          # Find where the PR branch diverged from the base branch
+          # HEAD is the PR head commit (checked out via pr-info step)
           MERGE_BASE=$(git merge-base origin/$BASE_REF HEAD)
+          echo "merge_base=$MERGE_BASE" >> $GITHUB_OUTPUT
 
           # Calculate stable patch-ID (same code = same ID, even after rebase)
+          # This diff contains ONLY the PR's changes, not other commits merged to base
           PATCH_ID=$(git diff ${MERGE_BASE}..HEAD | git patch-id --stable | cut -d' ' -f1)
 
           echo "patch_id=$PATCH_ID" >> $GITHUB_OUTPUT
           echo "📊 Patch-ID: ${PATCH_ID:0:12}... (first 12 chars)"
+          echo "📍 Merge base: $MERGE_BASE"
           echo "   This ID stays the same across rebases if code hasn't changed"
 
+      # Check cache BEFORE posting in-progress to preserve existing review
+      # Skip cache check entirely when force_review is enabled
+      - name: Check Review Cache
+        id: cache-check
+        if: inputs.force_review != true
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .review-cache
+          key: review-pr${{ inputs.pr_number }}-patch-${{ steps.patch-id.outputs.patch_id }}
+          lookup-only: true # Just check, don't restore
+
+      # Early exit if we've already reviewed this code (rebase detected)
+      # Never skip when force_review is enabled
+      # IMPORTANT: This runs BEFORE posting in-progress to preserve existing review content
+      - name: Skip Review if No Changes
+        if: steps.cache-check.outputs.cache-hit == 'true' && inputs.force_review != true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          POST_REVIEW_SCRIPT: ${{ steps.setup-script-early.outputs.script_path }}
+        run: |
+          echo "✅ Skipping review - no actual code changes detected"
+          echo ""
+          echo "This push appears to be a rebase or merge without new code changes."
+          echo "Patch-ID: ${{ steps.patch-id.outputs.patch_id }}"
+          echo ""
+          echo "We've already reviewed this exact code, so skipping to save API costs."
+          echo ""
+          echo "💡 To force a new review, use the manual trigger with force_review: true"
+
+          # Add status banner to existing review (preserving full content)
+          echo ""
+          echo "ℹ️  Adding 'still valid' status banner to existing review..."
+
+          REPO_OWNER=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)
+          REPO_NAME=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
+
+          npx tsx "$POST_REVIEW_SCRIPT" \
+            --mode skipped \
+            --owner "$REPO_OWNER" \
+            --repo "$REPO_NAME" \
+            --pr-number "$PR_NUMBER"
+
+          echo "✅ Review preserved with status banner"
+          exit 0
+
+      # Log when force review is enabled
+      - name: Force Review Enabled
+        if: inputs.force_review == true
+        run: |
+          echo "🔄 Force review enabled - bypassing cache check"
+          echo "   A full review will run regardless of previous reviews for this code"
+
       # Detect trivial PRs for fast-path review
+      # Only runs if we're actually going to do a review (not cached)
       - name: Detect Trivial PR
         id: pr-size
+        if: steps.cache-check.outputs.cache-hit != 'true'
         env:
-          BASE_REF: ${{ inputs.base_ref }}
+          MERGE_BASE: ${{ steps.patch-id.outputs.merge_base }}
         run: |
-          # Find the merge base between base branch and HEAD
-          MERGE_BASE=$(git merge-base origin/$BASE_REF HEAD)
+          # Reuse merge base from patch-id step (already calculated)
+          echo "📍 Using merge base from patch-id step: $MERGE_BASE"
 
           # Count lines changed (additions + deletions)
           STATS=$(git diff --shortstat ${MERGE_BASE}..HEAD)
@@ -164,26 +316,33 @@ jobs:
             echo "📝 Standard PR - will use comprehensive review mode"
           fi
 
-      # Check cache to see if we've already reviewed this exact code
-      - name: Check Review Cache
-        id: cache-check
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: .review-cache
-          key: review-pr${{ inputs.pr_number }}-patch-${{ steps.patch-id.outputs.patch_id }}
-          lookup-only: true # Just check, don't restore
-
-      # Early exit if we've already reviewed this code (rebase detected)
-      - name: Skip Review if No Changes
-        if: steps.cache-check.outputs.cache-hit == 'true'
+      # Post "Review in Progress" comment ONLY if we're actually going to review
+      # This runs AFTER cache check to preserve existing review on cache hits
+      - name: Post Review In Progress
+        id: in-progress
+        if: steps.cache-check.outputs.cache-hit != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          POST_REVIEW_SCRIPT: ${{ steps.setup-script-early.outputs.script_path }}
         run: |
-          echo "✅ Skipping review - no actual code changes detected"
-          echo ""
-          echo "This push appears to be a rebase or merge without new code changes."
-          echo "Patch-ID: ${{ steps.patch-id.outputs.patch_id }}"
-          echo ""
-          echo "We've already reviewed this exact code, so skipping to save API costs."
-          exit 0
+          set -euo pipefail
+
+          echo "ℹ️  Posting 'review in progress' status..."
+
+          # Parse owner and repo
+          REPO_OWNER=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)
+          REPO_NAME=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
+
+          # Post in-progress comment (creates or updates the bot's comment)
+          npx tsx "$POST_REVIEW_SCRIPT" \
+            --mode in-progress \
+            --owner "$REPO_OWNER" \
+            --repo "$REPO_NAME" \
+            --pr-number "$PR_NUMBER"
+
+          echo "✅ In-progress status posted"
 
       # Fetch existing review comments for context
       - name: Fetch Existing Review Comments
@@ -212,6 +371,39 @@ jobs:
             echo "ℹ️  No existing review comments found (initial review)"
           fi
 
+      # Generate the PR diff for Claude to review
+      # This ensures Claude reviews ONLY the PR's changes, not other commits merged to main
+      - name: Generate PR Diff
+        if: steps.cache-check.outputs.cache-hit != 'true'
+        id: pr-diff
+        env:
+          MERGE_BASE: ${{ steps.patch-id.outputs.merge_base }}
+        run: |
+          set -euo pipefail
+
+          echo "ℹ️  Generating PR diff..."
+
+          # Reuse merge base from patch-id step (already calculated)
+          # This ensures consistency across all steps using the merge base
+          echo "📍 Using merge base from patch-id step: $MERGE_BASE"
+
+          # Generate the list of changed files (for reference)
+          CHANGED_FILES=$(git diff --name-only ${MERGE_BASE}..HEAD)
+          FILE_COUNT=$(echo "$CHANGED_FILES" | grep -c . || echo "0")
+          echo "📁 Files changed: $FILE_COUNT"
+
+          # Generate the full diff
+          # This is the ONLY diff Claude should review - it contains exactly the PR's changes
+          git diff ${MERGE_BASE}..HEAD > /tmp/pr-diff.txt
+
+          DIFF_SIZE=$(wc -c < /tmp/pr-diff.txt)
+          echo "📊 Diff size: $DIFF_SIZE bytes"
+
+          # Save changed files list
+          echo "$CHANGED_FILES" > /tmp/changed-files.txt
+
+          echo "✅ PR diff generated successfully"
+
       # Build final prompt with custom content
       - name: Build Review Prompt
         if: steps.cache-check.outputs.cache-hit != 'true'
@@ -222,9 +414,11 @@ jobs:
           WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ inputs.pr_number }}
-          BASE_REF: ${{ inputs.base_ref }}
+          BASE_REF: ${{ steps.pr-info.outputs.base_ref }}
           PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
           EXISTING_COMMENT_COUNT: ${{ steps.existing-comments.outputs.existing_comment_count }}
+          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
+          MERGE_BASE: ${{ steps.patch-id.outputs.merge_base }}
         run: |
           CUSTOM_PROMPT=""
 
@@ -252,7 +446,7 @@ jobs:
             # Fetch default prompt via GitHub API using WORKFLOW_PAT for cross-repo access
             if ! curl -fSs -H "Authorization: token $WORKFLOW_PAT" \
                       -H "Accept: application/vnd.github.v4.raw" \
-                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/prompts/default-pr-review.md" \
+                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/prompts/default-pr-review.md?ref=${TOOLKIT_REF}" \
                       -o /tmp/default-prompt.md 2>&1 | tee /tmp/curl-error.log; then
               echo "❌ Failed to fetch default prompt from Uniswap/ai-toolkit"
               echo "   Error details:"
@@ -278,6 +472,28 @@ jobs:
           **PR Number:** $PR_NUMBER
           **Base Branch:** $BASE_REF
           **Patch ID:** $PATCH_ID
+
+          ---
+
+          # ⚠️ IMPORTANT: PR Diff Instructions
+
+          The diff below contains **ONLY** the changes in this PR. Do NOT run \`git diff\` yourself - the diff
+          has already been computed correctly using the merge-base between the PR branch and \`$BASE_REF\`.
+
+          **To get the correct diff, use this command:**
+          \`\`\`bash
+          git diff ${MERGE_BASE}..HEAD
+          \`\`\`
+
+          **Files changed in this PR:**
+          \`\`\`
+          $(cat /tmp/changed-files.txt)
+          \`\`\`
+
+          **Full PR Diff:**
+          \`\`\`diff
+          $(cat /tmp/pr-diff.txt)
+          \`\`\`
 
           ---
 
@@ -328,6 +544,55 @@ jobs:
             echo "✨ Added fast-review mode instructions for trivial PR"
           fi
 
+          # Append verdict decision rules (MUST come before output field guidance)
+          cat >> /tmp/final-prompt.txt <<VERDICT_RULES_EOF
+
+          ---
+
+          # 🎯 Verdict Decision Rules (MANDATORY)
+
+          Your verdict MUST follow these rules exactly. This is the most important part of your review.
+
+          ## APPROVE - Use when:
+          - No bugs, security vulnerabilities, or data corruption risks found
+          - Review contains only suggestions, questions, considerations, or style feedback
+          - You would tell a human reviewer "this is safe to merge"
+          - Your overall assessment is positive, even if you have minor feedback
+
+          **Key insight:** Questions, considerations, "nice-to-haves", and teaching moments are NOT blocking issues. If you have these but no actual bugs or security issues, use APPROVE.
+
+          ## REQUEST_CHANGES - Use when:
+          - Bugs that would cause runtime errors or incorrect behavior
+          - Security vulnerabilities (injection, auth bypass, data exposure)
+          - Data loss or corruption risks
+          - Breaking changes without migration path
+          - Critical logic errors that would affect users
+
+          ## COMMENT - Use SPARINGLY when:
+          - Several issues that are *close* to blocking but not quite (e.g., potential race conditions that need investigation)
+          - Significant number of non-blocking issues that collectively suggest the PR needs more work
+          - You explicitly cannot recommend approval AND cannot point to a specific blocking bug
+
+          **COMMENT is NOT a safe default.** Most positive reviews with suggestions should be APPROVE, not COMMENT.
+
+          ## Decision Examples
+
+          | Review Content | Correct Verdict | Why |
+          |---------------|-----------------|-----|
+          | "No issues found, code looks good" | APPROVE | Positive review, no blockers |
+          | "Found potential null pointer on line 42" | REQUEST_CHANGES | Bug identified |
+          | "Good changes! Consider extracting this to a utility" | APPROVE | Positive + suggestion = APPROVE |
+          | "Questions about the architecture choice here" | APPROVE | Questions are not blockers |
+          | "5 style issues, 2 unclear variable names, missing tests" | COMMENT | Multiple issues, needs work |
+          | "SQL query uses string concatenation with user input" | REQUEST_CHANGES | Security vulnerability |
+
+          ## When Uncertain
+
+          If you found no bugs or security issues and your review tone is positive, **use APPROVE**. Uncertainty about code quality, missing context, or stylistic preferences are not blocking issues.
+
+          VERDICT_RULES_EOF
+          echo "✅ Added verdict decision rules"
+
           # Append field guidance for the structured output
           # Note: The actual JSON schema is enforced via --json-schema flag
           cat >> /tmp/final-prompt.txt <<JSON_GUIDANCE_EOF
@@ -340,10 +605,7 @@ jobs:
 
           **Required fields:**
           - \`pr_review_body\`: Your complete markdown-formatted review. Put ALL your analysis, findings, and reasoning here.
-          - \`pr_review_outcome\`: Your review decision:
-            - \`APPROVE\`: No blocking issues, code is safe to merge
-            - \`REQUEST_CHANGES\`: Critical bugs, security vulnerabilities, or data loss risks
-            - \`COMMENT\`: Suggestions and improvements, but not blocking merge
+          - \`pr_review_outcome\`: Your verdict (see Verdict Decision Rules above for how to choose)
           - \`inline_comments_new\`: Array of inline comments on specific lines (can be empty \`[]\`)
             - Each needs: \`path\` (file), \`line\` (number), \`body\` (feedback)
             - Optional: \`suggestion\` (corrected code snippet)
@@ -510,12 +772,7 @@ jobs:
           additional_permissions: |
             actions: read
 
-      # Setup Node.js for the post-review script
-      - name: Setup Node.js
-        if: steps.cache-check.outputs.cache-hit != 'true' && success()
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
-        with:
-          node-version: "22"
+      # Note: Node.js is already set up earlier for posting in-progress status
 
       # Extract Claude's structured output (validated JSON from --json-schema)
       - name: Extract Claude Response
@@ -555,39 +812,7 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
-      # Download post-review script if running from external repository
-      # When running from ai-toolkit itself, use the local file
-      - name: Setup Post Review Script
-        if: steps.cache-check.outputs.cache-hit != 'true' && success()
-        id: setup-script
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
-        run: |
-          set -euo pipefail
-
-          # Check if we're running from the ai-toolkit repository
-          if [ "$GITHUB_REPOSITORY" = "Uniswap/ai-toolkit" ]; then
-            echo "ℹ️  Running from ai-toolkit - using local post-review.ts"
-            echo "script_path=.github/scripts/post-review.ts" >> $GITHUB_OUTPUT
-          else
-            echo "ℹ️  Running from external repository - downloading post-review.ts from Uniswap/ai-toolkit"
-
-            # Download the script from ai-toolkit repository
-            if ! curl -fSs -H "Authorization: token $WORKFLOW_PAT" \
-                      -H "Accept: application/vnd.github.v4.raw" \
-                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/scripts/post-review.ts" \
-                      -o /tmp/post-review.ts 2>&1 | tee /tmp/curl-error.log; then
-              echo "❌ Failed to download post-review.ts from Uniswap/ai-toolkit"
-              echo "   Error details:"
-              cat /tmp/curl-error.log | head -5
-              exit 1
-            fi
-
-            echo "✅ Downloaded post-review.ts"
-            echo "script_path=/tmp/post-review.ts" >> $GITHUB_OUTPUT
-          fi
+      # Note: Post-review script is already downloaded/located earlier for in-progress status
 
       # Post the review using our script (all comments as github-actions[bot])
       - name: Post Review via Script
@@ -595,13 +820,16 @@ jobs:
         id: post-review
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # WORKFLOW_PAT is used for GraphQL operations (resolving review threads)
+          # that require elevated permissions beyond what GITHUB_TOKEN provides
+          GH_TOKEN_FOR_GRAPHQL: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ inputs.pr_number }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           # Pass file path instead of content to avoid shell injection risks
           # The script reads the file directly, avoiding shell expansion of content
           REVIEW_JSON_FILE: /tmp/claude-review-response.txt
-          # Script path determined by setup-script step (local or downloaded)
-          POST_REVIEW_SCRIPT: ${{ steps.setup-script.outputs.script_path }}
+          # Script path determined by early setup step (local or downloaded)
+          POST_REVIEW_SCRIPT: ${{ steps.setup-script-early.outputs.script_path }}
         run: |
           set -euo pipefail
 

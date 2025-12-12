@@ -9,7 +9,8 @@ import { config } from '../config';
  */
 export function formatTokenMessage(
   token: string,
-  userName?: string
+  userName?: string,
+  refreshToken?: string
 ): TokenMessage {
   const greeting = userName ? `Hi ${userName}! 👋` : 'Hi there! 👋';
 
@@ -18,7 +19,7 @@ export function formatTokenMessage(
       type: 'header',
       text: {
         type: 'plain_text',
-        text: '🔐 Your Slack Token',
+        text: '🔐 Your Slack Tokens',
         emoji: true,
       },
     },
@@ -26,7 +27,7 @@ export function formatTokenMessage(
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `${greeting}\n\nYour Slack access token has been generated successfully! You can use this token to integrate with Slack APIs.`,
+        text: `${greeting}\n\nYour Slack tokens have been generated successfully! You can use these tokens to integrate with Slack APIs.`,
       },
     },
     {
@@ -36,7 +37,7 @@ export function formatTokenMessage(
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: '*Your Access Token:*',
+        text: '*Access Token:*\n_Use this for API calls_',
       },
     },
     {
@@ -46,6 +47,31 @@ export function formatTokenMessage(
         text: `\`\`\`${token}\`\`\``,
       },
     },
+  ];
+
+  if (refreshToken) {
+    blocks.push(
+      {
+        type: 'divider',
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: '*Refresh Token:*\n_Use this to refresh your access token when it expires_',
+        },
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `\`\`\`${refreshToken}\`\`\``,
+        },
+      }
+    );
+  }
+
+  blocks.push(
     {
       type: 'divider',
     },
@@ -60,7 +86,7 @@ export function formatTokenMessage(
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `For detailed setup instructions and how to use this token, please refer to our documentation:\n<${config.notionDocUrl}|View Setup Guide>`,
+        text: `For detailed setup instructions and how to use these tokens, please refer to our documentation:\n<${config.notionDocUrl}|View Setup Guide>`,
       },
     },
     {
@@ -68,7 +94,7 @@ export function formatTokenMessage(
       elements: [
         {
           type: 'mrkdwn',
-          text: '⚠️ *Security Notice:* Keep this token secure and never share it publicly. Treat it like a password.',
+          text: '⚠️ *Security Notice:* Keep these tokens secure and never share them publicly. Treat them like passwords.',
         },
       ],
     },
@@ -80,13 +106,17 @@ export function formatTokenMessage(
       elements: [
         {
           type: 'mrkdwn',
-          text: '💡 *Tip:* This token will remain valid until revoked. Store it securely in your environment variables.',
+          text: refreshToken
+            ? '💡 *Tip:* Store both tokens securely in your environment variables. The refresh token can be used to obtain a new access token when needed.'
+            : '💡 *Tip:* This token will remain valid until revoked. Store it securely in your environment variables.',
         },
       ],
-    },
-  ];
+    }
+  );
 
-  const text = `${greeting} Your Slack access token: ${token}\n\nFor setup instructions, visit: ${config.notionDocUrl}`;
+  const text = refreshToken
+    ? `${greeting} Your Slack access token: ${token}\n\nYour refresh token: ${refreshToken}\n\nFor setup instructions, visit: ${config.notionDocUrl}`
+    : `${greeting} Your Slack access token: ${token}\n\nFor setup instructions, visit: ${config.notionDocUrl}`;
 
   return {
     blocks,
@@ -97,46 +127,32 @@ export function formatTokenMessage(
 /**
  * Format error message for user
  */
-export function formatErrorMessage(
-  error: ErrorType,
-  details?: string
-): ErrorMessage {
-  const errorMessages: Record<
-    ErrorType,
-    { title: string; description: string; action: string }
-  > = {
+export function formatErrorMessage(error: ErrorType, details?: string): ErrorMessage {
+  const errorMessages: Record<ErrorType, { title: string; description: string; action: string }> = {
     invalid_code: {
       title: '❌ Invalid Authorization Code',
       description: 'The authorization code provided is invalid or has expired.',
-      action:
-        'Please try authorizing again by clicking the "Add to Slack" button.',
+      action: 'Please try authorizing again by clicking the "Add to Slack" button.',
     },
     state_mismatch: {
       title: '🛡️ Security Check Failed',
-      description:
-        'The security validation failed. This might be due to an expired session.',
-      action:
-        'Please start the authorization process again from the beginning.',
+      description: 'The security validation failed. This might be due to an expired session.',
+      action: 'Please start the authorization process again from the beginning.',
     },
     token_exchange_failed: {
       title: '🔄 Token Exchange Failed',
-      description:
-        "We couldn't exchange your authorization code for an access token.",
-      action:
-        'This might be a temporary issue. Please try again in a few moments.',
+      description: "We couldn't exchange your authorization code for an access token.",
+      action: 'This might be a temporary issue. Please try again in a few moments.',
     },
     user_fetch_failed: {
       title: '👤 User Information Error',
       description: "We couldn't retrieve your user information from Slack.",
-      action:
-        "The token was generated but we couldn't send it via DM. Please contact support.",
+      action: "The token was generated but we couldn't send it via DM. Please contact support.",
     },
     dm_failed: {
       title: '📨 Message Delivery Failed',
-      description:
-        "Your token was generated but we couldn't send it via direct message.",
-      action:
-        'Please ensure the bot is installed in your workspace and try again.',
+      description: "Your token was generated but we couldn't send it via direct message.",
+      action: 'Please ensure the bot is installed in your workspace and try again.',
     },
     configuration_error: {
       title: '⚙️ Configuration Error',
@@ -145,8 +161,7 @@ export function formatErrorMessage(
     },
     unknown: {
       title: '😕 Unexpected Error',
-      description:
-        'An unexpected error occurred during the authorization process.',
+      description: 'An unexpected error occurred during the authorization process.',
       action: 'Please try again. If the problem persists, contact support.',
     },
   };
@@ -231,10 +246,14 @@ function escapeHtml(unsafe: string): string {
  */
 export function formatSuccessPage(
   userName?: string,
-  tokenToDisplay?: string
+  tokenToDisplay?: string,
+  refreshTokenToDisplay?: string,
+  refreshUrl?: string
 ): string {
   const safeUserName = userName ? escapeHtml(userName) : undefined;
   const safeToken = tokenToDisplay ? escapeHtml(tokenToDisplay) : undefined;
+  const safeRefreshToken = refreshTokenToDisplay ? escapeHtml(refreshTokenToDisplay) : undefined;
+  const safeRefreshUrl = refreshUrl ? escapeHtml(refreshUrl) : undefined;
   const title = safeUserName ? `Success, ${safeUserName}!` : 'Success!';
 
   return `
@@ -260,7 +279,7 @@ export function formatSuccessPage(
           border-radius: 16px;
           box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
           padding: 48px;
-          max-width: 480px;
+          max-width: 600px;
           text-align: center;
         }
         .success-icon {
@@ -284,11 +303,32 @@ export function formatSuccessPage(
           font-size: 32px;
           margin: 0 0 16px;
         }
+        h2 {
+          color: #1f2937;
+          font-size: 18px;
+          margin: 16px 0 8px;
+          text-align: left;
+        }
         p {
           color: #6b7280;
           font-size: 18px;
           line-height: 1.5;
           margin: 0 0 32px;
+        }
+        .token-container {
+          background: #f3f4f6;
+          padding: 16px;
+          border-radius: 8px;
+          margin: 16px 0;
+          word-break: break-all;
+          text-align: left;
+        }
+        .token-label {
+          font-size: 12px;
+          color: #6b7280;
+          margin-bottom: 8px;
+          text-transform: uppercase;
+          font-weight: 600;
         }
         .button {
           display: inline-block;
@@ -310,6 +350,27 @@ export function formatSuccessPage(
           border-radius: 8px;
           color: #92400e;
           font-size: 14px;
+          text-align: left;
+        }
+        .info-box {
+          margin-top: 24px;
+          padding: 16px;
+          background: #eff6ff;
+          border-radius: 8px;
+          color: #1e40af;
+          font-size: 14px;
+          text-align: left;
+        }
+        .info-box strong {
+          display: block;
+          margin-bottom: 8px;
+        }
+        code {
+          font-size: 14px;
+          color: #1f2937;
+          background: #e5e7eb;
+          padding: 2px 6px;
+          border-radius: 4px;
         }
       </style>
     </head>
@@ -324,27 +385,58 @@ export function formatSuccessPage(
         ${
           safeToken
             ? `
-        <p>Your Slack authorization was successful! We couldn't send your token via DM (the bot may need the <code>im:write</code> permission), but here it is:</p>
-        <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 24px 0; word-break: break-all;">
+        <p>Your Slack authorization was successful! We couldn't send your tokens via DM (the bot may need the <code>im:write</code> permission), but here they are:</p>
+
+        <h2>Access Token</h2>
+        <div class="token-container">
+          <div class="token-label">Use for API calls</div>
           <code style="font-size: 14px; color: #1f2937;">${safeToken}</code>
         </div>
+
+        ${
+          safeRefreshToken
+            ? `
+        <h2>Refresh Token</h2>
+        <div class="token-container">
+          <div class="token-label">Use to refresh when access token expires</div>
+          <code style="font-size: 14px; color: #1f2937;">${safeRefreshToken}</code>
+        </div>
+
+        ${
+          safeRefreshUrl
+            ? `
+        <div class="info-box">
+          <strong>Token Refresh Endpoint:</strong>
+          To refresh your access token, send a POST request to:<br>
+          <code>${safeRefreshUrl}</code><br>
+          <br>
+          Include your refresh token in the request body.
+        </div>
+        `
+            : ''
+        }
+        `
+            : ''
+        }
+
         <p style="color: #ef4444; font-size: 14px; margin-top: 16px;">
-          ⚠️ <strong>Important:</strong> Copy this token now! This page won't be shown again.
+          ⚠️ <strong>Important:</strong> Copy these tokens now! This page won't be shown again.
         </p>
         `
             : `
-        <p>Your Slack authorization was successful! Your access token has been sent to you via Slack direct message.</p>
+        <p>Your Slack authorization was successful! Your tokens have been sent to you via Slack direct message.</p>
         `
         }
-        <a href="${escapeHtml(
-          config.notionDocUrl
-        )}" class="button">View Setup Guide</a>
+        <a href="${escapeHtml(config.notionDocUrl)}" class="button">View Setup Guide</a>
         <div class="note">
           💡 <strong>Next steps:</strong> ${
-            safeToken
-              ? 'Copy your token above and'
-              : 'Check your Slack DMs for your access token and'
+            safeToken ? 'Copy your tokens above and' : 'Check your Slack DMs for your tokens and'
           } follow the setup guide to complete the integration.
+          ${
+            safeRefreshToken
+              ? '<br><br>Store both your access token and refresh token securely. When your access token expires, use the refresh token to obtain a new one.'
+              : ''
+          }
         </div>
       </div>
     </body>
@@ -466,9 +558,7 @@ export function formatErrorPage(error: ErrorType, details?: string): string {
         ${safeDetails ? `<div class="error-details">${safeDetails}</div>` : ''}
         <div>
           <a href="/" class="button">Try Again</a>
-          <a href="${escapeHtml(
-            config.notionDocUrl
-          )}" class="button secondary">Get Help</a>
+          <a href="${escapeHtml(config.notionDocUrl)}" class="button secondary">Get Help</a>
         </div>
       </div>
     </body>

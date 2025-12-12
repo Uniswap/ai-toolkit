@@ -22,6 +22,7 @@ type CommandName =
   | 'perf-analyze'
   | 'plan'
   | 'refactor'
+  | 'refine-linear-task'
   | 'research'
   | 'review-code'
   | 'review-plan'
@@ -128,6 +129,11 @@ export const commands: Commands = {
     description:
       'Orchestrate comprehensive refactoring with architectural analysis, pattern application, and incremental safety checks.',
     filePath: './refactor.md',
+  },
+  'refine-linear-task': {
+    description:
+      'Refine and enhance Linear task descriptions for improved clarity, completeness, and actionability',
+    filePath: './refine-linear-task.md',
   },
   research: {
     description:
