@@ -23,6 +23,67 @@ Before working with this repository, ensure you have the following tools install
 
 - **Node.js 22+** with npm
 
+### Docker Sandbox (Recommended for Autonomous Mode)
+
+For safely running Claude Code with `--dangerously-skip-permissions`, we provide a **devcontainer-based sandbox** that isolates Claude Code in a secure, network-restricted environment.
+
+#### Why Use the Docker Sandbox?
+
+The `--dangerously-skip-permissions` flag allows Claude Code to run without requiring manual approval for file operations and command execution. While this significantly speeds up autonomous workflows, it should only be used in a contained environment to prevent unintended system modifications.
+
+Our sandbox provides:
+
+- **Network restrictions**: Only essential services (GitHub, npm, Anthropic APIs) are accessible
+- **Non-root execution**: Claude Code runs as a regular user
+- **Isolated filesystem**: Your project is mounted in a container, protecting your host system
+- **Pre-configured tooling**: Claude Code CLI, git, and development tools pre-installed
+
+#### Quick Start with VS Code / Cursor
+
+1. **Install the Dev Containers extension** for VS Code or Cursor
+2. **Open this repository** in VS Code/Cursor
+3. **Click "Reopen in Container"** when prompted (or use Command Palette > "Dev Containers: Reopen in Container")
+4. **Wait for container to build** (first time only, ~2-5 minutes)
+5. **Run Claude Code safely**:
+
+   ```bash
+   claude --dangerously-skip-permissions
+   ```
+
+#### Manual Docker Usage
+
+If you prefer not to use VS Code devcontainers:
+
+```bash
+# Build the container
+docker build -t claude-sandbox .devcontainer/
+
+# Run with your project mounted
+docker run -it \
+  --cap-add=NET_ADMIN \
+  --cap-add=NET_RAW \
+  -v "$(pwd):/workspace" \
+  -w /workspace \
+  claude-sandbox
+
+# Inside the container, initialize the firewall and run Claude
+sudo /usr/local/bin/init-firewall.sh
+claude --dangerously-skip-permissions
+```
+
+#### What's Restricted?
+
+The firewall allowlist includes only:
+
+- GitHub (git operations, API, releases)
+- npm registry (package installation)
+- Anthropic APIs (Claude Code backend)
+- VS Code services (extensions, updates)
+- Linear API (task management)
+- Notion API (documentation)
+
+All other external network access is blocked, preventing accidental data exfiltration or unintended network operations.
+
 ### Local Installation
 
 ```bash
