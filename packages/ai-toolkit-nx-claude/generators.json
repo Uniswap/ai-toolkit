@@ -15,6 +15,16 @@
       "schema": "./dist/generators/add-agent/schema.json",
       "description": "Add a new Claude Code agent to existing or new packages"
     },
+    "add-skill": {
+      "factory": "./dist/generators/add-skill/generator",
+      "schema": "./dist/generators/add-skill/schema.json",
+      "description": "Add a new Claude Code skill compatible with the plugin system"
+    },
+    "init-plugin": {
+      "factory": "./dist/generators/init-plugin/generator",
+      "schema": "./dist/generators/init-plugin/schema.json",
+      "description": "Initialize a Claude Code plugin structure for distributing skills, commands, and agents"
+    },
     "hooks": {
       "factory": "./dist/generators/hooks/generator",
       "schema": "./dist/generators/hooks/schema.json",

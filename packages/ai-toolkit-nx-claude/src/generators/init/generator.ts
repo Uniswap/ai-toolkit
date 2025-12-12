@@ -23,6 +23,17 @@ import { commands as agnosticCommands } from '@ai-toolkit/commands-agnostic';
 import { agents as agnosticAgents } from '@ai-toolkit/agents-agnostic';
 import { addonsGenerator, hooksGenerator } from '../../index';
 
+// Helper to dynamically load skills (package may not exist yet)
+async function loadSkills(): Promise<Record<string, { description: string; filePath: string }>> {
+  try {
+    const skillsModule = await import('@ai-toolkit/skills-agnostic');
+    return skillsModule.skills || {};
+  } catch {
+    // Skills package not available - that's okay
+    return {};
+  }
+}
+
 // Recommended default commands for most users
 const DEFAULT_COMMANDS = ['explore', 'plan', 'review-plan', 'execute-plan', 'address-pr-issues'];
 
@@ -36,17 +47,21 @@ const DEFAULT_AGENTS = [
   'pr-reviewer',
 ];
 
+// Recommended default skills for most users (model-invoked capabilities)
+const DEFAULT_SKILLS = ['codebase-exploration'];
+
 interface Manifest {
   version: string;
   installedAt: string;
   commands: string[];
   agents: string[];
+  skills: string[];
   files: string[];
 }
 
 function checkExistingFiles(
   targetDir: string,
-  subDir: 'commands' | 'agents',
+  subDir: 'commands' | 'agents' | 'skills',
   items: string[]
 ): Set<string> {
   const existing = new Set<string>();
@@ -114,8 +129,10 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     options.installationType = 'global';
     options.commands = DEFAULT_COMMANDS;
     options.agents = DEFAULT_AGENTS;
+    options.skills = DEFAULT_SKILLS;
     options.installCommands = true;
     options.installAgents = true;
+    options.installSkills = true;
     options.installHooks = true; // Auto-install hooks in default mode
     options.hooksMode = 'sound'; // Use sound notifications
     options.installAddons = true; // Install all MCPs in default mode
@@ -124,6 +141,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     logger.info('📍 Location: Global (~/.claude)');
     logger.info(`📝 Commands: ${DEFAULT_COMMANDS.length} pre-selected`);
     logger.info(`🤖 Agents: ${DEFAULT_AGENTS.length} pre-selected`);
+    logger.info(`🎯 Skills: ${DEFAULT_SKILLS.length} pre-selected`);
     logger.info(`🔌 MCPs: All recommended servers will be installed\n`);
 
     // Mark all default mode options as explicitly provided to skip prompts
@@ -132,23 +150,31 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     explicitlyProvided.set('installationType', 'global');
     explicitlyProvided.set('installCommands', true);
     explicitlyProvided.set('installAgents', true);
+    explicitlyProvided.set('installSkills', true);
     explicitlyProvided.set('installHooks', true);
     explicitlyProvided.set('hooksMode', 'sound');
     explicitlyProvided.set('installAddons', true);
     explicitlyProvided.set('dry', false);
     explicitlyProvided.set('commands', DEFAULT_COMMANDS);
     explicitlyProvided.set('agents', DEFAULT_AGENTS);
+    explicitlyProvided.set('skills', DEFAULT_SKILLS);
   }
 
   // Handle interactive mode with schema-driven prompts
   const schemaPath = path.join(__dirname, 'schema.json');
 
-  // Extract command and agent descriptions from the new structure
+  // Load skills dynamically (package may not exist yet)
+  const agnosticSkills = await loadSkills();
+
+  // Extract command, agent, and skill descriptions from the new structure
   const commandDescriptions = Object.fromEntries(
     Object.entries(agnosticCommands).map(([key, value]) => [key, value.description])
   );
   const agentDescriptions = Object.fromEntries(
     Object.entries(agnosticAgents).map(([key, value]) => [key, value.description])
+  );
+  const skillDescriptions = Object.fromEntries(
+    Object.entries(agnosticSkills).map(([key, value]) => [key, value.description])
   );
 
   // Define directory paths
@@ -164,12 +190,14 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     Object.keys(agnosticCommands)
   );
   const globalExistingAgents = checkExistingFiles(globalDir, 'agents', Object.keys(agnosticAgents));
+  const globalExistingSkills = checkExistingFiles(globalDir, 'skills', Object.keys(agnosticSkills));
   const localExistingCommands = checkExistingFiles(
     localDir,
     'commands',
     Object.keys(agnosticCommands)
   );
   const localExistingAgents = checkExistingFiles(localDir, 'agents', Object.keys(agnosticAgents));
+  const localExistingSkills = checkExistingFiles(localDir, 'skills', Object.keys(agnosticSkills));
 
   // Pass the no-interactive flag to prompt-utils via options
   const optionsWithNoInteractive = {
@@ -185,14 +213,19 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
       {
         availableCommands: Object.keys(agnosticCommands),
         availableAgents: Object.keys(agnosticAgents),
+        availableSkills: Object.keys(agnosticSkills),
         commandDescriptions,
         agentDescriptions,
+        skillDescriptions,
         globalExistingCommands,
         globalExistingAgents,
+        globalExistingSkills,
         localExistingCommands,
         localExistingAgents,
+        localExistingSkills,
         defaultCommands: DEFAULT_COMMANDS,
         defaultAgents: DEFAULT_AGENTS,
+        defaultSkills: DEFAULT_SKILLS,
       },
       explicitlyProvided
     );
@@ -221,13 +254,20 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     normalizedOptions.agents = Object.keys(agnosticAgents);
     logger.info(`🤖 All agents selected (${normalizedOptions.agents.length} total)`);
   }
+  if (normalizedOptions.skillSelectionMode === 'all') {
+    normalizedOptions.skills = Object.keys(agnosticSkills);
+    logger.info(`🎯 All skills selected (${normalizedOptions.skills.length} total)`);
+  }
 
-  // Skip command/agent arrays if install flags are false
+  // Skip command/agent/skill arrays if install flags are false
   if (normalizedOptions.installCommands === false) {
     normalizedOptions.commands = [];
   }
   if (normalizedOptions.installAgents === false) {
     normalizedOptions.agents = [];
+  }
+  if (normalizedOptions.installSkills === false) {
+    normalizedOptions.skills = [];
   }
 
   // Determine target directory based on installation type
@@ -261,14 +301,17 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   // Create directory structure
   const commandsDir = path.join(targetDir, 'commands');
   const agentsDir = path.join(targetDir, 'agents');
+  const skillsDir = path.join(targetDir, 'skills');
 
   // Relative paths for tree.write()
   const relativeCommandsDir = path.join(relativeTargetDir, 'commands');
   const relativeAgentsDir = path.join(relativeTargetDir, 'agents');
+  const relativeSkillsDir = path.join(relativeTargetDir, 'skills');
 
   // Collect files to install
   const installedCommands: string[] = [];
   const installedAgents: string[] = [];
+  const installedSkills: string[] = [];
   const installedFiles: string[] = [];
 
   // Install selected commands
@@ -405,6 +448,76 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     }
   }
 
+  // Install selected skills (Claude Code plugin-compatible format)
+  const skillsToInstall = normalizedOptions.skills || [];
+
+  for (const skillName of skillsToInstall) {
+    let sourcePath: string | null = null;
+
+    // First check for bundled content (when running as standalone package)
+    const bundledContentDir = path.join(__dirname, '..', '..', 'content', 'skills');
+    if (fs.existsSync(bundledContentDir)) {
+      // Check in bundled content subdirectories
+      const contentSubDirs = fs.readdirSync(bundledContentDir).filter((item) => {
+        const itemPath = path.join(bundledContentDir, item);
+        return fs.statSync(itemPath).isDirectory();
+      });
+
+      for (const subDir of contentSubDirs) {
+        const potentialPath = path.join(bundledContentDir, subDir, `${skillName}.md`);
+        if (fs.existsSync(potentialPath)) {
+          sourcePath = potentialPath;
+          break;
+        }
+      }
+    }
+
+    // Fall back to workspace lookup if not found in bundled content
+    if (!sourcePath) {
+      // Search through all subdirectories under packages/skills/
+      const skillsBaseDir = path.join(workspaceRoot, 'packages/skills');
+
+      // Check if skills directory exists
+      if (fs.existsSync(skillsBaseDir)) {
+        // Get all subdirectories (agnostic, mobile, web, etc.)
+        const skillSubDirs = fs.readdirSync(skillsBaseDir).filter((item) => {
+          const itemPath = path.join(skillsBaseDir, item);
+          return fs.statSync(itemPath).isDirectory();
+        });
+
+        // Search for the skill file in each subdirectory's src folder
+        for (const subDir of skillSubDirs) {
+          const potentialPath = path.join(skillsBaseDir, subDir, 'src', `${skillName}.md`);
+          if (fs.existsSync(potentialPath)) {
+            sourcePath = potentialPath;
+            break;
+          }
+        }
+      }
+    }
+
+    // Skills are installed in a subdirectory structure for Claude Code plugin compatibility
+    // Format: skills/<skill-name>/SKILL.md
+    const skillSubDir = path.join(skillsDir, skillName);
+    const destPath = path.join(skillSubDir, 'SKILL.md');
+    const relativeDestPath = path.join(relativeSkillsDir, skillName, 'SKILL.md');
+
+    try {
+      if (sourcePath && fs.existsSync(sourcePath)) {
+        const content = fs.readFileSync(sourcePath, 'utf-8');
+        if (!isDryRun) {
+          tree.write(relativeDestPath, content);
+        }
+        installedSkills.push(skillName);
+        installedFiles.push(path.relative(targetDir, destPath));
+      } else {
+        logger.warn(`Skill file not found: ${skillName}`);
+      }
+    } catch (error) {
+      logger.warn(`Error reading skill ${skillName}: ${error}`);
+    }
+  }
+
   // Display installation plan
   logger.info('📦 Installation Plan:');
   logger.info(
@@ -416,6 +529,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   );
   logger.info(`  Commands: ${installedCommands.length} selected`);
   logger.info(`  Agents: ${installedAgents.length} selected`);
+  logger.info(`  Skills: ${installedSkills.length} selected`);
 
   if (isDryRun) {
     logger.info('\n📋 Would install:');
@@ -441,6 +555,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
       installedAt: new Date().toISOString(),
       commands: installedCommands,
       agents: installedAgents,
+      skills: installedSkills,
       files: installedFiles,
     };
 
@@ -534,6 +649,9 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     }
     if (installedAgents.length > 0) {
       logger.info(`   Agents: ${installedAgents.join(', ')}`);
+    }
+    if (installedSkills.length > 0) {
+      logger.info(`   Skills: ${installedSkills.join(', ')}`);
     }
     if (normalizedOptions.installHooks) {
       logger.info('   Hooks: ✅ Installed');

@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "$id": "InitPlugin",
+  "title": "Initialize Claude Code Plugin",
+  "description": "Creates a Claude Code plugin structure for distributing skills, commands, and agents",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Plugin name (lowercase, hyphens allowed)",
+      "$default": {
+        "$source": "argv",
+        "index": 0
+      },
+      "prompt-message": "📦 What should the plugin be called? (e.g., my-team-toolkit):",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "description": {
+      "type": "string",
+      "description": "Plugin description",
+      "prompt-message": "💬 Brief description of this plugin:"
+    },
+    "version": {
+      "type": "string",
+      "description": "Plugin version",
+      "default": "1.0.0",
+      "x-prompt": {
+        "message": "📌 Plugin version:",
+        "type": "input"
+      }
+    },
+    "author": {
+      "type": "string",
+      "description": "Plugin author or organization",
+      "prompt-message": "👤 Author or organization name:"
+    },
+    "directory": {
+      "type": "string",
+      "description": "Directory to create the plugin in",
+      "default": "plugins",
+      "prompt-message": "📁 Directory for the plugin (relative to workspace root):"
+    },
+    "includeSkills": {
+      "type": "boolean",
+      "description": "Include skills directory",
+      "default": true,
+      "x-prompt": {
+        "message": "🎯 Include skills directory?",
+        "type": "confirm"
+      }
+    },
+    "includeCommands": {
+      "type": "boolean",
+      "description": "Include commands directory",
+      "default": true,
+      "x-prompt": {
+        "message": "⚡ Include commands directory?",
+        "type": "confirm"
+      }
+    },
+    "includeAgents": {
+      "type": "boolean",
+      "description": "Include agents directory",
+      "default": true,
+      "x-prompt": {
+        "message": "🤖 Include agents directory?",
+        "type": "confirm"
+      }
+    }
+  },
+  "required": []
+}
