@@ -112,7 +112,7 @@ The [Claude GitHub App](https://github.com/apps/claude) must be installed on you
 2. Click **Install**
 3. Select your repository
 
-> **Need help?** Ask in **#pod-dev-ai** Slack channel
+> **Need help?** Open an issue at [GitHub Issues](https://github.com/Uniswap/ai-toolkit/issues)
 
 ### Required Secrets
 
