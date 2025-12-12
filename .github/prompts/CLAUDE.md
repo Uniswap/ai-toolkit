@@ -11,6 +11,7 @@ Markdown prompt templates used by GitHub Actions workflows to customize Claude A
 - **pr-review/** - Modular PR review prompt sections (see [PR Review Modular Architecture](#pr-review-modular-architecture) below)
   - `fixed/` - Always-included sections (numbered 1-3, 13-15, 17-19)
   - `overridable/` - Sections consumers can replace (numbered 4-12, 16)
+- **validation-review.md** - N+1 validation agent guidelines for reviewing another agent's code review output
 
 ### PR Metadata Generation
 
