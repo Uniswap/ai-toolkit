@@ -16,6 +16,9 @@
     },
     {
       "path": "../commands/agnostic/tsconfig.lib.json"
+    },
+    {
+      "path": "../skills/agnostic/tsconfig.lib.json"
     }
   ]
 }

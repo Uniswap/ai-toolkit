@@ -23,13 +23,17 @@ import { commands as agnosticCommands } from '@ai-toolkit/commands-agnostic';
 import { agents as agnosticAgents } from '@ai-toolkit/agents-agnostic';
 import { addonsGenerator, hooksGenerator } from '../../index';
 
-// Helper to dynamically load skills (package may not exist yet)
-async function loadSkills(): Promise<Record<string, { description: string; filePath: string }>> {
+// Type for skills - skills package may be added later
+type SkillsMap = Record<string, { description: string; filePath: string }>;
+
+// Helper to dynamically load skills (avoids hard compile-time dependency)
+function getSkills(): SkillsMap {
   try {
-    const skillsModule = await import('@ai-toolkit/skills-agnostic');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const skillsModule = require('@ai-toolkit/skills-agnostic');
     return skillsModule.skills || {};
   } catch {
-    // Skills package not available - that's okay
+    // Skills package not available - return empty object
     return {};
   }
 }
@@ -163,8 +167,8 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   // Handle interactive mode with schema-driven prompts
   const schemaPath = path.join(__dirname, 'schema.json');
 
-  // Load skills dynamically (package may not exist yet)
-  const agnosticSkills = await loadSkills();
+  // Load skills dynamically to avoid hard compile-time dependency
+  const agnosticSkills = getSkills();
 
   // Extract command, agent, and skill descriptions from the new structure
   const commandDescriptions = Object.fromEntries(

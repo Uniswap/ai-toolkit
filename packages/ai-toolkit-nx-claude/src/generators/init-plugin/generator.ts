@@ -152,9 +152,9 @@ Copy this directory to your Claude Code plugins location or use the \`/plugin\` 
 
 ## Contents
 
-${normalizedOptions.includeSkills !== false ? '### Skills\n\nModel-invoked capabilities that Claude uses autonomously.\n\n- See \`skills/\` directory\n' : ''}
-${normalizedOptions.includeCommands !== false ? '### Commands\n\nUser-invoked slash commands.\n\n- See \`commands/\` directory\n' : ''}
-${normalizedOptions.includeAgents !== false ? '### Agents\n\nSpecialized agents for complex tasks.\n\n- See \`agents/\` directory\n' : ''}
+${normalizedOptions.includeSkills !== false ? '### Skills\n\nModel-invoked capabilities that Claude uses autonomously.\n\n- See `skills/` directory\n' : ''}
+${normalizedOptions.includeCommands !== false ? '### Commands\n\nUser-invoked slash commands.\n\n- See `commands/` directory\n' : ''}
+${normalizedOptions.includeAgents !== false ? '### Agents\n\nSpecialized agents for complex tasks.\n\n- See `agents/` directory\n' : ''}
 
 ## Development
 
