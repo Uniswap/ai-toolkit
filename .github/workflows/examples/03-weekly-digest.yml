@@ -1,0 +1,378 @@
+name: Weekly Digest
+
+# PURPOSE:
+# Automatically generate a weekly summary of all changes and send it to your team.
+# Perfect for keeping stakeholders informed, team retrospectives, or project updates.
+#
+# USE CASE:
+# Every Friday at 5 PM, generate a comprehensive changelog of all commits from the
+# past week and send it to:
+# - #weekly-updates Slack channel for visibility
+# - Notion database for historical archival
+# - Email digest (if you add email notification steps)
+#
+# This helps teams stay synchronized without manual status update meetings.
+# Note: As of November 2025, this workflow is not yet supported by the AI Toolkit.
+#       We are working on it and will update this workflow when it is supported.
+#       In the meantime, you can use the manual-changelog-generator.yml workflow to generate a weekly digest.
+#       See the example in the .github/workflows/examples/01-manual-changelog-generator.yml file.
+
+on:
+  # Runs every Friday at 5:00 PM UTC (adjust timezone as needed)
+  schedule:
+    - cron: '0 17 * * 5'  # minute hour day-of-month month day-of-week
+    # Cron format: minute (0-59), hour (0-23), day (1-31), month (1-12), weekday (0-6, 0=Sunday)
+    # Examples:
+    # - '0 17 * * 5': Every Friday at 5 PM UTC
+    # - '0 9 * * 1': Every Monday at 9 AM UTC
+    # - '0 12 * * 1,3,5': Every Mon/Wed/Fri at noon UTC
+    # - '0 0 1 * *': First day of every month at midnight UTC
+
+  # Allow manual triggering to test or generate ad-hoc digests
+  workflow_dispatch:
+    inputs:
+      days_back:
+        description: 'Number of days to look back (default: 7 for weekly)'
+        required: false
+        default: '7'
+        type: string
+
+      destinations:
+        description: 'Where to send the digest'
+        required: false
+        default: 'slack'
+        type: choice
+        options:
+          - 'slack'
+          - 'notion'
+          - 'slack,notion'
+
+jobs:
+  calculate-date-range:
+    name: Calculate Date Range
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      from_ref: ${{ steps.dates.outputs.from_ref }}
+      to_ref: ${{ steps.dates.outputs.to_ref }}
+      period_description: ${{ steps.dates.outputs.period_description }}
+
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0  # Need full history to look back in time
+
+      - name: Calculate commit range for digest
+        id: dates
+        env:
+          DAYS_BACK: ${{ inputs.days_back || '7' }}
+        run: |
+          # Calculate the date range for the digest
+          # By default, look back 7 days (weekly digest)
+
+          echo "Looking back $DAYS_BACK days from now"
+
+          # Get the current commit (HEAD) as the end point
+          TO_REF=$(git rev-parse HEAD)
+          echo "End point (current): $TO_REF"
+
+          # Calculate the date DAYS_BACK days ago
+          if [[ "$OSTYPE" == "darwin"* ]]; then
+            # macOS date command
+            DATE_BACK=$(date -u -v-${DAYS_BACK}d +%Y-%m-%d)
+          else
+            # Linux date command
+            DATE_BACK=$(date -u -d "$DAYS_BACK days ago" +%Y-%m-%d)
+          fi
+
+          echo "Looking for commits since: $DATE_BACK"
+
+          # Find the first commit on or after that date
+          # Use git log with --since to find commits in the time range
+          FROM_REF=$(git log --since="$DATE_BACK 00:00:00" --format="%H" --reverse | head -n 1)
+
+          if [ -z "$FROM_REF" ]; then
+            # No commits in the specified range - use the last commit before the range
+            echo "No commits found in date range, using HEAD~$DAYS_BACK as fallback"
+            FROM_REF=$(git rev-parse HEAD~${DAYS_BACK} 2>/dev/null || git rev-list --max-parents=0 HEAD)
+          fi
+
+          echo "Start point: $FROM_REF"
+
+          # Verify we have different commits
+          if [ "$FROM_REF" == "$TO_REF" ]; then
+            echo "⚠️  No new commits in the specified period"
+            # Set a flag to skip the changelog generation
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            COMMIT_COUNT=$(git rev-list ${FROM_REF}..${TO_REF} --count)
+            echo "✓ Found $COMMIT_COUNT commits in the specified period"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+          # Output the refs
+          echo "from_ref=$FROM_REF" >> $GITHUB_OUTPUT
+          echo "to_ref=$TO_REF" >> $GITHUB_OUTPUT
+
+          # Create a human-readable period description
+          if [ "$DAYS_BACK" == "7" ]; then
+            PERIOD_DESC="Week of $(date -u -d '7 days ago' '+%B %d') - $(date -u '+%B %d, %Y')"
+          elif [ "$DAYS_BACK" == "30" ]; then
+            PERIOD_DESC="Month of $(date -u '+%B %Y')"
+          else
+            PERIOD_DESC="Last $DAYS_BACK days"
+          fi
+
+          echo "period_description=$PERIOD_DESC" >> $GITHUB_OUTPUT
+
+          # Add summary
+          cat <<SUMMARY_EOF >> $GITHUB_STEP_SUMMARY
+          ## 📅 Weekly Digest Configuration
+
+          - **Period**: $PERIOD_DESC
+          - **Date Range**: $(date -u -d "$DAYS_BACK days ago" '+%Y-%m-%d') to $(date -u '+%Y-%m-%d')
+          - **From Commit**: \`${FROM_REF:0:8}\`
+          - **To Commit**: \`${TO_REF:0:8}\`
+          - **Total Commits**: $COMMIT_COUNT
+          SUMMARY_EOF
+
+  generate-digest:
+    name: Generate Weekly Digest
+    needs: calculate-date-range
+    if: needs.calculate-date-range.outputs.has_changes != 'false'
+    # NOTE: Update @main to @v1.0.0 for pinned version or @next for preview features
+    uses: uniswap/ai-toolkit/.github/workflows/_generate-changelog.yml@main
+    with:
+      from_ref: ${{ needs.calculate-date-range.outputs.from_ref }}
+      to_ref: ${{ needs.calculate-date-range.outputs.to_ref }}
+      output_formats: 'slack,markdown'
+
+      # Use a custom prompt optimized for weekly digests
+      # This prompt emphasizes high-level summaries and trends
+      # See .github/prompts/weekly-digest.md for the full prompt
+      custom_prompt_file: '.github/prompts/weekly-digest.md'
+
+      # Weekly digests can be longer and more detailed
+      # 2048 tokens allows for comprehensive summaries
+      max_tokens: 2048
+
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  send-digest:
+    name: Send Weekly Digest
+    needs: [calculate-date-range, generate-digest]
+    # NOTE: Update @main to @v1.0.0 for pinned version or @next for preview features
+    uses: uniswap/ai-toolkit/.github/workflows/_notify-release.yml@main
+    with:
+      changelog_slack: ${{ needs.generate-digest.outputs.changelog_slack }}
+      changelog_markdown: ${{ needs.generate-digest.outputs.changelog_markdown }}
+
+      # Send to configured destinations
+      # Default to Slack, can be overridden via workflow_dispatch
+      destinations: ${{ inputs.destinations || 'slack' }}
+
+      # Provide context about the time period
+      from_ref: ${{ needs.calculate-date-range.outputs.from_ref }}
+      to_ref: ${{ needs.calculate-date-range.outputs.to_ref }}
+      branch: ${{ github.ref_name }}
+
+      # Custom title for the digest notification
+      release_title: '📊 Weekly Digest - ${{ needs.calculate-date-range.outputs.period_description }}'
+
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      # Uncomment if using Notion
+      # NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+      # RELEASE_NOTES_NOTION_DATABASE_ID: ${{ secrets.RELEASE_NOTES_NOTION_DATABASE_ID }}
+
+  # Optional: Archive to GitHub Wiki or create a GitHub Discussion
+  archive-digest:
+    name: Archive Digest
+    needs: [calculate-date-range, generate-digest]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    # Only run if there were changes
+    if: needs.calculate-date-range.outputs.has_changes != 'false'
+
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Create digest archive file
+        env:
+          PERIOD_DESC: ${{ needs.calculate-date-range.outputs.period_description }}
+          CHANGELOG: ${{ needs.generate-digest.outputs.changelog_markdown }}
+        run: |
+          # Create an archive directory for digests if it doesn't exist
+          mkdir -p .github/digests
+
+          # Generate filename based on date
+          DATE=$(date -u '+%Y-%m-%d')
+          FILENAME=".github/digests/digest-${DATE}.md"
+
+          # Write the digest to a file
+          cat > "$FILENAME" <<DIGEST_EOF
+          # Weekly Digest - $PERIOD_DESC
+
+          > Generated on $(date -u '+%Y-%m-%d at %H:%M UTC')
+
+          $CHANGELOG
+
+          ---
+          *This digest was automatically generated by the weekly-digest workflow*
+          DIGEST_EOF
+
+          echo "✅ Created digest file: $FILENAME"
+
+          # Show summary
+          cat <<SUMMARY_EOF >> $GITHUB_STEP_SUMMARY
+          ## 📝 Digest Archived
+
+          The weekly digest has been saved to \`$FILENAME\`
+
+          This file is committed to the repository for historical reference.
+          SUMMARY_EOF
+
+      - name: Commit digest to repository
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+          git add .github/digests/
+          git commit -m "docs: add weekly digest for $(date -u '+%Y-%m-%d')" || echo "No changes to commit"
+          git push
+
+  # Handle case where there are no changes
+  no-changes:
+    name: No Changes
+    needs: calculate-date-range
+    if: needs.calculate-date-range.outputs.has_changes == 'false'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Report no changes
+        run: |
+          echo "## ℹ️ No Changes This Week" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "No commits were made during the specified period." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The weekly digest was not generated." >> $GITHUB_STEP_SUMMARY
+
+# =============================================================================
+# CUSTOMIZATION IDEAS
+# =============================================================================
+#
+# 1. CHANGE THE SCHEDULE:
+#    - Daily digest: cron: '0 9 * * *' (9 AM every day)
+#    - Bi-weekly: cron: '0 17 * * 5' + check if week number is even/odd
+#    - Monthly: cron: '0 0 1 * *' (first day of month)
+#    - Custom days: cron: '0 17 * * 1,3,5' (Mon, Wed, Fri)
+#
+# 2. TIMEZONE ADJUSTMENTS:
+#    GitHub Actions uses UTC. To schedule for your timezone:
+#    - EST (UTC-5): 5 PM EST = 10 PM UTC → cron: '0 22 * * 5'
+#    - PST (UTC-8): 5 PM PST = 1 AM UTC (next day) → cron: '0 1 * * 6'
+#    - CET (UTC+1): 5 PM CET = 4 PM UTC → cron: '0 16 * * 5'
+#
+# 3. DIFFERENT DIGEST LENGTHS:
+#    - Short digest (512 tokens): Quick overview, main highlights only
+#    - Medium digest (1024 tokens): Balanced view, good for most teams
+#    - Long digest (2048 tokens): Comprehensive, great for stakeholders
+#    - Very long (4096 tokens): Extremely detailed, for extensive periods
+#
+# 4. MULTIPLE DIGESTS FOR DIFFERENT AUDIENCES:
+#    Create separate workflows for different teams/purposes:
+#    - engineering-digest.yml: Technical details, code changes
+#    - stakeholder-digest.yml: High-level business impact
+#    - security-digest.yml: Focus on security-related changes
+#
+#    Each can use a different custom prompt and send to different channels
+#
+# 5. CONDITIONAL SENDING:
+#    Only send digest if there are significant changes:
+#    - Check commit count threshold
+#    - Check if specific files/paths were modified
+#    - Check if PR labels indicate "release" or "feature"
+#
+#    Example:
+#    send-digest:
+#      if: needs.calculate-date-range.outputs.commit_count > 10
+#
+# 6. MULTI-PROJECT DIGESTS:
+#    For monorepos, generate separate digests per project:
+#    - Use git log --since with path filters
+#    - Call _generate-changelog.yml multiple times
+#    - Combine into a single mega-digest
+#
+# 7. ADD METRICS AND STATISTICS:
+#    Enhance the digest with additional data:
+#    - Number of PRs merged
+#    - Number of contributors
+#    - Lines of code changed
+#    - Top contributors
+#    - Issue close rate
+#
+#    Add a custom step that generates these metrics and prepends to changelog
+#
+# 8. INTERACTIVE DIGEST:
+#    Make the Slack notification interactive:
+#    - Add buttons to view full changelog
+#    - Add buttons to see specific commit details
+#    - Add reaction shortcuts for feedback
+#
+# 9. FAILURE NOTIFICATIONS:
+#    If digest generation fails, notify a specific channel:
+#    - Create a separate job with if: failure()
+#    - Send a simple message to #alerts or #engineering
+#    - Include logs and run URL for debugging
+
+# =============================================================================
+# TROUBLESHOOTING
+# =============================================================================
+#
+# Q: "The digest shows no commits but I know there were changes"
+# A: Check the date calculation logic - it might be looking at the wrong date range.
+#    Try running with workflow_dispatch and days_back: 1 to test.
+#
+# Q: "The schedule trigger isn't running"
+# A: Scheduled workflows only run on the default branch (usually main).
+#    Also, if the repo has low activity, GitHub may disable scheduled workflows.
+#
+# Q: "The digest is too long/short"
+# A: Adjust the max_tokens parameter:
+#    - Too long: Reduce to 1024 or 512
+#    - Too short: Increase to 2048 or 4096
+#
+# Q: "I want a different format for weekly vs daily digests"
+# A: Create separate custom prompts:
+#    - .github/prompts/daily-digest.md (concise)
+#    - .github/prompts/weekly-digest.md (comprehensive)
+#    Reference the appropriate one based on the schedule
+#
+# Q: "Can I preview what the digest will look like?"
+# A: Yes! Use workflow_dispatch with days_back: 1 to generate yesterday's changes
+#
+# Q: "The cron schedule is confusing"
+# A: Use https://crontab.guru to visualize and test cron expressions
+
+# =============================================================================
+# NEXT STEPS
+# =============================================================================
+#
+# 1. Copy this file to .github/workflows/
+# 2. Create .github/prompts/weekly-digest.md with a custom prompt
+# 3. Adjust the cron schedule to your preferred day/time
+# 4. Add required secrets (ANTHROPIC_API_KEY, SLACK_WEBHOOK_URL)
+# 5. Test with workflow_dispatch before waiting for the schedule
+# 6. Consider creating .github/digests/ directory for archival
+# 7. Set up Slack channel or Notion database for digests
+# 8. Monitor the first few runs to ensure proper timing and content

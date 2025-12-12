@@ -1,0 +1,49 @@
+{
+  "name": "@uniswap/ai-toolkit-linear-task-utils",
+  "version": "0.0.9-next.0",
+  "private": false,
+  "type": "commonjs",
+  "description": "CLI tool to query Linear issues for autonomous Claude Code task processing",
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "linear-task-utils": "./dist/cli.cjs"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@ai-toolkit/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@linear/sdk": "^33.0.0",
+    "minimist": "^1.2.8",
+    "tslib": "^2.8.1"
+  },
+  "devDependencies": {
+    "@types/minimist": "^1.2.5"
+  },
+  "keywords": [
+    "linear",
+    "claude",
+    "ai-toolkit",
+    "github-actions",
+    "automation"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Uniswap/ai-toolkit.git",
+    "directory": "packages/linear-task-utils"
+  },
+  "license": "MIT"
+}

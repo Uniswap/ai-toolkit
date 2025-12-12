@@ -1,0 +1,53 @@
+name: 'Example: Generate PR Title & Description - Basic'
+
+# Basic example of using the Claude PR metadata generation workflow
+#
+# This is the simplest possible configuration - just specify the PR number
+# and base branch. All other settings use defaults.
+#
+# Features:
+# - Automatic rebase detection (skips generation if only rebased)
+# - Conventional commit title format based on repository patterns
+# - Description templates learned from recent merged PRs
+# - Default prompt from ai-toolkit
+#
+# To use this in your repository:
+# 1. Install the Claude GitHub App: https://github.com/apps/claude
+# 2. Copy this file to .github/workflows/generate-pr-title-description.yml
+# 3. Add ANTHROPIC_API_KEY secret to your repository
+# 4. That's it! The workflow will run on every PR creation/update
+#
+# Note: This example filters out:
+# - Merge queue PRs (gh-readonly-queue branches)
+# - Dependabot PRs (already have proper titles)
+# - Release PRs (have their own format)
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+# Prevent multiple runs for the same PR
+concurrency:
+  group: pr-metadata-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  generate-metadata:
+    # Skip certain PR types that have their own title/description formats
+    if: |
+      !contains(github.head_ref, 'gh-readonly-queue/') &&
+      !contains(github.head_ref, 'dependabot/') &&
+      !contains(github.head_ref, 'release/')
+
+    uses: Uniswap/ai-toolkit/.github/workflows/_generate-pr-metadata.yml@main
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      base_ref: ${{ github.base_ref }}
+      # All other inputs use defaults:
+      # - model: claude-sonnet-4-5-20250929
+      # - timeout_minutes: 15
+      # - commit_history_count: 30
+      # - pr_history_count: 10
+      # - custom_prompt: (uses default from ai-toolkit)
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

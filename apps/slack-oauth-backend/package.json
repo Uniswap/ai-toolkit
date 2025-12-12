@@ -1,0 +1,24 @@
+{
+  "name": "@ai-toolkit/slack-oauth-backend",
+  "version": "0.0.1",
+  "private": true,
+  "engines": {
+    "node": "22.x",
+    "npm": "11.6.2"
+  },
+  "scripts": {
+    "start": "node main.js",
+    "vercel:build": "npx nx build slack-oauth-backend",
+    "vercel:dev": "vercel dev"
+  },
+  "dependencies": {
+    "@slack/web-api": "^7.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19"
+  }
+}

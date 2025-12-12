@@ -1,0 +1,59 @@
+name: 'Example: Generate PR Title & Description - Custom'
+
+# Advanced example of using the Claude PR metadata generation workflow
+#
+# This example shows how to customize the workflow with:
+# - Custom prompt file for repository-specific guidelines
+# - Adjusted history counts for pattern learning
+# - Different model selection
+# - Additional skip conditions
+#
+# To use this in your repository:
+# 1. Install the Claude GitHub App: https://github.com/apps/claude
+# 2. Copy this file to .github/workflows/generate-pr-title-description.yml
+# 3. Create .github/prompts/generate-pr-metadata.md with your custom prompt
+# 4. Add ANTHROPIC_API_KEY secret to your repository
+# 5. Adjust the configuration as needed
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+# Prevent multiple runs for the same PR
+concurrency:
+  group: pr-metadata-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  generate-metadata:
+    # Extended skip conditions for common PR types that don't need auto-generation
+    if: |
+      !contains(github.head_ref, 'gh-readonly-queue/') &&
+      !contains(github.head_ref, 'dependabot/') &&
+      !contains(github.head_ref, 'release/') &&
+      !contains(github.head_ref, 'renovate/') &&
+      !startsWith(github.event.pull_request.title, 'chore(release):') &&
+      !startsWith(github.event.pull_request.title, 'chore(deps):') &&
+      github.event.pull_request.draft == false
+
+    uses: Uniswap/ai-toolkit/.github/workflows/_generate-pr-metadata.yml@main
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      base_ref: ${{ github.base_ref }}
+
+      # Use a faster model for quick generation
+      model: 'claude-sonnet-4-5-20250929'
+
+      # Increase timeout for complex PRs
+      timeout_minutes: 20
+
+      # Analyze more history for better pattern learning
+      commit_history_count: 50
+      pr_history_count: 15
+
+      # Use custom prompt file from your repository
+      # Create this file with your repo-specific conventions
+      custom_prompt_path: '.github/prompts/generate-pr-metadata.md'
+
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

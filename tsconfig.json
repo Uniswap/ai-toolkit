@@ -1,0 +1,34 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compileOnSave": false,
+  "files": [],
+  "references": [
+    {
+      "path": "./packages/ai-toolkit-nx-claude"
+    },
+    {
+      "path": "./packages/commands/agnostic"
+    },
+    {
+      "path": "./packages/agents/agnostic"
+    },
+    {
+      "path": "./packages/commands/typescript"
+    },
+    {
+      "path": "./packages/utils"
+    },
+    {
+      "path": "./apps/slack-oauth-backend"
+    },
+    {
+      "path": "./packages/claude-mcp-helper"
+    },
+    {
+      "path": "./packages/notion-publisher"
+    },
+    {
+      "path": "./packages/linear-task-utils"
+    }
+  ]
+}

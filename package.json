@@ -1,0 +1,101 @@
+{
+  "name": "@ai-toolkit/source",
+  "version": "0.0.0",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "npm@11.6.2",
+  "engines": {
+    "node": "22.x",
+    "npm": "11.6.2"
+  },
+  "scripts": {
+    "start": "nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec",
+    "build": "nx run-many --target=build --all",
+    "lint": "nx run-many --target=lint --all",
+    "format": "nx format:write",
+    "format:check": "nx format:check",
+    "prepare": "node scripts/prepare.cjs",
+    "lefthook": "npx lefthook run pre-commit",
+    "claude:init": "nx generate @uniswap/ai-toolkit-nx-claude:init"
+  },
+  "private": true,
+  "dependencies": {
+    "@notionhq/client": "^2.2.15",
+    "@tryfabric/martian": "^1.2.4",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.0.1",
+    "helmet": "^8.1.0",
+    "minimist": "^1.2.8"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.34.0",
+    "@nx/devkit": "22.0.2",
+    "@nx/esbuild": "22.0.2",
+    "@nx/eslint": "22.0.2",
+    "@nx/eslint-plugin": "22.0.2",
+    "@nx/jest": "22.0.2",
+    "@nx/js": "22.0.2",
+    "@nx/node": "22.0.2",
+    "@nx/plugin": "22.0.2",
+    "@nx/webpack": "22.0.2",
+    "@swc-node/register": "~1.9.1",
+    "@swc/cli": "~0.6.0",
+    "@swc/core": "^1.14.0",
+    "@swc/helpers": "~0.5.11",
+    "@swc/jest": "~0.2.38",
+    "@types/express": "^5.0.4",
+    "@types/jest": "^30.0.0",
+    "@types/minimist": "^1.2.5",
+    "@types/node": "20.19.9",
+    "@types/supertest": "^6.0.3",
+    "@typescript-eslint/eslint-plugin": "^8.42.0",
+    "@typescript-eslint/parser": "^8.42.0",
+    "enquirer": "^2.4.1",
+    "esbuild": "^0.25.9",
+    "eslint": "^9.33.0",
+    "eslint-config-prettier": "^10.0.0",
+    "eslint-plugin-import": "^2.32.0",
+    "jest": "^30.0.2",
+    "jest-environment-node": "^30.0.2",
+    "jest-util": "^30.0.2",
+    "jsonc-eslint-parser": "^2.1.0",
+    "lefthook": "^1.12.3",
+    "markdownlint-cli2": "^0.18.1",
+    "nx": "22.0.2",
+    "prettier": "^2.6.2",
+    "supertest": "^7.1.4",
+    "ts-jest": "^29.4.0",
+    "ts-loader": "^9.5.4",
+    "ts-node": "10.9.1",
+    "tslib": "^2.3.0",
+    "tsx": "^4.20.6",
+    "typescript": "5.9.3",
+    "typescript-eslint": "^8.29.0",
+    "verdaccio": "^6.0.5",
+    "webpack": "5.101.3",
+    "webpack-node-externals": "^3.0.0"
+  },
+  "workspaces": [
+    "packages/*",
+    "packages/commands/*",
+    "packages/agents/*",
+    "apps/*"
+  ],
+  "overrides": {
+    "validator": "^13.15.20"
+  },
+  "nx": {
+    "includedScripts": [],
+    "targets": {
+      "local-registry": {
+        "executor": "@nx/js:verdaccio",
+        "options": {
+          "port": 4873,
+          "config": ".verdaccio/config.yml",
+          "storage": "tmp/local-registry/storage"
+        }
+      }
+    }
+  }
+}

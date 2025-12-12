@@ -1,0 +1,55 @@
+name: "Check PR Title"
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - synchronize
+  workflow_run:
+    workflows: ["Claude: Generate PR Title & Description"]
+    types: [completed]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-pr-title:
+    if: ${{ github.event_name == 'pull_request_target' || github.event.workflow_run.conclusion == 'success' }}
+    name: 🔡 Check PR Title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3
+        with:
+          # List of IPs to allow outbound connections to.
+          # By default, only localhost and IPs required for the essential operations of Github Actions are allowed.
+          #allowed-ips:
+
+          # List of domains to allow outbound connections to.
+          # Wildcards are accepted. For example, if allowing `*.google.com`, this will allow `www.google.com`, `console.cloud.google.com` but not `google.com`.
+          # By default, only domains required for essential operations of Github Actions and uploading job summaries are allowed.
+          # Refer to https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners#communication-requirements-for-github-hosted-runners-and-github for additional domains that should be allowed for additional Github Actions features.
+          #allowed-domains:
+
+          # The egress policy to enforce. Valid values are `audit` and `block`.
+          # Default: audit
+          egress-policy: block
+      - name: Check if branch has gtmq prefix
+        id: check-prefix
+        env:
+          BRANCH_NAME: ${{ github.head_ref }}
+        run: |
+          if [[ "$BRANCH_NAME" == gtmq* ]]; then
+            echo "isGtmqPrefix=true" >> $GITHUB_OUTPUT
+          fi
+      - name: Conditional semantic PR check
+        if: steps.check-prefix.outputs.isGtmqPrefix != 'true'
+        uses: amannn/action-semantic-pull-request@536f681e2c60d973396eb60457d42ced8cd3f61a
+        with:
+          requireScope: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pass check for gtmq prefix branches
+        if: steps.check-prefix.outputs.isGtmqPrefix == 'true'
+        run: echo "Branch with 'gtmq' prefix detected. This check is automatically passed."

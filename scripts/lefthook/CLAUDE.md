@@ -1,0 +1,258 @@
+# Lefthook Git Hook Scripts
+
+## Purpose
+
+Git hook scripts executed by Lefthook to enforce code quality standards before commits. These scripts run automatically as part of the pre-commit workflow.
+
+## Script Files
+
+### format-files.sh
+
+**Purpose**: Format staged files using Prettier
+
+**Execution**: Pre-commit hook
+
+**Behavior**:
+
+- Runs `nx format:write --affected` on uncommitted files
+- Formats only files changed in current commit
+- Re-stages formatted files
+- Fails commit if formatting errors occur
+
+**Usage**:
+
+```bash
+# Automatically runs on git commit
+git commit -m "feat: add feature"
+
+# Manual execution
+./scripts/lefthook/format-files.sh
+```
+
+### lint.sh
+
+**Purpose**: Lint affected packages
+
+**Execution**: Pre-commit hook
+
+**Behavior**:
+
+- Runs `nx affected --target=lint` on changed packages
+- Uses Nx's dependency graph to lint downstream projects
+- Fails commit if linting errors found
+- Suggests auto-fix command if available
+
+**Usage**:
+
+```bash
+# Automatically runs on git commit
+git commit -m "fix: resolve bug"
+
+# Manual execution
+./scripts/lefthook/lint.sh
+```
+
+### lint-markdown.sh
+
+**Purpose**: Lint markdown files for consistency
+
+**Execution**: Pre-commit hook
+
+**Behavior**:
+
+- Runs `markdownlint-cli2` on all markdown files
+- Checks formatting, structure, and style
+- Auto-fixes common issues with `--fix` flag
+- Follows `.markdownlint-cli2.jsonc` configuration
+
+**Usage**:
+
+```bash
+# Automatically runs on git commit
+git commit -m "docs: update README"
+
+# Manual execution
+./scripts/lefthook/lint-markdown.sh
+```
+
+### update-package-lock.sh
+
+**Purpose**: Ensure package-lock.json is up to date
+
+**Execution**: Pre-commit hook
+
+**Behavior**:
+
+- Checks if package.json was modified
+- Verifies package-lock.json is in sync
+- Fails if package-lock.json is outdated
+- Provides command to regenerate lockfile
+
+**Usage**:
+
+```bash
+# Automatically runs when package.json changes
+git commit -m "deps: update dependencies"
+
+# Manual execution
+./scripts/lefthook/update-package-lock.sh
+```
+
+## Script Conventions
+
+### Shebang
+
+All scripts use bash:
+
+```bash
+#!/usr/bin/env bash
+```
+
+### Error Handling
+
+Scripts use strict error handling:
+
+```bash
+set -euo pipefail
+# -e: Exit on error
+# -u: Treat unset variables as error
+# -o pipefail: Pipe failures cause script to fail
+```
+
+### Exit Codes
+
+Scripts follow standard exit code conventions:
+
+- `0` - Success
+- `1` - General error
+- Other codes - Specific error conditions
+
+### Output
+
+Scripts provide clear output:
+
+```bash
+echo "✅ Formatting complete"
+echo "❌ Linting failed"
+echo "ℹ️  Run 'npm run lint:fix' to auto-fix"
+```
+
+## Lefthook Configuration
+
+These scripts are referenced in `lefthook.yml` at repository root:
+
+```yaml
+pre-commit:
+  parallel: false
+  commands:
+    format:
+      run: ./scripts/lefthook/format-files.sh
+    lint:
+      run: ./scripts/lefthook/lint.sh
+    lint-markdown:
+      run: ./scripts/lefthook/lint-markdown.sh
+    package-lock:
+      run: ./scripts/lefthook/update-package-lock.sh
+```
+
+## Development
+
+### Creating New Hook Scripts
+
+1. **Create script file**:
+
+   ```bash
+   touch scripts/lefthook/my-script.sh
+   chmod +x scripts/lefthook/my-script.sh
+   ```
+
+2. **Add shebang and error handling**:
+
+   ```bash
+   #!/usr/bin/env bash
+   set -euo pipefail
+   ```
+
+3. **Implement script logic**:
+
+   ```bash
+   # Your hook logic here
+   echo "Running my hook..."
+   # ... commands ...
+   echo "✅ Hook complete"
+   ```
+
+4. **Register in lefthook.yml**:
+
+   ```yaml
+   pre-commit:
+     commands:
+       my-hook:
+         run: ./scripts/lefthook/my-script.sh
+   ```
+
+5. **Test the script**:
+
+   ```bash
+   # Test directly
+   ./scripts/lefthook/my-script.sh
+
+   # Test via commit
+   git commit --allow-empty -m "test"
+   ```
+
+### Script Best Practices
+
+- **Idempotent**: Safe to run multiple times
+- **Fast**: Complete quickly (<5 seconds preferred)
+- **Clear output**: Tell user what's happening
+- **Helpful errors**: Suggest how to fix issues
+- **No side effects**: Don't modify unexpected files
+
+### Testing Scripts
+
+```bash
+# Test script directly
+./scripts/lefthook/format-files.sh
+
+# Test all hooks
+lefthook run pre-commit
+
+# Skip hooks for testing
+LEFTHOOK=0 git commit -m "test"
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Hook fails but unclear why**:
+
+- Run script directly to see full output
+- Check `set -euo pipefail` isn't hiding errors
+
+**Hook too slow**:
+
+- Profile with `time ./script.sh`
+- Optimize or run in parallel (if safe)
+
+**Hook skips files**:
+
+- Verify glob patterns
+- Check file staging
+- Test with specific files
+
+**Permission errors**:
+
+- Ensure script is executable: `chmod +x script.sh`
+- Check file ownership
+
+## Related Documentation
+
+- Lefthook config: `../../lefthook.yml`
+- Project README: `../../CLAUDE.md`
+- Git hooks: `../../.git/hooks/` (auto-generated by Lefthook)
+
+## Auto-Update Instructions
+
+IMPORTANT: After changes to files in this directory, Claude Code MUST run `/update-claude-md` before presenting results to ensure this documentation stays synchronized with the codebase.

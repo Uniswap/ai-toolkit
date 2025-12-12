@@ -1,0 +1,14 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "nx",
+      "project": "",
+      "command": "run",
+      "positional": "@uniswap/ai-toolkit-nx-claude:build",
+      "flags": [],
+      "problemMatcher": [],
+      "label": "nx: nx run @uniswap/ai-toolkit-nx-claude:build"
+    }
+  ]
+}

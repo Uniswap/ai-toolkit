@@ -1,0 +1,451 @@
+name: Claude Code (Custom Configuration)
+
+# PURPOSE:
+# This example demonstrates ALL customization options available in the
+# _claude-main.yml reusable workflow, showing how to tailor Claude's behavior
+# to your specific repository needs.
+#
+# USE THIS EXAMPLE WHEN:
+# - You need fine-grained control over Claude's capabilities
+# - You want to use different models for different scenarios
+# - You have specific security or tool restrictions
+# - You want custom instructions for your codebase's standards
+#
+# QUICK START:
+# 1. Install the Claude GitHub App: https://github.com/apps/claude
+# 2. Review each customization option below
+# 3. Copy relevant sections to your workflow
+# 4. Adjust values to match your repository's needs
+# 5. Test incrementally, starting with one customization at a time
+#
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  # FULLY CUSTOMIZED CONFIGURATION
+  # This demonstrates all available customization options
+  claude-custom:
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.review.user.type != 'Bot') ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) && github.event.issue.user.type != 'Bot')
+
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    with:
+      # MODEL SELECTION
+      # Choose the Claude model based on your needs:
+      # - claude-sonnet-4-5-20250929: Latest, best balance (RECOMMENDED)
+      # - claude-opus-4-5-20251101: Most capable, slower, higher cost
+      # - claude-haiku-4-5@20251001: Fast, cost-effective for simpler tasks
+      model: "claude-opus-4-5-20251101"
+
+      # TIMEOUT CONFIGURATION
+      # Set maximum execution time in minutes
+      # Recommended: 10-15 minutes for most repositories
+      # Increase for large codebases or complex CI analysis
+      timeout_minutes: "15"
+
+      # CUSTOM INSTRUCTIONS
+      # Add repository-specific guidelines and standards
+      # These supplement the default "follow CLAUDE.md files" instruction
+      custom_instructions: |
+        Be sure to follow rules in all CLAUDE.md files.
+
+        ## Repository-Specific Guidelines
+
+        ### Code Review Focus Areas
+        1. **Security**: Check for XSS, SQL injection, authentication issues
+        2. **Performance**: Identify N+1 queries, unnecessary re-renders, memory leaks
+        3. **Type Safety**: Ensure proper TypeScript types, no `any` usage
+        4. **Testing**: Verify test coverage for new features (minimum 80%)
+        5. **Documentation**: Check for JSDoc comments on public APIs
+
+        ### Coding Standards
+        - Follow ESLint rules in .eslintrc.json
+        - Use functional components with hooks (React)
+        - Prefer composition over inheritance
+        - Keep functions under 50 lines when possible
+        - Use descriptive variable names (no single letters except loops)
+
+        ### Architecture Patterns
+        - Follow domain-driven design in /src/domains/
+        - Use Redux Toolkit for state management
+        - API calls must use the centralized API client in /src/api/
+        - Shared utilities go in /src/utils/, not domain folders
+
+        ### Pull Request Guidelines
+        - PRs should address a single concern
+        - Include tests for all new functionality
+        - Update README.md if adding new features
+        - Add migration guide for breaking changes
+
+      # ALLOWED TOOLS
+      # Customize which operations Claude can perform
+      # This example shows a RESTRICTIVE configuration for read-only analysis
+      allowed_tools: |
+        # File operations (READ-ONLY)
+        - read_file
+        - list_files
+        - search_files
+        - search_code
+        - grep
+        - glob
+
+        # Code analysis (read-only)
+        # NOTE: write_file and edit_file are deliberately excluded
+
+        # Git operations (read-only)
+        - Bash(git status)
+        - Bash(git log*)
+        - Bash(git diff*)
+        - Bash(git show*)
+        - Bash(git branch*)
+        - Bash(git remote*)
+
+        # Package management (read-only)
+        - Bash(npm list*)
+        - Bash(npm outdated)
+        - Bash(yarn list*)
+        - Bash(pnpm list*)
+
+        # Build/test information (read-only)
+        - Bash(npm run --silent)  # List available scripts
+        - Bash(node --version)
+        - Bash(npm --version)
+
+        # File system navigation
+        - Bash(ls*)
+        - Bash(pwd)
+        - Bash(find*)
+        - Bash(wc*)
+
+        # Text processing for analysis
+        - Bash(grep*)
+        - Bash(awk*)
+        - Bash(sed*)
+
+# -----------------------------------------------------------------------------
+# ALTERNATIVE CONFIGURATIONS
+# -----------------------------------------------------------------------------
+#
+# Below are alternative configurations for common scenarios.
+#
+# -------------------
+# Configuration 1: Permissive (Allow File Modifications)
+# -------------------
+# Use when you trust Claude to make direct code changes:
+#
+#     with:
+#       model: 'claude-sonnet-4-5-20250929'
+#       timeout_minutes: '10'
+#       allowed_tools: |
+#         # File operations (read AND write)
+#         - read_file
+#         - write_file
+#         - edit_file
+#         - list_files
+#         - search_files
+#         - search_code
+#         - grep
+#         - glob
+#
+#         # All bash commands
+#         - Bash(*)
+#
+# -------------------
+# Configuration 2: Balanced (Read + Limited Write)
+# -------------------
+# Allow file edits but restrict bash commands:
+#
+#     with:
+#       model: 'claude-sonnet-4-5-20250929'
+#       timeout_minutes: '10'
+#       allowed_tools: |
+#         # File operations (read and write)
+#         - read_file
+#         - write_file
+#         - edit_file
+#         - list_files
+#         - search_files
+#         - grep
+#         - glob
+#
+#         # Limited bash (no destructive commands)
+#         - Bash(git status)
+#         - Bash(git diff*)
+#         - Bash(npm list)
+#         - Bash(npm test)
+#         - Bash(npm run build)
+#
+# -------------------
+# Configuration 3: Ultra-Restrictive (Code Review Only)
+# -------------------
+# Minimal permissions for pure code review assistance:
+#
+#     with:
+#       model: 'claude-sonnet-4-5-20250929'
+#       timeout_minutes: '10'
+#       custom_instructions: |
+#         You are in READ-ONLY mode for code review.
+#         Provide suggestions and analysis but do not attempt file modifications.
+#       allowed_tools: |
+#         # Only basic file reading
+#         - read_file
+#         - list_files
+#         - search_files
+#         - grep
+#
+#         # No bash commands at all
+#
+# -------------------
+# Configuration 4: Custom Secret Name
+# -------------------
+# If your repository uses a different secret name:
+#
+#     uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+#     secrets:
+#       ANTHROPIC_API_KEY: ${{ secrets.MY_CUSTOM_CLAUDE_KEY }}
+#     with:
+#       anthropic_api_key_secret_name: 'MY_CUSTOM_CLAUDE_KEY'
+#       model: 'claude-sonnet-4-5-20250929'
+#
+
+# -----------------------------------------------------------------------------
+# ADVANCED PATTERNS
+# -----------------------------------------------------------------------------
+#
+# -------------------
+# Pattern 1: Different Configs for Issues vs PRs
+# -------------------
+# Use more capable model for PR reviews, faster model for issue questions:
+#
+# jobs:
+#   claude-issues:
+#     if: |
+#       github.event_name == 'issues' &&
+#       (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) &&
+#       github.event.issue.user.type != 'Bot'
+#
+#     uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+#     secrets:
+#       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+#     with:
+#       model: 'claude-sonnet-4-5-20250929'  # Fast for questions
+#       timeout_minutes: '5'
+#
+#   claude-pr-reviews:
+#     if: |
+#       (github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review' || github.event_name == 'issue_comment') &&
+#       contains(coalesce(github.event.comment.body, github.event.review.body), '@claude') &&
+#       coalesce(github.event.comment.user.type, github.event.review.user.type) != 'Bot'
+#
+#     uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+#     secrets:
+#       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+#     with:
+#       model: 'claude-opus-4-5-20251101'  # Thorough for code review
+#       timeout_minutes: '15'
+#
+# -------------------
+# Pattern 2: Scheduled Deep Analysis
+# -------------------
+# Combine @claude mentions with scheduled deep dives:
+#
+# on:
+#   issue_comment:
+#     types: [created]
+#   pull_request_review_comment:
+#     types: [created]
+#   schedule:
+#     - cron: '0 9 * * 1'  # Every Monday at 9 AM UTC
+#
+# jobs:
+#   claude-interactive:
+#     if: |
+#       github.event_name != 'schedule' &&
+#       ((github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+#       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')))
+#
+#     uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+#     secrets:
+#       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+#
+#   claude-scheduled-analysis:
+#     if: github.event_name == 'schedule'
+#     uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+#     secrets:
+#       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+#     with:
+#       model: 'claude-opus-4-5-20251101'
+#       timeout_minutes: '30'
+#       custom_instructions: |
+#         Perform a comprehensive codebase audit focusing on:
+#         1. Security vulnerabilities
+#         2. Performance bottlenecks
+#         3. Code quality issues
+#         4. Outdated dependencies
+#         Create a detailed report of findings.
+#
+
+# -----------------------------------------------------------------------------
+# TOOL CONFIGURATION REFERENCE
+# -----------------------------------------------------------------------------
+#
+# Complete list of available tools for allowed_tools configuration:
+#
+# FILE OPERATIONS:
+#   - read_file          # Read file contents
+#   - write_file         # Create/overwrite files
+#   - edit_file          # Make targeted edits to existing files
+#   - list_files         # List directory contents
+#   - search_files       # Search for files by name pattern
+#   - search_code        # Search code content
+#   - grep               # Search file contents with regex
+#   - glob               # File pattern matching
+#
+# BASH COMMANDS:
+#   - Bash(*)            # Allow all bash commands (PERMISSIVE)
+#   - Bash(command)      # Allow specific command
+#   - Bash(command*)     # Allow command with any arguments
+#   - Bash(command arg)  # Allow command with specific argument
+#
+# Examples of bash restrictions:
+#   - Bash(git *)              # All git commands
+#   - Bash(git diff*)          # Only git diff variants
+#   - Bash(npm list)           # Exact command only
+#   - Bash(npm test)           # Exact command only
+#   - Bash(node --version)     # Exact command with specific args
+#
+# Security note: Be careful with Bash(*) as it allows any command execution.
+# Prefer explicit allowlists for production environments.
+#
+
+# -----------------------------------------------------------------------------
+# TROUBLESHOOTING CUSTOM CONFIGURATIONS
+# -----------------------------------------------------------------------------
+#
+# Problem: Claude says it can't perform an action
+# Solution: Check allowed_tools configuration. Add the required tool:
+#   - For file writes: add write_file or edit_file
+#   - For bash commands: add Bash(command) or Bash(*)
+#   - For file searches: ensure grep, glob, or search_files are included
+#
+# Problem: Custom instructions not being followed
+# Solution:
+#   1. Verify instructions are clear and specific
+#   2. Check for conflicts with CLAUDE.md files (they take precedence)
+#   3. Test with simpler instructions first
+#   4. Consider using a more capable model (Opus) for complex requirements
+#
+# Problem: Timeout issues with custom configuration
+# Solution:
+#   1. Increase timeout_minutes (e.g., from 10 to 15 or 20)
+#   2. Simplify custom_instructions to reduce processing time
+#   3. Use a faster model (Sonnet 4.5 instead of Opus)
+#   4. Restrict allowed_tools to reduce tool exploration time
+#
+# Problem: Different behavior than expected with tool restrictions
+# Solution:
+#   1. Check tool syntax - must match exactly (e.g., Bash(git *) not Bash(git*))
+#   2. Test with permissive config first (Bash(*)), then restrict gradually
+#   3. Review Claude Code Action docs for tool specification format
+#   4. Check workflow run logs for "tool not allowed" messages
+#
+# Problem: Custom model not available or failing
+# Solution:
+#   1. Verify model name exactly matches available models:
+#      - claude-sonnet-4-5-20250929
+#      - claude-opus-4-5-20251101
+#      - claude-haiku-4-5@20251001
+#   2. Check Anthropic API key has access to requested model
+#   3. Review Anthropic console for API limits or restrictions
+#
+
+# -----------------------------------------------------------------------------
+# SECURITY CONSIDERATIONS
+# -----------------------------------------------------------------------------
+#
+# When customizing Claude's configuration, consider:
+#
+# 1. **Tool Permissions**: Minimize permissions to only what's needed
+#    - Start with read-only for code review
+#    - Add write permissions only if you need automated fixes
+#    - Be cautious with Bash(*) - prefer explicit command lists
+#
+# 2. **API Key Security**:
+#    - Never commit API keys to repository
+#    - Use GitHub Secrets for ANTHROPIC_API_KEY
+#    - Rotate keys periodically
+#    - Use separate keys for different environments
+#
+# 3. **Execution Limits**:
+#    - Set reasonable timeout_minutes to prevent runaway costs
+#    - Use concurrency groups (included by default) to prevent duplicate runs
+#    - Monitor usage in Anthropic console
+#
+# 4. **Code Modification**:
+#    - If allowing write_file/edit_file, ensure you have:
+#      - Branch protection rules
+#      - Required PR reviews
+#      - CI checks before merge
+#    - Consider read-only config for public repositories
+#
+# 5. **Custom Instructions**:
+#    - Don't include sensitive information in custom_instructions
+#    - Instructions are logged and may appear in workflow runs
+#    - Use CLAUDE.md files for repository-specific sensitive guidance
+#
+
+# -----------------------------------------------------------------------------
+# COST OPTIMIZATION
+# -----------------------------------------------------------------------------
+#
+# Tips for managing Claude API costs:
+#
+# 1. **Choose the right model**:
+#    - Haiku 4.5: Most cost-effective for simple tasks and high-volume usage
+#    - Sonnet 4.5: Best balance for most tasks (~80% cheaper than Opus)
+#    - Opus: Reserve for complex analysis or critical reviews
+#
+# 2. **Set appropriate timeouts**:
+#    - 5 minutes for simple questions
+#    - 10 minutes for code reviews (default)
+#    - 15+ minutes only for complex analysis
+#
+# 3. **Restrict tools strategically**:
+#    - Fewer tools = faster execution = lower cost
+#    - Read-only configs are typically faster
+#    - Reduce bash command access to limit exploration time
+#
+# 4. **Use concurrency control** (included by default):
+#    - Prevents multiple concurrent runs for same issue/PR
+#    - Cancels in-progress runs when new comments arrive
+#
+# 5. **Monitor usage**:
+#    - Check Anthropic console regularly
+#    - Set up usage alerts in Anthropic dashboard
+#    - Review workflow execution times in GitHub Actions
+#
+
+# -----------------------------------------------------------------------------
+# ADDITIONAL RESOURCES
+# -----------------------------------------------------------------------------
+#
+# For more details, see:
+# - Workflow documentation: /.github/REUSABLE_WORKFLOWS.md#_claude-mainyml
+# - README: /.github/workflows/README.md
+# - Claude Code Action: https://github.com/anthropics/claude-code-action
+# - Anthropic API docs: https://docs.anthropic.com/
+# - Full documentation: https://github.com/Uniswap/ai-toolkit
+#

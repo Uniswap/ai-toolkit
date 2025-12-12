@@ -1,0 +1,152 @@
+# Automated GitHub Actions Version Updater
+#
+# This workflow uses Claude Code to scan all workflow files in the repository,
+# identify external GitHub Actions pinned to commit SHAs, check if newer versions
+# are available, and create a PR with updates to the latest versions.
+#
+# SCHEDULE:
+# - Runs every Monday at 5:00 AM Eastern Time (10:00 AM UTC)
+# - Can also be triggered manually via workflow_dispatch
+#
+# HOW IT WORKS:
+# 1. Consumer workflow (this file) creates a branch and prepares context
+# 2. Calls the reusable worker (_update-action-versions-worker.yml)
+# 3. Worker runs Claude Code to analyze and update workflow files
+# 4. Claude creates a PR with a summary of all updates
+#
+# MANUAL TRIGGER:
+# gh workflow run update-action-versions.yml
+# gh workflow run update-action-versions.yml -f dry_run=true
+#
+# SECRETS REQUIRED:
+# - ANTHROPIC_API_KEY: Claude API key for Claude Code
+# - WORKFLOW_PAT: (optional) PAT for pushing branches (falls back to GITHUB_TOKEN)
+
+name: Update GitHub Action Versions
+
+on:
+  schedule:
+    # 5 AM ET = 10 AM UTC (EST is UTC-5, but during DST it's UTC-4)
+    # Using UTC-5 (EST) as the baseline
+    - cron: '0 10 * * 1' # Every Monday at 10:00 AM UTC (5:00 AM ET)
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Analyze actions without creating PR (report only)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      model:
+        description: 'Claude model to use'
+        required: false
+        default: 'claude-sonnet-4-5-20250929'
+        type: choice
+        options:
+          - 'claude-sonnet-4-5-20250929'
+          - 'claude-opus-4-5-20251101'
+      target_branch:
+        description: 'Base branch for the PR'
+        required: false
+        default: 'main'
+        type: string
+
+# Prevent concurrent runs
+concurrency:
+  group: update-action-versions
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare update branch
+    runs-on: ubuntu-latest
+    outputs:
+      branch_name: ${{ steps.create-branch.outputs.branch_name }}
+      target_branch: ${{ steps.config.outputs.target_branch }}
+      dry_run: ${{ steps.config.outputs.dry_run }}
+      model: ${{ steps.config.outputs.model }}
+
+    steps:
+      # Security scanning
+      - name: Security scanning
+        uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+        with:
+          egress-policy: audit
+
+      # Determine configuration
+      - name: Determine configuration
+        id: config
+        env:
+          INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
+          INPUT_MODEL: ${{ github.event.inputs.model }}
+          INPUT_TARGET_BRANCH: ${{ github.event.inputs.target_branch }}
+        run: |
+          # Use defaults for scheduled runs
+          if [ -z "$INPUT_DRY_RUN" ]; then
+            echo "dry_run=false" >> $GITHUB_OUTPUT
+          else
+            echo "dry_run=$INPUT_DRY_RUN" >> $GITHUB_OUTPUT
+          fi
+
+          if [ -z "$INPUT_MODEL" ]; then
+            echo "model=claude-sonnet-4-5-20250929" >> $GITHUB_OUTPUT
+          else
+            echo "model=$INPUT_MODEL" >> $GITHUB_OUTPUT
+          fi
+
+          if [ -z "$INPUT_TARGET_BRANCH" ]; then
+            echo "target_branch=main" >> $GITHUB_OUTPUT
+          else
+            echo "target_branch=$INPUT_TARGET_BRANCH" >> $GITHUB_OUTPUT
+          fi
+
+      # Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ steps.config.outputs.target_branch }}
+          fetch-depth: 1
+          token: ${{ secrets.WORKFLOW_PAT || github.token }}
+
+      # Create and push the update branch
+      - name: Create update branch
+        id: create-branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || github.token }}
+        run: |
+          # Generate branch name with date
+          DATE=$(date +%Y-%m-%d)
+          BRANCH_NAME="chore/update-action-versions-${DATE}"
+
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Check if branch already exists remotely
+          if git ls-remote --exit-code --heads origin "$BRANCH_NAME" > /dev/null 2>&1; then
+            echo "Branch $BRANCH_NAME already exists"
+            echo "branch_existed=true" >> $GITHUB_OUTPUT
+          else
+            echo "Creating new branch $BRANCH_NAME"
+            git checkout -b "$BRANCH_NAME"
+            git push -u origin "$BRANCH_NAME"
+            echo "branch_existed=false" >> $GITHUB_OUTPUT
+          fi
+
+  update:
+    name: Update action versions
+    needs: prepare
+    uses: ./.github/workflows/_update-action-versions-worker.yml
+    with:
+      branch_name: ${{ needs.prepare.outputs.branch_name }}
+      target_branch: ${{ needs.prepare.outputs.target_branch }}
+      dry_run: ${{ needs.prepare.outputs.dry_run == 'true' }}
+      model: ${{ needs.prepare.outputs.model }}
+      timeout_minutes: 30
+      debug_mode: true
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}

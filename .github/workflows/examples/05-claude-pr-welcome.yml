@@ -1,0 +1,252 @@
+name: Claude PR Welcome
+
+# PURPOSE:
+# This example demonstrates how to use the _claude-welcome.yml reusable workflow
+# to automatically post welcome messages from Claude to newly opened pull requests.
+#
+# QUICK START:
+# 1. Install the Claude GitHub App: https://github.com/apps/claude
+# 2. Copy this workflow to your repository's .github/workflows/ directory
+# 3. Update workflow_deployment_date to today's date (YYYY-MM-DD)
+# 4. Customize the welcome_message if desired
+# 5. (Optional) Add documentation_url if you have a Claude guide
+# 6. Commit and test with a new PR
+#
+# CUSTOMIZATION OPTIONS:
+# See the bottom of this file for examples of common customizations including:
+# - Custom welcome messages
+# - Documentation links
+# - Permanent welcome (no expiration)
+# - Integration with existing PR automation
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  # Basic Claude welcome - ready to use!
+  # This is the recommended starting point for most repositories
+  welcome:
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-welcome.yml@main
+    with:
+      # REQUIRED: Date you deploy this workflow (YYYY-MM-DD)
+      # Update this to today's date when you first deploy
+      workflow_deployment_date: "2025-01-15"
+
+      # OPTIONAL: Number of months to remain active (default: 3)
+      # Set to 0 to disable expiration
+      # expiration_months: 3
+
+      # OPTIONAL: Link to your repository's Claude guide
+      # Uncomment and update if you have documentation:
+      # documentation_url: 'https://github.com/your-org/your-repo/blob/main/docs/claude-guide.md'
+
+      # OPTIONAL: Custom welcome message
+      # Uncomment to customize (otherwise uses sensible default):
+      # welcome_message: |
+      #   👋 Welcome to our project!
+      #
+      #   Claude can help with:
+      #   - Code reviews and suggestions
+      #   - Explaining complex changes
+      #   - Answering questions about the codebase
+      #
+      #   Tag `@claude` to get started!
+
+    permissions:
+      pull-requests: write
+      issues: write
+# -----------------------------------------------------------------------------
+# CUSTOMIZATION EXAMPLES
+# -----------------------------------------------------------------------------
+#
+# Below are common customizations. Uncomment and modify the sections you need.
+#
+# -------------------
+# Example 1: Custom Welcome Message
+# -------------------
+# Replace the job above with this to customize the message:
+#
+#   welcome:
+#     uses: Uniswap/ai-toolkit/.github/workflows/_claude-welcome.yml@main
+#     with:
+#       workflow_deployment_date: '2025-01-15'
+#       welcome_message: |
+#         👋 **Hello from the Engineering Team!**
+#
+#         Claude is available to assist with your pull request:
+#         - 🔍 Review code changes and suggest improvements
+#         - 💡 Answer questions about the codebase
+#         - 📝 Explain complex code patterns
+#         - 🐛 Help identify potential bugs
+#
+#         **How to use:** Tag `@claude` in any comment with your question
+#
+#         **Example:** "@claude Can you explain what this function does?"
+#     permissions:
+#       pull-requests: write
+#       issues: write
+#
+# -------------------
+# Example 2: With Documentation Link
+# -------------------
+# Add a link to your repository's Claude usage guide:
+#
+#   welcome:
+#     uses: Uniswap/ai-toolkit/.github/workflows/_claude-welcome.yml@main
+#     with:
+#       workflow_deployment_date: '2025-01-15'
+#       documentation_url: 'https://github.com/your-org/your-repo/blob/main/docs/claude-guide.md'
+#     permissions:
+#       pull-requests: write
+#       issues: write
+#
+# -------------------
+# Example 3: Permanent Welcome (No Expiration)
+# -------------------
+# For teams that have permanently adopted Claude:
+#
+#   welcome:
+#     uses: Uniswap/ai-toolkit/.github/workflows/_claude-welcome.yml@main
+#     with:
+#       workflow_deployment_date: '2025-01-15'
+#       expiration_months: 0  # 0 = never expires
+#     permissions:
+#       pull-requests: write
+#       issues: write
+#
+# -------------------
+# Example 4: Extended Trial Period
+# -------------------
+# For a 6-month pilot program:
+#
+#   welcome:
+#     uses: Uniswap/ai-toolkit/.github/workflows/_claude-welcome.yml@main
+#     with:
+#       workflow_deployment_date: '2025-01-15'
+#       expiration_months: 6
+#       documentation_url: 'https://github.com/your-org/your-repo/blob/main/docs/claude-pilot.md'
+#     permissions:
+#       pull-requests: write
+#       issues: write
+#
+# -------------------
+# Example 5: Integration with Existing PR Automation
+# -------------------
+# Combine Claude welcome with your existing PR workflows:
+#
+# on:
+#   pull_request:
+#     types: [opened]
+#
+# jobs:
+#   # Claude welcome runs independently
+#   claude-welcome:
+#     uses: Uniswap/ai-toolkit/.github/workflows/_claude-welcome.yml@main
+#     with:
+#       workflow_deployment_date: '2025-01-15'
+#     permissions:
+#       pull-requests: write
+#       issues: write
+#
+#   # Your existing automation continues to work
+#   assign-reviewer:
+#     runs-on: ubuntu-latest
+#     permissions:
+#       pull-requests: write
+#     steps:
+#       - name: Assign team lead
+#         env:
+#           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#         run: gh pr edit ${{ github.event.pull_request.number }} --add-reviewer team-lead
+#
+#   auto-label:
+#     runs-on: ubuntu-latest
+#     permissions:
+#       pull-requests: write
+#     steps:
+#       - name: Add size label
+#         env:
+#           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#           ADDITIONS: ${{ github.event.pull_request.additions }}
+#         run: |
+#           if [ "$ADDITIONS" -lt 50 ]; then
+#             gh pr edit ${{ github.event.pull_request.number }} --add-label "size/small"
+#           elif [ "$ADDITIONS" -lt 200 ]; then
+#             gh pr edit ${{ github.event.pull_request.number }} --add-label "size/medium"
+#           else
+#             gh pr edit ${{ github.event.pull_request.number }} --add-label "size/large"
+#           fi
+#
+# -----------------------------------------------------------------------------
+# TROUBLESHOOTING
+# -----------------------------------------------------------------------------
+#
+# Problem: "Invalid workflow_deployment_date format" error
+# Solution: Use YYYY-MM-DD with zero padding
+#   ❌ '2025-1-15'
+#   ✅ '2025-01-15'
+#
+# Problem: Welcome message not appearing
+# Solution: Check these in order:
+#   1. Has expiration period passed? (workflow_deployment_date + expiration_months)
+#   2. Do you have the right permissions? (pull-requests: write, issues: write)
+#   3. Was message already posted? (duplicate detection prevents multiple welcomes)
+#
+# Problem: "Invalid documentation_url domain" error
+# Solution: Only certain domains are allowed for security:
+#   - github.com
+#   - notion.so / notion.site
+#   - gitbook.io
+#   - readthedocs.io
+#   - docs.google.com
+#
+# Problem: Multiple welcome messages on same PR
+# Solution: Ensure only one workflow is calling _claude-welcome.yml
+#
+# Problem: Permission denied error
+# Solution: Add required permissions to the job:
+#   permissions:
+#     pull-requests: write
+#     issues: write
+#
+# -----------------------------------------------------------------------------
+# DEPLOYMENT CHECKLIST
+# -----------------------------------------------------------------------------
+#
+# Before deploying this workflow:
+# ☐ Set workflow_deployment_date to today (YYYY-MM-DD format)
+# ☐ Choose appropriate expiration_months (3 for pilot, 0 for permanent)
+# ☐ Customize welcome_message if desired
+# ☐ Add documentation_url if you have a guide
+# ☐ Test on a draft PR before rolling out
+# ☐ Monitor first few PRs to ensure messages appear correctly
+# ☐ Gather team feedback and iterate on message content
+#
+# -----------------------------------------------------------------------------
+# MIGRATION FROM UNIVERSE REPOSITORY
+# -----------------------------------------------------------------------------
+#
+# If you're migrating from the universe repository's claude-welcome workflow:
+# 1. Replace the old workflow file with this one
+# 2. Update workflow_deployment_date to today's date (or your original deployment date)
+# 3. IMPORTANT: The parameter was renamed from 'creation_date' to 'workflow_deployment_date'
+# 4. Update documentation_url to point to your repo's guide
+# 5. Keep expiration_months the same as your original workflow
+# 6. Test the new workflow on a test PR
+#
+# Old parameter name (universe):
+#   creation_date: '2025-01-15'
+#
+# New parameter name (ai-toolkit):
+#   workflow_deployment_date: '2025-01-15'
+#
+# -----------------------------------------------------------------------------
+# ADDITIONAL RESOURCES
+# -----------------------------------------------------------------------------
+#
+# For more details, see:
+# - Workflow documentation: /.github/REUSABLE_WORKFLOWS.md#_claude-welcomeyml
+# - README: /.github/workflows/README.md
+# - Full documentation: https://github.com/Uniswap/ai-toolkit
+#

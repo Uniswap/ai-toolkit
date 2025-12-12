@@ -1,0 +1,71 @@
+{
+  "name": "@uniswap/ai-toolkit-claude-mcp-helper",
+  "version": "1.0.11",
+  "private": false,
+  "description": "CLI tool for managing MCP servers in Claude Code workspaces",
+  "keywords": [
+    "claude-code",
+    "mcp",
+    "model-context-protocol",
+    "cli",
+    "uniswap",
+    "ai-toolkit"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/uniswap/ai-toolkit.git",
+    "directory": "packages/claude-mcp-helper"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "commonjs",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "claude-mcp-helper": "./dist/claude-mcp-helper.cjs"
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "postbuild": "chmod +x dist/claude-mcp-helper.cjs"
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "executor": "@nx/esbuild:esbuild",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "options": {
+          "outputPath": "packages/claude-mcp-helper/dist",
+          "main": "packages/claude-mcp-helper/src/index.ts",
+          "tsConfig": "packages/claude-mcp-helper/tsconfig.lib.json",
+          "format": [
+            "cjs"
+          ],
+          "outputFileName": "claude-mcp-helper.cjs",
+          "bundle": true,
+          "thirdParty": true,
+          "platform": "node",
+          "target": "node18",
+          "generatePackageJson": false,
+          "esbuildOptions": {
+            "banner": {
+              "js": "#!/usr/bin/env node"
+            }
+          }
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "enquirer": "^2.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "memfs": "^4.14.0"
+  }
+}

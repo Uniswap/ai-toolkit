@@ -1,0 +1,222 @@
+{
+  "name": "slack-oauth-backend",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "tags": ["scope:backend", "type:api", "backend", "api", "oauth"],
+  "targets": {
+    "build": {
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "target": "node",
+        "compiler": "tsc",
+        "outputPath": "apps/slack-oauth-backend/dist",
+        "main": "apps/slack-oauth-backend/src/main.ts",
+        "tsConfig": "apps/slack-oauth-backend/tsconfig.app.json",
+        "generatePackageJson": true,
+        "extractLicenses": false,
+        "webpackConfig": "apps/slack-oauth-backend/webpack.config.js"
+      },
+      "configurations": {
+        "development": {
+          "optimization": false,
+          "sourceMap": true,
+          "inspect": true,
+          "fileReplacements": [
+            {
+              "replace": "apps/slack-oauth-backend/src/config/production.ts",
+              "with": "apps/slack-oauth-backend/src/config/development.ts"
+            }
+          ]
+        },
+        "production": {
+          "optimization": true,
+          "sourceMap": false,
+          "extractLicenses": true,
+          "fileReplacements": [
+            {
+              "replace": "apps/slack-oauth-backend/src/config/development.ts",
+              "with": "apps/slack-oauth-backend/src/config/production.ts"
+            }
+          ]
+        }
+      }
+    },
+    "prune-lockfile": {
+      "dependsOn": ["build"],
+      "cache": true,
+      "executor": "@nx/js:prune-lockfile",
+      "outputs": [
+        "{workspaceRoot}/apps/slack-oauth-backend/dist/package.json",
+        "{workspaceRoot}/apps/slack-oauth-backend/dist/package-lock.json"
+      ],
+      "options": {
+        "buildTarget": "build"
+      }
+    },
+    "copy-workspace-modules": {
+      "dependsOn": ["build"],
+      "cache": true,
+      "outputs": [
+        "{workspaceRoot}/apps/slack-oauth-backend/dist/workspace_modules"
+      ],
+      "executor": "@nx/js:copy-workspace-modules",
+      "options": {
+        "buildTarget": "build"
+      }
+    },
+    "prune": {
+      "dependsOn": ["prune-lockfile", "copy-workspace-modules"],
+      "executor": "nx:noop"
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "dependsOn": ["build"],
+      "options": {
+        "buildTarget": "slack-oauth-backend:build",
+        "runBuildTargetDependencies": false,
+        "watch": false
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "slack-oauth-backend:build:development",
+          "inspect": true,
+          "port": 9229
+        },
+        "production": {
+          "buildTarget": "slack-oauth-backend:build:production"
+        }
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/apps/slack-oauth-backend/test-output"],
+      "options": {
+        "passWithNoTests": true,
+        "jestConfig": "apps/slack-oauth-backend/jest.config.ts",
+        "coverage": false
+      },
+      "configurations": {
+        "ci": {
+          "ci": true,
+          "coverage": true,
+          "codeCoverage": true,
+          "coverageReporters": ["text", "lcov", "html"],
+          "collectCoverageFrom": [
+            "apps/slack-oauth-backend/src/**/*.ts",
+            "!apps/slack-oauth-backend/src/**/*.spec.ts",
+            "!apps/slack-oauth-backend/src/**/*.test.ts",
+            "!apps/slack-oauth-backend/src/**/index.ts"
+          ]
+        },
+        "watch": {
+          "watch": true
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["apps/slack-oauth-backend/**/*.ts"],
+        "fix": false,
+        "cache": true,
+        "quiet": false
+      },
+      "configurations": {
+        "fix": {
+          "fix": true
+        },
+        "ci": {
+          "quiet": true,
+          "cache": false
+        }
+      }
+    },
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "docker build -f apps/slack-oauth-backend/Dockerfile -t slack-oauth-backend:{args.tag:-latest} ."
+        ],
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "docker-run": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "docker run --env-file apps/slack-oauth-backend/.env -p 3000:3000 slack-oauth-backend:{args.tag:-latest}"
+        ]
+      }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "commands": [
+          "echo 'Deploy command should be configured for your platform (AWS, GCP, Azure, etc.)'"
+        ]
+      },
+      "configurations": {
+        "production": {
+          "commands": [
+            "nx run slack-oauth-backend:build:production",
+            "echo 'Deploying to production environment...'"
+          ]
+        },
+        "staging": {
+          "commands": [
+            "nx run slack-oauth-backend:build:production",
+            "echo 'Deploying to staging environment...'"
+          ]
+        }
+      }
+    },
+    "env-setup": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "cp apps/slack-oauth-backend/.env.example apps/slack-oauth-backend/.env",
+          "echo '✅ Environment file created. Please update the values in apps/slack-oauth-backend/.env'"
+        ]
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "tsc --noEmit -p apps/slack-oauth-backend/tsconfig.app.json"
+        ]
+      }
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "prettier --write 'apps/slack-oauth-backend/**/*.{ts,tsx,js,jsx,json,md}'"
+        ]
+      },
+      "configurations": {
+        "check": {
+          "commands": [
+            "prettier --check 'apps/slack-oauth-backend/**/*.{ts,tsx,js,jsx,json,md}'"
+          ]
+        }
+      }
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "rm -rf apps/slack-oauth-backend/dist",
+          "rm -rf apps/slack-oauth-backend/test-output"
+        ]
+      }
+    }
+  },
+  "sourceRoot": "apps/slack-oauth-backend/src",
+  "projectType": "application"
+}

@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "$id": "SchemaForAddons",
+  "title": "Addons Installation",
+  "type": "object",
+  "description": "Install and configure Claude Code addons including MCP servers.",
+  "properties": {
+    "selectionMode": {
+      "type": "string",
+      "description": "Selection mode for which addons to install",
+      "enum": ["all", "specific"],
+      "default": "all",
+      "x-prompt": {
+        "message": "🎯 What would you like to install?",
+        "type": "list",
+        "items": [
+          {
+            "value": "all",
+            "label": "All recommended MCP servers (12 servers)"
+          },
+          {
+            "value": "specific",
+            "label": "Select specific MCP servers"
+          }
+        ]
+      }
+    },
+    "addons": {
+      "type": "array",
+      "description": "The addons to install",
+      "items": {
+        "type": "string",
+        "enum": [
+          "spec-workflow-mcp",
+          "graphite-mcp",
+          "nx-mcp",
+          "slack-mcp",
+          "universe-mcp",
+          "linear-mcp",
+          "notion-mcp",
+          "github-mcp",
+          "figma-mcp",
+          "chrome-devtools-mcp",
+          "vercel-mcp",
+          "supabase-mcp",
+          "aws-log-analyzer-mcp",
+          "pulumi-mcp"
+        ]
+      },
+      "prompt-when": "selectionMode === 'specific'",
+      "prompt-type": "multiselect",
+      "prompt-message": "🔌 Select MCP servers to install"
+    },
+    "dashboardMode": {
+      "type": "string",
+      "description": "Dashboard startup mode",
+      "enum": ["always", "manual"],
+      "default": "always",
+      "prompt-message": "📊 When should the spec-workflow dashboard start?",
+      "prompt-type": "select",
+      "prompt-items": [
+        { "value": "always", "label": "Always (auto-start on Claude launch)" },
+        { "value": "manual", "label": "Manual (start via command only)" }
+      ]
+    },
+    "port": {
+      "type": "number",
+      "description": "Dashboard port (default: auto)",
+      "default": 0,
+      "prompt-message": "🔌 Dashboard port (0 for auto)"
+    },
+    "force": {
+      "type": "boolean",
+      "description": "Force installation even if already exists",
+      "default": false
+    },
+    "skipVerification": {
+      "type": "boolean",
+      "description": "Skip installation verification",
+      "default": false
+    },
+    "projectPath": {
+      "type": "string",
+      "description": "Path to the project where spec-workflow should be installed",
+      "x-skip-prompt": true
+    },
+    "dry": {
+      "type": "boolean",
+      "description": "Dry run mode",
+      "default": false
+    },
+    "installMode": {
+      "type": "string",
+      "description": "Installation mode from parent generator (default or custom)",
+      "enum": ["default", "custom"],
+      "hidden": true
+    }
+  },
+  "required": []
+}

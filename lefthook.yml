@@ -1,0 +1,64 @@
+# Lefthook configuration for AI Toolkit
+# https://github.com/evilmartians/lefthook
+
+pre-commit:
+  parallel: false # Changed to false to ensure commands run in order
+  commands:
+    update-package-lock:
+      run: sh scripts/lefthook/update-package-lock.sh
+      tags: package-lock
+      skip:
+        - merge
+        - rebase
+      fail_text: 'Failed to update package-lock.json. Please run npm install manually.'
+
+    format:
+      run: sh scripts/lefthook/format-files.sh
+      tags: format
+      skip:
+        - merge
+        - rebase
+      fail_text: 'Formatting failed. Please review the changes.'
+
+    lint:
+      run: sh scripts/lefthook/lint.sh
+      tags: lint
+      skip:
+        - merge
+        - rebase
+      fail_text: 'Linting failed. Please fix the issues before committing.'
+
+    typecheck:
+      run: npx nx affected --target=typecheck --base=HEAD~1
+      tags: typecheck
+      skip:
+        - merge
+        - rebase
+      fail_text: 'Typechecking failed. Please fix the issues before committing.'
+
+    test:
+      run: npx nx affected --target=test --base=HEAD~1
+      tags: test
+      skip:
+        - merge
+        - rebase
+      fail_text: 'Tests failed. Please fix the failing tests before committing.'
+
+    lint-markdown:
+      glob: '*.md'
+      run: sh scripts/lefthook/lint-markdown.sh
+      tags: markdown
+      skip:
+        - merge
+        - rebase
+      fail_text: 'Markdown linting failed. Please fix the issues before committing.'
+    # Update CLAUDE.md files based on changed files
+    # Skip with: SKIP_CLAUDE=1 git commit -m "message"
+    update-claude-docs:
+      run: sh scripts/lefthook/update-claude-docs.sh
+      tags: claude-docs
+      skip:
+        - merge
+        - rebase
+        - run: '[ "$SKIP_CLAUDE" = "1" ]'
+      fail_text: 'Failed to update CLAUDE.md files. Please run `claude -p "/update-claude-md"` manually.'
