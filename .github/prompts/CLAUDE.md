@@ -9,6 +9,7 @@ Markdown prompt templates used by GitHub Actions workflows to customize Claude A
 ### Code Review
 
 - **default-pr-review.md** - Default PR review guidelines and focus areas
+- **validation-review.md** - N+1 validation agent guidelines for reviewing another agent's code review output
 
 ### PR Metadata Generation
 
