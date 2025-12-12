@@ -36,7 +36,7 @@
     "!**/*.tsbuildinfo"
   ],
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "dependencies": {
     "@notionhq/client": "^2.2.15",

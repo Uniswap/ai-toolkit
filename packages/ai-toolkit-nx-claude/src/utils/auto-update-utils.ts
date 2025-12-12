@@ -24,13 +24,7 @@ export function getCurrentToolkitVersion(): string {
     // TODO(melvillian): this can happen when we're running via npx and the
     // package.json is located in the parent directory. Go back and make this
     // more robust after we do the demo
-    const packageJsonPath = path.join(
-      __dirname,
-      '..',
-      '..',
-      '..',
-      'package.json'
-    );
+    const packageJsonPath = path.join(__dirname, '..', '..', '..', 'package.json');
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
     return packageJson.version;
   }
@@ -90,7 +84,7 @@ _ai_toolkit_check_updates() {
   if command -v npm >/dev/null 2>&1; then
     if ! npm view @uniswap/ai-toolkit-nx-claude@latest version >/dev/null 2>&1; then
       echo "⚠️  Failed to check for AI Toolkit updates (npm registry unavailable)"
-      echo "🐞 Please report this bug to the #pod-dev-ai Slack channel"
+      echo "🐞 Please report this bug at https://github.com/Uniswap/ai-toolkit/issues"
       return
     fi
     
@@ -147,7 +141,7 @@ function _ai_toolkit_check_updates
   if command -v npm >/dev/null 2>&1
     if not npm view @uniswap/ai-toolkit-nx-claude@latest version >/dev/null 2>&1
       echo "⚠️  Failed to check for AI Toolkit updates (npm registry unavailable)"
-      echo "🐞 Please report this bug to the #pod-dev-ai Slack channel"
+      echo "🐞 Please report this bug at https://github.com/Uniswap/ai-toolkit/issues"
       return
     end
     
@@ -190,17 +184,12 @@ export function installUpdateChecker(shell: ShellType, version: string): void {
   // Use regex to remove the block between markers
   const startMarker = '# AUTOMATED BY AI_TOOLKIT_UPDATE_CHECK';
   const endMarker = '# END AI_TOOLKIT_UPDATE_CHECK';
-  const blockRegex = new RegExp(
-    `${startMarker}[\\s\\S]*?${endMarker}\\n?`,
-    'g'
-  );
+  const blockRegex = new RegExp(`${startMarker}[\\s\\S]*?${endMarker}\\n?`, 'g');
   configContent = configContent.replace(blockRegex, '');
 
   // 3. Append new auto-update block
   const snippet =
-    shell === 'fish'
-      ? generateFishAutoUpdateSnippet(version)
-      : generateAutoUpdateSnippet(version);
+    shell === 'fish' ? generateFishAutoUpdateSnippet(version) : generateAutoUpdateSnippet(version);
 
   // Ensure there's a newline before our snippet if file has content
   const prefix = configContent.trim() ? '\n\n' : '';
@@ -209,7 +198,5 @@ export function installUpdateChecker(shell: ShellType, version: string): void {
   fs.writeFileSync(configPath, updatedContent);
 
   logger.info(`✅ Update checker installed to ${configPath}`);
-  logger.info(
-    `   Checks once per week, disable with: export AI_TOOLKIT_SKIP_UPDATE_CHECK=1`
-  );
+  logger.info(`   Checks once per week, disable with: export AI_TOOLKIT_SKIP_UPDATE_CHECK=1`);
 }

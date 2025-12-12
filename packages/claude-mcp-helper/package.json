@@ -17,7 +17,7 @@
     "directory": "packages/claude-mcp-helper"
   },
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "type": "commonjs",
   "main": "./dist/index.js",

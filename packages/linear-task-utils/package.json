@@ -23,7 +23,7 @@
     "!**/*.tsbuildinfo"
   ],
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "dependencies": {
     "@linear/sdk": "^33.0.0",

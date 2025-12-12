@@ -115,14 +115,14 @@ This eliminates the "is it running?" uncertainty by posting a status comment as 
 
 **Required Secrets:**
 
-| Secret              | Required    | Description                                                                                                                                                                                                                            |
-| ------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ANTHROPIC_API_KEY` | Yes         | Anthropic API key for Claude access                                                                                                                                                                                                    |
-| `WORKFLOW_PAT`      | Conditional | Personal Access Token with `repo` scope for cross-repo access to fetch default prompts from ai-toolkit. **Required if not providing `custom_prompt` or `custom_prompt_path`.** Also used for resolving review threads via GraphQL API. |
+| Secret              | Required | Description                                                                                                              |
+| ------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `ANTHROPIC_API_KEY` | Yes      | Anthropic API key for Claude access                                                                                      |
+| `WORKFLOW_PAT`      | Optional | Personal Access Token with `repo` scope. Only needed for resolving review threads via GraphQL API (falls back to `GITHUB_TOKEN`). |
 
 > **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
 >
-> **Note:** If you need assistance adding the `WORKFLOW_PAT` secret to your repository or installing the Claude GitHub App, please reach out to the **#pod-dev-ai** Slack channel.
+> **Note:** If you need assistance installing the Claude GitHub App, please open an issue at [GitHub Issues](https://github.com/Uniswap/ai-toolkit/issues).
 
 **Configuration Inputs:**
 
@@ -150,7 +150,6 @@ with:
   toolkit_ref: 'main' # or 'next' to test unreleased changes
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }} # Required for default prompt
 ```
 
 **Prompt Configuration Options:**
@@ -159,9 +158,7 @@ The workflow determines which prompt to use in this priority order:
 
 1. **`custom_prompt` input**: Explicit prompt text passed directly to the workflow
 2. **`custom_prompt_path` input**: Path to a prompt file in the calling repository (default: `.claude/prompts/claude-pr-bot.md`)
-3. **Default prompt from ai-toolkit**: Fetched from `Uniswap/ai-toolkit` repository (requires `WORKFLOW_PAT`)
-
-If using option 1 or 2, the `WORKFLOW_PAT` secret is not required for prompt fetching (but may still be needed for thread resolution).
+3. **Default prompt from ai-toolkit**: Fetched from `Uniswap/ai-toolkit` repository (public, no authentication required)
 
 **Testing Unreleased Changes:**
 
@@ -175,7 +172,6 @@ with:
   toolkit_ref: 'next' # Use the 'next' branch version of post-review.ts
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
 ```
 
 **Triggering a New Review Without Code Changes:**
@@ -302,14 +298,13 @@ The `generation_mode` input is a comma-separated list that controls what the wor
 
 **Required Secrets:**
 
-| Secret              | Required    | Description                                                                                                                                                                    |
-| ------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ANTHROPIC_API_KEY` | Yes         | Anthropic API key for Claude access                                                                                                                                            |
-| `WORKFLOW_PAT`      | Conditional | Personal Access Token with `repo` scope for cross-repo access to fetch default prompts from ai-toolkit. **Required if not providing `custom_prompt` or `custom_prompt_path`.** |
+| Secret              | Required | Description                         |
+| ------------------- | -------- | ----------------------------------- |
+| `ANTHROPIC_API_KEY` | Yes      | Anthropic API key for Claude access |
 
 > **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
 >
-> **Note:** If you need assistance adding the `WORKFLOW_PAT` secret to your repository or installing the Claude GitHub App, please reach out to the **#pod-dev-ai** Slack channel.
+> **Note:** If you need assistance installing the Claude GitHub App, please open an issue at [GitHub Issues](https://github.com/Uniswap/ai-toolkit/issues).
 
 **Usage examples:**
 
@@ -322,7 +317,17 @@ with:
   generation_mode: 'description,title-suggestion'
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }} # Required for default prompt
+```
+
+```yaml
+# Generate both title and description
+uses: Uniswap/ai-toolkit/.github/workflows/_generate-pr-metadata.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  base_ref: ${{ github.base_ref }}
+  generation_mode: 'title,description'
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
 ```yaml
@@ -343,9 +348,7 @@ The workflow determines which prompt to use in this priority order:
 
 1. **`custom_prompt` input**: Explicit prompt text passed directly to the workflow
 2. **`custom_prompt_path` input**: Path to a prompt file in the calling repository (default: `.github/prompts/generate-pr-title-description.md`)
-3. **Default prompt from ai-toolkit**: Fetched from `Uniswap/ai-toolkit` repository (requires `WORKFLOW_PAT`)
-
-If using option 1 or 2, the `WORKFLOW_PAT` secret is not required.
+3. **Default prompt from ai-toolkit**: Fetched from `Uniswap/ai-toolkit` repository (public, no authentication required)
 
 ### Autonomous Task Processing (`_claude-task-worker.yml`)
 

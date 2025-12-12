@@ -11,7 +11,7 @@
     "directory": "packages/ai-toolkit-nx-claude"
   },
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "bin": {
     "ai-toolkit-nx-claude": "dist/cli-generator.cjs",

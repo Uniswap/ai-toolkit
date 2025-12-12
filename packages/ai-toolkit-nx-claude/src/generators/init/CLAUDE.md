@@ -162,7 +162,7 @@ echo "export AI_TOOLKIT_SKIP_UPDATE_CHECK=1" >> ~/.zshrc
 
 - If update checker installation fails, a warning is shown but installation continues
 - Failure is treated as non-critical (user can still use installed commands/agents)
-- Users are advised to report issues to #pod-dev-ai Slack channel
+- Users are advised to report issues at <https://github.com/Uniswap/ai-toolkit/issues>
 
 ### Installation Modes
 
