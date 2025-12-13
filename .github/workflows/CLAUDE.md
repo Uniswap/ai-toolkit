@@ -73,7 +73,7 @@ This workflow performs automated PR code reviews using Claude AI with the follow
 - Patch-ID based caching to skip rebases (no actual code changes)
 - **Comment trigger**: Add `@request-claude-review` to any PR comment to force a fresh review
 - Manual trigger via workflow_dispatch to force a new review (bypasses cache)
-- Custom prompt support
+- **Modular prompt architecture**: Prompts assembled from section files in `.github/prompts/pr-review/`
 - Existing review comment context for re-reviews
 - Fast review mode for trivial PRs (< 20 lines)
 - **Built-in Verdict Decision Rules** - Ensures consistent, predictable review verdicts
@@ -126,18 +126,82 @@ This eliminates the "is it running?" uncertainty by posting a status comment as 
 
 **Configuration Inputs:**
 
-| Input                | Required | Default                            | Description                                                                                                                    |
-| -------------------- | -------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `pr_number`          | Yes      | -                                  | Pull request number to review                                                                                                  |
-| `base_ref`           | Yes      | -                                  | Base branch name (e.g., main, master)                                                                                          |
-| `force_review`       | No       | `false`                            | Force a full review even if the code hasn't changed (bypasses patch-ID cache)                                                  |
-| `model`              | No       | `claude-sonnet-4-5-20250929`       | Claude model to use for review                                                                                                 |
-| `max_turns`          | No       | unlimited                          | Maximum conversation turns for Claude                                                                                          |
-| `custom_prompt`      | No       | `""`                               | Custom prompt text (overrides prompt file and default)                                                                         |
-| `custom_prompt_path` | No       | `.claude/prompts/claude-pr-bot.md` | Path to custom prompt file in repository                                                                                       |
-| `timeout_minutes`    | No       | `30`                               | Job timeout in minutes                                                                                                         |
-| `allowed_tools`      | No       | `""`                               | Comma-separated list of allowed tools for Claude                                                                               |
-| `toolkit_ref`        | No       | `main`                             | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
+| Input                                 | Required | Default                      | Description                                                                                                                    |
+| ------------------------------------- | -------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `pr_number`                           | Yes      | -                            | Pull request number to review                                                                                                  |
+| `base_ref`                            | No       | -                            | Base branch name (e.g., main, master). If not provided, fetched via GitHub API.                                                |
+| `force_review`                        | No       | `false`                      | Force a full review even if the code hasn't changed (bypasses patch-ID cache)                                                  |
+| `model`                               | No       | `claude-sonnet-4-5-20250929` | Claude model to use for review                                                                                                 |
+| `max_turns`                           | No       | unlimited                    | Maximum conversation turns for Claude                                                                                          |
+| `prompt_override_files_to_skip`       | No       | `""`                         | Path to markdown file overriding "Files to Skip" section                                                                       |
+| `prompt_override_review_priorities`   | No       | `""`                         | Path to markdown file overriding "Review Priorities" section                                                                   |
+| `prompt_override_communication_style` | No       | `""`                         | Path to markdown file overriding "Communication Style" section                                                                 |
+| `prompt_override_pattern_recognition` | No       | `""`                         | Path to markdown file overriding "Pattern Recognition" section                                                                 |
+| `timeout_minutes`                     | No       | `30`                         | Job timeout in minutes                                                                                                         |
+| `allowed_tools`                       | No       | `""`                         | Comma-separated list of allowed tools for Claude                                                                               |
+| `toolkit_ref`                         | No       | `main`                       | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
+
+**Section Overrides (Granular Prompt Customization):**
+
+The PR review prompt is assembled from modular section files in `.github/prompts/pr-review/`. You can selectively override specific sections using `prompt_override_*` inputs. Each input points to a markdown file in your repository containing the replacement content.
+
+| Input                                 | Section File Replaced                  | Default Behavior                                      |
+| ------------------------------------- | -------------------------------------- | ----------------------------------------------------- |
+| `prompt_override_files_to_skip`       | `overridable/5-files-to-skip.md`       | Lockfiles, snapshots, build artifacts, generated code |
+| `prompt_override_review_priorities`   | `overridable/4-review-priorities.md`   | Critical (bugs/security) → Maintainability → Style    |
+| `prompt_override_communication_style` | `overridable/6-communication-style.md` | Direct, specific, with code examples                  |
+| `prompt_override_pattern_recognition` | `overridable/7-pattern-recognition.md` | Common antipatterns, dependency injection patterns    |
+
+**Section Override Example:**
+
+Create markdown files in your repository:
+
+`.claude/prompts/review-files-to-skip.md`:
+
+```markdown
+## Files to Skip
+
+**Project-specific exclusions:**
+
+- `*.generated.ts` - Auto-generated TypeScript
+- `**/migrations/**` - Database migrations
+- `src/contracts/abis/*.json` - Contract ABIs
+```
+
+`.claude/prompts/review-priorities.md`:
+
+```markdown
+## Review Priorities
+
+### Critical (Security Focus)
+
+- Smart contract interactions
+- Token approval patterns
+- Reentrancy vulnerabilities
+
+### Standard
+
+- Business logic correctness
+- Error handling
+```
+
+Then reference them in your workflow:
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  prompt_override_files_to_skip: '.claude/prompts/review-files-to-skip.md'
+  prompt_override_review_priorities: '.claude/prompts/review-priorities.md'
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+```
+
+**Notes:**
+
+- Override files must exist in the repository; missing files will cause an error
+- Each override file should contain properly formatted markdown for that section
 
 **Usage example:**
 
@@ -150,15 +214,8 @@ with:
   toolkit_ref: 'main' # or 'next' to test unreleased changes
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
 ```
-
-**Prompt Configuration Options:**
-
-The workflow determines which prompt to use in this priority order:
-
-1. **`custom_prompt` input**: Explicit prompt text passed directly to the workflow
-2. **`custom_prompt_path` input**: Path to a prompt file in the calling repository (default: `.claude/prompts/claude-pr-bot.md`)
-3. **Default prompt from ai-toolkit**: Fetched from `Uniswap/ai-toolkit` repository (public, no authentication required)
 
 **Testing Unreleased Changes:**
 
@@ -255,8 +312,8 @@ This allows users to add custom notes, disclaimers, or additional context that s
 ```markdown
 > **Note:** This PR requires manual QA testing before merge.
 
-<!-- claude-pr-description-start -->
----
+## <!-- claude-pr-description-start -->
+
 ## :sparkles: Claude-Generated Content
 
 ## Summary

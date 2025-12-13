@@ -75,18 +75,6 @@ on:
         required: false
         type: number
 
-      custom_prompt:
-        description: "Custom prompt text (overrides prompt file and default)."
-        required: false
-        type: string
-        default: ""
-
-      custom_prompt_path:
-        description: "Path to custom prompt file in repository (e.g., .claude/prompts/claude-pr-bot.md)"
-        required: false
-        type: string
-        default: ".claude/prompts/claude-pr-bot.md"
-
       timeout_minutes:
         description: "Job timeout in minutes"
         required: false
@@ -104,6 +92,38 @@ on:
         required: false
         type: string
         default: "main"
+
+      prompt_override_files_to_skip:
+        description: |
+          Path to a markdown file in the repository that overrides the "Files to Skip" section.
+          Example: .claude/prompts/review-files-to-skip.md
+        required: false
+        type: string
+        default: ""
+
+      prompt_override_review_priorities:
+        description: |
+          Path to a markdown file in the repository that overrides the "Review Priorities" section.
+          Example: .claude/prompts/review-priorities.md
+        required: false
+        type: string
+        default: ""
+
+      prompt_override_communication_style:
+        description: |
+          Path to a markdown file in the repository that overrides the "Communication Style" section.
+          Example: .claude/prompts/review-communication-style.md
+        required: false
+        type: string
+        default: ""
+
+      prompt_override_pattern_recognition:
+        description: |
+          Path to a markdown file in the repository that overrides the "Pattern Recognition" section.
+          Example: .claude/prompts/review-pattern-recognition.md
+        required: false
+        type: string
+        default: ""
 
     secrets:
       ANTHROPIC_API_KEY:
@@ -403,13 +423,16 @@ jobs:
 
           echo "✅ PR diff generated successfully"
 
-      # Build final prompt with custom content
+      # Build final prompt from modular section files
       - name: Build Review Prompt
         if: steps.cache-check.outputs.cache-hit != 'true'
         id: build-prompt
         env:
-          CUSTOM_PROMPT_INPUT: ${{ inputs.custom_prompt }}
-          CUSTOM_PROMPT_PATH: ${{ inputs.custom_prompt_path }}
+          OVERRIDE_FILES_TO_SKIP: ${{ inputs.prompt_override_files_to_skip }}
+          OVERRIDE_REVIEW_PRIORITIES: ${{ inputs.prompt_override_review_priorities }}
+          OVERRIDE_COMMUNICATION_STYLE: ${{ inputs.prompt_override_communication_style }}
+          OVERRIDE_PATTERN_RECOGNITION: ${{ inputs.prompt_override_pattern_recognition }}
+          WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ inputs.pr_number }}
           BASE_REF: ${{ steps.pr-info.outputs.base_ref }}
@@ -417,213 +440,204 @@ jobs:
           EXISTING_COMMENT_COUNT: ${{ steps.existing-comments.outputs.existing_comment_count }}
           TOOLKIT_REF: ${{ inputs.toolkit_ref }}
           MERGE_BASE: ${{ steps.patch-id.outputs.merge_base }}
+          LINES_CHANGED: ${{ steps.pr-size.outputs.lines_changed }}
+          IS_TRIVIAL: ${{ steps.pr-size.outputs.is_trivial }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          CUSTOM_PROMPT=""
+          set -euo pipefail
 
-          # Priority 1: Explicit custom_prompt input
-          if [ -n "$CUSTOM_PROMPT_INPUT" ]; then
-            echo "📝 Using explicit custom prompt from workflow input"
-            CUSTOM_PROMPT="$CUSTOM_PROMPT_INPUT"
+          # =====================================================================
+          # File-based prompt assembly from modular section files
+          # =====================================================================
+          # The prompt is assembled from files in .github/prompts/pr-review/:
+          #   - fixed/     : Always-included sections (numbered 1-3, 8-16)
+          #   - overridable/ : Sections that can be replaced (numbered 4-7)
+          #
+          # Template variables (${VAR}) are substituted using envsubst.
+          # =====================================================================
 
-          # Priority 2: Custom prompt file in repository
-          elif [ -f "$CUSTOM_PROMPT_PATH" ]; then
-            echo "📝 Using custom prompt from repository: $CUSTOM_PROMPT_PATH"
-            CUSTOM_PROMPT=$(cat "$CUSTOM_PROMPT_PATH")
+          echo "📝 Building prompt from modular section files"
 
-          # Priority 3: Default prompt from ai-toolkit repository (public, no auth needed)
-          else
-            echo "📝 Fetching default prompt from Uniswap/ai-toolkit repository"
-
-            # Fetch default prompt via GitHub API (public repo, no auth needed)
-            if ! curl -fSs \
-                      -H "Accept: application/vnd.github.v4.raw" \
-                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/prompts/default-pr-review.md?ref=${TOOLKIT_REF}" \
-                      -o /tmp/default-prompt.md 2>&1 | tee /tmp/curl-error.log; then
-              echo "❌ Failed to fetch default prompt from Uniswap/ai-toolkit"
-              echo "   Error details:"
-              cat /tmp/curl-error.log | head -5
-              exit 1
-            fi
-
-            CUSTOM_PROMPT=$(cat /tmp/default-prompt.md)
-            echo "✅ Loaded default prompt from Uniswap/ai-toolkit"
-          fi
-
-          # Parse repository owner and name from REPO (format: owner/repo)
+          # Parse repository owner and name
           REPO_OWNER=$(echo "$REPO" | cut -d'/' -f1)
           REPO_NAME=$(echo "$REPO" | cut -d'/' -f2)
 
-          # Build final prompt with review context
-          # Note: JSON output format is enforced by --json-schema flag, not prompt instructions
-          cat > /tmp/final-prompt.txt <<PROMPT_EOF
-          # Review Context
+          # Export all template variables for envsubst
+          export REPO_OWNER REPO_NAME PR_NUMBER BASE_REF PATCH_ID MERGE_BASE LINES_CHANGED
 
-          **Repository Owner:** $REPO_OWNER
-          **Repository Name:** $REPO_NAME
-          **PR Number:** $PR_NUMBER
-          **Base Branch:** $BASE_REF
-          **Patch ID:** $PATCH_ID
+          # Read dynamic content for template substitution
+          export CHANGED_FILES
+          CHANGED_FILES=$(cat /tmp/changed-files.txt)
+          export PR_DIFF
+          PR_DIFF=$(cat /tmp/pr-diff.txt)
+          export EXISTING_COMMENTS_JSON
+          EXISTING_COMMENTS_JSON=$(cat /tmp/existing-comments.json 2>/dev/null || echo "[]")
 
-          ---
+          # Create temp directory for downloaded files
+          PROMPT_DIR="/tmp/pr-review-prompts"
+          mkdir -p "$PROMPT_DIR/fixed" "$PROMPT_DIR/overridable"
 
-          # ⚠️ IMPORTANT: PR Diff Instructions
+          # Function to fetch a file from ai-toolkit repository
+          fetch_prompt_file() {
+            local remote_path="$1"
+            local local_path="$2"
 
-          The diff below contains **ONLY** the changes in this PR. Do NOT run \`git diff\` yourself - the diff
-          has already been computed correctly using the merge-base between the PR branch and \`$BASE_REF\`.
+            if [ "$GITHUB_REPOSITORY" = "Uniswap/ai-toolkit" ]; then
+              # Running from ai-toolkit - use local files
+              local local_file=".github/prompts/pr-review/${remote_path}"
+              if [ -f "$local_file" ]; then
+                cp "$local_file" "$local_path"
+                return 0
+              else
+                echo "::warning::Local file not found: $local_file"
+                return 1
+              fi
+            else
+              # Fetch from ai-toolkit repository
+              if ! curl -fSs -H "Authorization: token $WORKFLOW_PAT" \
+                        -H "Accept: application/vnd.github.v4.raw" \
+                        -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/prompts/pr-review/${remote_path}?ref=${TOOLKIT_REF}" \
+                        -o "$local_path" 2>/dev/null; then
+                echo "::warning::Failed to fetch: $remote_path"
+                return 1
+              fi
+            fi
+            return 0
+          }
 
-          **To get the correct diff, use this command:**
-          \`\`\`bash
-          git diff ${MERGE_BASE}..HEAD
-          \`\`\`
+          # Function to process a section file (substitute vars and append)
+          process_section() {
+            local file="$1"
+            local output="$2"
 
-          **Files changed in this PR:**
-          \`\`\`
-          $(cat /tmp/changed-files.txt)
-          \`\`\`
+            if [ ! -f "$file" ]; then
+              echo "::warning::Section file not found: $file"
+              return 1
+            fi
 
-          **Full PR Diff:**
-          \`\`\`diff
-          $(cat /tmp/pr-diff.txt)
-          \`\`\`
+            # Use envsubst to replace template variables
+            envsubst < "$file" >> "$output"
+            echo "" >> "$output"  # Blank line between sections
+          }
 
-          ---
+          # Initialize final prompt file
+          FINAL_PROMPT="/tmp/final-prompt.txt"
+          > "$FINAL_PROMPT"
 
-          PROMPT_EOF
+          echo "📥 Fetching prompt section files..."
 
-          # Append custom prompt content
-          echo "$CUSTOM_PROMPT" >> /tmp/final-prompt.txt
+          # =====================================================================
+          # Section 1-2: Fixed sections (workflow-injected context)
+          # =====================================================================
+          fetch_prompt_file "fixed/1-review-context.md" "$PROMPT_DIR/fixed/1-review-context.md"
+          fetch_prompt_file "fixed/2-diff-instructions.md" "$PROMPT_DIR/fixed/2-diff-instructions.md"
 
-          # Append existing comments context for re-reviews
+          process_section "$PROMPT_DIR/fixed/1-review-context.md" "$FINAL_PROMPT"
+          process_section "$PROMPT_DIR/fixed/2-diff-instructions.md" "$FINAL_PROMPT"
+          echo "✅ Added sections 1-2 (review context, diff instructions)"
+
+          # =====================================================================
+          # Section 3: Repository context (from default-pr-review.md)
+          # =====================================================================
+          fetch_prompt_file "fixed/3-repository-context.md" "$PROMPT_DIR/fixed/3-repository-context.md"
+          process_section "$PROMPT_DIR/fixed/3-repository-context.md" "$FINAL_PROMPT"
+          echo "✅ Added section 3 (repository context)"
+
+          # =====================================================================
+          # Sections 4-7: Overridable sections
+          # =====================================================================
+          # Map section names to their override input variables
+          declare -A OVERRIDE_MAP=(
+            ["4-review-priorities"]="$OVERRIDE_REVIEW_PRIORITIES"
+            ["5-files-to-skip"]="$OVERRIDE_FILES_TO_SKIP"
+            ["6-communication-style"]="$OVERRIDE_COMMUNICATION_STYLE"
+            ["7-pattern-recognition"]="$OVERRIDE_PATTERN_RECOGNITION"
+          )
+
+          OVERRIDES_APPLIED=0
+          for section in "4-review-priorities" "5-files-to-skip" "6-communication-style" "7-pattern-recognition"; do
+            override_file="${OVERRIDE_MAP[$section]}"
+
+            if [ -n "$override_file" ] && [ -f "$override_file" ]; then
+              # Use consumer's override file
+              echo "📝 Using override for $section: $override_file"
+              process_section "$override_file" "$FINAL_PROMPT"
+              ((OVERRIDES_APPLIED++))
+            else
+              # Use default from ai-toolkit
+              fetch_prompt_file "overridable/${section}.md" "$PROMPT_DIR/overridable/${section}.md"
+              process_section "$PROMPT_DIR/overridable/${section}.md" "$FINAL_PROMPT"
+            fi
+          done
+
+          if [ "$OVERRIDES_APPLIED" -gt 0 ]; then
+            echo "✅ Applied $OVERRIDES_APPLIED section override(s)"
+          fi
+          echo "✅ Added sections 4-7 (review priorities, files to skip, communication style, pattern recognition)"
+
+          # =====================================================================
+          # Sections 8-12: Fixed sections (review process, inline comment rules, etc.)
+          # =====================================================================
+          for section_num in 8 9 10 11 12; do
+            # Find the file with this number prefix
+            case $section_num in
+              8) section_name="8-review-process.md" ;;
+              9) section_name="9-inline-comment-rules.md" ;;
+              10) section_name="10-important-notes.md" ;;
+              11) section_name="11-comment-examples.md" ;;
+              12) section_name="12-avoid-patterns.md" ;;
+            esac
+
+            fetch_prompt_file "fixed/${section_name}" "$PROMPT_DIR/fixed/${section_name}"
+            process_section "$PROMPT_DIR/fixed/${section_name}" "$FINAL_PROMPT"
+          done
+          echo "✅ Added sections 8-12 (review process, inline rules, notes, examples, avoid patterns)"
+
+          # =====================================================================
+          # Section 13: Existing comments (conditional - only for re-reviews)
+          # =====================================================================
           if [ "$EXISTING_COMMENT_COUNT" -gt 0 ]; then
-            cat >> /tmp/final-prompt.txt <<EXISTING_COMMENTS_EOF
-
-          ---
-
-          # Existing Review Comments
-
-          The following review comments already exist on this PR. Check if issues have been addressed:
-
-          \`\`\`json
-          $(cat /tmp/existing-comments.json)
-          \`\`\`
-
-          For each existing comment, if the issue has been fixed in the current code, include a response
-          in your \`inline_comments_responses\` array with \`should_resolve: true\`.
-          EXISTING_COMMENTS_EOF
-            echo "✨ Added existing comments context for re-review"
+            fetch_prompt_file "fixed/13-existing-comments.md" "$PROMPT_DIR/fixed/13-existing-comments.md"
+            process_section "$PROMPT_DIR/fixed/13-existing-comments.md" "$FINAL_PROMPT"
+            echo "✅ Added section 13 (existing comments for re-review)"
           fi
 
-          # Append fast-review mode instructions for trivial PRs
-          IS_TRIVIAL="${{ steps.pr-size.outputs.is_trivial }}"
+          # =====================================================================
+          # Section 14: Fast review mode (conditional - only for trivial PRs)
+          # =====================================================================
           if [ "$IS_TRIVIAL" = "true" ]; then
-            cat >> /tmp/final-prompt.txt <<TRIVIAL_MODE_EOF
-
-          ---
-
-          # 🚀 Fast Review Mode (Trivial PR)
-
-          This PR has fewer than 20 lines of changes. Use an expedited review process:
-
-          1. **Quick scan**: Review changed files briefly
-          2. **Focus on critical issues only**: Bugs, security vulnerabilities, breaking changes
-          3. **Skip comprehensive analysis**: Don't need detailed maintainability or improvement suggestions
-          4. **Minimal inline comments**: If the PR only modifies auto-generated files (lockfiles, snapshots), use an empty \`inline_comments_new\` array
-          5. **Fast verdict**: Complete quickly with appropriate outcome
-
-          **Goal**: Provide value while minimizing review cost for small changes.
-          TRIVIAL_MODE_EOF
-            echo "✨ Added fast-review mode instructions for trivial PR"
+            fetch_prompt_file "fixed/14-fast-review-mode.md" "$PROMPT_DIR/fixed/14-fast-review-mode.md"
+            process_section "$PROMPT_DIR/fixed/14-fast-review-mode.md" "$FINAL_PROMPT"
+            echo "✅ Added section 14 (fast review mode for trivial PR)"
           fi
 
-          # Append verdict decision rules (MUST come before output field guidance)
-          cat >> /tmp/final-prompt.txt <<VERDICT_RULES_EOF
+          # =====================================================================
+          # Section 15-16: Verdict rules and output guidance (always included)
+          # =====================================================================
+          fetch_prompt_file "fixed/15-verdict-rules.md" "$PROMPT_DIR/fixed/15-verdict-rules.md"
+          fetch_prompt_file "fixed/16-output-guidance.md" "$PROMPT_DIR/fixed/16-output-guidance.md"
 
-          ---
+          process_section "$PROMPT_DIR/fixed/15-verdict-rules.md" "$FINAL_PROMPT"
+          process_section "$PROMPT_DIR/fixed/16-output-guidance.md" "$FINAL_PROMPT"
+          echo "✅ Added sections 15-16 (verdict rules, output guidance)"
 
-          # 🎯 Verdict Decision Rules (MANDATORY)
-
-          Your verdict MUST follow these rules exactly. This is the most important part of your review.
-
-          ## APPROVE - Use when:
-          - No bugs, security vulnerabilities, or data corruption risks found
-          - Review contains only suggestions, questions, considerations, or style feedback
-          - You would tell a human reviewer "this is safe to merge"
-          - Your overall assessment is positive, even if you have minor feedback
-
-          **Key insight:** Questions, considerations, "nice-to-haves", and teaching moments are NOT blocking issues. If you have these but no actual bugs or security issues, use APPROVE.
-
-          ## REQUEST_CHANGES - Use when:
-          - Bugs that would cause runtime errors or incorrect behavior
-          - Security vulnerabilities (injection, auth bypass, data exposure)
-          - Data loss or corruption risks
-          - Breaking changes without migration path
-          - Critical logic errors that would affect users
-
-          ## COMMENT - Use SPARINGLY when:
-          - Several issues that are *close* to blocking but not quite (e.g., potential race conditions that need investigation)
-          - Significant number of non-blocking issues that collectively suggest the PR needs more work
-          - You explicitly cannot recommend approval AND cannot point to a specific blocking bug
-
-          **COMMENT is NOT a safe default.** Most positive reviews with suggestions should be APPROVE, not COMMENT.
-
-          ## Decision Examples
-
-          | Review Content | Correct Verdict | Why |
-          |---------------|-----------------|-----|
-          | "No issues found, code looks good" | APPROVE | Positive review, no blockers |
-          | "Found potential null pointer on line 42" | REQUEST_CHANGES | Bug identified |
-          | "Good changes! Consider extracting this to a utility" | APPROVE | Positive + suggestion = APPROVE |
-          | "Questions about the architecture choice here" | APPROVE | Questions are not blockers |
-          | "5 style issues, 2 unclear variable names, missing tests" | COMMENT | Multiple issues, needs work |
-          | "SQL query uses string concatenation with user input" | REQUEST_CHANGES | Security vulnerability |
-
-          ## When Uncertain
-
-          If you found no bugs or security issues and your review tone is positive, **use APPROVE**. Uncertainty about code quality, missing context, or stylistic preferences are not blocking issues.
-
-          VERDICT_RULES_EOF
-          echo "✅ Added verdict decision rules"
-
-          # Append field guidance for the structured output
-          # Note: The actual JSON schema is enforced via --json-schema flag
-          cat >> /tmp/final-prompt.txt <<JSON_GUIDANCE_EOF
-
-          ---
-
-          # 📋 Output Field Guidance
-
-          Your structured output will be validated against a JSON schema. Here's how to use each field:
-
-          **Required fields:**
-          - \`pr_review_body\`: Your complete markdown-formatted review. Put ALL your analysis, findings, and reasoning here.
-          - \`pr_review_outcome\`: Your verdict (see Verdict Decision Rules above for how to choose)
-          - \`inline_comments_new\`: Array of inline comments on specific lines (can be empty \`[]\`)
-            - Each needs: \`path\` (file), \`line\` (number), \`body\` (feedback)
-            - Optional: \`suggestion\` (corrected code snippet)
-
-          **Optional fields:**
-          - \`inline_comments_responses\`: Responses to existing review comments (for re-reviews)
-            - Each needs: \`comment_id\`, \`body\`, and optionally \`should_resolve: true\`
-          - \`files_reviewed\`: List of files you reviewed
-          - \`confidence\`: 0.0-1.0 confidence in your review
-          JSON_GUIDANCE_EOF
-          echo "✅ Added output field guidance"
-
-          # Log final prompt length
-          PROMPT_LENGTH=$(wc -c < /tmp/final-prompt.txt)
+          # =====================================================================
+          # Finalize and export
+          # =====================================================================
+          PROMPT_LENGTH=$(wc -c < "$FINAL_PROMPT")
           echo "✅ Built final prompt: $PROMPT_LENGTH characters"
 
           # Export as output for next step
           {
             echo "final_prompt<<PROMPT_DELIMITER_EOF"
-            cat /tmp/final-prompt.txt
+            cat "$FINAL_PROMPT"
             echo "PROMPT_DELIMITER_EOF"
           } >> $GITHUB_OUTPUT
 
           # Show first few lines for debugging
           echo ""
-          echo "📄 Prompt preview (first 10 lines):"
-          head -n 10 /tmp/final-prompt.txt
+          echo "📄 Prompt preview (first 15 lines):"
+          head -n 15 "$FINAL_PROMPT"
 
       # Build Claude arguments - READ-ONLY tools only (no GitHub write tools)
       - name: Build Claude Arguments

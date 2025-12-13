@@ -8,7 +8,9 @@ Markdown prompt templates used by GitHub Actions workflows to customize Claude A
 
 ### Code Review
 
-- **default-pr-review.md** - Default PR review guidelines and focus areas
+- **pr-review/** - Modular PR review prompt sections (see [PR Review Modular Architecture](#pr-review-modular-architecture) below)
+  - `fixed/` - Always-included sections (numbered 1-3, 8-16)
+  - `overridable/` - Sections consumers can replace (numbered 4-7)
 
 ### PR Metadata Generation
 
@@ -28,17 +30,19 @@ Markdown prompt templates used by GitHub Actions workflows to customize Claude A
 
 ### In Workflows
 
-Reference prompts using relative paths:
+The `_claude-code-review.yml` workflow assembles the PR review prompt from modular section files in `pr-review/`. Consumers can customize specific sections using `prompt_override_*` inputs:
 
 ```yaml
 - uses: ./.github/workflows/_claude-code-review.yml
   with:
-    custom_prompt_path: '.github/prompts/default-pr-review.md'
+    pr_number: ${{ github.event.pull_request.number }}
+    prompt_override_review_priorities: '.claude/prompts/review-priorities.md'
+    prompt_override_files_to_skip: '.claude/prompts/files-to-skip.md'
 ```
 
-### In Reusable Workflows
+### In Other Reusable Workflows
 
-Pass as input parameters:
+Some workflows (like changelog generation) accept custom prompt paths:
 
 ```yaml
 inputs:
@@ -129,6 +133,88 @@ Focus areas:
 - Performance issues
 - Code quality and maintainability
 - Test coverage
+
+#### PR Review Modular Architecture
+
+The PR review prompt is assembled from modular section files in `pr-review/`. This architecture provides:
+
+- **Clear separation**: Each section has its own file for easy editing
+- **Selective overrides**: Consumers can replace specific sections without forking
+- **Template variables**: Dynamic content via `${VAR}` syntax with `envsubst`
+
+**Directory Structure:**
+
+```text
+pr-review/
+├── fixed/
+│   ├── 1-review-context.md       # PR metadata (repo, PR number, etc.)
+│   ├── 2-diff-instructions.md    # How to interpret the diff
+│   ├── 3-repository-context.md   # CLAUDE.md lookup instructions
+│   ├── 8-review-process.md       # Step-by-step review process
+│   ├── 9-inline-comment-rules.md # Line number validation rules
+│   ├── 10-important-notes.md     # Key review guidelines
+│   ├── 11-comment-examples.md    # Good inline comment examples
+│   ├── 12-avoid-patterns.md      # Anti-patterns to avoid
+│   ├── 13-existing-comments.md   # Re-review context (conditional)
+│   ├── 14-fast-review-mode.md    # Trivial PR instructions (conditional)
+│   ├── 15-verdict-rules.md       # APPROVE/REQUEST_CHANGES/COMMENT rules
+│   └── 16-output-guidance.md     # JSON output field guidance
+│
+└── overridable/
+    ├── 4-review-priorities.md    # What to focus on during review
+    ├── 5-files-to-skip.md        # Files/patterns to exclude
+    ├── 6-communication-style.md  # How to phrase feedback
+    └── 7-pattern-recognition.md  # Red flags and good practices
+```
+
+**Overridable Sections:**
+
+| Section File               | Workflow Input                        | Purpose                        |
+| -------------------------- | ------------------------------------- | ------------------------------ |
+| `4-review-priorities.md`   | `prompt_override_review_priorities`   | What to focus on during review |
+| `5-files-to-skip.md`       | `prompt_override_files_to_skip`       | Files/patterns to exclude      |
+| `6-communication-style.md` | `prompt_override_communication_style` | How to phrase feedback         |
+| `7-pattern-recognition.md` | `prompt_override_pattern_recognition` | Code patterns to flag          |
+
+**Override File Requirements:**
+
+- Each `prompt_override_*` input takes a **file path** (not inline content)
+- The file must exist in the consumer's repository
+- The file should contain properly formatted markdown for that section
+
+**Example Override File** (`.claude/prompts/review-files-to-skip.md`):
+
+```markdown
+# Files to Skip
+
+**Project-specific exclusions:**
+
+- `*.generated.ts` - Auto-generated TypeScript
+- `**/migrations/**` - Database migrations
+```
+
+**Template Variables:**
+
+Files in `fixed/` may use template variables that are substituted at runtime:
+
+| Variable                    | Description                     |
+| --------------------------- | ------------------------------- |
+| `${REPO_OWNER}`             | Repository owner                |
+| `${REPO_NAME}`              | Repository name                 |
+| `${PR_NUMBER}`              | Pull request number             |
+| `${BASE_REF}`               | Base branch name                |
+| `${PATCH_ID}`               | Stable patch identifier         |
+| `${MERGE_BASE}`             | Merge base commit               |
+| `${CHANGED_FILES}`          | List of changed files           |
+| `${PR_DIFF}`                | Full PR diff content            |
+| `${EXISTING_COMMENTS_JSON}` | Existing review comments (JSON) |
+| `${LINES_CHANGED}`          | Number of lines changed         |
+
+**Important:**
+
+- Fixed sections (1-3, 8-16) are always included and cannot be overridden
+- Sections 13 and 14 are conditional (only included when applicable)
+- See `_claude-code-review.yml` workflow for usage with `prompt_override_*` inputs
 
 #### Changelog Prompts
 
