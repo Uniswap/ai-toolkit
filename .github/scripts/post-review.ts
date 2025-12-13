@@ -354,22 +354,12 @@ function STATUS_TOO_LARGE(lineCount: number, maxDiffLines: number): string {
 > <sub>💡 Consider breaking this PR into smaller, more focused changes for better reviewability.</sub>`;
 }
 
-/** Status shown when review fails */
-const STATUS_FAILED = `## 🤖 Claude Code Review
-
-> ❌ **Review failed** — An error occurred during analysis. Check the workflow logs for details.
->
-> <sub>💡 To retry, add a comment containing \`@request-claude-review\`.</sub>`;
-
 // -----------------------------------------------------------------------------
 // Content Templates
 // -----------------------------------------------------------------------------
 
 /** Placeholder content shown before first review completes */
 const CONTENT_PLACEHOLDER = `*Waiting for review to complete...*`;
-
-/** Content shown when no review exists and cache hit (first PR with no changes) */
-const CONTENT_NO_REVIEW_NEEDED = `This PR has no code changes that require review.`;
 
 /** Content shown when PR is too large for Claude review */
 const CONTENT_TOO_LARGE = `Claude Code Review has been skipped for this PR because the diff is too large. Large PRs are harder to review thoroughly and increase the risk of bugs slipping through.
