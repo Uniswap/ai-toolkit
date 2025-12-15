@@ -370,7 +370,7 @@ jobs:
             echo "ℹ️  No existing review comments found (initial review)"
           fi
 
-      # Generate the PR diff for Claude to review
+      # Generate the PR diff of changed files for Claude to review
       # This ensures Claude reviews ONLY the PR's changes, not other commits merged to main
       - name: Generate PR Diff
         if: steps.cache-check.outputs.cache-hit != 'true'
@@ -390,13 +390,6 @@ jobs:
           CHANGED_FILES=$(git diff --name-only ${MERGE_BASE}..HEAD)
           FILE_COUNT=$(echo "$CHANGED_FILES" | grep -c . || echo "0")
           echo "📁 Files changed: $FILE_COUNT"
-
-          # Generate the full diff
-          # This is the ONLY diff Claude should review - it contains exactly the PR's changes
-          git diff ${MERGE_BASE}..HEAD > /tmp/pr-diff.txt
-
-          DIFF_SIZE=$(wc -c < /tmp/pr-diff.txt)
-          echo "📊 Diff size: $DIFF_SIZE bytes"
 
           # Save changed files list
           echo "$CHANGED_FILES" > /tmp/changed-files.txt
@@ -479,11 +472,6 @@ jobs:
           **Files changed in this PR:**
           \`\`\`
           $(cat /tmp/changed-files.txt)
-          \`\`\`
-
-          **Full PR Diff:**
-          \`\`\`diff
-          $(cat /tmp/pr-diff.txt)
           \`\`\`
 
           ---
