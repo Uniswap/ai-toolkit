@@ -117,7 +117,8 @@ jobs:
   claude-review:
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout_minutes }}
-
+    env:
+      MAX_CLAUDE_DIFF_LINES: 2000 # any PR with a `git diff` larger than this will be considered too large for Claude review
     # Fixed permissions (cannot be overridden by calling workflow)
     permissions:
       id-token: write # Required for OIDC
@@ -370,7 +371,7 @@ jobs:
             echo "ℹ️  No existing review comments found (initial review)"
           fi
 
-      # Generate the PR diff of changed files for Claude to review
+      # Generate the PR diff for Claude to review
       # This ensures Claude reviews ONLY the PR's changes, not other commits merged to main
       - name: Generate PR Diff
         if: steps.cache-check.outputs.cache-hit != 'true'
@@ -391,14 +392,73 @@ jobs:
           FILE_COUNT=$(echo "$CHANGED_FILES" | grep -c . || echo "0")
           echo "📁 Files changed: $FILE_COUNT"
 
+          # Generate the full diff
+          # This is the ONLY diff Claude should review - it contains exactly the PR's changes
+          git diff ${MERGE_BASE}..HEAD > /tmp/pr-diff.txt
+
+          DIFF_SIZE=$(wc -c < /tmp/pr-diff.txt)
+          echo "📊 Diff size: $DIFF_SIZE bytes"
+
           # Save changed files list
           echo "$CHANGED_FILES" > /tmp/changed-files.txt
 
           echo "✅ PR diff generated successfully"
 
+      # Check if PR diff is too large for Claude review
+      - name: Check PR Diff Size
+        id: diff-size
+        if: steps.cache-check.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+
+          # Count lines in the diff
+          DIFF_LINES=$(wc -l < /tmp/pr-diff.txt)
+          echo "📊 Diff line count: $DIFF_LINES"
+
+          # Check if diff is too large for Claude review
+          if [ "$DIFF_LINES" -gt "$MAX_CLAUDE_DIFF_LINES" ]; then
+            echo "is_too_large=true" >> $GITHUB_OUTPUT
+            echo "⚠️  PR diff is too large for Claude review (> $MAX_CLAUDE_DIFF_LINES lines)"
+          else
+            echo "is_too_large=false" >> $GITHUB_OUTPUT
+            echo "✅ PR diff size is acceptable for Claude review"
+          fi
+
+          echo "line_count=$DIFF_LINES" >> $GITHUB_OUTPUT
+
+      # Post "PR too large" message and exit if diff exceeds threshold
+      - name: Post PR Too Large Message
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          POST_REVIEW_SCRIPT: ${{ steps.setup-script-early.outputs.script_path }}
+          DIFF_LINE_COUNT: ${{ steps.diff-size.outputs.line_count }}
+        run: |
+          set -euo pipefail
+
+          echo "ℹ️  Posting 'PR too large' message..."
+
+          # Parse owner and repo
+          REPO_OWNER=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)
+          REPO_NAME=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
+
+          # Post message that PR is too large for Claude review
+          npx tsx "$POST_REVIEW_SCRIPT" \
+            --mode too-large \
+            --owner "$REPO_OWNER" \
+            --repo "$REPO_NAME" \
+            --pr-number "$PR_NUMBER" \
+            --line-count "$DIFF_LINE_COUNT"
+
+          echo "✅ 'PR too large' message posted"
+          echo "⏭️  Skipping Claude review due to large diff size"
+          exit 0
+
       # Build final prompt with custom content
       - name: Build Review Prompt
-        if: steps.cache-check.outputs.cache-hit != 'true'
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
         id: build-prompt
         env:
           CUSTOM_PROMPT_INPUT: ${{ inputs.custom_prompt }}
@@ -472,6 +532,11 @@ jobs:
           **Files changed in this PR:**
           \`\`\`
           $(cat /tmp/changed-files.txt)
+          \`\`\`
+
+          **Full PR Diff:**
+          \`\`\`diff
+          $(cat /tmp/pr-diff.txt)
           \`\`\`
 
           ---
@@ -615,7 +680,7 @@ jobs:
 
       # Build Claude arguments - READ-ONLY tools only (no GitHub write tools)
       - name: Build Claude Arguments
-        if: steps.cache-check.outputs.cache-hit != 'true'
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
         id: build-args
         env:
           INPUT_ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
@@ -736,7 +801,7 @@ jobs:
 
       # Run Claude Code Action to perform the review (analysis only, outputs JSON)
       - name: Run Claude Code Review
-        if: steps.cache-check.outputs.cache-hit != 'true'
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
         id: claude
         uses: anthropics/claude-code-action@a7e4c51380c42dd89b127f5e5f9be7b54020bc6b # v1.0.21
         with:
@@ -755,7 +820,7 @@ jobs:
 
       # Extract Claude's structured output (validated JSON from --json-schema)
       - name: Extract Claude Response
-        if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && success()
         id: extract-response
         env:
           STRUCTURED_OUTPUT: ${{ steps.claude.outputs.structured_output }}
@@ -783,7 +848,7 @@ jobs:
 
       # Upload Claude execution output as artifact for debugging
       - name: Upload Claude Execution Output
-        if: steps.cache-check.outputs.cache-hit != 'true' && always()
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: claude-execution-output-pr${{ inputs.pr_number }}
@@ -795,7 +860,7 @@ jobs:
 
       # Post the review using our script (all comments as github-actions[bot])
       - name: Post Review via Script
-        if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && success()
         id: post-review
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -845,7 +910,7 @@ jobs:
 
       # Fallback: Post review summary as PR comment if script fails
       - name: Fallback Review Comment
-        if: steps.cache-check.outputs.cache-hit != 'true' && failure()
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && failure()
         env:
           PR_NUMBER: ${{ inputs.pr_number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -905,7 +970,7 @@ jobs:
 
       # Post error comment if Claude completely fails (no output at all)
       - name: Post Review Error Comment
-        if: steps.cache-check.outputs.cache-hit != 'true' && failure() && steps.claude.conclusion == 'failure'
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && failure() && steps.claude.conclusion == 'failure'
         env:
           PR_NUMBER: ${{ inputs.pr_number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -957,7 +1022,7 @@ jobs:
 
       # Save successful review to cache
       - name: Save Review Cache Marker
-        if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && success()
         run: |
           mkdir -p .review-cache
           echo "${{ steps.patch-id.outputs.patch_id }}" > .review-cache/patch-id
@@ -965,7 +1030,7 @@ jobs:
 
       # Persist cache for future rebase detection
       - name: Cache Review State
-        if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && success()
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .review-cache
