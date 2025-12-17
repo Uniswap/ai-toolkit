@@ -195,9 +195,11 @@ jobs:
             echo "ℹ️  Running from external repository - downloading post-review.ts from Uniswap/ai-toolkit"
             echo "ℹ️  Using toolkit ref: $TOOLKIT_REF"
 
-            # Download the script from ai-toolkit repository (public repo, no auth needed)
+            # Download the script from ai-toolkit repository
+            # Note: Authentication required to avoid GitHub API rate limits on shared runner IPs
             if ! curl -fSs \
                       -H "Accept: application/vnd.github.v4.raw" \
+                      -H "Authorization: Bearer $GITHUB_TOKEN" \
                       -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/scripts/post-review.ts?ref=${TOOLKIT_REF}" \
                       -o /tmp/post-review.ts 2>&1 | tee /tmp/curl-error.log; then
               echo "❌ Failed to download post-review.ts from Uniswap/ai-toolkit@${TOOLKIT_REF}"
@@ -461,6 +463,7 @@ jobs:
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
         id: build-prompt
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CUSTOM_PROMPT_INPUT: ${{ inputs.custom_prompt }}
           CUSTOM_PROMPT_PATH: ${{ inputs.custom_prompt_path }}
           REPO: ${{ github.repository }}
@@ -483,13 +486,15 @@ jobs:
             echo "📝 Using custom prompt from repository: $CUSTOM_PROMPT_PATH"
             CUSTOM_PROMPT=$(cat "$CUSTOM_PROMPT_PATH")
 
-          # Priority 3: Default prompt from ai-toolkit repository (public, no auth needed)
+          # Priority 3: Default prompt from ai-toolkit repository
           else
             echo "📝 Fetching default prompt from Uniswap/ai-toolkit repository"
 
-            # Fetch default prompt via GitHub API (public repo, no auth needed)
+            # Fetch default prompt via GitHub API
+            # Note: Authentication required to avoid GitHub API rate limits on shared runner IPs
             if ! curl -fSs \
                       -H "Accept: application/vnd.github.v4.raw" \
+                      -H "Authorization: Bearer $GITHUB_TOKEN" \
                       -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/prompts/default-pr-review.md?ref=${TOOLKIT_REF}" \
                       -o /tmp/default-prompt.md 2>&1 | tee /tmp/curl-error.log; then
               echo "❌ Failed to fetch default prompt from Uniswap/ai-toolkit"
