@@ -116,9 +116,9 @@ This eliminates the "is it running?" uncertainty by posting a status comment as 
 
 **Required Secrets:**
 
-| Secret              | Required | Description                                                                                                              |
-| ------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `ANTHROPIC_API_KEY` | Yes      | Anthropic API key for Claude access                                                                                      |
+| Secret              | Required | Description                                                                                                                       |
+| ------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY` | Yes      | Anthropic API key for Claude access                                                                                               |
 | `WORKFLOW_PAT`      | Optional | Personal Access Token with `repo` scope. Only needed for resolving review threads via GraphQL API (falls back to `GITHUB_TOKEN`). |
 
 > **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
@@ -137,6 +137,7 @@ This eliminates the "is it running?" uncertainty by posting a status comment as 
 | `custom_prompt`      | No       | `""`                               | Custom prompt text (overrides prompt file and default)                                                                         |
 | `custom_prompt_path` | No       | `.claude/prompts/claude-pr-bot.md` | Path to custom prompt file in repository                                                                                       |
 | `timeout_minutes`    | No       | `30`                               | Job timeout in minutes                                                                                                         |
+| `max_diff_lines`     | No       | `2000`                             | Maximum diff lines before skipping Claude review (PR considered too large)                                                     |
 | `allowed_tools`      | No       | `""`                               | Comma-separated list of allowed tools for Claude                                                                               |
 | `toolkit_ref`        | No       | `main`                             | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
 
@@ -256,8 +257,8 @@ This allows users to add custom notes, disclaimers, or additional context that s
 ```markdown
 > **Note:** This PR requires manual QA testing before merge.
 
-<!-- claude-pr-description-start -->
----
+## <!-- claude-pr-description-start -->
+
 ## :sparkles: Claude-Generated Content
 
 ## Summary

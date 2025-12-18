@@ -43,7 +43,8 @@
  *     --owner "Uniswap" \
  *     --repo "ai-toolkit" \
  *     --pr-number 123 \
- *     --line-count 2534
+ *     --line-count 2534 \
+ *     --max-diff-lines 2000
  *
  * @environment
  *   GITHUB_TOKEN - GitHub token for API authentication (required)
@@ -345,10 +346,10 @@ const STATUS_SKIPPED = `## 🤖 Claude Code Review
 > <sub>💡 To force a fresh review, add a comment containing \`@request-claude-review\`.</sub>`;
 
 /** Function to generate status message when PR is too large for review */
-function STATUS_TOO_LARGE(lineCount: number): string {
+function STATUS_TOO_LARGE(lineCount: number, maxDiffLines: number): string {
   return `## 🤖 Claude Code Review
 
-> ⚠️ **PR too large for automated review** — This pull request contains ${lineCount.toLocaleString()} lines of diff, which exceeds the 2,000 line threshold for Claude Code Review.
+> ⚠️ **PR too large for automated review** — This pull request contains ${lineCount.toLocaleString()} lines of diff, which exceeds the ${maxDiffLines.toLocaleString()} line threshold for Claude Code Review.
 >
 > <sub>💡 Consider breaking this PR into smaller, more focused changes for better reviewability.</sub>`;
 }
@@ -1182,6 +1183,7 @@ async function main(): Promise<void> {
       'dry-run': { type: 'boolean', default: false },
       mode: { type: 'string', default: 'review' }, // 'review' | 'in-progress' | 'skipped' | 'too-large'
       'line-count': { type: 'string' },
+      'max-diff-lines': { type: 'string' }, // Maximum diff lines threshold (for too-large mode message)
     },
     strict: true,
   });
@@ -1192,6 +1194,7 @@ async function main(): Promise<void> {
   const dryRun = values['dry-run'];
   const mode = values.mode as 'review' | 'in-progress' | 'skipped' | 'too-large';
   const lineCount = values['line-count'] ? parseInt(values['line-count'], 10) : undefined;
+  const maxDiffLines = values['max-diff-lines'] ? parseInt(values['max-diff-lines'], 10) : 2000;
 
   // Validate required inputs
   if (!owner || !repo || isNaN(prNumber)) {
@@ -1263,14 +1266,16 @@ async function main(): Promise<void> {
     }
 
     if (dryRun) {
-      log(`DRY RUN - Would post too-large message (${lineCount} lines)`);
-      console.log(buildReviewComment(STATUS_TOO_LARGE(lineCount), CONTENT_TOO_LARGE));
+      log(
+        `DRY RUN - Would post too-large message (${lineCount} lines, threshold: ${maxDiffLines})`
+      );
+      console.log(buildReviewComment(STATUS_TOO_LARGE(lineCount, maxDiffLines), CONTENT_TOO_LARGE));
       process.exit(0);
     }
 
     try {
       const result = upsertReviewComment(owner, repo, prNumber, {
-        status: STATUS_TOO_LARGE(lineCount),
+        status: STATUS_TOO_LARGE(lineCount, maxDiffLines),
         content: CONTENT_TOO_LARGE,
       });
       log(`Too-large message posted: ${result.html_url}`);
