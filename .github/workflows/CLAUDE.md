@@ -76,6 +76,7 @@ This workflow performs automated PR code reviews using Claude AI with the follow
 - Custom prompt support
 - Existing review comment context for re-reviews
 - Fast review mode for trivial PRs (< 20 lines)
+- **Lockfile exclusion**: Auto-generated lockfiles are excluded from the diff (package-lock.json, yarn.lock, bun.lock, pnpm-lock.yaml, Podfile.lock, etc.)
 - **Built-in Verdict Decision Rules** - Ensures consistent, predictable review verdicts
 
 **Verdict Decision Rules:**

@@ -164,6 +164,13 @@ jobs:
           fi
           echo "base_ref=$BASE_REF" >> $GITHUB_OUTPUT
 
+          # Extract base SHA - this is the exact commit to compare against
+          # Using the API-provided SHA is more reliable than git merge-base,
+          # especially when the base branch is a feature branch (not main)
+          BASE_SHA=$(echo "$PR_DATA" | jq -r '.base.sha')
+          echo "base_sha=$BASE_SHA" >> $GITHUB_OUTPUT
+          echo "📍 Base SHA: $BASE_SHA"
+
       # Checkout the exact PR head commit (not GitHub's merge commit)
       - name: Checkout Repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -217,20 +224,21 @@ jobs:
       - name: Calculate Patch ID
         id: patch-id
         env:
-          BASE_REF: ${{ steps.pr-info.outputs.base_ref }}
+          # Use base SHA from PR API - this is the exact commit GitHub compares against
+          # More reliable than git merge-base, especially for feature branch bases
+          BASE_SHA: ${{ steps.pr-info.outputs.base_sha }}
         run: |
-          # Find where the PR branch diverged from the base branch
-          # HEAD is the PR head commit (checked out via pr-info step)
-          MERGE_BASE=$(git merge-base origin/$BASE_REF HEAD)
-          echo "merge_base=$MERGE_BASE" >> $GITHUB_OUTPUT
+          # Use the base SHA directly from the PR API
+          # This ensures we compare against exactly what GitHub shows in the PR diff
+          echo "base_sha=$BASE_SHA" >> $GITHUB_OUTPUT
+          echo "📍 Base SHA (from PR API): $BASE_SHA"
 
           # Calculate stable patch-ID (same code = same ID, even after rebase)
-          # This diff contains ONLY the PR's changes, not other commits merged to base
-          PATCH_ID=$(git diff ${MERGE_BASE}..HEAD | git patch-id --stable | cut -d' ' -f1)
+          # This diff contains ONLY the PR's changes compared to the base branch
+          PATCH_ID=$(git diff ${BASE_SHA}..HEAD | git patch-id --stable | cut -d' ' -f1)
 
           echo "patch_id=$PATCH_ID" >> $GITHUB_OUTPUT
           echo "📊 Patch-ID: ${PATCH_ID:0:12}... (first 12 chars)"
-          echo "📍 Merge base: $MERGE_BASE"
           echo "   This ID stays the same across rebases if code hasn't changed"
 
       # Check cache BEFORE posting in-progress to preserve existing review
@@ -241,7 +249,9 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .review-cache
-          key: review-pr${{ inputs.pr_number }}-patch-${{ steps.patch-id.outputs.patch_id }}
+          # Include base_sha in cache key to invalidate when base branch changes
+          # (e.g., when a stacked PR's parent is merged and it rebases to main)
+          key: review-pr${{ inputs.pr_number }}-base-${{ steps.patch-id.outputs.base_sha }}-patch-${{ steps.patch-id.outputs.patch_id }}
           lookup-only: true # Just check, don't restore
 
       # Early exit if we've already reviewed this code (rebase detected)
@@ -293,13 +303,13 @@ jobs:
         id: pr-size
         if: steps.cache-check.outputs.cache-hit != 'true'
         env:
-          MERGE_BASE: ${{ steps.patch-id.outputs.merge_base }}
+          BASE_SHA: ${{ steps.patch-id.outputs.base_sha }}
         run: |
-          # Reuse merge base from patch-id step (already calculated)
-          echo "📍 Using merge base from patch-id step: $MERGE_BASE"
+          # Reuse base SHA from patch-id step (from PR API)
+          echo "📍 Using base SHA from patch-id step: $BASE_SHA"
 
           # Count lines changed (additions + deletions)
-          STATS=$(git diff --shortstat ${MERGE_BASE}..HEAD)
+          STATS=$(git diff --shortstat ${BASE_SHA}..HEAD)
 
           # Extract insertions and deletions, default to 0 if not present
           INSERTIONS=$(echo "$STATS" | grep -oP '\d+(?= insertion)' || echo "0")
@@ -379,24 +389,37 @@ jobs:
         if: steps.cache-check.outputs.cache-hit != 'true'
         id: pr-diff
         env:
-          MERGE_BASE: ${{ steps.patch-id.outputs.merge_base }}
+          BASE_SHA: ${{ steps.patch-id.outputs.base_sha }}
         run: |
           set -euo pipefail
 
           echo "ℹ️  Generating PR diff..."
 
-          # Reuse merge base from patch-id step (already calculated)
-          # This ensures consistency across all steps using the merge base
-          echo "📍 Using merge base from patch-id step: $MERGE_BASE"
+          # Reuse base SHA from patch-id step (from PR API)
+          # This ensures we compare against exactly what GitHub shows in the PR
+          echo "📍 Using base SHA from patch-id step: $BASE_SHA"
 
-          # Generate the list of changed files (for reference)
-          CHANGED_FILES=$(git diff --name-only ${MERGE_BASE}..HEAD)
+          # Define lockfile pattern for grep filtering
+          # Note: We use grep -v instead of git pathspec exclusions because pathspec
+          # exclusions have inconsistent behavior across different shell environments.
+          # The grep approach is more portable and reliable.
+          LOCKFILE_PATTERN='(^|/)(package-lock\.json|bun\.lock[b]?|yarn\.lock|pnpm-lock\.yaml|Podfile\.lock|composer\.lock|Gemfile\.lock|Cargo\.lock|poetry\.lock|go\.sum)$'
+
+          # Generate the list of changed files (excluding lockfiles)
+          ALL_CHANGED_FILES=$(git diff --name-only ${BASE_SHA}..HEAD)
+          CHANGED_FILES=$(echo "$ALL_CHANGED_FILES" | grep -vE "$LOCKFILE_PATTERN" || true)
           FILE_COUNT=$(echo "$CHANGED_FILES" | grep -c . || echo "0")
-          echo "📁 Files changed: $FILE_COUNT"
+          echo "📁 Files changed (excluding lockfiles): $FILE_COUNT"
 
-          # Generate the full diff
+          # Generate the full diff (excluding lockfiles)
           # This is the ONLY diff Claude should review - it contains exactly the PR's changes
-          git diff ${MERGE_BASE}..HEAD > /tmp/pr-diff.txt
+          # Pass the filtered file list to git diff to generate diff for only those files
+          if [ -n "$CHANGED_FILES" ]; then
+            echo "$CHANGED_FILES" | tr '\n' '\0' | xargs -0 git diff ${BASE_SHA}..HEAD -- > /tmp/pr-diff.txt
+          else
+            # No non-lockfile changes - create empty diff
+            touch /tmp/pr-diff.txt
+          fi
 
           DIFF_SIZE=$(wc -c < /tmp/pr-diff.txt)
           echo "📊 Diff size: $DIFF_SIZE bytes"
@@ -405,6 +428,18 @@ jobs:
           echo "$CHANGED_FILES" > /tmp/changed-files.txt
 
           echo "✅ PR diff generated successfully"
+
+      # Upload diff files as artifacts for debugging and inspection
+      - name: Upload PR Diff Artifacts
+        if: steps.cache-check.outputs.cache-hit != 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: pr-diff-files-pr${{ inputs.pr_number }}
+          path: |
+            /tmp/changed-files.txt
+            /tmp/pr-diff.txt
+          retention-days: 7
+          if-no-files-found: warn
 
       # Check if PR diff is too large for Claude review
       - name: Check PR Diff Size
@@ -472,7 +507,7 @@ jobs:
           PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
           EXISTING_COMMENT_COUNT: ${{ steps.existing-comments.outputs.existing_comment_count }}
           TOOLKIT_REF: ${{ inputs.toolkit_ref }}
-          MERGE_BASE: ${{ steps.patch-id.outputs.merge_base }}
+          BASE_SHA: ${{ steps.patch-id.outputs.base_sha }}
         run: |
           CUSTOM_PROMPT=""
 
@@ -527,11 +562,11 @@ jobs:
           # ⚠️ IMPORTANT: PR Diff Instructions
 
           The diff below contains **ONLY** the changes in this PR. Do NOT run \`git diff\` yourself - the diff
-          has already been computed correctly using the merge-base between the PR branch and \`$BASE_REF\`.
+          has already been computed correctly comparing the PR branch against the base branch (\`$BASE_REF\`).
 
           **To get the correct diff, use this command:**
           \`\`\`bash
-          git diff ${MERGE_BASE}..HEAD
+          git diff ${BASE_SHA}..HEAD
           \`\`\`
 
           **Files changed in this PR:**
@@ -1039,4 +1074,6 @@ jobs:
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .review-cache
-          key: review-pr${{ inputs.pr_number }}-patch-${{ steps.patch-id.outputs.patch_id }}
+          # Include base_sha in cache key to invalidate when base branch changes
+          # (e.g., when a stacked PR's parent is merged and it rebases to main)
+          key: review-pr${{ inputs.pr_number }}-base-${{ steps.patch-id.outputs.base_sha }}-patch-${{ steps.patch-id.outputs.patch_id }}
