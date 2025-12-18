@@ -26,6 +26,13 @@ More technical and comprehensive documentation should be maintained in this repo
 - **Available Categories:** API Documentation, User Guide, Tutorial, Reference, Getting Started, Troubleshooting, Best Practices, Git
 - **Available Tags:** JavaScript, Frontend, Backend, Mobile, AI, Claude Code, Infra
 
+## Master Documentation Reference
+
+- **Document Name:** How to Claude Code at Uniswap (Getting Started Guide)
+- **Document URL:** `https://www.notion.so/uniswaplabs/How-to-Claude-Code-at-Uniswap-2ccc52b2548b80e69413cb3b060191ed`
+- **Page ID:** `2ccc52b2-548b-80e6-9413-cb3b060191ed`
+- **Purpose:** This is the company-wide reference document shared by the Dev AI team containing the latest recommendations for using Claude Code and the augmenting tools built by the AI team. It should always be kept up to date when new tools are documented.
+
 ## Implementation
 
 ### Step 1: Gather Tool Information
@@ -192,16 +199,78 @@ await notionCreatePages({
 });
 ```
 
-### Step 6: Report Results
+### Step 6: Evaluate Master Document Update
 
-After creating the page:
+After creating the quick start doc, evaluate whether the "How to Claude Code at Uniswap" master document should be updated to reference the new tool.
+
+#### When to Update the Master Document
+
+The master document should be updated when the new tool:
+
+1. **Is a core Claude Code enhancement** - Tools that directly improve the Claude Code experience (MCP servers, slash commands, hooks, etc.)
+2. **Has broad applicability** - Tools that most engineers would benefit from knowing about
+3. **Represents a new recommended workflow** - Changes to how engineers should use Claude Code at the company
+4. **Is a new AI Toolkit component** - New packages or features in the AI Toolkit that engineers should adopt
+
+#### When NOT to Update the Master Document
+
+Skip updating the master document when:
+
+1. The tool is highly specialized for a specific team or use case
+2. It's a minor update to an existing tool (unless it changes recommended usage)
+3. It's internal tooling not meant for general engineer consumption
+
+#### How to Update the Master Document
+
+If the master document should be updated:
+
+1. **Fetch the current master document** to understand its structure:
+
+   ```typescript
+   // Use the Notion MCP to fetch the master document
+   const masterDoc = await notionFetch({
+     url: 'https://www.notion.so/uniswaplabs/How-to-Claude-Code-at-Uniswap-2ccc52b2548b80e69413cb3b060191ed',
+   });
+   ```
+
+2. **Identify the appropriate section** where the new tool should be referenced:
+
+   - Look for existing sections about AI Toolkit tools, MCP servers, slash commands, etc.
+   - Determine if it fits in an existing category or needs a new subsection
+
+3. **Draft an update** that includes:
+
+   - A brief mention of the tool with 1-2 sentences explaining what it does
+   - A link to the newly created quick start doc
+   - Any critical "getting started" information that engineers need immediately
+
+4. **Ask the user for confirmation** before making updates to the master document:
+
+   ```
+   The newly created quick start doc for [Tool Name] appears relevant for the
+   master "How to Claude Code at Uniswap" guide.
+
+   Recommended update:
+   - Section: [Section name where it should go]
+   - Addition: [Brief description of what would be added]
+
+   Would you like me to update the master document? (yes/no)
+   ```
+
+5. **Update the master document** using the Notion MCP if approved
+
+### Step 7: Report Results
+
+After creating the page (and optionally updating the master document):
 
 1. Display the URL of the newly created Notion page
-2. Remind the user to:
+2. If the master document was updated, display the section that was modified
+3. Remind the user to:
    - Review and edit the draft in Notion
    - Add any screenshots or images
    - Update the Status to "In Review" when ready
    - Get approval before changing to "Published"
+   - Verify the master document update is accurate (if applicable)
 
 ## Template Customization Guidelines
 
@@ -252,6 +321,8 @@ Before finalizing the documentation, ensure:
 - [ ] Links to full documentation in the repository are included
 - [ ] Slack channel link is present for support
 - [ ] Status is set to "Draft"
+- [ ] Master document update was evaluated (see Step 6)
+- [ ] If applicable, user was asked about updating the "How to Claude Code at Uniswap" guide
 
 ## Example Invocations
 
@@ -265,4 +336,4 @@ Before finalizing the documentation, ensure:
 
 ---
 
-**Last updated:** 2025-12-02
+**Last updated:** 2025-12-18
