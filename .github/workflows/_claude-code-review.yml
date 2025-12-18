@@ -93,6 +93,12 @@ on:
         type: number
         default: 30
 
+      max_diff_lines:
+        description: "Maximum diff lines before skipping Claude review (PR considered too large). Default: 2000"
+        required: false
+        type: number
+        default: 2000
+
       allowed_tools:
         description: 'Comma-separated list of allowed tools for Claude (e.g., "Read,Grep,Glob"). Leave empty for default read-only set.'
         required: false
@@ -118,7 +124,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout_minutes }}
     env:
-      MAX_CLAUDE_DIFF_LINES: 2000 # any PR with a `git diff` larger than this will be considered too large for Claude review
+      MAX_CLAUDE_DIFF_LINES: ${{ inputs.max_diff_lines }} # any PR with a `git diff` larger than this will be considered too large for Claude review
     # Fixed permissions (cannot be overridden by calling workflow)
     permissions:
       id-token: write # Required for OIDC
@@ -487,7 +493,8 @@ jobs:
             --owner "$REPO_OWNER" \
             --repo "$REPO_NAME" \
             --pr-number "$PR_NUMBER" \
-            --line-count "$DIFF_LINE_COUNT"
+            --line-count "$DIFF_LINE_COUNT" \
+            --max-diff-lines "$MAX_CLAUDE_DIFF_LINES"
 
           echo "✅ 'PR too large' message posted"
           echo "⏭️  Skipping Claude review due to large diff size"
@@ -816,8 +823,9 @@ jobs:
           # Build claude_args conditionally based on provided inputs
           CLAUDE_ARGS="--model $INPUT_MODEL"
 
-          # Only add --max-turns if explicitly provided (not empty)
-          if [ -n "$INPUT_MAX_TURNS" ]; then
+          # Only add --max-turns if explicitly provided (not empty or 0)
+          # Note: GitHub Actions number inputs default to 0 when not provided
+          if [ -n "$INPUT_MAX_TURNS" ] && [ "$INPUT_MAX_TURNS" != "0" ]; then
             CLAUDE_ARGS="$CLAUDE_ARGS
             --max-turns $INPUT_MAX_TURNS"
             echo "ℹ️  Including --max-turns $INPUT_MAX_TURNS"
