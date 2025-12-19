@@ -1,0 +1,48 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "github-scripts",
+  "projectType": "library",
+  "sourceRoot": ".github/scripts",
+  "tags": ["scope:internal", "type:scripts", "context:github-actions"],
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": ".github/scripts",
+        "command": "eslint ."
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": ".github/scripts",
+        "command": "tsc --noEmit"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/.github/scripts/test-output"],
+      "options": {
+        "passWithNoTests": true,
+        "jestConfig": ".github/scripts/jest.config.ts",
+        "coverage": false
+      },
+      "configurations": {
+        "ci": {
+          "ci": true,
+          "coverage": true,
+          "codeCoverage": true,
+          "coverageReporters": ["text", "lcov", "html"],
+          "collectCoverageFrom": [
+            ".github/scripts/**/*.ts",
+            "!.github/scripts/**/*.spec.ts",
+            "!.github/scripts/**/*.test.ts"
+          ]
+        },
+        "watch": {
+          "watch": true
+        }
+      }
+    }
+  }
+}
