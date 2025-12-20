@@ -7,13 +7,22 @@ description: Generate weekly newsletters from Notion databases
 
 ## Mission
 
-Generate a formatted weekly newsletter from two Notion databases: "📚 What We're Reading" and "🌎 Real-World AI Use Cases", then create a new page in the "Dev AI Weekly Newsletters" database. This agent performs **data retrieval, formatting, and Notion page creation** - no code generation, no AI summarization in v1.
+Generate a formatted weekly newsletter from multiple data sources:
+
+- "📚 What We're Reading" Notion database
+- "🌎 Real-World AI Use Cases" Notion database
+- "📚 Quickstart Docs" Notion database (new documentation)
+- "Release Notes" Notion changelog database (for `main` branch releases)
+- Slack channels (#pod-dev-ai, #ai-achieved-internally)
+
+Then create a new page in the "Dev AI Weekly Newsletters" database and optionally cross-post to #engineering-updates. This agent performs **data retrieval, formatting, and Notion page creation** - no code generation, no AI summarization in v1.
 
 **Core Constraints:**
 
 - Read and format data from Notion databases
 - Filter entries by date range (default: last 7 days)
 - Create newsletter page in Notion database
+- **Omit empty sections** - Do not include sections with no content
 - Handle missing data gracefully
 - Provide clear error messages
 
@@ -22,7 +31,7 @@ Generate a formatted weekly newsletter from two Notion databases: "📚 What We'
 - Generate code or AI summaries
 - Support multiple output formats (HTML, plain text, file writing)
 - Integrate with email systems
-- Apply custom filtering beyond date range
+- Apply custom filtering beyond date range (except branch filtering for changelogs)
 
 ## Inputs
 
@@ -41,9 +50,11 @@ interface NewsletterInput {
   // Database IDs (optional, defaults provided)
   readingDatabaseId?: string; // Default: collection://287c52b2-548b-80e8-ba26-000bd3f9e0a4
   useCasesDatabaseId?: string; // Default: collection://28ec52b2-548b-80aa-b880-000b42eedf1f
+  quickstartDocsDatabaseId?: string; // Default: collection://249c52b2-548b-8034-a804-000bbb3e5f0b
+  changelogDatabaseId?: string; // Default: collection://2a0c52b2-548b-808f-9466-e30b6d8a5532
 
-  // GitHub repositories for release tracking (optional)
-  githubRepositories?: string[]; // e.g., ['https://github.com/Uniswap/ai-toolkit', 'https://github.com/Uniswap/spec-workflow-mcp']
+  // Cross-posting options
+  crossPostToEngineeringUpdates?: boolean; // Default: false - If true, also post to #engineering-updates
 }
 ```
 
@@ -57,7 +68,7 @@ interface NewsletterInput {
 
 ## Process
 
-Follow these 8 steps to generate and publish the newsletter:
+Follow these 10 steps to generate and publish the newsletter:
 
 ### 0. Verify Tool Availability
 
@@ -65,23 +76,20 @@ Before proceeding with newsletter generation, verify that all required tools are
 
 **Required Tools:**
 
-- Notion MCP (for all sections)
-- Slack MCP (for 💬 Slack Summary section)
-- GitHub CLI `gh` (for 🔨 Tool Updates section)
+- Notion MCP (for all sections and changelog retrieval)
+- Slack MCP (for 💬 Slack Summary section and cross-posting to #engineering-updates)
 
 **Verification Steps:**
 
 1. Check if Notion MCP tools are accessible (existing requirement)
 2. Check if Slack MCP tools are accessible by attempting to call a Slack MCP tool or checking available tools
-3. Check if GitHub CLI `gh` is installed and authenticated by running `gh auth status` via Bash
 
 **Error Handling:**
 
 - If Notion MCP unavailable: FAIL with error message "Notion MCP required. Please configure Notion integration in Claude Code."
 - If Slack MCP unavailable: FAIL with error message "Slack MCP required. Please configure Slack integration in Claude Code."
-- If GitHub CLI unavailable or not authenticated: FAIL with error message "Github CLI required. Run `gh auth login` to authenticate."
 
-**CRITICAL:** All three tools are REQUIRED. The agent MUST FAIL if any of these tools are unavailable. Do not proceed with partial newsletter generation.
+**CRITICAL:** All tools are REQUIRED. The agent MUST FAIL if any of these tools are unavailable. Do not proceed with partial newsletter generation.
 
 ### 1. Validate Input Parameters
 
@@ -159,21 +167,41 @@ mcp__notion__notion -
 
 ### 4. Query Slack Channels
 
-**Critical:** Use Slack MCP to search messages in `#pod-dev-ai` (channel_id: 'C094URH6C13'), and `#ai-achieved-internally` (channel_id: 'C08J4JPQ3AM') channels. If Slack MCP is unavailable, the agent should have already failed in Step 0. When using the `slack_get_channel_history` MCP function, alway use a limit of 10.
+**Critical:** Use Slack MCP to search messages in `#pod-dev-ai` (channel_id: 'C094URH6C13'), and `#ai-achieved-internally` (channel_id: 'C08J4JPQ3AM') channels. If Slack MCP is unavailable, the agent should have already failed in Step 0.
 
 **Channels to Query:**
 
 - `#pod-dev-ai` (channel_id: 'C094URH6C13') - Official channel of the Dev AI Pod, and used by general Uniswap devs to communicate with the Dev AI Pod
 - `#ai-achieved-internally` (channel_id: 'C08J4JPQ3AM') - AI wins and success stories
 
-**Message Retrieval:**
+**Message Retrieval - CRITICAL TIME RANGE HANDLING:**
 
-Use Slack MCP search functionality to retrieve messages from these channels within the date range.
+When using `slack_get_channel_history` MCP function, be aware that:
+
+1. **The `oldest` and `latest` parameters use Unix timestamps (seconds since epoch)**, not ISO date strings
+2. **ALWAYS convert the `startDate` and `endDate` to Unix timestamps** before making API calls
+3. **Pass BOTH `oldest` and `latest` parameters** to ensure proper time filtering
+
+```typescript
+// Convert dates to Unix timestamps
+const startTimestamp = Math.floor(new Date(startDate).getTime() / 1000);
+const endTimestamp = Math.floor(new Date(endDate + 'T23:59:59').getTime() / 1000);
+
+// Call with proper time boundaries
+mcp__slack__slack_get_channel_history({
+  channel_id: 'C094URH6C13',
+  limit: 100,
+  oldest: startTimestamp.toString(), // REQUIRED: Start of date range
+  latest: endTimestamp.toString(), // REQUIRED: End of date range
+});
+```
+
+**⚠️ KNOWN ISSUE:** If `oldest` and `latest` are not passed correctly, the Slack API defaults to recent history which may include messages outside the desired 7-day range. ALWAYS explicitly pass the time range parameters.
 
 **Filtering Criteria:**
 
-- Date range: Use same `startDate` and `endDate` from Step 1
-- Use a limit = 10 in the `slack_get_channel_history`
+- Date range: Use converted Unix timestamps from `startDate` and `endDate`
+- Use `limit=100` to get sufficient messages for filtering
 - Engagement threshold: Messages with at least 3 reactions OR at least 2 replies
 - Sort by: Total engagement (reactions + reply count) descending
 - Limit: Top 5 most engaging messages across all 2 channels.
@@ -194,70 +222,132 @@ For each message, extract:
 - If `permalink` missing: Skip message (cannot link to it)
 - If `text` missing or empty: Skip message
 - If `user` missing: Display as "Unknown User"
-- If no messages meet threshold: Display "No significant discussions this week"
+- If no messages meet threshold: Section will be omitted (empty section handling)
 
 **Pagination Logic:**
 
-- Call `slack_get_channel_history` with `limit=10`
-- Check the timestamp of the last message received
-- If last message timestamp > `endDate`, fetch next batch
-- Repeat until last message timestamp <= `endDate` OR no more messages available
-- Filter messages by `startDate` and `endDate` after fetching
+- Call `slack_get_channel_history` with `limit=100`, `oldest`, and `latest` parameters
+- If `has_more` is true, fetch additional batches using `cursor`
+- Verify all returned messages fall within the date range (double-check client-side)
 
 **Error Handling:**
 
 - If channel not accessible: Fail immediately with clear error message about channel permissions
 - If API error: Fail immediately with error details
 
-### 5. Query GitHub Releases
+### 5. Query Notion Changelog Database (Tool Updates)
 
-**Critical:** Use GitHub CLI (`gh`) to list releases for specified repositories. This step requires GitHub CLI (verified in Step 0). If GitHub CLI is unavailable or not authenticated, the agent should have already failed in Step 0.
+**Critical:** Use the Notion MCP to query the Release Notes changelog database. This approach replaces direct GitHub CLI calls and ensures we only show `main` branch releases (avoiding duplicate noise from `next` branch pre-releases).
 
-**Repositories to Query:**
+**Database Details:**
 
-Use repositories from `githubRepositories` input parameter. If not provided, use exactly these 2: 'Uniswap/ai-toolkit' and 'Uniswap/spec-workflow-mcp'
+- **ID:** `collection://2a0c52b2-548b-808f-9466-e30b6d8a5532`
+- **Purpose:** Contains changelogs published from CI/CD workflows when releases are made
 
-**Release Retrieval:**
+**Changelog Retrieval:**
 
-For each repository, run the following GitHub CLI command via Bash:
-
-```bash
-gh release list --repo <owner/repo> --limit 10 --json tagName,publishedAt,name,url,body
-```
-
-Example:
-
-```bash
-gh release list --repo Uniswap/ai-toolkit --limit 10 --json tagName,publishedAt,name,url,body
+```typescript
+// Tool call structure
+mcp__notion__notion -
+  search({
+    data_source_url: 'collection://2a0c52b2-548b-808f-9466-e30b6d8a5532',
+    query: '*',
+    filters: {
+      created_date_range: {
+        start_date: startDate,
+        end_date: endDate,
+      },
+    },
+  });
 ```
 
 **Filtering Criteria:**
 
-- Date range: Filter releases where `publishedAt` falls within `startDate` and `endDate`
-- Only show important user-facing releases: For `Uniswap/ai-toolkit`, DO NOT SHOW `next` releases; but do show `latest` releases.
-- Sort by: Published date descending (newest first)
+- Date range: Use same `startDate` and `endDate` from Step 1
+- **CRITICAL: Only include `main` branch changelogs** - Filter by the `Branch` property
+  - Include entries where `Branch` equals `main` or `master`
+  - **EXCLUDE** entries where `Branch` equals `next` (pre-release/staging)
+- Sort by: Date descending (newest first)
 
-**Extract Release Data:**
+**Extract Changelog Data:**
 
-For each release, extract:
+For each changelog entry, extract:
 
-- `name` (release name) - Use this as primary display title
-- `tagName` (version tag) - e.g., "v1.2.3"
-- `publishedAt` (timestamp) - Convert to YYYY-MM-DD format
-- `url` (release URL) - Link to full release notes on GitHub
-- `body` (changelog/description) - Truncate to first 150 characters if longer
+- `Name` (title) - Release name/version
+- `Date` (date) - Release date
+- `Branch` (text) - Branch name for filtering
+- `Commit Range` (text) - Optional, e.g., "v1.0.0 → v1.1.0"
+- Page content - Full changelog/release notes
 
 **Handle Missing Data:**
 
-- If `name` missing: Use `tagName` as fallback
-- If `body` missing or empty: Display "No release notes provided"
-- If `url` missing: Skip release (cannot link to it)
-- If no releases in date range: Display "No releases this week"
+- If `Name` missing: Skip entry
+- If page content missing/empty: Display "No release notes provided"
+- If no `main` branch changelogs in date range: Section will be omitted (empty section handling)
 
 **Error Handling:**
 
-- If repository not found: Fail immediately with clear error message listing the invalid repository
-- If API rate limit exceeded: Fail immediately with rate limit error and retry instructions
+- If database not accessible: Fail immediately with clear error message about database permissions
+- If API error: Fail immediately with error details
+
+**Why This Approach?**
+
+1. **Less noisy**: Only shows production (`main` branch) releases, not pre-releases from `next` branch
+2. **Consistent data source**: All release notes are centralized in Notion
+3. **Better summaries**: Notion changelog entries can have richer formatting
+4. **Simpler tooling**: No GitHub CLI dependency needed
+
+### 5.5 Query Quickstart Docs Database
+
+**Critical:** Use the Notion MCP to query the "Dev AI Tools → Quickstart Docs" database for newly published or updated documentation.
+
+**Database Details:**
+
+- **ID:** `collection://249c52b2-548b-8034-a804-000bbb3e5f0b`
+- **Purpose:** Contains quick start documentation for AI Toolkit tools
+
+**Quickstart Docs Retrieval:**
+
+```typescript
+// Tool call structure
+mcp__notion__notion -
+  search({
+    data_source_url: 'collection://249c52b2-548b-8034-a804-000bbb3e5f0b',
+    query: '*',
+    filters: {
+      created_date_range: {
+        start_date: startDate,
+        end_date: endDate,
+      },
+    },
+  });
+```
+
+**Filtering Criteria:**
+
+- Date range: Use same `startDate` and `endDate` from Step 1
+- Only include docs with `Status` = "Published" (exclude Draft, In Review)
+- Sort by: Date descending (newest first)
+
+**Extract Doc Data:**
+
+For each quickstart doc, extract:
+
+- `Title` (title) - Document title/tool name
+- `Category` (multi-select) - Document categories
+- `Tags` (multi-select) - Relevant tags
+- `userDefined:URL` (url) - Link to GitHub source if available
+- Page URL - Link to the Notion doc itself
+
+**Handle Missing Data:**
+
+- If `Title` missing: Skip entry
+- If no published docs in date range: Section will be omitted (empty section handling)
+
+**Error Handling:**
+
+- If database not accessible: Log warning and continue (this section is optional)
+- If API error: Log warning and continue
 
 ### 6. Filter and Sort Entries
 
@@ -273,14 +363,17 @@ For each release, extract:
 
 ### 7. Format Newsletter Content
 
-Build markdown structure following this section ordering:
+Build markdown structure following this section ordering. **CRITICAL: Omit any section that has no content** - do not include placeholder text like "No items this week" for empty sections. Simply exclude the section entirely.
 
-1. 📅 Get Involved
-2. 📊 This Week's Agent Usage
-3. 📚 What We're Reading
-4. 🌎 Real World Use Cases
-5. 💬 Slack Summary
-6. 🔨 Tool Updates
+**Section Ordering (include only sections with content):**
+
+1. 📅 Get Involved (always included - static content)
+2. 📊 This Week's Agent Usage (always included - static content)
+3. 📚 What We're Reading (omit if empty)
+4. 🌎 Real World Use Cases (omit if empty)
+5. 💬 Slack Summary (omit if empty)
+6. 📖 New Quickstart Docs (omit if empty)
+7. 🔨 Tool Updates (omit if empty)
 
 Below is an example output:
 
@@ -331,18 +424,28 @@ This dashboard tracks:
 1. Message title or first line
    "Brief excerpt from the message..." [→ thread](https://slack-permalink) • {X} reactions
 
-1. Message title or first line
+2. Message title or first line
    "Brief excerpt from the message..." [→ thread](https://slack-permalink) • {X} reactions
+
+## 📖 New Quickstart Docs
+
+New documentation added this week to help you get started with our tools:
+
+1. **[Tool Name](notion-page-url)** - Brief description of what the doc covers
+   _Categories: Getting Started, Tutorial_
+
+2. **[Another Tool](notion-page-url)** - Description
+   _Categories: Best Practices_
 
 ## 🔨 Tool Updates
 
-**Releases This Week:**
+**Releases This Week (main branch only):**
 
-**[Repository Name]** → v1.2.3
+**ai-toolkit** → v1.2.3
 _Released on YYYY-MM-DD_
 
-- Brief changelog or description (truncated to 150 chars)
-- [Full Release Notes](github-release-url)
+- Brief summary of changes from the Notion changelog
+- [Full Release Notes](notion-changelog-url)
 
 (Repeat for each release)
 
@@ -351,18 +454,26 @@ _Generated by ai-toolkit newsletter agent_
 
 **Formatting Rules:**
 
-**Section Ordering (Critical):**
+**Section Ordering (Critical - omit empty sections):**
 
-1. 📅 Get Involved
-2. 📊 This Week's Agent Usage
-3. 📚 What We're Reading
-4. 🌎 Real World Use Cases
-5. 💬 Slack Summary
-6. 🔨 Tool Updates
+1. 📅 Get Involved (always included)
+2. 📊 This Week's Agent Usage (always included)
+3. 📚 What We're Reading (omit if empty)
+4. 🌎 Real World Use Cases (omit if empty)
+5. 💬 Slack Summary (omit if empty)
+6. 📖 New Quickstart Docs (omit if empty)
+7. 🔨 Tool Updates (omit if empty)
+
+**IMPORTANT: Empty Section Handling**
+
+- **DO NOT** include sections with no content
+- **DO NOT** use placeholder text like "No items this week" or "No releases this week"
+- Simply **omit the entire section header and content** if there's nothing to show
+- This keeps the newsletter clean and focused on actual updates
 
 **Code Blocks For /slash Commands**
 
-Anytime a Claude Code /slash command is mentioned (such /daily-standup), make sure it's enclosed in single backtick `code blocks`.
+Anytime a Claude Code /slash command is mentioned (such `/daily-standup`), make sure it's enclosed in single backtick `code blocks`.
 
 **Slack Summary Section:**
 
@@ -370,16 +481,23 @@ Anytime a Claude Code /slash command is mentioned (such /daily-standup), make su
 - Numbered list format: `Message title`
 - Include brief summary (max 100 chars)
 - Add permalink with "→ thread" link text
-- If no messages: Display "No significant discussions this week"
+- If no messages meet threshold: **Omit entire section**
+
+**Quickstart Docs Section:**
+
+- Numbered list format with bold title links
+- Format: `**[Title](notion-url)** - Description`
+- Include categories in italics
+- If no new published docs: **Omit entire section**
 
 **Tool Updates Section:**
 
-- Group by repository
-- Format: `**[Repository Name]** → vX.Y.Z`
+- Only show `main` branch releases from Notion changelog (no `next` branch)
+- Format: `**tool-name** → vX.Y.Z`
 - Include release date: `*Released on YYYY-MM-DD*`
-- Bulleted changelog (max 150 chars per release)
-- Link to full release notes: `[Full Release Notes](url)`
-- If no releases: Display "No releases this week"
+- Summarize changelog content (max 150 chars per release)
+- Link to full release notes in Notion: `[Full Release Notes](notion-url)`
+- If no `main` branch releases: **Omit entire section**
 
 **Agent Usage Section:**
 
@@ -393,20 +511,20 @@ Anytime a Claude Code /slash command is mentioned (such /daily-standup), make su
 - Format links: `[Name](URL)` for items with URLs
 - Format items without URLs: `Name` (no brackets)
 - Add descriptions after links with " - " separator
-- If no items: Display "No new items this week"
+- If no items: **Omit entire section**
 
 **Real World Use Cases Section:**
 
 - Numbered list format
 - Same link formatting as Reading section
 - Include descriptions
-- If no items: Display "No new items this week"
+- If no items: **Omit entire section**
 
 **Get Involved Section:**
 
 - Static content (no data retrieval)
-- Three subsections: "Join the Conversation", "Upcoming Events", "Have an AI use case to share?"
-- Update channel names and event times as needed
+- Two subsections: "Join the Conversation", "Want Some Help With AI?"
+- Update channel names as needed
 
 ### 8. Create Notion Database Record
 
@@ -454,11 +572,71 @@ interface NewsletterOutput {
     endDate: string;
     readingItemsCount: number;
     useCasesCount: number;
+    quickstartDocsCount: number;
+    toolUpdatesCount: number;
+    slackMessagesCount: number;
     generatedAt: string; // ISO timestamp
   };
   warnings?: string[]; // Any issues encountered
+  crossPosted?: boolean; // Whether cross-post to #engineering-updates was successful
 }
 ```
+
+### 9. Cross-Post to #engineering-updates (Optional)
+
+**Critical:** If `crossPostToEngineeringUpdates` is `true`, post a summary of the newsletter to the #engineering-updates Slack channel.
+
+**Channel Details:**
+
+- **Channel:** #engineering-updates (channel_id: 'C015WQKA7EG')
+- **Purpose:** Company-wide engineering updates channel
+
+**Message Format:**
+
+Create a concise summary message for Slack (not the full newsletter):
+
+```markdown
+:newspaper: _Dev AI Pod Weekly Newsletter_ - Week of {startDate} to {endDate}
+
+We've published our weekly newsletter! Here's what's new:
+
+{If What We're Reading has items}
+:books: _What We're Reading:_ {count} new articles
+{/If}
+
+{If Real World Use Cases has items}
+:globe_with_meridians: _Real World Use Cases:_ {count} new examples
+{/If}
+
+{If Quickstart Docs has items}
+:book: _New Quickstart Docs:_ {count} new guides
+{/If}
+
+{If Tool Updates has items}
+:hammer_and_wrench: _Tool Updates:_ {count} releases this week
+{/If}
+
+:point_right: _Read the full newsletter:_ {notionPageUrl}
+
+Questions or feedback? Drop by <#C094URH6C13|pod-dev-ai>!
+```
+
+**Posting:**
+
+Use the Slack MCP to post the message:
+
+```typescript
+mcp__slack__slack_post_message({
+  channel_id: 'C015WQKA7EG',
+  text: formattedSlackMessage,
+});
+```
+
+**Error Handling:**
+
+- If cross-post fails: Log warning but don't fail the entire newsletter generation
+- Record `crossPosted: false` in output if posting fails
+- Include error details in warnings array
 
 ## Output
 
@@ -467,9 +645,10 @@ Return a structured summary containing:
 1. **Notion Page URL:** Link to the created newsletter page in Notion
 2. **Metadata:**
    - Date range covered
-   - Item counts per section
+   - Item counts per section (only for sections with content)
    - Generation timestamp
 3. **Warnings:** Any issues encountered (empty results, missing properties, etc.)
+4. **Cross-Post Status:** Whether the #engineering-updates post was successful (if requested)
 
 The agent creates the newsletter directly in the Notion database. Users can view it by clicking the returned URL.
 
@@ -532,26 +711,26 @@ Message: "Failed to retrieve Slack messages: {error message}. Please check chann
 Status: FAIL (Slack data is required for newsletter)
 ```
 
-6. **GitHub CLI Error (after tool verification passed):**
+6. **Changelog Database Error:**
 
 ```
-Error: "GitHub CLI request failed: {error details}"
+Error: "Failed to query changelog database"
 Action: Fail immediately with error message
-Message: "Failed to retrieve GitHub releases: {error message}. Please verify repository access and GitHub CLI authentication."
-Status: FAIL (GitHub data is required for newsletter)
+Message: "Failed to retrieve changelogs from Notion: {error message}. Please check database permissions."
+Status: FAIL (Changelog data is required for newsletter)
 ```
 
 **Non-Critical Errors (Continue with Adjusted Output):**
 
-1. **Empty Results (Not an Error):**
+1. **Empty Results (Expected Behavior):**
 
 ```
-Warning: "No entries found in date range"
-Action: Return newsletter with "No new items this week" for empty sections
-Status: Success (display empty section message, not a failure)
+Info: "No entries found in date range for {section}"
+Action: Omit the section entirely from the newsletter
+Status: Success (empty sections are simply not included)
 ```
 
-6. **Missing Required Properties:**
+2. **Missing Required Properties:**
 
 ```
 Warning: "Entry missing required property: {property}"
@@ -559,7 +738,7 @@ Action: Skip entry or use placeholder value
 Status: Continue processing other entries
 ```
 
-7. **Rate Limit Exceeded (Notion API):**
+3. **Rate Limit Exceeded (Notion API):**
 
 ```
 Error: "Notion API rate limit reached"
@@ -567,12 +746,29 @@ Message: "Too many requests. Please wait 60 seconds and retry."
 Action: Recommend retry after delay
 ```
 
+4. **Cross-Post Failed:**
+
+```
+Warning: "Failed to cross-post to #engineering-updates"
+Action: Continue - newsletter was created successfully
+Status: Success (cross-posting is optional, record crossPosted: false)
+```
+
+5. **Quickstart Docs Database Error:**
+
+```
+Warning: "Failed to query Quickstart Docs database"
+Action: Continue without this section
+Status: Success (this section is optional)
+```
+
 **Partial Failures:**
 
-- If one Notion database fails, continue with the other (Reading or Use Cases sections can be empty)
-- If individual Slack channels fail but Slack MCP is available, fail immediately (all channels are required)
-- If individual GitHub repositories fail but GitHub CLI is available, fail immediately (all repositories are required)
-- Empty results (no items found in date range) are acceptable - display "No new items this week"
+- If one Notion database fails, continue with the other (sections can be omitted)
+- If individual Slack channels fail but Slack MCP is available, fail immediately (all channels are required for Slack Summary)
+- If changelog database fails, fail immediately (Tool Updates requires this data)
+- If Quickstart Docs database fails, log warning and continue (this section is optional)
+- Empty results (no items found in date range) are acceptable - simply omit the section
 
 ### Best Practices
 
@@ -603,6 +799,27 @@ Action: Recommend retry after delay
   - `Description` (text) - Optional
   - `date:Date Added:start` (date) - Required for filtering
 
+**Source Database 3: "📖 Dev AI Tools → Quickstart Docs"**
+
+- **ID:** `collection://249c52b2-548b-8034-a804-000bbb3e5f0b`
+- **Properties:**
+  - `Title` (title) - Required
+  - `Status` (select) - Used for filtering (only "Published")
+  - `Category` (multi-select) - Document categories
+  - `Tags` (multi-select) - Relevant tags
+  - `userDefined:URL` (url) - Link to GitHub source
+- **Filtering:** Only include docs where `Status` = "Published"
+
+**Source Database 4: "Release Notes" (Changelog)**
+
+- **ID:** `collection://2a0c52b2-548b-808f-9466-e30b6d8a5532`
+- **Properties:**
+  - `Name` (title) - Release name/version
+  - `Date` (date) - Release date
+  - `Branch` (text) - Branch name (CRITICAL for filtering)
+  - `Commit Range` (text) - Optional, e.g., "v1.0.0 → v1.1.0"
+- **Filtering:** Only include entries where `Branch` = "main" or "master" (EXCLUDE "next")
+
 **Target Database: "Dev AI Weekly Newsletters"**
 
 - **ID:** `collection://29cc52b2-548b-807c-b66c-000bdf38c65b`
@@ -611,6 +828,17 @@ Action: Recommend retry after delay
   - `Page` (title) - Required, format: "Dev AI Newsletter {startDate} to {endDate}"
   - `Date Created` (date) - Required, current date when newsletter is created
   - `Author` (person) - Automatically set by Notion to current user
+
+### Slack Channel Details
+
+**Source Channels (for Slack Summary):**
+
+- `#pod-dev-ai` - Channel ID: `C094URH6C13`
+- `#ai-achieved-internally` - Channel ID: `C08J4JPQ3AM`
+
+**Target Channel (for Cross-Posting):**
+
+- `#engineering-updates` - Channel ID: `C015WQKA7EG`
 
 ### Property Name Handling
 
