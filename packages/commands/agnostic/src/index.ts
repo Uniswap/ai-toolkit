@@ -102,7 +102,7 @@ export const commands: Commands = {
   },
   'git-worktree-orchestrator': {
     description:
-      'Create and manage a git worktree based on the current directory and a branch name, with optional spec-workflow setup and Linear task automation.',
+      'Create and manage a git worktree based on the current directory and a branch name, with optional spec-workflow setup, Graphite integration, and Linear task automation.',
     filePath: './git-worktree-orchestrator.md',
   },
   'implement-spec': {
