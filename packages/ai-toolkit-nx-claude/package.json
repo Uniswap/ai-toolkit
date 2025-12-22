@@ -7,7 +7,7 @@
   "types": "./dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/uniswap/ai-toolkit.git",
+    "url": "https://github.com/Uniswap/ai-toolkit.git",
     "directory": "packages/ai-toolkit-nx-claude"
   },
   "publishConfig": {
