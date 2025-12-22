@@ -109,9 +109,9 @@ This is the AI Toolkit monorepo that provides standardized, one-shot setup for C
 
 ### npm Version Requirement
 
-**CRITICAL: This project requires npm 11.6.2**
+**CRITICAL: This project requires npm 11.7.0**
 
-**Why npm 11.6.2?**
+**Why npm 11.7.0?**
 
 1. **OIDC Trusted Publishing**: npm OIDC trusted publishing requires npm >= 11.5.1
 2. **Lockfile Consistency**: Using the same npm version in CI and local development prevents lockfile format changes
@@ -119,13 +119,13 @@ This is the AI Toolkit monorepo that provides standardized, one-shot setup for C
 **Installation:**
 
 ```bash
-npm install -g npm@11.6.2
+npm install -g npm@11.7.0
 ```
 
 **Verification:**
 
 ```bash
-npm --version  # Should output: 11.6.2
+npm --version  # Should output: 11.7.0
 ```
 
 The project enforces this version through:

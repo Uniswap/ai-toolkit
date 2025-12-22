@@ -172,9 +172,9 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           scope: "@uniswap"
 
-      # Install npm 11.6.2 (required for this project)
+      # Install npm 11.7.0 (required for this project)
       - name: Install npm
-        run: npm install -g npm@11.6.2
+        run: npm install -g npm@11.7.0
 
       # Install dependencies
       - name: Install dependencies

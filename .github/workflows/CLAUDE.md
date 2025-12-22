@@ -644,7 +644,7 @@ Version pinning is centralized using GitHub repository variables (`vars.*`):
 | Variable       | Value     | Purpose                                    |
 | -------------- | --------- | ------------------------------------------ |
 | `NODE_VERSION` | `22.21.1` | Node.js version for all workflows          |
-| `NPM_VERSION`  | `11.6.2`  | npm version (required for OIDC publishing) |
+| `NPM_VERSION`  | `11.7.0`  | npm version (required for OIDC publishing) |
 
 **Usage in workflows:**
 
