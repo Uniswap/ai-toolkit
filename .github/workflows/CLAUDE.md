@@ -13,7 +13,7 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 
 ### Release & Deployment (2 workflows)
 
-- `publish-packages.yml` - Unified package publishing workflow (automatic on push to main/next, manual via workflow_dispatch)
+- `publish-packages.yml` - Unified package publishing workflow (automatic on push to main/next, manual via workflow_dispatch). Also detects changes to reusable workflows and syncs them to the `next` branch with Slack notifications.
 - `release-update-production.yml` - Creates production sync PRs with AI changelogs
 
 ### Code Review & PR Management (3 workflows)
@@ -600,6 +600,7 @@ These workflows are prefixed with two `__` and are only used within this reposit
     - **Force mode** (manual workflow_dispatch): Publishes user-specified packages with prerelease versioning, useful for new packages or failed releases
   - Handles atomic versioning, npm publish with OIDC, git commit/tag push, and GitHub release creation
   - **Lockfile sync**: Automatically updates `package-lock.json` when package versions are bumped to keep workspace dependencies in sync
+  - **Workflow change detection**: Detects changes to reusable workflows (files prefixed with `_` in `.github/workflows/`). When workflow files change, the `next` branch is synced and Slack notifications are sent, even if no packages need publishing.
 
 ### Consumer Workflows
 
@@ -745,25 +746,29 @@ The publishing functionality is consolidated into a single unified workflow due 
 │                                                                   │
 │  1. detect                                                        │
 │     ├── Auto: Detect affected packages via Nx                    │
+│     ├── Auto: Detect reusable workflow changes (_*.yml files)    │
 │     └── Force: Resolve user-specified packages                   │
 │                                                                   │
-│  2. publish                                                       │
+│  2. publish (if packages detected)                               │
 │     ├── Build packages                                           │
 │     ├── Version (smart stable or smart prerelease)               │
 │     ├── Publish to npm (OIDC authentication)                     │
 │     ├── Push commits + tags                                      │
 │     └── Create GitHub releases                                   │
 │                                                                   │
-│  3. generate-changelog (Auto mode only)                          │
+│  3. generate-changelog (Auto mode, if packages published)        │
 │     └── AI-generated release notes                               │
 │                                                                   │
-│  4. notify-release (Auto mode only)                              │
-│     └── Slack notifications                                      │
+│  4. notify-release (Auto mode, if packages published)            │
+│     └── Slack notifications for package releases                 │
 │                                                                   │
-│  5. sync-next (Auto mode, main branch only)                      │
-│     └── Sync main → next branch                                  │
+│  5. sync-next (Auto mode, main branch, after publish completes)  │
+│     └── Sync main → next branch (packages OR workflows)          │
 │                                                                   │
-│  6. summary (Force mode only)                                    │
+│  6. notify-workflow-changes (Auto mode, after sync-next)         │
+│     └── Slack notifications for workflow-only updates            │
+│                                                                   │
+│  7. summary (Force mode only)                                    │
 │     └── Publish summary                                          │
 │                                                                   │
 └───────────────────────────────────────────────────────────────────┘
