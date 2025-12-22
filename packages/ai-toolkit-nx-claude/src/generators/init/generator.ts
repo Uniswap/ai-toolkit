@@ -516,6 +516,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
           dashboardMode: 'always' as const,
           port: 0,
           installMode: normalizedOptions.addonSelectionMode === 'specific' ? 'custom' : 'default',
+          installationType: normalizedOptions.installationType || 'global',
         });
         logger.info('✅ Addons installed successfully');
         addonsInstalled = true;

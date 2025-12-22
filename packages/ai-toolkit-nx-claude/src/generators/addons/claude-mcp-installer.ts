@@ -19,6 +19,8 @@ export interface MCPInstallOptions {
   additionalArgs?: string[];
   /** Whether to use dry-run mode */
   dryRun?: boolean;
+  /** Installation location: global (~/.claude) or local (./.claude) */
+  installationType?: 'global' | 'local';
 }
 
 /**
@@ -29,7 +31,7 @@ export async function installMcpServer(options: MCPInstallOptions): Promise<{
   message: string;
   error?: string;
 }> {
-  const { addon, additionalArgs = [], dryRun = false } = options;
+  const { addon, additionalArgs = [], dryRun = false, installationType = 'global' } = options;
 
   // Check if Claude CLI is available
   try {
@@ -38,15 +40,16 @@ export async function installMcpServer(options: MCPInstallOptions): Promise<{
     return {
       success: false,
       message: 'Claude CLI not found',
-      error:
-        'Please install Claude CLI first. Visit https://claude.ai/download',
+      error: 'Please install Claude CLI first. Visit https://claude.ai/download',
     };
   }
 
   // Build the Claude MCP add command
   // The server name should come from the addon ID or a specific field
   const serverName = addon.mcp?.serverName;
-  let command = `claude mcp add ${serverName} --scope user`;
+  // Use --scope user for global (~/.claude) and --scope project for local (./.claude)
+  const scope = installationType === 'local' ? 'project' : 'user';
+  let command = `claude mcp add ${serverName} --scope ${scope}`;
 
   // Add environment variables if specified
   if (addon.mcp?.env && Object.keys(addon.mcp.env).length > 0) {
@@ -107,9 +110,7 @@ export async function installMcpServer(options: MCPInstallOptions): Promise<{
   while (attempts < maxAttempts) {
     attempts++;
     try {
-      console.log(
-        `\n🔧 Installing MCP server (attempt ${attempts}/${maxAttempts})...`
-      );
+      console.log(`\n🔧 Installing MCP server (attempt ${attempts}/${maxAttempts})...`);
 
       const output = execSync(command, {
         encoding: 'utf-8',
@@ -146,10 +147,7 @@ export async function installMcpServer(options: MCPInstallOptions): Promise<{
         };
       }
 
-      if (
-        error.message?.includes('network') ||
-        error.message?.includes('ENOTFOUND')
-      ) {
+      if (error.message?.includes('network') || error.message?.includes('ENOTFOUND')) {
         // Network error, retry
         if (attempts < maxAttempts) {
           console.log('Network error, retrying...');
@@ -250,11 +248,7 @@ export async function updateMcpServer(
       if (argUpdates.add && argUpdates.add.length > 0) {
         // Insert new args before the last element (which is typically the package or project path)
         const lastArg = serverConfig.args[serverConfig.args.length - 1];
-        serverConfig.args = [
-          ...serverConfig.args.slice(0, -1),
-          ...argUpdates.add,
-          lastArg,
-        ];
+        serverConfig.args = [...serverConfig.args.slice(0, -1), ...argUpdates.add, lastArg];
       }
     }
 

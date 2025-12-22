@@ -37,9 +37,7 @@ export type McpRemoteHostedAddonMetadata = {
   env?: Record<string, string>;
 };
 
-export type McpAddonMetadata =
-  | McpCommandAddonMetadata
-  | McpRemoteHostedAddonMetadata;
+export type McpAddonMetadata = McpCommandAddonMetadata | McpRemoteHostedAddonMetadata;
 
 /**
  * Metadata for a Claude Code addon
@@ -84,8 +82,7 @@ const ADDON_REGISTRY: AddonMetadata[] = [
   {
     id: 'spec-workflow-mcp',
     name: 'Spec Workflow MCP',
-    description:
-      'MCP server for spec-driven development workflow with dashboard support',
+    description: 'MCP server for spec-driven development workflow with dashboard support',
     type: 'mcp-server',
     packageName: '@uniswap/spec-workflow-mcp',
     mcp: {
@@ -160,13 +157,13 @@ const ADDON_REGISTRY: AddonMetadata[] = [
   {
     id: 'linear-mcp',
     name: 'Linear MCP',
-    description: 'MCP server for Linear issue tracking (SSE)',
+    description: 'MCP server for Linear issue tracking (HTTP)',
     type: 'mcp-server',
     packageName: 'linear',
     mcp: {
       serverName: 'linear',
-      command: 'npx',
-      args: ['-y', 'mcp-remote', 'https://mcp.linear.app/sse'],
+      transport: 'http',
+      url: 'https://mcp.linear.app/mcp',
     },
   },
   {
@@ -180,8 +177,7 @@ const ADDON_REGISTRY: AddonMetadata[] = [
       command: 'npx',
       args: ['-y', '@modelcontextprotocol/server-github'],
       env: {
-        GITHUB_PERSONAL_ACCESS_TOKEN:
-          'PROMPT_TO_INSERT_GITHUB_PERSONAL_ACCESS_TOKEN',
+        GITHUB_PERSONAL_ACCESS_TOKEN: 'PROMPT_TO_INSERT_GITHUB_PERSONAL_ACCESS_TOKEN',
       },
     },
   },
@@ -225,8 +221,7 @@ const ADDON_REGISTRY: AddonMetadata[] = [
   {
     id: 'aws-log-analyzer-mcp',
     name: 'AWS Log Analyzer MCP',
-    description:
-      'MCP server for AWS CloudWatch Logs analysis, searching, and correlation',
+    description: 'MCP server for AWS CloudWatch Logs analysis, searching, and correlation',
     type: 'mcp-server',
     packageName: 'Log-Analyzer-with-MCP',
     mcp: {
@@ -247,8 +242,7 @@ const ADDON_REGISTRY: AddonMetadata[] = [
   {
     id: 'pulumi-mcp',
     name: 'Pulumi MCP',
-    description:
-      'MCP server for Pulumi infrastructure as code management (HTTP)',
+    description: 'MCP server for Pulumi infrastructure as code management (HTTP)',
     type: 'mcp-server',
     packageName: 'pulumi',
     mcp: {
@@ -313,11 +307,7 @@ export async function isAddonInstalled(addonId: string): Promise<boolean> {
         if (addon.type === 'mcp-server' && config.mcpServers) {
           // Look for the server by package name or command
           for (const [, serverConfig] of Object.entries(config.mcpServers)) {
-            if (
-              serverConfig &&
-              typeof serverConfig === 'object' &&
-              'command' in serverConfig
-            ) {
+            if (serverConfig && typeof serverConfig === 'object' && 'command' in serverConfig) {
               const command = (serverConfig as any).command;
               const args = (serverConfig as any).args || [];
 
@@ -366,11 +356,7 @@ export async function getInstalledAddonConfig(
 
         if (addon.type === 'mcp-server' && config.mcpServers) {
           for (const [, serverConfig] of Object.entries(config.mcpServers)) {
-            if (
-              serverConfig &&
-              typeof serverConfig === 'object' &&
-              'command' in serverConfig
-            ) {
+            if (serverConfig && typeof serverConfig === 'object' && 'command' in serverConfig) {
               const command = (serverConfig as any).command;
               const args = (serverConfig as any).args || [];
 
@@ -410,13 +396,8 @@ export async function validateAddonRequirements(
   if (addon.requirements?.node) {
     const nodeVersion = process.version;
     // Simple version check - could be improved with semver
-    if (
-      !nodeVersion.match(/v1[89]\.\d+\.\d+/) &&
-      !nodeVersion.match(/v2\d+\.\d+\.\d+/)
-    ) {
-      errors.push(
-        `Node.js ${addon.requirements.node} required, found ${nodeVersion}`
-      );
+    if (!nodeVersion.match(/v1[89]\.\d+\.\d+/) && !nodeVersion.match(/v2\d+\.\d+\.\d+/)) {
+      errors.push(`Node.js ${addon.requirements.node} required, found ${nodeVersion}`);
     }
   }
 

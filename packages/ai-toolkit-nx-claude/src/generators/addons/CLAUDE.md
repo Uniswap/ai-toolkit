@@ -23,14 +23,19 @@ npx nx generate @uniswap/ai-toolkit-nx-claude:addons \
 
 ### Installation Control
 
-- `installMode` - Installation mode:
+- `selectionMode` - Selection mode for which addons to install:
   - `all` - Install all available addons
   - `specific` - Choose specific addons to install
-- `addon` - Specific addon to install (when `installMode=specific`)
+- `addons` - Specific addons to install (when `selectionMode=specific`)
+- `installationType` - Installation location for MCP servers:
+  - `global` - Install to `~/.claude` (available in all projects)
+  - `local` - Install to `./.claude` (project-specific configuration)
 
 ### Integration Options
 
-- `installMode` (hidden) - Set to "default" or "custom" when called from init generator to prevent duplicate prompts
+- `installMode` (hidden) - Set to "default" or "custom" when called from init generator to control prompting behavior:
+  - When `installMode === 'default'`: Skips all prompts, uses `installationType` from parent or defaults to 'global'
+  - When undefined (standalone execution): Shows full interactive prompts including `installationType` selection
 
 ## Available Addons
 
@@ -95,10 +100,10 @@ Registered in `addon-registry.ts`:
 
 ## Generator Flow
 
-1. **Mode Selection** (if not from init):
+1. **Mode Selection** (if running standalone):
 
-   - All addons
-   - Specific addon
+   - Selection mode: All addons vs Specific addons
+   - Installation location: Global (`~/.claude`) vs Local (`./.claude`)
 
 2. **Addon Selection** (if specific mode):
 
@@ -110,7 +115,9 @@ Registered in `addon-registry.ts`:
 
    - For each selected addon:
      - Run addon's setup function
-     - Update Claude configuration
+     - Install MCP server using `claude mcp add` with appropriate scope:
+       - `--scope user` for global installation
+       - `--scope project` for local installation
      - Create necessary files/directories
      - Install dependencies if needed
 
@@ -190,21 +197,35 @@ npx nx generate @uniswap/ai-toolkit-nx-claude:addons \
 
 ## Integration with Init Generator
 
-The addons generator supports the `installMode` pattern:
+The addons generator supports the `installMode` pattern for programmatic invocation:
 
 ```typescript
 // From init generator
 await addonsGenerator(tree, {
-  installMode: normalizedOptions.installMode, // 'default' or 'custom'
-  addon: 'spec-mcp-workflow', // Pre-selected addon
+  installMode: 'default', // or 'custom'
+  selectionMode: 'all', // or 'specific'
+  installationType: normalizedOptions.installationType, // 'global' or 'local'
+  force: false,
+  skipVerification: false,
+  dashboardMode: 'always',
+  port: 0,
 });
 ```
 
-When `installMode === 'default'`:
+**Behavior by installMode**:
 
-- Skips installation mode prompt
-- Uses provided addon selection
-- No user interaction required
+- `installMode === 'default'`:
+
+  - Skips all interactive prompts
+  - Uses `installationType` from init generator (or defaults to 'global')
+  - Uses provided `selectionMode` and other options
+  - No user interaction required
+
+- `installMode` undefined (standalone execution):
+  - Shows `selectionMode` prompt (all vs specific)
+  - Shows `installationType` prompt (global vs local)
+  - Shows addon selection for 'specific' mode
+  - Full interactive experience
 
 ## Configuration Updates
 
