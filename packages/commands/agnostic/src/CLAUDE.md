@@ -35,7 +35,7 @@ Language-agnostic slash command definitions for Claude Code. Each markdown file 
 - `work-through-pr-comments.md` - Methodically work through PR comments
 - `generate-commit-message.md` - Generate structured commit messages
 - `split-stack.md` - Split Graphite PR stacks
-- `git-worktree-orchestrator.md` - Create and manage git worktrees with spec-workflow and Linear integration
+- `git-worktree-orchestrator.md` - Create and manage git worktrees with spec-workflow, Graphite, setup scripts, and Linear integration
 
 ### Documentation
 
@@ -118,6 +118,7 @@ Commands that manage larger processes:
 - `/implement-spec` - Spec task implementation
 - `/execute-plan` - Plan execution
 - `/work-through-pr-comments` - Comment resolution workflow
+- `/git-worktree-orchestrator` - Worktree creation with Graphite, setup scripts, and Linear automation
 
 ## Development
 
