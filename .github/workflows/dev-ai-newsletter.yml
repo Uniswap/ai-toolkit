@@ -1,0 +1,265 @@
+# Dev AI Pod Weekly Newsletter Generator
+#
+# This workflow automatically generates the Dev AI Pod weekly newsletter
+# using Claude Code with MCP servers for Notion and Slack integration.
+#
+# Schedule: Runs weekly on Monday at 9:00 AM EST (14:00 UTC)
+# Coverage: Previous 7 days (Sunday to Saturday)
+#
+# Prerequisites:
+#   1. ANTHROPIC_API_KEY secret configured
+#   2. NOTION_API_KEY secret configured (Notion integration token)
+#   3. SLACK_REFRESH_TOKEN secret configured (Slack OAuth refresh token)
+#   4. SLACK_REFRESH_URL secret configured (Token refresh backend URL)
+#   5. SLACK_TEAM_ID secret configured
+#   6. WORKFLOW_PAT secret configured (GitHub PAT with repo scope for updating secrets)
+#   7. GitHub CLI is authenticated (uses GITHUB_TOKEN)
+#
+# Slack App Requirements:
+#   The Slack app needs these Bot Token Scopes:
+#   - channels:history (view messages in public channels)
+#   - channels:read (view basic channel information)
+#   - reactions:read (read emoji reactions)
+#   - users:read (view users and their basic information)
+#
+# Token Refresh:
+#   This workflow uses the _slack-token-refresh.yml reusable workflow to
+#   automatically obtain a fresh Slack access token before generating the
+#   newsletter. This is required because Slack OAuth tokens are short-lived.
+#
+# Notion Integration Requirements:
+#   The Notion integration needs access to:
+#   - "📚 What We're Reading" database
+#   - "🌎 Real-World AI Use Cases" database
+#   - "Dev AI Weekly Newsletters" database (write access)
+#
+# Usage:
+#   - Automatic: Runs weekly on Monday at 9 AM EST
+#   - Manual: Use workflow_dispatch with optional inputs
+
+name: Dev AI Newsletter
+
+on:
+  # Run weekly on Monday at 9:00 AM EST (14:00 UTC)
+  schedule:
+    - cron: "0 14 * * 1"
+
+  # Manual trigger with inputs
+  workflow_dispatch:
+    inputs:
+      days_back:
+        description: "Number of days to look back for content"
+        required: false
+        type: string
+        default: "7"
+
+      model:
+        description: "Claude model to use"
+        required: false
+        type: choice
+        options:
+          - "claude-sonnet-4-5-20250929"
+          - "claude-opus-4-5-20251101"
+        default: "claude-sonnet-4-5-20250929"
+
+      dry_run:
+        description: "Dry run (generate but don't publish to Notion)"
+        required: false
+        type: boolean
+        default: false
+
+      debug_mode:
+        description: "Enable full Claude output for debugging"
+        required: false
+        type: boolean
+        default: true
+
+      slack_post_channel_ids:
+        description: "Comma-separated Slack channel IDs to post newsletter announcement (e.g., C091XE1DNP2,C094URH6C13)"
+        required: false
+        type: string
+        default: "C091XE1DNP2"
+
+# Prevent concurrent runs
+concurrency:
+  group: dev-ai-newsletter
+  cancel-in-progress: false
+
+# Resolved environment variables (handles fallback for scheduled runs)
+env:
+  DAYS_BACK: ${{ inputs.days_back || '7' }}
+  MODEL: ${{ inputs.model || 'claude-sonnet-4-5-20250929' }}
+  DRY_RUN: ${{ inputs.dry_run || 'false' }}
+  DEBUG_MODE: ${{ inputs.debug_mode || 'true' }}
+  # Slack channel IDs to READ from: #pod-dev-ai (C094URH6C13), # ai-achieved-internally (C08J4JPQ3AM)
+  SLACK_READ_CHANNEL_IDS: "C094URH6C13,C08J4JPQ3AM"
+  # Slack channel IDs to POST to (comma-separated)
+  SLACK_POST_MESSAGE_CHANNEL_IDS: ${{ inputs.slack_post_channel_ids || 'C091XE1DNP2' }}
+
+jobs:
+  # Step 1: Refresh the Slack OAuth token
+  # This also updates SLACK_REFRESH_TOKEN secret for subsequent runs
+  refresh-slack-token:
+    name: Refresh Slack Token
+    uses: ./.github/workflows/_slack-token-refresh.yml
+    secrets:
+      SLACK_REFRESH_TOKEN: ${{ secrets.SLACK_REFRESH_TOKEN }}
+      SLACK_REFRESH_URL: ${{ secrets.SLACK_REFRESH_URL }}
+      WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+
+  # Step 2: Generate the newsletter using the fresh token
+  generate-newsletter:
+    needs: refresh-slack-token
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      id-token: write # Required for OIDC authentication
+      contents: read # Required to read repository code
+
+    steps:
+      # Security scanning
+      - name: Security scanning
+        uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: ${{ vars.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install npm
+        run: npm install -g npm@${{ vars.NPM_VERSION }}
+
+      # Calculate date range for the newsletter
+      - name: Calculate date range
+        id: dates
+        env:
+          INPUT_DAYS_BACK: ${{ env.DAYS_BACK }}
+        run: |
+          END_DATE=$(date -d "yesterday" +%Y-%m-%d)
+          START_DATE=$(date -d "${INPUT_DAYS_BACK} days ago" +%Y-%m-%d)
+          echo "start_date=$START_DATE" >> $GITHUB_OUTPUT
+          echo "end_date=$END_DATE" >> $GITHUB_OUTPUT
+          echo "Date range: $START_DATE to $END_DATE"
+
+      # Create MCP configuration file with secrets injected
+      - name: Create MCP configuration
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          SLACK_BOT_TOKEN: ${{ needs.refresh-slack-token.outputs.slack_bot_token }}
+          SLACK_TEAM_ID: ${{ secrets.SLACK_TEAM_ID }}
+          SLACK_READ_CHANNEL_IDS: ${{ env.SLACK_READ_CHANNEL_IDS }}
+        run: |
+          # Create MCP config file with actual secret values
+          cat > /tmp/mcp-config.json << EOF
+          {
+            "mcpServers": {
+              "notion": {
+                "command": "npx",
+                "args": ["-y", "@notionhq/notion-mcp-server"],
+                "env": {
+                  "NOTION_API_KEY": "${NOTION_API_KEY}"
+                }
+              },
+              "slack": {
+                "command": "npx",
+                "args": ["-y", "@modelcontextprotocol/server-slack"],
+                "env": {
+                  "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}",
+                  "SLACK_TEAM_ID": "${SLACK_TEAM_ID}",
+                  "SLACK_CHANNEL_IDS": "${SLACK_READ_CHANNEL_IDS}"
+                }
+              }
+            }
+          }
+          EOF
+
+          echo "MCP configuration created at /tmp/mcp-config.json"
+
+      # Run Claude Code with MCP servers
+      - name: Generate newsletter with Claude
+        id: claude
+        uses: anthropics/claude-code-action@a7e4c51380c42dd89b127f5e5f9be7b54020bc6b # v1.0.21
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Execute the Dev AI Pod weekly newsletter agent.
+
+            Read and follow ALL instructions in: .claude/agents/dev-ai-pod-weekly-newsletter.md
+
+            Parameters:
+            - startDate: ${{ steps.dates.outputs.start_date }}
+            - endDate: ${{ steps.dates.outputs.end_date }}
+            - dryRun: ${{ env.DRY_RUN }}
+            - slackReadChannelIds: ${{ env.SLACK_READ_CHANNEL_IDS }}
+            - slackPostChannelIds: ${{ env.SLACK_POST_MESSAGE_CHANNEL_IDS }}
+
+            IMPORTANT: This is an automated workflow running in GitHub Actions.
+            Complete the task autonomously without asking for clarification.
+            If you encounter errors, report them clearly and fail gracefully.
+          claude_args: |
+            --model ${{ env.MODEL }}
+            --max-turns 75
+            --mcp-config /tmp/mcp-config.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # Upload newsletter preview as artifact (dry run only)
+      - name: Upload newsletter preview
+        if: env.DRY_RUN == 'true' && steps.claude.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: newsletter-preview-${{ steps.dates.outputs.start_date }}-to-${{ steps.dates.outputs.end_date }}
+          path: /tmp/newsletter-preview.md
+          retention-days: 30
+          if-no-files-found: warn
+
+      # Create job summary
+      - name: Create job summary
+        if: always()
+        env:
+          START_DATE: ${{ steps.dates.outputs.start_date }}
+          END_DATE: ${{ steps.dates.outputs.end_date }}
+          CLAUDE_RESULT: ${{ steps.claude.outcome }}
+          INPUT_DAYS_BACK: ${{ env.DAYS_BACK }}
+          INPUT_MODEL: ${{ env.MODEL }}
+          INPUT_DRY_RUN: ${{ env.DRY_RUN }}
+        run: |
+          echo "# Dev AI Newsletter Generation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Parameter | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Date Range | $START_DATE to $END_DATE |" >> $GITHUB_STEP_SUMMARY
+          echo "| Days Back | $INPUT_DAYS_BACK |" >> $GITHUB_STEP_SUMMARY
+          echo "| Model | $INPUT_MODEL |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dry Run | $INPUT_DRY_RUN |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Result" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$CLAUDE_RESULT" == "success" ]; then
+            echo "✅ Newsletter generated successfully!" >> $GITHUB_STEP_SUMMARY
+            if [ "$INPUT_DRY_RUN" == "true" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "⚠️ **Dry run mode** - Newsletter was NOT published to Notion or Slack" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "📥 **Download the preview:** Check the Artifacts section below for \`newsletter-preview-${START_DATE}-to-${END_DATE}\`" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "📰 Newsletter published to Notion and announced in Slack" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "❌ Newsletter generation failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Check the workflow logs for details." >> $GITHUB_STEP_SUMMARY
+          fi

@@ -1,0 +1,165 @@
+# Slack Token Refresh Workflow
+#
+# This reusable workflow refreshes a Slack OAuth access token using a refresh token.
+# Slack uses short-lived access tokens that need to be refreshed before use.
+#
+# IMPORTANT: Slack refresh tokens are single-use. This workflow automatically
+# updates the SLACK_REFRESH_TOKEN secret with the new token after each refresh,
+# ensuring subsequent runs can continue to refresh successfully.
+#
+# Usage:
+#   jobs:
+#     get-token:
+#       uses: ./.github/workflows/_slack-token-refresh.yml
+#       secrets:
+#         SLACK_REFRESH_TOKEN: ${{ secrets.SLACK_REFRESH_TOKEN }}
+#         SLACK_REFRESH_URL: ${{ secrets.SLACK_REFRESH_URL }}
+#         WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+#
+#     use-token:
+#       needs: get-token
+#       steps:
+#         - name: Use Slack token
+#           env:
+#             SLACK_BOT_TOKEN: ${{ needs.get-token.outputs.slack_bot_token }}
+#           run: |
+#             # Use SLACK_BOT_TOKEN in your workflow
+#
+# Prerequisites:
+#   1. SLACK_REFRESH_TOKEN secret - Slack OAuth refresh token (xoxe-1-...)
+#   2. SLACK_REFRESH_URL secret - Backend URL for token refresh
+#      (default: https://ai-toolkit-slack-oauth-backend.vercel.app)
+#   3. WORKFLOW_PAT secret - GitHub PAT with `repo` scope (for updating secrets)
+#
+# How Token Rotation Works:
+#   1. Workflow reads current SLACK_REFRESH_TOKEN from secrets
+#   2. Calls the refresh endpoint to get new access_token + refresh_token
+#   3. Returns access_token as workflow output for immediate use
+#   4. Updates SLACK_REFRESH_TOKEN secret with the new refresh token
+#   5. Next workflow run will use the updated refresh token
+#
+# Security Notes:
+#   - WORKFLOW_PAT needs `repo` scope to update repository secrets
+#   - All tokens are masked in logs using ::add-mask::
+#   - The access token is valid for a limited time (typically 12 hours)
+
+name: Slack Token Refresh
+
+on:
+  workflow_call:
+    secrets:
+      SLACK_REFRESH_TOKEN:
+        description: "Slack OAuth refresh token (xoxe-1-...)"
+        required: true
+      SLACK_REFRESH_URL:
+        description: "Backend URL for token refresh (e.g., https://ai-toolkit-slack-oauth-backend.vercel.app)"
+        required: false
+      WORKFLOW_PAT:
+        description: "GitHub PAT with repo scope for updating secrets"
+        required: true
+
+    outputs:
+      slack_bot_token:
+        description: "Fresh Slack bot token for API access"
+        value: ${{ jobs.refresh.outputs.token }}
+
+jobs:
+  refresh:
+    name: Refresh Slack Token
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    outputs:
+      token: ${{ steps.refresh.outputs.slack_bot_token }}
+
+    steps:
+      - name: Refresh Slack OAuth Token
+        id: refresh
+        env:
+          SLACK_REFRESH_TOKEN: ${{ secrets.SLACK_REFRESH_TOKEN }}
+          # Default to the standard backend URL if not provided
+          SLACK_REFRESH_URL: ${{ secrets.SLACK_REFRESH_URL || 'https://ai-toolkit-slack-oauth-backend.vercel.app' }}
+        run: |
+          set -euo pipefail
+
+          # Validate required inputs
+          if [ -z "$SLACK_REFRESH_TOKEN" ]; then
+            echo "::error::SLACK_REFRESH_TOKEN secret is required but not provided"
+            exit 1
+          fi
+
+          # Construct refresh endpoint (remove trailing slash if present)
+          REFRESH_URL="${SLACK_REFRESH_URL%/}/slack/refresh"
+          echo "Refreshing Slack token via: ${REFRESH_URL}"
+
+          # Call the refresh endpoint
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"refresh_token\": \"${SLACK_REFRESH_TOKEN}\"}" \
+            "$REFRESH_URL")
+
+          # Extract HTTP status code (last line) and body (everything else)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          # Check HTTP status
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "::error::Token refresh failed with HTTP $HTTP_CODE"
+            echo "Response: $BODY"
+            exit 1
+          fi
+
+          # Parse response
+          OK=$(echo "$BODY" | jq -r '.ok // false')
+          ACCESS_TOKEN=$(echo "$BODY" | jq -r '.access_token // empty')
+          NEW_REFRESH_TOKEN=$(echo "$BODY" | jq -r '.refresh_token // empty')
+          ERROR=$(echo "$BODY" | jq -r '.error // empty')
+
+          if [ "$OK" != "true" ] || [ -z "$ACCESS_TOKEN" ]; then
+            echo "::error::Token refresh failed: ${ERROR:-Unknown error}"
+            exit 1
+          fi
+
+          # Validate the new token with Slack's auth.test API
+          echo "Validating refreshed token..."
+          AUTH_RESPONSE=$(curl -s \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            "https://slack.com/api/auth.test")
+
+          AUTH_OK=$(echo "$AUTH_RESPONSE" | jq -r '.ok // false')
+          if [ "$AUTH_OK" != "true" ]; then
+            AUTH_ERROR=$(echo "$AUTH_RESPONSE" | jq -r '.error // "unknown"')
+            echo "::error::Token validation failed: ${AUTH_ERROR}"
+            exit 1
+          fi
+
+          # Mask tokens in logs
+          echo "::add-mask::${ACCESS_TOKEN}"
+          if [ -n "$NEW_REFRESH_TOKEN" ]; then
+            echo "::add-mask::${NEW_REFRESH_TOKEN}"
+          fi
+
+          # Output the tokens
+          echo "slack_bot_token=${ACCESS_TOKEN}" >> "$GITHUB_OUTPUT"
+          echo "new_refresh_token=${NEW_REFRESH_TOKEN}" >> "$GITHUB_OUTPUT"
+
+          echo "✅ Slack token refreshed and validated successfully"
+
+      # Update the SLACK_REFRESH_TOKEN secret with the new refresh token
+      # This is required because Slack refresh tokens are single-use
+      - name: Update SLACK_REFRESH_TOKEN secret
+        if: steps.refresh.outputs.new_refresh_token != ''
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+          NEW_REFRESH_TOKEN: ${{ steps.refresh.outputs.new_refresh_token }}
+        run: |
+          set -euo pipefail
+
+          echo "Updating SLACK_REFRESH_TOKEN secret for next run..."
+
+          # Use gh CLI to update the secret
+          # The secret is updated in the current repository
+          gh secret set SLACK_REFRESH_TOKEN --body "$NEW_REFRESH_TOKEN"
+
+          echo "✅ SLACK_REFRESH_TOKEN secret updated successfully"

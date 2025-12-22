@@ -38,6 +38,18 @@ interface NewsletterInput {
   // If daysBack=7, the range will be from 7 days ago to yesterday (inclusive)
   daysBack?: number; // Default: 7
 
+  // Dry run mode - if true, format newsletter but skip all writes (Notion and Slack)
+  // The formatted newsletter will be output to console instead
+  dryRun?: boolean; // Default: false
+
+  // Slack channel IDs to READ messages from for the Slack Summary section (comma-separated)
+  // Example: "C094URH6C13,C08J4JPQ3AM"
+  slackReadChannelIds?: string; // Default: "C094URH6C13,C08J4JPQ3AM"
+
+  // Slack channel IDs to POST the newsletter announcement to (comma-separated)
+  // Example: "C091XE1DNP2" or "C091XE1DNP2,C094URH6C13"
+  slackPostChannelIds?: string; // Default: "C091XE1DNP2"
+
   // Database IDs (optional, defaults provided)
   readingDatabaseId?: string; // Default: collection://287c52b2-548b-80e8-ba26-000bd3f9e0a4
   useCasesDatabaseId?: string; // Default: collection://28ec52b2-548b-80aa-b880-000b42eedf1f
@@ -57,7 +69,7 @@ interface NewsletterInput {
 
 ## Process
 
-Follow these 8 steps to generate and publish the newsletter:
+Follow these 9 steps to generate and publish the newsletter:
 
 ### 0. Verify Tool Availability
 
@@ -159,12 +171,23 @@ mcp__notion__notion -
 
 ### 4. Query Slack Channels
 
-**Critical:** Use Slack MCP to search messages in `#pod-dev-ai` (channel_id: 'C094URH6C13'), and `#ai-achieved-internally` (channel_id: 'C08J4JPQ3AM') channels. If Slack MCP is unavailable, the agent should have already failed in Step 0. When using the `slack_get_channel_history` MCP function, alway use a limit of 10.
+**Critical:** Use Slack MCP to search messages in the channels specified by the `slackReadChannelIds` parameter. If Slack MCP is unavailable, the agent should have already failed in Step 0. When using the `slack_get_channel_history` MCP function, always use a limit of 10.
 
 **Channels to Query:**
 
-- `#pod-dev-ai` (channel_id: 'C094URH6C13') - Official channel of the Dev AI Pod, and used by general Uniswap devs to communicate with the Dev AI Pod
-- `#ai-achieved-internally` (channel_id: 'C08J4JPQ3AM') - AI wins and success stories
+Use the `slackReadChannelIds` parameter (comma-separated string of channel IDs). If not provided, default to `C094URH6C13,C08J4JPQ3AM`.
+
+**Default channel reference (for documentation purposes):**
+
+- `C094URH6C13` = `#pod-dev-ai` - Official channel of the Dev AI Pod
+- `C08J4JPQ3AM` = `#ai-achieved-internally` - AI wins and success stories
+
+**Processing Multiple Channels:**
+
+1. Split `slackReadChannelIds` by comma to get an array of channel IDs
+2. Trim whitespace from each channel ID
+3. Query each channel for messages within the date range
+4. Combine results from all channels for filtering and sorting
 
 **Message Retrieval:**
 
@@ -176,7 +199,7 @@ Use Slack MCP search functionality to retrieve messages from these channels with
 - Use a limit = 10 in the `slack_get_channel_history`
 - Engagement threshold: Messages with at least 3 reactions OR at least 2 replies
 - Sort by: Total engagement (reactions + reply count) descending
-- Limit: Top 5 most engaging messages across all 2 channels.
+- Limit: Top 5 most engaging messages across all queried channels.
 
 **Extract Message Data:**
 
@@ -366,7 +389,7 @@ Anytime a Claude Code /slash command is mentioned (such /daily-standup), make su
 
 **Slack Summary Section:**
 
-- 1 section, whose contents come from 2 channels: `#pod-dev-ai` (channel_id: 'C094URH6C13'), and `#ai-achieved-internally` (channel_id: 'C08J4JPQ3AM'). DO NOT mention or create subsections for each of the 2 channels; instead, simply have the list of messages under the "💬 Slack Summary" section header
+- 1 section, whose contents come from the channels specified in `slackReadChannelIds`. DO NOT mention or create subsections for each channel; instead, simply have the list of messages under the "💬 Slack Summary" section header
 - Numbered list format: `Message title`
 - Include brief summary (max 100 chars)
 - Add permalink with "→ thread" link text
@@ -410,7 +433,27 @@ Anytime a Claude Code /slash command is mentioned (such /daily-standup), make su
 
 ### 8. Create Notion Database Record
 
-**Important:** DO NOT print to screen or write files. Create a new page in the Notion database with the newsletter content.
+**DRY RUN CHECK:** If `dryRun` is `true`, skip this step and Step 9. Instead:
+
+- Write the formatted newsletter markdown to `/tmp/newsletter-preview.md`
+- Output the newsletter content to console as well
+- Display a summary of what WOULD have been published
+- Exit with success status
+
+**File Output (dry run only):**
+
+```bash
+# Write newsletter to file for artifact upload
+cat > /tmp/newsletter-preview.md << 'EOF'
+{newsletter markdown content}
+EOF
+```
+
+The workflow will upload this file as a downloadable GitHub Actions artifact.
+
+**Normal Mode (dryRun is false or not provided):**
+
+Create a new page in the Notion database with the newsletter content.
 
 Use the `mcp__notion__notion-create-pages` tool to create a new database entry:
 
@@ -444,34 +487,93 @@ mcp__notion__notion -
 - `date:Date Created:is_datetime`: Set to 0 (date only, not datetime)
 - `content`: The complete formatted markdown newsletter from step 5
 
+### 9. Post Newsletter Announcement to Slack
+
+**DRY RUN CHECK:** If `dryRun` is `true`, this step was already skipped in Step 8.
+
+**Normal Mode (dryRun is false or not provided):**
+
+After successfully creating the Notion page, post an announcement to Slack to notify the team.
+
+**Channels to Post:**
+
+Use the `slackPostChannelIds` parameter (comma-separated string of channel IDs).
+
+- Default: `C091XE1DNP2` (if not provided)
+- Example: `C091XE1DNP2,C094URH6C13` posts to both channels
+
+**Processing Multiple Channels:**
+
+1. Split `slackPostChannelIds` by comma to get an array of channel IDs
+2. Trim whitespace from each channel ID
+3. Post the same message to each channel
+4. Track success/failure for each channel
+
+**Message Format:**
+
+For each channel ID, use the Slack MCP `slack_post_message` tool:
+
+```typescript
+// For each channelId in slackPostChannelIds.split(','):
+slack_post_message({
+  channel_id: channelId.trim(),
+  text: `📰 *Dev AI Newsletter is out!*\n\n*Week of:* ${startDate} to ${endDate}\n\n📖 Read the full newsletter: ${notionPageUrl}\n\n_Highlights this week:_\n• ${readingItemsCount} reading items\n• ${useCasesCount} real-world use cases\n• Top Slack discussions\n• Latest tool updates`,
+});
+```
+
+**Message Content:**
+
+- Newsletter title with emoji
+- Date range covered
+- Direct link to Notion page
+- Brief summary of content counts
+- Call to action to read
+
+**Error Handling:**
+
+- If Slack post fails for one channel: Log warning, continue posting to remaining channels
+- If ALL channels fail: Log warning but do NOT fail the entire workflow
+- The Notion page was already created successfully - that's the primary deliverable
+- Report individual channel failures in the output warnings
+
+## Output
+
 **Response Format:**
 
 ```typescript
 interface NewsletterOutput {
   notionPageUrl: string; // URL of the created Notion page
+  slackPosts: {
+    // Status of Slack posts per channel
+    channelId: string;
+    success: boolean;
+    messageTs?: string; // Slack message timestamp (if posted)
+    error?: string; // Error message if failed
+  }[];
   metadata: {
     startDate: string;
     endDate: string;
     readingItemsCount: number;
     useCasesCount: number;
+    slackChannelsAttempted: number;
+    slackChannelsSucceeded: number;
     generatedAt: string; // ISO timestamp
   };
   warnings?: string[]; // Any issues encountered
 }
 ```
 
-## Output
-
 Return a structured summary containing:
 
 1. **Notion Page URL:** Link to the created newsletter page in Notion
-2. **Metadata:**
+2. **Slack Status:** Whether announcement was posted successfully
+3. **Metadata:**
    - Date range covered
    - Item counts per section
    - Generation timestamp
-3. **Warnings:** Any issues encountered (empty results, missing properties, etc.)
+4. **Warnings:** Any issues encountered (empty results, missing properties, Slack post failure, etc.)
 
-The agent creates the newsletter directly in the Notion database. Users can view it by clicking the returned URL.
+The agent creates the newsletter directly in the Notion database and posts an announcement to Slack. Users can view the newsletter by clicking the returned URL.
 
 ## Guidelines
 
