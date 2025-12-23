@@ -166,7 +166,7 @@ jobs:
                 "command": "npx",
                 "args": ["-y", "@notionhq/notion-mcp-server"],
                 "env": {
-                  "NOTION_API_KEY": "${NOTION_API_KEY}"
+                  "NOTION_TOKEN": "${NOTION_API_KEY}"
                 }
               },
               "slack": {
