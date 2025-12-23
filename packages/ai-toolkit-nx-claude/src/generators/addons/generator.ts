@@ -2,10 +2,7 @@ import type { Tree } from '@nx/devkit';
 import { formatFiles } from '@nx/devkit';
 import type { AddonsGeneratorSchema } from './schema';
 import { promptForMissingOptions } from '../../utils/prompt-utils';
-import {
-  isNxDryRunProvided,
-  isNxNoInteractiveProvided,
-} from '../../utils/cli-parser';
+import { isNxDryRunProvided, isNxNoInteractiveProvided } from '../../utils/cli-parser';
 import {
   getAddonById,
   getAvailableAddons,
@@ -18,18 +15,12 @@ import {
   // removeMcpServer,
 } from './claude-mcp-installer';
 import { setupSpecWorkflow } from './spec-workflow-setup';
-import {
-  setupAwsLogAnalyzer,
-  getAwsLogAnalyzerServerPath,
-} from './aws-log-analyzer-setup';
+import { setupAwsLogAnalyzer, getAwsLogAnalyzerServerPath } from './aws-log-analyzer-setup';
 
 /**
  * Main generator function for installing Claude Code addons
  */
-export default async function generator(
-  tree: Tree,
-  schema: AddonsGeneratorSchema
-): Promise<void> {
+export default async function generator(tree: Tree, schema: AddonsGeneratorSchema): Promise<void> {
   console.log('\n🎯 Claude Code Addons Installer');
   console.log('================================\n');
 
@@ -45,8 +36,7 @@ export default async function generator(
     const { runDryRun } = await require('enquirer').prompt({
       type: 'confirm',
       name: 'runDryRun',
-      message:
-        '🔍 Would you like to run in dry-run mode (preview changes without making them)?',
+      message: '🔍 Would you like to run in dry-run mode (preview changes without making them)?',
       initial: false,
     });
 
@@ -71,6 +61,7 @@ export default async function generator(
       port: schema.port || 0,
       dry: schema.dry || false,
       installMode: 'default',
+      installationType: schema.installationType || 'global',
       dryRun: isDryRun,
     };
   } else {
@@ -132,9 +123,7 @@ async function installSelectedAddons(
   // Install each selected addon
   for (let i = 0; i < selectedAddons.length; i++) {
     const addon = selectedAddons[i];
-    console.log(
-      `\n[${i + 1}/${selectedAddons.length}] Installing: ${addon.name}`
-    );
+    console.log(`\n[${i + 1}/${selectedAddons.length}] Installing: ${addon.name}`);
     console.log(`   ${addon.description}`);
 
     try {
@@ -185,8 +174,7 @@ async function installSelectedAddons(
           const { projectPath } = await require('enquirer').prompt({
             type: 'input',
             name: 'projectPath',
-            message:
-              '📁 Enter the project path where spec-workflow config should be added:',
+            message: '📁 Enter the project path where spec-workflow config should be added:',
             initial: process.cwd(),
             result: (value: string) => value || process.cwd(),
           });
@@ -194,26 +182,18 @@ async function installSelectedAddons(
           options.projectPath = projectPath;
 
           if (options.dryRun) {
-            console.log(
-              `\n📁 [DRY-RUN] Would set up project configuration at: ${projectPath}`
-            );
+            console.log(`\n📁 [DRY-RUN] Would set up project configuration at: ${projectPath}`);
           }
 
           await installProjectSetup(addon, options);
         } else if (options.dryRun) {
-          console.log(
-            '\n📁 [DRY-RUN] Skipping project configuration (user chose not to set up)'
-          );
+          console.log('\n📁 [DRY-RUN] Skipping project configuration (user chose not to set up)');
         }
       }
 
       results.push({ addon, success: true });
     } catch (error) {
-      console.error(
-        `   ❌ Failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
+      console.error(`   ❌ Failed: ${error instanceof Error ? error.message : String(error)}`);
       results.push({
         addon,
         success: false,
@@ -234,9 +214,7 @@ async function installSelectedAddons(
 
   if (failed.length > 0) {
     console.log(`\n❌ Failed to install: ${failed.length}`);
-    failed.forEach((r) =>
-      console.log(`   • ${r.addon.name} - ${r.error || 'Unknown error'}`)
-    );
+    failed.forEach((r) => console.log(`   • ${r.addon.name} - ${r.error || 'Unknown error'}`));
   }
 
   if (options.dryRun) {
@@ -300,11 +278,7 @@ async function installAllAddons(
       await installMcpAddon(addon, options);
       results.push({ addon, success: true });
     } catch (error) {
-      console.error(
-        `   ❌ Failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
+      console.error(`   ❌ Failed: ${error instanceof Error ? error.message : String(error)}`);
       results.push({
         addon,
         success: false,
@@ -325,9 +299,7 @@ async function installAllAddons(
 
   if (failed.length > 0) {
     console.log(`\n❌ Failed to install: ${failed.length}`);
-    failed.forEach((r) =>
-      console.log(`   • ${r.addon.name} - ${r.error || 'Unknown error'}`)
-    );
+    failed.forEach((r) => console.log(`   • ${r.addon.name} - ${r.error || 'Unknown error'}`));
   }
 
   if (options.dryRun) {
@@ -395,6 +367,7 @@ async function installMcpAddon(
     addon,
     additionalArgs,
     dryRun: options.dryRun,
+    installationType: options.installationType || 'global',
   });
 
   if (!installResult.success) {
@@ -469,9 +442,7 @@ function showGeneralMcpInstructions(installedAddons: any[]): void {
   const hasGithub = installedAddons.some((addon) => addon.id === 'github-mcp');
   const hasPulumi = installedAddons.some((addon) => addon.id === 'pulumi-mcp');
 
-  const hasAws = installedAddons.some(
-    (addon) => addon.id === 'aws-log-analyzer-mcp'
-  );
+  const hasAws = installedAddons.some((addon) => addon.id === 'aws-log-analyzer-mcp');
 
   if (hasSlack || hasGithub || hasAws || hasPulumi) {
     console.log('📋 Specific Authentication Instructions:\n');
@@ -490,19 +461,13 @@ function showGeneralMcpInstructions(installedAddons: any[]): void {
       console.log('🔐 GitHub MCP:');
       console.log('   You can obtain your GitHub Personal Access Token using:');
       console.log('   $ gh auth token');
-      console.log(
-        '   (Requires GitHub CLI to be installed and authenticated)\n'
-      );
+      console.log('   (Requires GitHub CLI to be installed and authenticated)\n');
     }
 
     if (hasAws) {
       console.log('🔐 AWS Log Analyzer MCP:');
-      console.log(
-        '   Requires AWS credentials with CloudWatchLogsReadOnlyAccess'
-      );
-      console.log(
-        '   📖 Documentation: https://github.com/awslabs/Log-Analyzer-with-MCP\n'
-      );
+      console.log('   Requires AWS credentials with CloudWatchLogsReadOnlyAccess');
+      console.log('   📖 Documentation: https://github.com/awslabs/Log-Analyzer-with-MCP\n');
     }
 
     if (hasPulumi) {
@@ -513,9 +478,7 @@ function showGeneralMcpInstructions(installedAddons: any[]): void {
       console.log(
         '   📖 Documentation: https://www.pulumi.com/docs/iac/guides/ai-integration/mcp-server/'
       );
-      console.log(
-        '   Create your PAT at: https://app.pulumi.com/account/tokens\n'
-      );
+      console.log('   Create your PAT at: https://app.pulumi.com/account/tokens\n');
     }
   }
 }

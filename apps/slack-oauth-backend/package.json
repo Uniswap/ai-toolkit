@@ -4,7 +4,7 @@
   "private": true,
   "engines": {
     "node": "22.x",
-    "npm": "11.6.2"
+    "npm": "11.7.0"
   },
   "scripts": {
     "start": "node main.js",

@@ -13,7 +13,7 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 
 ### Release & Deployment (2 workflows)
 
-- `publish-packages.yml` - Unified package publishing workflow (automatic on push to main/next, manual via workflow_dispatch)
+- `publish-packages.yml` - Unified package publishing workflow (automatic on push to main/next, manual via workflow_dispatch). Also detects changes to reusable workflows and syncs them to the `next` branch with Slack notifications.
 - `release-update-production.yml` - Creates production sync PRs with AI changelogs
 
 ### Code Review & PR Management (3 workflows)
@@ -70,13 +70,16 @@ This workflow performs automated PR code reviews using Claude AI with the follow
 - Formal GitHub reviews (APPROVE/REQUEST_CHANGES/COMMENT)
 - Inline comments on specific lines of code (as `github-actions[bot]`)
 - **Real-time status updates**: Shows "review in progress" immediately when workflow starts
+- **Accurate diff calculation**: Uses the merge base (common ancestor) to compute diffs, matching exactly what GitHub shows in the PR view even when the base branch has moved forward
 - Patch-ID based caching to skip rebases (no actual code changes)
 - **Comment trigger**: Add `@request-claude-review` to any PR comment to force a fresh review
 - Manual trigger via workflow_dispatch to force a new review (bypasses cache)
-- Custom prompt support
+- **Modular prompt architecture**: Prompts assembled from section files using `build-prompt.ts` (with unit tests)
 - Existing review comment context for re-reviews
 - Fast review mode for trivial PRs (< 20 lines)
+- **Lockfile exclusion**: Auto-generated lockfiles are excluded from the diff (package-lock.json, yarn.lock, bun.lock, pnpm-lock.yaml, Podfile.lock, etc.)
 - **Built-in Verdict Decision Rules** - Ensures consistent, predictable review verdicts
+- **Debug artifacts**: Uploads PR diff files and final assembled prompt as GitHub Actions artifacts for debugging
 
 **Verdict Decision Rules:**
 
@@ -94,12 +97,17 @@ This logic is built into the workflow's system prompt, so all consumers get cons
 
 **Architecture:**
 
-This workflow uses a hybrid approach:
+This workflow uses a hybrid approach with testable TypeScript components:
 
-1. Claude analyzes the PR and outputs structured JSON
-2. A TypeScript script (`post-review.ts`) parses the JSON and posts the review via `gh` CLI
+1. A TypeScript script (`build-prompt.ts`) assembles the prompt from modular section files
+2. Claude analyzes the PR and outputs structured JSON
+3. A TypeScript script (`post-review.ts`) parses the JSON and posts the review via `gh` CLI
 
-This ensures all comments appear as `github-actions[bot]` using the official Anthropic action without needing a fork.
+This architecture ensures:
+
+- All comments appear as `github-actions[bot]` using the official Anthropic action
+- Prompt building logic is testable (see `.github/scripts/build-prompt.spec.ts`)
+- External repos can use the workflow by downloading scripts from ai-toolkit
 
 **Real-Time Status Updates:**
 
@@ -113,11 +121,29 @@ The workflow provides immediate feedback to PR authors:
 
 This eliminates the "is it running?" uncertainty by posting a status comment as the very first action in the workflow, before any analysis begins. The same comment is then updated with the final review or skipped status.
 
+**Debug Artifacts:**
+
+The workflow uploads several artifacts for debugging and inspection (retained for 7 days):
+
+| Artifact Name                   | Contents                                                                   |
+| ------------------------------- | -------------------------------------------------------------------------- |
+| `pr-diff-files-pr{N}`           | Changed files list (`changed-files.txt`) and PR diff (`pr-diff.txt`)       |
+| `final-prompt-pr{N}`            | The fully assembled prompt sent to Claude (`final-prompt.txt`)             |
+| `claude-execution-output-pr{N}` | Raw Claude execution output JSON                                           |
+| `post-review-debug-pr{N}`       | JSON payloads sent to GitHub API by post-review script (`gh-input-*.json`) |
+
+These artifacts are available in the workflow run's "Artifacts" section and are useful for:
+
+- Debugging prompt assembly issues
+- Verifying which files were included in the diff
+- Inspecting Claude's raw output when reviews behave unexpectedly
+- Debugging GitHub API call failures (inspect the exact JSON payloads sent)
+
 **Required Secrets:**
 
-| Secret              | Required | Description                                                                                                              |
-| ------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `ANTHROPIC_API_KEY` | Yes      | Anthropic API key for Claude access                                                                                      |
+| Secret              | Required | Description                                                                                                                       |
+| ------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY` | Yes      | Anthropic API key for Claude access                                                                                               |
 | `WORKFLOW_PAT`      | Optional | Personal Access Token with `repo` scope. Only needed for resolving review threads via GraphQL API (falls back to `GITHUB_TOKEN`). |
 
 > **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
@@ -126,18 +152,83 @@ This eliminates the "is it running?" uncertainty by posting a status comment as 
 
 **Configuration Inputs:**
 
-| Input                | Required | Default                            | Description                                                                                                                    |
-| -------------------- | -------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `pr_number`          | Yes      | -                                  | Pull request number to review                                                                                                  |
-| `base_ref`           | Yes      | -                                  | Base branch name (e.g., main, master)                                                                                          |
-| `force_review`       | No       | `false`                            | Force a full review even if the code hasn't changed (bypasses patch-ID cache)                                                  |
-| `model`              | No       | `claude-sonnet-4-5-20250929`       | Claude model to use for review                                                                                                 |
-| `max_turns`          | No       | unlimited                          | Maximum conversation turns for Claude                                                                                          |
-| `custom_prompt`      | No       | `""`                               | Custom prompt text (overrides prompt file and default)                                                                         |
-| `custom_prompt_path` | No       | `.claude/prompts/claude-pr-bot.md` | Path to custom prompt file in repository                                                                                       |
-| `timeout_minutes`    | No       | `30`                               | Job timeout in minutes                                                                                                         |
-| `allowed_tools`      | No       | `""`                               | Comma-separated list of allowed tools for Claude                                                                               |
-| `toolkit_ref`        | No       | `main`                             | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
+| Input                                 | Required | Default                      | Description                                                                                                                    |
+| ------------------------------------- | -------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `pr_number`                           | Yes      | -                            | Pull request number to review                                                                                                  |
+| `base_ref`                            | No       | -                            | Base branch name (e.g., main, master). If not provided, fetched via GitHub API.                                                |
+| `force_review`                        | No       | `false`                      | Force a full review even if the code hasn't changed (bypasses patch-ID cache)                                                  |
+| `model`                               | No       | `claude-sonnet-4-5-20250929` | Claude model to use for review                                                                                                 |
+| `max_turns`                           | No       | unlimited                    | Maximum conversation turns for Claude                                                                                          |
+| `prompt_override_files_to_skip`       | No       | `""`                         | Path to markdown file overriding "Files to Skip" section                                                                       |
+| `prompt_override_review_priorities`   | No       | `""`                         | Path to markdown file overriding "Review Priorities" section                                                                   |
+| `prompt_override_communication_style` | No       | `""`                         | Path to markdown file overriding "Communication Style" section                                                                 |
+| `prompt_override_pattern_recognition` | No       | `""`                         | Path to markdown file overriding "Pattern Recognition" section                                                                 |
+| `timeout_minutes`                     | No       | `30`                         | Job timeout in minutes                                                                                                         |
+| `max_diff_lines`                      | No       | `2000`                       | Maximum diff lines before skipping Claude review (PR considered too large)                                                     |
+| `allowed_tools`                       | No       | `""`                         | Comma-separated list of allowed tools for Claude                                                                               |
+| `toolkit_ref`                         | No       | `main`                       | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
+
+**Section Overrides (Granular Prompt Customization):**
+
+The PR review prompt is assembled from modular section files in `.github/prompts/pr-review/`. You can selectively override specific sections using `prompt_override_*` inputs. Each input points to a markdown file in your repository containing the replacement content.
+
+| Input                                 | Section File Replaced                  | Default Behavior                                      |
+| ------------------------------------- | -------------------------------------- | ----------------------------------------------------- |
+| `prompt_override_files_to_skip`       | `overridable/5-files-to-skip.md`       | Lockfiles, snapshots, build artifacts, generated code |
+| `prompt_override_review_priorities`   | `overridable/4-review-priorities.md`   | Critical (bugs/security) → Maintainability → Style    |
+| `prompt_override_communication_style` | `overridable/6-communication-style.md` | Direct, specific, with code examples                  |
+| `prompt_override_pattern_recognition` | `overridable/7-pattern-recognition.md` | Common antipatterns, dependency injection patterns    |
+
+**Section Override Example:**
+
+Create markdown files in your repository:
+
+`.claude/prompts/review-files-to-skip.md`:
+
+```markdown
+## Files to Skip
+
+**Project-specific exclusions:**
+
+- `*.generated.ts` - Auto-generated TypeScript
+- `**/migrations/**` - Database migrations
+- `src/contracts/abis/*.json` - Contract ABIs
+```
+
+`.claude/prompts/review-priorities.md`:
+
+```markdown
+## Review Priorities
+
+### Critical (Security Focus)
+
+- Smart contract interactions
+- Token approval patterns
+- Reentrancy vulnerabilities
+
+### Standard
+
+- Business logic correctness
+- Error handling
+```
+
+Then reference them in your workflow:
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  prompt_override_files_to_skip: '.claude/prompts/review-files-to-skip.md'
+  prompt_override_review_priorities: '.claude/prompts/review-priorities.md'
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+```
+
+**Notes:**
+
+- Override files must exist in the repository; missing files will cause an error
+- Each override file should contain properly formatted markdown for that section
 
 **Usage example:**
 
@@ -150,15 +241,8 @@ with:
   toolkit_ref: 'main' # or 'next' to test unreleased changes
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
 ```
-
-**Prompt Configuration Options:**
-
-The workflow determines which prompt to use in this priority order:
-
-1. **`custom_prompt` input**: Explicit prompt text passed directly to the workflow
-2. **`custom_prompt_path` input**: Path to a prompt file in the calling repository (default: `.claude/prompts/claude-pr-bot.md`)
-3. **Default prompt from ai-toolkit**: Fetched from `Uniswap/ai-toolkit` repository (public, no authentication required)
 
 **Testing Unreleased Changes:**
 
@@ -255,8 +339,8 @@ This allows users to add custom notes, disclaimers, or additional context that s
 ```markdown
 > **Note:** This PR requires manual QA testing before merge.
 
-<!-- claude-pr-description-start -->
----
+## <!-- claude-pr-description-start -->
+
 ## :sparkles: Claude-Generated Content
 
 ## Summary
@@ -516,6 +600,7 @@ These workflows are prefixed with two `__` and are only used within this reposit
     - **Force mode** (manual workflow_dispatch): Publishes user-specified packages with prerelease versioning, useful for new packages or failed releases
   - Handles atomic versioning, npm publish with OIDC, git commit/tag push, and GitHub release creation
   - **Lockfile sync**: Automatically updates `package-lock.json` when package versions are bumped to keep workspace dependencies in sync
+  - **Workflow change detection**: Detects changes to reusable workflows (files prefixed with `_` in `.github/workflows/`). When workflow files change, the `next` branch is synced and Slack notifications are sent, even if no packages need publishing.
 
 ### Consumer Workflows
 
@@ -559,7 +644,7 @@ Version pinning is centralized using GitHub repository variables (`vars.*`):
 | Variable       | Value     | Purpose                                    |
 | -------------- | --------- | ------------------------------------------ |
 | `NODE_VERSION` | `22.21.1` | Node.js version for all workflows          |
-| `NPM_VERSION`  | `11.6.2`  | npm version (required for OIDC publishing) |
+| `NPM_VERSION`  | `11.7.0`  | npm version (required for OIDC publishing) |
 
 **Usage in workflows:**
 
@@ -661,25 +746,29 @@ The publishing functionality is consolidated into a single unified workflow due 
 │                                                                   │
 │  1. detect                                                        │
 │     ├── Auto: Detect affected packages via Nx                    │
+│     ├── Auto: Detect reusable workflow changes (_*.yml files)    │
 │     └── Force: Resolve user-specified packages                   │
 │                                                                   │
-│  2. publish                                                       │
+│  2. publish (if packages detected)                               │
 │     ├── Build packages                                           │
 │     ├── Version (smart stable or smart prerelease)               │
 │     ├── Publish to npm (OIDC authentication)                     │
 │     ├── Push commits + tags                                      │
 │     └── Create GitHub releases                                   │
 │                                                                   │
-│  3. generate-changelog (Auto mode only)                          │
+│  3. generate-changelog (Auto mode, if packages published)        │
 │     └── AI-generated release notes                               │
 │                                                                   │
-│  4. notify-release (Auto mode only)                              │
-│     └── Slack notifications                                      │
+│  4. notify-release (Auto mode, if packages published)            │
+│     └── Slack notifications for package releases                 │
 │                                                                   │
-│  5. sync-next (Auto mode, main branch only)                      │
-│     └── Sync main → next branch                                  │
+│  5. sync-next (Auto mode, main branch, after publish completes)  │
+│     └── Sync main → next branch (packages OR workflows)          │
 │                                                                   │
-│  6. summary (Force mode only)                                    │
+│  6. notify-workflow-changes (Auto mode, after sync-next)         │
+│     └── Slack notifications for workflow-only updates            │
+│                                                                   │
+│  7. summary (Force mode only)                                    │
 │     └── Publish summary                                          │
 │                                                                   │
 └───────────────────────────────────────────────────────────────────┘

@@ -93,7 +93,25 @@
       "type": "string",
       "description": "Installation mode from parent generator (default or custom)",
       "enum": ["default", "custom"],
-      "hidden": true
+      "hidden": true,
+      "x-skip-prompt": true
+    },
+    "installationType": {
+      "type": "string",
+      "description": "Installation location for MCP servers",
+      "enum": ["global", "local"],
+      "prompt-message": "📍 Where should MCP servers be installed?",
+      "prompt-type": "list",
+      "prompt-items": [
+        {
+          "value": "global",
+          "label": "Global (~/.claude) - Available in all projects"
+        },
+        {
+          "value": "local",
+          "label": "Local (./.claude) - Project-specific configuration"
+        }
+      ]
     }
   },
   "required": []

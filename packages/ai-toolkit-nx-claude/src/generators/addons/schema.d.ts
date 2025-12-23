@@ -32,4 +32,6 @@ export interface AddonsGeneratorSchema {
   dry?: boolean;
   /** Installation mode from parent generator (default or custom) */
   installMode?: 'default' | 'custom';
+  /** Installation location for MCP servers */
+  installationType?: 'global' | 'local';
 }

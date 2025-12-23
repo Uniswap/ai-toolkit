@@ -75,23 +75,17 @@ on:
         required: false
         type: number
 
-      custom_prompt:
-        description: "Custom prompt text (overrides prompt file and default)."
-        required: false
-        type: string
-        default: ""
-
-      custom_prompt_path:
-        description: "Path to custom prompt file in repository (e.g., .claude/prompts/claude-pr-bot.md)"
-        required: false
-        type: string
-        default: ".claude/prompts/claude-pr-bot.md"
-
       timeout_minutes:
         description: "Job timeout in minutes"
         required: false
         type: number
         default: 30
+
+      max_diff_lines:
+        description: "Maximum diff lines before skipping Claude review (PR considered too large). Default: 2000"
+        required: false
+        type: number
+        default: 2000
 
       allowed_tools:
         description: 'Comma-separated list of allowed tools for Claude (e.g., "Read,Grep,Glob"). Leave empty for default read-only set.'
@@ -105,6 +99,86 @@ on:
         type: string
         default: "main"
 
+      prompt_override_files_to_skip:
+        description: |
+          Path to a markdown file in the repository that overrides the "Files to Skip" section.
+          Example: https://github.com/Uniswap/ai-toolkit/blob/next/.github/prompts/pr-review/overridable/5-files-to-skip.md
+        required: false
+        type: string
+        default: ""
+
+      prompt_override_review_priorities:
+        description: |
+          Path to a markdown file in the repository that overrides the "Review Priorities" section.
+          Example: https://github.com/Uniswap/ai-toolkit/blob/next/.github/prompts/pr-review/overridable/4-review-priorities.md
+        required: false
+        type: string
+        default: ""
+
+      prompt_override_communication_style:
+        description: |
+          Path to a markdown file in the repository that overrides the "Communication Style" section.
+          Example: https://github.com/Uniswap/ai-toolkit/blob/next/.github/prompts/pr-review/overridable/6-communication-style.md
+        required: false
+        type: string
+        default: ""
+
+      prompt_override_pattern_recognition:
+        description: |
+          Path to a markdown file in the repository that overrides the "Pattern Recognition" section.
+          Example: https://github.com/Uniswap/ai-toolkit/blob/next/.github/prompts/pr-review/overridable/7-pattern-recognition.md
+        required: false
+        type: string
+        default: ""
+
+      prompt_override_initial_review_process:
+        description: |
+          Path to a markdown file in the repository that overrides the "Initial Review Process" section.
+          Example: https://github.com/Uniswap/ai-toolkit/blob/next/.github/prompts/pr-review/overridable/8-initial-review-process.md
+        required: false
+        type: string
+        default: ""
+
+      prompt_override_avoid_patterns:
+        description: |
+          Path to a markdown file in the repository that overrides the "Avoid Patterns" section.
+          Example: https://github.com/Uniswap/ai-toolkit/blob/next/.github/prompts/pr-review/overridable/9-avoid-patterns.md
+        required: false
+        type: string
+        default: ""
+
+      prompt_override_verdict_approve:
+        description: |
+          Path to a markdown file in the repository that overrides the "Verdict: APPROVE" section.
+          Example: https://github.com/Uniswap/ai-toolkit/blob/next/.github/prompts/pr-review/overridable/10-verdict-approve.md
+        required: false
+        type: string
+        default: ""
+
+      prompt_override_verdict_request_changes:
+        description: |
+          Path to a markdown file in the repository that overrides the "Verdict: REQUEST_CHANGES" section.
+          Example: https://github.com/Uniswap/ai-toolkit/blob/next/.github/prompts/pr-review/overridable/11-verdict-request-changes.md
+        required: false
+        type: string
+        default: ""
+
+      prompt_override_verdict_comment:
+        description: |
+          Path to a markdown file in the repository that overrides the "Verdict: COMMENT" section.
+          Example: https://github.com/Uniswap/ai-toolkit/blob/next/.github/prompts/pr-review/overridable/12-verdict-comment.md
+        required: false
+        type: string
+        default: ""
+
+      prompt_override_re_review_process:
+        description: |
+          Path to a markdown file in the repository that overrides the "Re-Review Process" section (for re-reviews).
+          Example: https://github.com/Uniswap/ai-toolkit/blob/next/.github/prompts/pr-review/overridable/16-re-review-process.md
+        required: false
+        type: string
+        default: ""
+
     secrets:
       ANTHROPIC_API_KEY:
         description: "Anthropic API key for Claude access"
@@ -117,7 +191,8 @@ jobs:
   claude-review:
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout_minutes }}
-
+    env:
+      MAX_CLAUDE_DIFF_LINES: ${{ inputs.max_diff_lines }} # any PR with a `git diff` larger than this will be considered too large for Claude review
     # Fixed permissions (cannot be overridden by calling workflow)
     permissions:
       id-token: write # Required for OIDC
@@ -163,6 +238,26 @@ jobs:
           fi
           echo "base_ref=$BASE_REF" >> $GITHUB_OUTPUT
 
+          # Calculate merge base - the common ancestor commit where the PR branch
+          # diverged from the base branch. This matches what GitHub shows in the
+          # PR diff view, which is more accurate than using base.sha (the current
+          # HEAD of the base branch) when the base branch has moved forward.
+          echo "📍 Calculating merge base..."
+          COMPARE_DATA=$(gh api "repos/${{ github.repository }}/compare/${BASE_REF}...${HEAD_SHA}")
+          MERGE_BASE_SHA=$(echo "$COMPARE_DATA" | jq -r '.merge_base_commit.sha')
+          echo "merge_base_sha=$MERGE_BASE_SHA" >> $GITHUB_OUTPUT
+          echo "📍 Merge base SHA: $MERGE_BASE_SHA"
+
+          # Also output base_sha for reference (current HEAD of base branch)
+          BASE_SHA=$(echo "$PR_DATA" | jq -r '.base.sha')
+          echo "base_sha=$BASE_SHA" >> $GITHUB_OUTPUT
+          echo "📍 Base branch HEAD: $BASE_SHA"
+
+          if [ "$MERGE_BASE_SHA" != "$BASE_SHA" ]; then
+            echo "ℹ️  Note: Base branch has moved forward since PR was created"
+            echo "   Using merge base for accurate diff calculation"
+          fi
+
       # Checkout the exact PR head commit (not GitHub's merge commit)
       - name: Checkout Repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -194,9 +289,11 @@ jobs:
             echo "ℹ️  Running from external repository - downloading post-review.ts from Uniswap/ai-toolkit"
             echo "ℹ️  Using toolkit ref: $TOOLKIT_REF"
 
-            # Download the script from ai-toolkit repository (public repo, no auth needed)
+            # Download the script from ai-toolkit repository
+            # Note: Authentication required to avoid GitHub API rate limits on shared runner IPs
             if ! curl -fSs \
                       -H "Accept: application/vnd.github.v4.raw" \
+                      -H "Authorization: Bearer $GITHUB_TOKEN" \
                       -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/scripts/post-review.ts?ref=${TOOLKIT_REF}" \
                       -o /tmp/post-review.ts 2>&1 | tee /tmp/curl-error.log; then
               echo "❌ Failed to download post-review.ts from Uniswap/ai-toolkit@${TOOLKIT_REF}"
@@ -214,20 +311,21 @@ jobs:
       - name: Calculate Patch ID
         id: patch-id
         env:
-          BASE_REF: ${{ steps.pr-info.outputs.base_ref }}
+          # Use merge base SHA - the common ancestor where PR branch diverged
+          # This matches what GitHub shows in the PR diff view
+          MERGE_BASE_SHA: ${{ steps.pr-info.outputs.merge_base_sha }}
         run: |
-          # Find where the PR branch diverged from the base branch
-          # HEAD is the PR head commit (checked out via pr-info step)
-          MERGE_BASE=$(git merge-base origin/$BASE_REF HEAD)
-          echo "merge_base=$MERGE_BASE" >> $GITHUB_OUTPUT
+          # Use the merge base SHA calculated from the compare API
+          # This ensures we compare against exactly what GitHub shows in the PR diff
+          echo "merge_base_sha=$MERGE_BASE_SHA" >> $GITHUB_OUTPUT
+          echo "📍 Merge base SHA: $MERGE_BASE_SHA"
 
           # Calculate stable patch-ID (same code = same ID, even after rebase)
-          # This diff contains ONLY the PR's changes, not other commits merged to base
-          PATCH_ID=$(git diff ${MERGE_BASE}..HEAD | git patch-id --stable | cut -d' ' -f1)
+          # This diff contains ONLY the PR's changes compared to the merge base
+          PATCH_ID=$(git diff ${MERGE_BASE_SHA}..HEAD | git patch-id --stable | cut -d' ' -f1)
 
           echo "patch_id=$PATCH_ID" >> $GITHUB_OUTPUT
           echo "📊 Patch-ID: ${PATCH_ID:0:12}... (first 12 chars)"
-          echo "📍 Merge base: $MERGE_BASE"
           echo "   This ID stays the same across rebases if code hasn't changed"
 
       # Check cache BEFORE posting in-progress to preserve existing review
@@ -238,7 +336,9 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .review-cache
-          key: review-pr${{ inputs.pr_number }}-patch-${{ steps.patch-id.outputs.patch_id }}
+          # Include merge_base_sha in cache key to invalidate when the merge base changes
+          # (e.g., when a stacked PR's parent is merged and it rebases to main)
+          key: review-pr${{ inputs.pr_number }}-base-${{ steps.patch-id.outputs.merge_base_sha }}-patch-${{ steps.patch-id.outputs.patch_id }}
           lookup-only: true # Just check, don't restore
 
       # Early exit if we've already reviewed this code (rebase detected)
@@ -290,13 +390,13 @@ jobs:
         id: pr-size
         if: steps.cache-check.outputs.cache-hit != 'true'
         env:
-          MERGE_BASE: ${{ steps.patch-id.outputs.merge_base }}
+          MERGE_BASE_SHA: ${{ steps.patch-id.outputs.merge_base_sha }}
         run: |
-          # Reuse merge base from patch-id step (already calculated)
-          echo "📍 Using merge base from patch-id step: $MERGE_BASE"
+          # Reuse merge base SHA from patch-id step
+          echo "📍 Using merge base SHA: $MERGE_BASE_SHA"
 
           # Count lines changed (additions + deletions)
-          STATS=$(git diff --shortstat ${MERGE_BASE}..HEAD)
+          STATS=$(git diff --shortstat ${MERGE_BASE_SHA}..HEAD)
 
           # Extract insertions and deletions, default to 0 if not present
           INSERTIONS=$(echo "$STATS" | grep -oP '\d+(?= insertion)' || echo "0")
@@ -376,24 +476,37 @@ jobs:
         if: steps.cache-check.outputs.cache-hit != 'true'
         id: pr-diff
         env:
-          MERGE_BASE: ${{ steps.patch-id.outputs.merge_base }}
+          MERGE_BASE_SHA: ${{ steps.patch-id.outputs.merge_base_sha }}
         run: |
           set -euo pipefail
 
           echo "ℹ️  Generating PR diff..."
 
-          # Reuse merge base from patch-id step (already calculated)
-          # This ensures consistency across all steps using the merge base
-          echo "📍 Using merge base from patch-id step: $MERGE_BASE"
+          # Reuse merge base SHA from patch-id step (calculated via compare API)
+          # This ensures we compare against exactly what GitHub shows in the PR diff view
+          echo "📍 Using merge base SHA: $MERGE_BASE_SHA"
 
-          # Generate the list of changed files (for reference)
-          CHANGED_FILES=$(git diff --name-only ${MERGE_BASE}..HEAD)
+          # Define lockfile pattern for grep filtering
+          # Note: We use grep -v instead of git pathspec exclusions because pathspec
+          # exclusions have inconsistent behavior across different shell environments.
+          # The grep approach is more portable and reliable.
+          LOCKFILE_PATTERN='(^|/)(package-lock\.json|bun\.lock[b]?|yarn\.lock|pnpm-lock\.yaml|Podfile\.lock|composer\.lock|Gemfile\.lock|Cargo\.lock|poetry\.lock|go\.sum)$'
+
+          # Generate the list of changed files (excluding lockfiles)
+          ALL_CHANGED_FILES=$(git diff --name-only ${MERGE_BASE_SHA}..HEAD)
+          CHANGED_FILES=$(echo "$ALL_CHANGED_FILES" | grep -vE "$LOCKFILE_PATTERN" || true)
           FILE_COUNT=$(echo "$CHANGED_FILES" | grep -c . || echo "0")
-          echo "📁 Files changed: $FILE_COUNT"
+          echo "📁 Files changed (excluding lockfiles): $FILE_COUNT"
 
-          # Generate the full diff
+          # Generate the full diff (excluding lockfiles)
           # This is the ONLY diff Claude should review - it contains exactly the PR's changes
-          git diff ${MERGE_BASE}..HEAD > /tmp/pr-diff.txt
+          # Pass the filtered file list to git diff to generate diff for only those files
+          if [ -n "$CHANGED_FILES" ]; then
+            echo "$CHANGED_FILES" | tr '\n' '\0' | xargs -0 git diff ${MERGE_BASE_SHA}..HEAD -- > /tmp/pr-diff.txt
+          else
+            # No non-lockfile changes - create empty diff
+            touch /tmp/pr-diff.txt
+          fi
 
           DIFF_SIZE=$(wc -c < /tmp/pr-diff.txt)
           echo "📊 Diff size: $DIFF_SIZE bytes"
@@ -403,231 +516,348 @@ jobs:
 
           echo "✅ PR diff generated successfully"
 
-      # Build final prompt with custom content
-      - name: Build Review Prompt
+      # Upload diff files as artifacts for debugging and inspection
+      - name: Upload PR Diff Artifacts
         if: steps.cache-check.outputs.cache-hit != 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: pr-diff-files-pr${{ inputs.pr_number }}
+          path: |
+            /tmp/changed-files.txt
+            /tmp/pr-diff.txt
+          retention-days: 7
+          if-no-files-found: warn
+
+      # Check if PR diff is too large for Claude review
+      - name: Check PR Diff Size
+        id: diff-size
+        if: steps.cache-check.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+
+          # Count lines in the diff
+          DIFF_LINES=$(wc -l < /tmp/pr-diff.txt)
+          echo "📊 Diff line count: $DIFF_LINES"
+
+          # Check if diff is too large for Claude review
+          if [ "$DIFF_LINES" -gt "$MAX_CLAUDE_DIFF_LINES" ]; then
+            echo "is_too_large=true" >> $GITHUB_OUTPUT
+            echo "⚠️  PR diff is too large for Claude review (> $MAX_CLAUDE_DIFF_LINES lines)"
+          else
+            echo "is_too_large=false" >> $GITHUB_OUTPUT
+            echo "✅ PR diff size is acceptable for Claude review"
+          fi
+
+          echo "line_count=$DIFF_LINES" >> $GITHUB_OUTPUT
+
+      # Post "PR too large" message and exit if diff exceeds threshold
+      - name: Post PR Too Large Message
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          POST_REVIEW_SCRIPT: ${{ steps.setup-script-early.outputs.script_path }}
+          DIFF_LINE_COUNT: ${{ steps.diff-size.outputs.line_count }}
+        run: |
+          set -euo pipefail
+
+          echo "ℹ️  Posting 'PR too large' message..."
+
+          # Parse owner and repo
+          REPO_OWNER=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)
+          REPO_NAME=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
+
+          # Post message that PR is too large for Claude review
+          npx tsx "$POST_REVIEW_SCRIPT" \
+            --mode too-large \
+            --owner "$REPO_OWNER" \
+            --repo "$REPO_NAME" \
+            --pr-number "$PR_NUMBER" \
+            --line-count "$DIFF_LINE_COUNT" \
+            --max-diff-lines "$MAX_CLAUDE_DIFF_LINES"
+
+          echo "✅ 'PR too large' message posted"
+          echo "⏭️  Skipping Claude review due to large diff size"
+          exit 0
+
+      # Download or use local build-prompt script
+      - name: Setup Build Prompt Script
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
+        id: setup-build-prompt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
+        run: |
+          set -euo pipefail
+
+          if [ "$GITHUB_REPOSITORY" = "Uniswap/ai-toolkit" ]; then
+            echo "ℹ️  Running from ai-toolkit - using local build-prompt.ts"
+            echo "script_path=.github/scripts/build-prompt.ts" >> $GITHUB_OUTPUT
+          else
+            echo "ℹ️  Running from external repository - downloading build-prompt.ts"
+            if ! curl -fSs \
+                      -H "Accept: application/vnd.github.v4.raw" \
+                      -H "Authorization: Bearer $GITHUB_TOKEN" \
+                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/scripts/build-prompt.ts?ref=${TOOLKIT_REF}" \
+                      -o /tmp/build-prompt.ts 2>&1 | tee /tmp/curl-error.log; then
+              echo "❌ Failed to download build-prompt.ts"
+              cat /tmp/curl-error.log | head -5
+              exit 1
+            fi
+            echo "✅ Downloaded build-prompt.ts"
+            echo "script_path=/tmp/build-prompt.ts" >> $GITHUB_OUTPUT
+          fi
+
+      # Fetch prompt section files for external repos
+      - name: Fetch Prompt Section Files
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
+        run: |
+          set -euo pipefail
+
+          PROMPT_DIR="/tmp/pr-review-prompts"
+          mkdir -p "$PROMPT_DIR/fixed" "$PROMPT_DIR/overridable"
+
+          # If running from ai-toolkit, just copy local files
+          if [ "$GITHUB_REPOSITORY" = "Uniswap/ai-toolkit" ]; then
+            echo "ℹ️  Using local prompt section files"
+            cp -r .github/prompts/pr-review/fixed/* "$PROMPT_DIR/fixed/" 2>/dev/null || true
+            cp -r .github/prompts/pr-review/overridable/* "$PROMPT_DIR/overridable/" 2>/dev/null || true
+          else
+            echo "ℹ️  Downloading prompt section files from ai-toolkit..."
+
+            # Define all section files to download
+            # Section numbering: 1-3 (fixed early), 4-12 (overridable), 13-15 (fixed late),
+            # 16-18 (conditional), 19 (fixed final)
+            FIXED_SECTIONS=(
+              "1-review-context.md"
+              "2-diff-instructions.md"
+              "3-repository-context.md"
+              "13-inline-comment-rules.md"
+              "14-important-notes.md"
+              "15-comment-examples.md"
+              "17-existing-comments.md"
+              "18-fast-review-mode.md"
+              "19-output-guidance.md"
+            )
+
+            OVERRIDABLE_SECTIONS=(
+              "4-review-priorities.md"
+              "5-files-to-skip.md"
+              "6-communication-style.md"
+              "7-pattern-recognition.md"
+              "8-initial-review-process.md"
+              "9-avoid-patterns.md"
+              "10-verdict-approve.md"
+              "11-verdict-request-changes.md"
+              "12-verdict-comment.md"
+              "16-re-review-process.md"
+            )
+
+            # Download fixed sections
+            for section in "${FIXED_SECTIONS[@]}"; do
+              curl -fSs \
+                -H "Accept: application/vnd.github.v4.raw" \
+                -H "Authorization: Bearer $GITHUB_TOKEN" \
+                -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/prompts/pr-review/fixed/${section}?ref=${TOOLKIT_REF}" \
+                -o "$PROMPT_DIR/fixed/${section}" 2>/dev/null || echo "::warning::Failed to fetch fixed/${section}"
+            done
+
+            # Download overridable sections
+            for section in "${OVERRIDABLE_SECTIONS[@]}"; do
+              curl -fSs \
+                -H "Accept: application/vnd.github.v4.raw" \
+                -H "Authorization: Bearer $GITHUB_TOKEN" \
+                -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/prompts/pr-review/overridable/${section}?ref=${TOOLKIT_REF}" \
+                -o "$PROMPT_DIR/overridable/${section}" 2>/dev/null || echo "::warning::Failed to fetch overridable/${section}"
+            done
+          fi
+
+          echo "✅ Prompt section files ready"
+          ls -la "$PROMPT_DIR/fixed/" | head -5
+          ls -la "$PROMPT_DIR/overridable/" | head -5
+
+      # Validate override paths for security (prevent path traversal)
+      - name: Validate Override Paths
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
+        env:
+          OVERRIDE_FILES_TO_SKIP: ${{ inputs.prompt_override_files_to_skip }}
+          OVERRIDE_REVIEW_PRIORITIES: ${{ inputs.prompt_override_review_priorities }}
+          OVERRIDE_COMMUNICATION_STYLE: ${{ inputs.prompt_override_communication_style }}
+          OVERRIDE_PATTERN_RECOGNITION: ${{ inputs.prompt_override_pattern_recognition }}
+          OVERRIDE_INITIAL_REVIEW_PROCESS: ${{ inputs.prompt_override_initial_review_process }}
+          OVERRIDE_AVOID_PATTERNS: ${{ inputs.prompt_override_avoid_patterns }}
+          OVERRIDE_VERDICT_APPROVE: ${{ inputs.prompt_override_verdict_approve }}
+          OVERRIDE_VERDICT_REQUEST_CHANGES: ${{ inputs.prompt_override_verdict_request_changes }}
+          OVERRIDE_VERDICT_COMMENT: ${{ inputs.prompt_override_verdict_comment }}
+          OVERRIDE_RE_REVIEW_PROCESS: ${{ inputs.prompt_override_re_review_process }}
+        run: |
+          set -euo pipefail
+
+          echo "🔒 Validating override paths for security..."
+
+          validate_path() {
+            local path="$1"
+            local name="$2"
+
+            # Empty path is OK (no override)
+            if [ -z "$path" ]; then
+              return 0
+            fi
+
+            # Reject absolute paths
+            if [[ "$path" == /* ]]; then
+              echo "❌ ERROR: Absolute paths not allowed for $name: $path"
+              return 1
+            fi
+
+            # Reject path traversal attempts
+            if [[ "$path" == *../* ]] || [[ "$path" == ../* ]] || [[ "$path" == */../* ]]; then
+              echo "❌ ERROR: Path traversal not allowed for $name: $path"
+              return 1
+            fi
+
+            # Verify file exists in repository
+            if [ ! -f "$path" ]; then
+              echo "⚠️  WARNING: Override file not found for $name: $path (will use default)"
+            else
+              echo "✅ Valid override for $name: $path"
+            fi
+
+            return 0
+          }
+
+          # Validate all override paths
+          validation_failed=false
+
+          if ! validate_path "$OVERRIDE_FILES_TO_SKIP" "files_to_skip"; then
+            validation_failed=true
+          fi
+
+          if ! validate_path "$OVERRIDE_REVIEW_PRIORITIES" "review_priorities"; then
+            validation_failed=true
+          fi
+
+          if ! validate_path "$OVERRIDE_COMMUNICATION_STYLE" "communication_style"; then
+            validation_failed=true
+          fi
+
+          if ! validate_path "$OVERRIDE_PATTERN_RECOGNITION" "pattern_recognition"; then
+            validation_failed=true
+          fi
+
+          if ! validate_path "$OVERRIDE_INITIAL_REVIEW_PROCESS" "initial_review_process"; then
+            validation_failed=true
+          fi
+
+          if ! validate_path "$OVERRIDE_AVOID_PATTERNS" "avoid_patterns"; then
+            validation_failed=true
+          fi
+
+          if ! validate_path "$OVERRIDE_VERDICT_APPROVE" "verdict_approve"; then
+            validation_failed=true
+          fi
+
+          if ! validate_path "$OVERRIDE_VERDICT_REQUEST_CHANGES" "verdict_request_changes"; then
+            validation_failed=true
+          fi
+
+          if ! validate_path "$OVERRIDE_VERDICT_COMMENT" "verdict_comment"; then
+            validation_failed=true
+          fi
+
+          if ! validate_path "$OVERRIDE_RE_REVIEW_PROCESS" "re_review_process"; then
+            validation_failed=true
+          fi
+
+          if [ "$validation_failed" = true ]; then
+            echo ""
+            echo "❌ Override path validation failed - aborting for security"
+            exit 1
+          fi
+
+          echo "✅ All override paths validated"
+
+      # Build final prompt using TypeScript script
+      - name: Build Review Prompt
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
         id: build-prompt
         env:
-          CUSTOM_PROMPT_INPUT: ${{ inputs.custom_prompt }}
-          CUSTOM_PROMPT_PATH: ${{ inputs.custom_prompt_path }}
+          OVERRIDE_FILES_TO_SKIP: ${{ inputs.prompt_override_files_to_skip }}
+          OVERRIDE_REVIEW_PRIORITIES: ${{ inputs.prompt_override_review_priorities }}
+          OVERRIDE_COMMUNICATION_STYLE: ${{ inputs.prompt_override_communication_style }}
+          OVERRIDE_PATTERN_RECOGNITION: ${{ inputs.prompt_override_pattern_recognition }}
+          OVERRIDE_INITIAL_REVIEW_PROCESS: ${{ inputs.prompt_override_initial_review_process }}
+          OVERRIDE_AVOID_PATTERNS: ${{ inputs.prompt_override_avoid_patterns }}
+          OVERRIDE_VERDICT_APPROVE: ${{ inputs.prompt_override_verdict_approve }}
+          OVERRIDE_VERDICT_REQUEST_CHANGES: ${{ inputs.prompt_override_verdict_request_changes }}
+          OVERRIDE_VERDICT_COMMENT: ${{ inputs.prompt_override_verdict_comment }}
+          OVERRIDE_RE_REVIEW_PROCESS: ${{ inputs.prompt_override_re_review_process }}
+          BUILD_PROMPT_SCRIPT: ${{ steps.setup-build-prompt.outputs.script_path }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ inputs.pr_number }}
           BASE_REF: ${{ steps.pr-info.outputs.base_ref }}
           PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
+          MERGE_BASE_SHA: ${{ steps.patch-id.outputs.merge_base_sha }}
+          LINES_CHANGED: ${{ steps.pr-size.outputs.lines_changed }}
           EXISTING_COMMENT_COUNT: ${{ steps.existing-comments.outputs.existing_comment_count }}
-          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
-          MERGE_BASE: ${{ steps.patch-id.outputs.merge_base }}
+          IS_TRIVIAL: ${{ steps.pr-size.outputs.is_trivial }}
         run: |
-          CUSTOM_PROMPT=""
+          set -euo pipefail
 
-          # Priority 1: Explicit custom_prompt input
-          if [ -n "$CUSTOM_PROMPT_INPUT" ]; then
-            echo "📝 Using explicit custom prompt from workflow input"
-            CUSTOM_PROMPT="$CUSTOM_PROMPT_INPUT"
+          echo "📝 Building prompt using TypeScript script"
 
-          # Priority 2: Custom prompt file in repository
-          elif [ -f "$CUSTOM_PROMPT_PATH" ]; then
-            echo "📝 Using custom prompt from repository: $CUSTOM_PROMPT_PATH"
-            CUSTOM_PROMPT=$(cat "$CUSTOM_PROMPT_PATH")
-
-          # Priority 3: Default prompt from ai-toolkit repository (public, no auth needed)
-          else
-            echo "📝 Fetching default prompt from Uniswap/ai-toolkit repository"
-
-            # Fetch default prompt via GitHub API (public repo, no auth needed)
-            if ! curl -fSs \
-                      -H "Accept: application/vnd.github.v4.raw" \
-                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/prompts/default-pr-review.md?ref=${TOOLKIT_REF}" \
-                      -o /tmp/default-prompt.md 2>&1 | tee /tmp/curl-error.log; then
-              echo "❌ Failed to fetch default prompt from Uniswap/ai-toolkit"
-              echo "   Error details:"
-              cat /tmp/curl-error.log | head -5
-              exit 1
-            fi
-
-            CUSTOM_PROMPT=$(cat /tmp/default-prompt.md)
-            echo "✅ Loaded default prompt from Uniswap/ai-toolkit"
-          fi
-
-          # Parse repository owner and name from REPO (format: owner/repo)
+          # Parse repository owner and name
           REPO_OWNER=$(echo "$REPO" | cut -d'/' -f1)
           REPO_NAME=$(echo "$REPO" | cut -d'/' -f2)
 
-          # Build final prompt with review context
-          # Note: JSON output format is enforced by --json-schema flag, not prompt instructions
-          cat > /tmp/final-prompt.txt <<PROMPT_EOF
-          # Review Context
-
-          **Repository Owner:** $REPO_OWNER
-          **Repository Name:** $REPO_NAME
-          **PR Number:** $PR_NUMBER
-          **Base Branch:** $BASE_REF
-          **Patch ID:** $PATCH_ID
-
-          ---
-
-          # ⚠️ IMPORTANT: PR Diff Instructions
-
-          The diff below contains **ONLY** the changes in this PR. Do NOT run \`git diff\` yourself - the diff
-          has already been computed correctly using the merge-base between the PR branch and \`$BASE_REF\`.
-
-          **To get the correct diff, use this command:**
-          \`\`\`bash
-          git diff ${MERGE_BASE}..HEAD
-          \`\`\`
-
-          **Files changed in this PR:**
-          \`\`\`
-          $(cat /tmp/changed-files.txt)
-          \`\`\`
-
-          **Full PR Diff:**
-          \`\`\`diff
-          $(cat /tmp/pr-diff.txt)
-          \`\`\`
-
-          ---
-
-          PROMPT_EOF
-
-          # Append custom prompt content
-          echo "$CUSTOM_PROMPT" >> /tmp/final-prompt.txt
-
-          # Append existing comments context for re-reviews
-          if [ "$EXISTING_COMMENT_COUNT" -gt 0 ]; then
-            cat >> /tmp/final-prompt.txt <<EXISTING_COMMENTS_EOF
-
-          ---
-
-          # Existing Review Comments
-
-          The following review comments already exist on this PR. Check if issues have been addressed:
-
-          \`\`\`json
-          $(cat /tmp/existing-comments.json)
-          \`\`\`
-
-          For each existing comment, if the issue has been fixed in the current code, include a response
-          in your \`inline_comments_responses\` array with \`should_resolve: true\`.
-          EXISTING_COMMENTS_EOF
-            echo "✨ Added existing comments context for re-review"
-          fi
-
-          # Append fast-review mode instructions for trivial PRs
-          IS_TRIVIAL="${{ steps.pr-size.outputs.is_trivial }}"
-          if [ "$IS_TRIVIAL" = "true" ]; then
-            cat >> /tmp/final-prompt.txt <<TRIVIAL_MODE_EOF
-
-          ---
-
-          # 🚀 Fast Review Mode (Trivial PR)
-
-          This PR has fewer than 20 lines of changes. Use an expedited review process:
-
-          1. **Quick scan**: Review changed files briefly
-          2. **Focus on critical issues only**: Bugs, security vulnerabilities, breaking changes
-          3. **Skip comprehensive analysis**: Don't need detailed maintainability or improvement suggestions
-          4. **Minimal inline comments**: If the PR only modifies auto-generated files (lockfiles, snapshots), use an empty \`inline_comments_new\` array
-          5. **Fast verdict**: Complete quickly with appropriate outcome
-
-          **Goal**: Provide value while minimizing review cost for small changes.
-          TRIVIAL_MODE_EOF
-            echo "✨ Added fast-review mode instructions for trivial PR"
-          fi
-
-          # Append verdict decision rules (MUST come before output field guidance)
-          cat >> /tmp/final-prompt.txt <<VERDICT_RULES_EOF
-
-          ---
-
-          # 🎯 Verdict Decision Rules (MANDATORY)
-
-          Your verdict MUST follow these rules exactly. This is the most important part of your review.
-
-          ## APPROVE - Use when:
-          - No bugs, security vulnerabilities, or data corruption risks found
-          - Review contains only suggestions, questions, considerations, or style feedback
-          - You would tell a human reviewer "this is safe to merge"
-          - Your overall assessment is positive, even if you have minor feedback
-
-          **Key insight:** Questions, considerations, "nice-to-haves", and teaching moments are NOT blocking issues. If you have these but no actual bugs or security issues, use APPROVE.
-
-          ## REQUEST_CHANGES - Use when:
-          - Bugs that would cause runtime errors or incorrect behavior
-          - Security vulnerabilities (injection, auth bypass, data exposure)
-          - Data loss or corruption risks
-          - Breaking changes without migration path
-          - Critical logic errors that would affect users
-
-          ## COMMENT - Use SPARINGLY when:
-          - Several issues that are *close* to blocking but not quite (e.g., potential race conditions that need investigation)
-          - Significant number of non-blocking issues that collectively suggest the PR needs more work
-          - You explicitly cannot recommend approval AND cannot point to a specific blocking bug
-
-          **COMMENT is NOT a safe default.** Most positive reviews with suggestions should be APPROVE, not COMMENT.
-
-          ## Decision Examples
-
-          | Review Content | Correct Verdict | Why |
-          |---------------|-----------------|-----|
-          | "No issues found, code looks good" | APPROVE | Positive review, no blockers |
-          | "Found potential null pointer on line 42" | REQUEST_CHANGES | Bug identified |
-          | "Good changes! Consider extracting this to a utility" | APPROVE | Positive + suggestion = APPROVE |
-          | "Questions about the architecture choice here" | APPROVE | Questions are not blockers |
-          | "5 style issues, 2 unclear variable names, missing tests" | COMMENT | Multiple issues, needs work |
-          | "SQL query uses string concatenation with user input" | REQUEST_CHANGES | Security vulnerability |
-
-          ## When Uncertain
-
-          If you found no bugs or security issues and your review tone is positive, **use APPROVE**. Uncertainty about code quality, missing context, or stylistic preferences are not blocking issues.
-
-          VERDICT_RULES_EOF
-          echo "✅ Added verdict decision rules"
-
-          # Append field guidance for the structured output
-          # Note: The actual JSON schema is enforced via --json-schema flag
-          cat >> /tmp/final-prompt.txt <<JSON_GUIDANCE_EOF
-
-          ---
-
-          # 📋 Output Field Guidance
-
-          Your structured output will be validated against a JSON schema. Here's how to use each field:
-
-          **Required fields:**
-          - \`pr_review_body\`: Your complete markdown-formatted review. Put ALL your analysis, findings, and reasoning here.
-          - \`pr_review_outcome\`: Your verdict (see Verdict Decision Rules above for how to choose)
-          - \`inline_comments_new\`: Array of inline comments on specific lines (can be empty \`[]\`)
-            - Each needs: \`path\` (file), \`line\` (number), \`body\` (feedback)
-            - Optional: \`suggestion\` (corrected code snippet)
-
-          **Optional fields:**
-          - \`inline_comments_responses\`: Responses to existing review comments (for re-reviews)
-            - Each needs: \`comment_id\`, \`body\`, and optionally \`should_resolve: true\`
-          - \`files_reviewed\`: List of files you reviewed
-          - \`confidence\`: 0.0-1.0 confidence in your review
-          JSON_GUIDANCE_EOF
-          echo "✅ Added output field guidance"
-
-          # Log final prompt length
-          PROMPT_LENGTH=$(wc -c < /tmp/final-prompt.txt)
-          echo "✅ Built final prompt: $PROMPT_LENGTH characters"
+          # Run the build-prompt script
+          npx tsx "$BUILD_PROMPT_SCRIPT" \
+            --prompt-dir "/tmp/pr-review-prompts" \
+            --output "/tmp/final-prompt.txt" \
+            --repo-owner "$REPO_OWNER" \
+            --repo-name "$REPO_NAME" \
+            --pr-number "$PR_NUMBER" \
+            --base-ref "$BASE_REF" \
+            --patch-id "$PATCH_ID" \
+            --base-sha "$MERGE_BASE_SHA" \
+            --lines-changed "$LINES_CHANGED" \
+            --existing-comment-count "$EXISTING_COMMENT_COUNT" \
+            --is-trivial "$IS_TRIVIAL" \
+            --changed-files-file "/tmp/changed-files.txt" \
+            --pr-diff-file "/tmp/pr-diff.txt" \
+            --existing-comments-file "/tmp/existing-comments.json"
 
           # Export as output for next step
           {
             echo "final_prompt<<PROMPT_DELIMITER_EOF"
-            cat /tmp/final-prompt.txt
+            cat "/tmp/final-prompt.txt"
             echo "PROMPT_DELIMITER_EOF"
           } >> $GITHUB_OUTPUT
 
           # Show first few lines for debugging
           echo ""
-          echo "📄 Prompt preview (first 10 lines):"
-          head -n 10 /tmp/final-prompt.txt
+          echo "📄 Prompt preview (first 15 lines):"
+          head -n 15 "/tmp/final-prompt.txt"
+
+      # Upload final prompt as artifact for debugging and inspection
+      - name: Upload Final Prompt Artifact
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: final-prompt-pr${{ inputs.pr_number }}
+          path: /tmp/final-prompt.txt
+          retention-days: 7
+          if-no-files-found: warn
 
       # Build Claude arguments - READ-ONLY tools only (no GitHub write tools)
       - name: Build Claude Arguments
-        if: steps.cache-check.outputs.cache-hit != 'true'
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
         id: build-args
         env:
           INPUT_ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
@@ -723,8 +953,9 @@ jobs:
           # Build claude_args conditionally based on provided inputs
           CLAUDE_ARGS="--model $INPUT_MODEL"
 
-          # Only add --max-turns if explicitly provided (not empty)
-          if [ -n "$INPUT_MAX_TURNS" ]; then
+          # Only add --max-turns if explicitly provided (not empty or 0)
+          # Note: GitHub Actions number inputs default to 0 when not provided
+          if [ -n "$INPUT_MAX_TURNS" ] && [ "$INPUT_MAX_TURNS" != "0" ]; then
             CLAUDE_ARGS="$CLAUDE_ARGS
             --max-turns $INPUT_MAX_TURNS"
             echo "ℹ️  Including --max-turns $INPUT_MAX_TURNS"
@@ -748,7 +979,7 @@ jobs:
 
       # Run Claude Code Action to perform the review (analysis only, outputs JSON)
       - name: Run Claude Code Review
-        if: steps.cache-check.outputs.cache-hit != 'true'
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
         id: claude
         uses: anthropics/claude-code-action@a7e4c51380c42dd89b127f5e5f9be7b54020bc6b # v1.0.21
         with:
@@ -767,7 +998,7 @@ jobs:
 
       # Extract Claude's structured output (validated JSON from --json-schema)
       - name: Extract Claude Response
-        if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && success()
         id: extract-response
         env:
           STRUCTURED_OUTPUT: ${{ steps.claude.outputs.structured_output }}
@@ -795,7 +1026,7 @@ jobs:
 
       # Upload Claude execution output as artifact for debugging
       - name: Upload Claude Execution Output
-        if: steps.cache-check.outputs.cache-hit != 'true' && always()
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: claude-execution-output-pr${{ inputs.pr_number }}
@@ -807,7 +1038,7 @@ jobs:
 
       # Post the review using our script (all comments as github-actions[bot])
       - name: Post Review via Script
-        if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && success()
         id: post-review
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -855,9 +1086,20 @@ jobs:
 
           echo "✅ Review posted successfully"
 
+      # Upload post-review API request files for debugging
+      # These temp files contain the JSON payloads sent to GitHub API
+      - name: Upload Post Review Debug Artifacts
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: post-review-debug-pr${{ inputs.pr_number }}
+          path: /tmp/gh-input-*.json
+          retention-days: 7
+          if-no-files-found: ignore
+
       # Fallback: Post review summary as PR comment if script fails
       - name: Fallback Review Comment
-        if: steps.cache-check.outputs.cache-hit != 'true' && failure()
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && failure()
         env:
           PR_NUMBER: ${{ inputs.pr_number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -917,7 +1159,7 @@ jobs:
 
       # Post error comment if Claude completely fails (no output at all)
       - name: Post Review Error Comment
-        if: steps.cache-check.outputs.cache-hit != 'true' && failure() && steps.claude.conclusion == 'failure'
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && failure() && steps.claude.conclusion == 'failure'
         env:
           PR_NUMBER: ${{ inputs.pr_number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -969,7 +1211,7 @@ jobs:
 
       # Save successful review to cache
       - name: Save Review Cache Marker
-        if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && success()
         run: |
           mkdir -p .review-cache
           echo "${{ steps.patch-id.outputs.patch_id }}" > .review-cache/patch-id
@@ -977,8 +1219,10 @@ jobs:
 
       # Persist cache for future rebase detection
       - name: Cache Review State
-        if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && success()
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .review-cache
-          key: review-pr${{ inputs.pr_number }}-patch-${{ steps.patch-id.outputs.patch_id }}
+          # Include merge_base_sha in cache key to invalidate when the merge base changes
+          # (e.g., when a stacked PR's parent is merged and it rebases to main)
+          key: review-pr${{ inputs.pr_number }}-base-${{ steps.patch-id.outputs.merge_base_sha }}-patch-${{ steps.patch-id.outputs.patch_id }}

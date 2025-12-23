@@ -1,12 +1,14 @@
 ---
 name: git-worktree-orchestrator
-description: Create and manage a git worktree based on the current directory and a branch name, with optional spec-workflow setup and Linear task automation.
-argument-hint: <branch-name> [linear-task-id]
+description: Create and manage a git worktree based on the current directory and a branch name, with optional spec-workflow setup, Graphite integration, and Linear task automation.
+argument-hint: <branch-name> [--graphite [--trunk <branch>]] [--setup <script-or-command>] [linear-task-id]
 ---
 
 # Git Worktree Orchestrator
 
 Create and manage a git worktree based on the current directory and a branch name. After creating the worktree, it copies the .spec-workflow directory, adds the spec-workflow MCP, and can optionally commit/push, open a PR, and clean up the worktree. It also copies other files from the root git worktree into the newly created worktree.
+
+Supports Graphite integration to track the new branch on top of a trunk branch, and can run a setup script immediately after creating the worktree.
 
 Optionally accepts a Linear task ID to automatically spawn a new Claude Code instance that will complete the task autonomously.
 
@@ -16,13 +18,28 @@ Optionally accepts a Linear task ID to automatically spawn a new Claude Code ins
 # Create worktree for a new branch
 /git-worktree-orchestrator add-new-color
 
-# Create worktree and attach a Linear task for autonomous completion
-/git-worktree-orchestrator feature/auth-system DEV-1234
+# Create worktree with Graphite tracking (will prompt for trunk branch)
+/git-worktree-orchestrator feature/new-ui --graphite
+
+# Create worktree with Graphite tracking on specific trunk
+/git-worktree-orchestrator feature/new-ui --graphite --trunk main
+
+# Create worktree and run a setup script
+/git-worktree-orchestrator feature/setup-test --setup "./scripts/setup-dev.sh"
+
+# Create worktree and run an inline setup command
+/git-worktree-orchestrator feature/npm-setup --setup "npm install && npm run build"
+
+# Full example with all options
+/git-worktree-orchestrator feature/auth-system --graphite --trunk main --setup "npm ci" DEV-1234
 ```
 
 ## Arguments
 
 - **branch** (required): Branch name to create/use for the worktree
+- **--graphite, -g** (optional): Enable Graphite integration to track the branch
+- **--trunk <branch>** (optional): Trunk branch name for Graphite tracking (defaults to prompting user, or 'main' if not specified)
+- **--setup <script-or-command>** (optional): Setup script file path or inline command to run after creating the worktree
 - **linear_task_id** (optional): Linear task ID (e.g., DEV-1234) to complete autonomously in the new worktree
 
 ## Prerequisites
@@ -30,6 +47,7 @@ Optionally accepts a Linear task ID to automatically spawn a new Claude Code ins
 - git (2.5+ for worktree support)
 - claude CLI (for MCP registration and spawning new instances)
 - gh (optional, for PR creation)
+- gt (optional, for Graphite integration)
 
 ## Workflow Steps
 
@@ -64,7 +82,36 @@ Registers the spec-workflow MCP with Claude for the new worktree directory:
 claude mcp add spec-workflow "npx @uniswap/spec-workflow-mcp@latest" "$NEW_DIR"
 ```
 
-### Step 6: Optional Operations
+### Step 6: Graphite Integration (Optional)
+
+If Graphite is enabled (via `--graphite` flag or user prompt):
+
+1. Prompts for trunk branch if not provided via `--trunk`
+2. Runs `gt track` in the new worktree to track the branch on top of the trunk branch
+
+```bash
+gt track --trunk "$TRUNK_BRANCH"
+```
+
+### Step 7: Setup Script Execution (Optional)
+
+If a setup script is provided (via `--setup` flag or user prompt):
+
+1. Detects whether the input is a file path or inline command
+2. If file: validates existence and executes it
+3. If inline command: executes directly in the worktree directory
+
+```bash
+# File execution
+if [[ -f "$SETUP_SCRIPT" ]]; then
+  bash "$SETUP_SCRIPT"
+else
+  # Inline command execution
+  eval "$SETUP_SCRIPT"
+fi
+```
+
+### Step 8: Optional Operations
 
 Interactive prompts for:
 
@@ -73,7 +120,7 @@ Interactive prompts for:
 - **Create PR**: Create a pull request via `gh` or provide URL for manual creation
 - **Cleanup**: Remove the worktree after work is complete
 
-### Step 7: Linear Task Automation
+### Step 9: Linear Task Automation
 
 If a Linear task ID is provided, optionally spawns a new Claude Code instance to:
 
@@ -91,13 +138,68 @@ If a Linear task ID is provided, optionally spawns a new Claude Code instance to
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Accept arguments from positional or env-provided variables (depending on Claude Code runtime)
-BRANCH="${1:-${branch:-}}"
-LINEAR_TASK_ID="${2:-${linear_task_id:-}}"
+# Initialize variables
+BRANCH=""
+LINEAR_TASK_ID=""
+USE_GRAPHITE=""
+TRUNK_BRANCH=""
+SETUP_SCRIPT=""
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --graphite|-g)
+      USE_GRAPHITE="true"
+      shift
+      ;;
+    --trunk)
+      if [[ -n "${2:-}" && ! "$2" =~ ^- ]]; then
+        TRUNK_BRANCH="$2"
+        shift 2
+      else
+        echo "Error: --trunk requires a branch name argument"
+        exit 1
+      fi
+      ;;
+    --setup)
+      if [[ -n "${2:-}" && ! "$2" =~ ^- ]]; then
+        SETUP_SCRIPT="$2"
+        shift 2
+      else
+        echo "Error: --setup requires a script path or command argument"
+        exit 1
+      fi
+      ;;
+    -*)
+      echo "Error: Unknown option: $1"
+      echo "Usage: <command> <branch-name> [--graphite| -g] [--trunk <branch>] [--setup <script-or-command>] [linear-task-id]"
+      exit 1
+      ;;
+    *)
+      # Positional arguments: first is branch, second is linear_task_id
+      if [[ -z "$BRANCH" ]]; then
+        BRANCH="$1"
+      elif [[ -z "$LINEAR_TASK_ID" ]]; then
+        LINEAR_TASK_ID="$1"
+      else
+        echo "Error: Unexpected argument: $1"
+        exit 1
+      fi
+      shift
+      ;;
+  esac
+done
+
+# Also check for env-provided variables as fallback
+BRANCH="${BRANCH:-${branch:-}}"
+LINEAR_TASK_ID="${LINEAR_TASK_ID:-${linear_task_id:-}}"
+USE_GRAPHITE="${USE_GRAPHITE:-${use_graphite:-}}"
+TRUNK_BRANCH="${TRUNK_BRANCH:-${trunk_branch:-}}"
+SETUP_SCRIPT="${SETUP_SCRIPT:-${setup_script:-}}"
 
 if [[ -z "${BRANCH:-}" ]]; then
   echo "Error: branch name is required."
-  echo "Usage: <command> <branch-name> [linear-task-id]"
+  echo "Usage: <command> <branch-name> [--graphite | -g] [--trunk <branch>] [--setup <script-or-command>] [linear-task-id]"
   exit 1
 fi
 
@@ -203,6 +305,98 @@ if command -v claude >/dev/null 2>&1; then
 else
   echo "Warning: 'claude' CLI not found. Skipping MCP registration. Run manually later:"
   echo "  claude mcp add spec-workflow npx @uniswap/spec-workflow-mcp@latest \"$NEW_DIR\""
+fi
+
+# Prompt for Graphite usage if not specified
+if [[ -z "${USE_GRAPHITE:-}" ]]; then
+  echo ""
+  read -r -p "Use Graphite to track this branch? (y/N): " GRAPHITE_RESP || true
+  if [[ "$GRAPHITE_RESP" =~ ^[Yy]$ ]]; then
+    USE_GRAPHITE="true"
+  fi
+fi
+
+# Graphite integration
+if [[ "${USE_GRAPHITE:-}" == "true" ]]; then
+  echo ""
+  echo "============================================"
+  echo "Graphite Integration"
+  echo "============================================"
+
+  if ! command -v gt >/dev/null 2>&1; then
+    echo "Warning: 'gt' (Graphite CLI) not found. Skipping Graphite setup."
+    echo "Install it from: https://graphite.dev/docs/installing-the-cli"
+  else
+    # Prompt for trunk branch if not provided
+    if [[ -z "${TRUNK_BRANCH:-}" ]]; then
+      DEFAULT_TRUNK="$(git -C "$NEW_DIR" remote show origin 2>/dev/null | sed -n 's/.*HEAD branch: //p')" || DEFAULT_TRUNK=""
+      DEFAULT_TRUNK="${DEFAULT_TRUNK:-main}"
+      read -r -p "Enter trunk branch name [$DEFAULT_TRUNK]: " TRUNK_INPUT || true
+      TRUNK_BRANCH="${TRUNK_INPUT:-$DEFAULT_TRUNK}"
+    fi
+
+    echo "Tracking branch '$BRANCH' on top of trunk '$TRUNK_BRANCH'..."
+    if ! gt -C "$NEW_DIR" track --trunk "$TRUNK_BRANCH"; then
+      echo "Warning: Failed to track branch with Graphite. You can run this manually:"
+      echo "  cd \"$NEW_DIR\" && gt track --trunk \"$TRUNK_BRANCH\""
+    else
+      echo "Successfully tracked branch with Graphite."
+    fi
+  fi
+fi
+
+# Prompt for setup script if not provided
+if [[ -z "${SETUP_SCRIPT:-}" ]]; then
+  echo ""
+  read -r -p "Run a setup script/command in the new worktree? (y/N): " SETUP_RESP || true
+  if [[ "$SETUP_RESP" =~ ^[Yy]$ ]]; then
+    read -r -p "Enter script path or inline command: " SETUP_SCRIPT || true
+  fi
+fi
+
+# Execute setup script if provided
+if [[ -n "${SETUP_SCRIPT:-}" ]]; then
+  echo ""
+  echo "============================================"
+  echo "Running Setup Script"
+  echo "============================================"
+  echo "Executing: $SETUP_SCRIPT"
+  echo ""
+
+  # Change to the new worktree directory for script execution
+  pushd "$NEW_DIR" >/dev/null
+
+  # Check if it's a file path (absolute or relative to original directory)
+  SCRIPT_PATH=""
+  if [[ -f "$SETUP_SCRIPT" ]]; then
+    SCRIPT_PATH="$SETUP_SCRIPT"
+  elif [[ -f "$CWD/$SETUP_SCRIPT" ]]; then
+    SCRIPT_PATH="$CWD/$SETUP_SCRIPT"
+  elif [[ -f "$REPO_ROOT/$SETUP_SCRIPT" ]]; then
+    SCRIPT_PATH="$REPO_ROOT/$SETUP_SCRIPT"
+  fi
+
+  if [[ -n "$SCRIPT_PATH" ]]; then
+    echo "Running script file: $SCRIPT_PATH"
+    if [[ -x "$SCRIPT_PATH" ]]; then
+      "$SCRIPT_PATH"
+    else
+      bash "$SCRIPT_PATH"
+    fi
+  else
+    # Treat as inline command
+    echo "Running inline command..."
+    eval "$SETUP_SCRIPT"
+  fi
+
+  SETUP_EXIT_CODE=$?
+  popd >/dev/null
+
+  if [[ $SETUP_EXIT_CODE -eq 0 ]]; then
+    echo "Setup script completed successfully."
+  else
+    echo "Warning: Setup script exited with code $SETUP_EXIT_CODE"
+  fi
 fi
 
 # Prompt for Linear task ID if not provided
@@ -361,7 +555,8 @@ The command creates worktrees in a sibling directory pattern:
 - **Spec Workflow**: Symlinks `.spec-workflow` from the main repo to enable spec-workflow MCP functionality
 - **Claude Settings**: Copies local Claude settings to maintain consistent behavior
 - **Linear Integration**: Supports autonomous task completion when provided with a Linear task ID
-- **Graphite Compatible**: Works alongside Graphite for PR stack management
+- **Graphite Integration**: Built-in support for `gt track` to manage branch stacks; tracks new branches on specified trunk
+- **Setup Scripts**: Runs custom setup scripts or commands (e.g., `npm install`, `./scripts/setup.sh`) after worktree creation
 
 ## Merging Work Back
 
@@ -406,5 +601,47 @@ claude mcp add spec-workflow "npx @uniswap/spec-workflow-mcp@latest" "/path/to/w
 ### "claude CLI not found"
 
 **Solution:** Install Claude Code from <https://claude.ai/download>
+
+### "gt (Graphite CLI) not found"
+
+**Solution:** Install the Graphite CLI:
+
+```bash
+npm install -g @withgraphite/graphite-cli
+```
+
+Or follow the installation guide at <https://graphite.dev/docs/installing-the-cli>
+
+### "Failed to track branch with Graphite"
+
+**Solution:** Ensure you're in a Graphite-enabled repository and the trunk branch exists:
+
+```bash
+cd /path/to/worktree
+gt init  # If not already initialized
+gt track --trunk main
+```
+
+### "Setup script failed"
+
+**Solution:** Check that your script:
+
+1. Exists at the specified path (relative to CWD or repo root)
+2. Has proper execute permissions (`chmod +x script.sh`)
+3. Returns exit code 0 on success
+
+You can test the script manually:
+
+```bash
+cd /path/to/worktree
+./your-script.sh  # or: bash your-script.sh
+```
+
+### "Setup command not found"
+
+**Solution:** Inline commands are executed with `eval` in the worktree directory. Ensure:
+
+1. The command is available in your PATH
+2. You're using proper shell syntax for chained commands (`&&` for sequential, `;` for independent)
 
 Arguments: $ARGUMENTS
