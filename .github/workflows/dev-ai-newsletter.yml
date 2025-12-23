@@ -184,6 +184,72 @@ jobs:
 
           echo "MCP configuration created at /tmp/mcp-config.json"
 
+      # Debug: Verify MCP config and tokens (secrets are masked by GitHub)
+      - name: Verify MCP configuration
+        env:
+          SLACK_BOT_TOKEN: ${{ needs.refresh-slack-token.outputs.slack_bot_token }}
+          SLACK_TEAM_ID: ${{ secrets.SLACK_TEAM_ID }}
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+        run: |
+          echo "=== Verifying MCP Configuration ==="
+
+          # Check if config file exists and is valid JSON
+          if [ -f /tmp/mcp-config.json ]; then
+            echo "✅ MCP config file exists"
+
+            # Validate JSON syntax
+            if jq empty /tmp/mcp-config.json 2>/dev/null; then
+              echo "✅ MCP config is valid JSON"
+            else
+              echo "❌ MCP config is NOT valid JSON!"
+              echo "Raw content:"
+              cat /tmp/mcp-config.json
+              exit 1
+            fi
+
+            echo "Config structure (secrets redacted):"
+            cat /tmp/mcp-config.json | jq '.' | sed 's/"NOTION_TOKEN": "[^"]*"/"NOTION_TOKEN": "***REDACTED***"/g' | sed 's/"SLACK_BOT_TOKEN": "[^"]*"/"SLACK_BOT_TOKEN": "***REDACTED***"/g'
+          else
+            echo "❌ MCP config file NOT found at /tmp/mcp-config.json"
+            exit 1
+          fi
+
+          # Check if all required values are non-empty
+          echo ""
+          echo "=== Token & Secret Verification ==="
+
+          ALL_OK=true
+
+          if [ -n "$SLACK_BOT_TOKEN" ]; then
+            echo "✅ SLACK_BOT_TOKEN is set (length: ${#SLACK_BOT_TOKEN})"
+          else
+            echo "❌ SLACK_BOT_TOKEN is EMPTY - Slack MCP will fail!"
+            ALL_OK=false
+          fi
+
+          if [ -n "$SLACK_TEAM_ID" ]; then
+            echo "✅ SLACK_TEAM_ID is set (length: ${#SLACK_TEAM_ID})"
+          else
+            echo "❌ SLACK_TEAM_ID is EMPTY - Slack MCP may fail!"
+            ALL_OK=false
+          fi
+
+          if [ -n "$NOTION_API_KEY" ]; then
+            echo "✅ NOTION_API_KEY is set (length: ${#NOTION_API_KEY})"
+          else
+            echo "❌ NOTION_API_KEY is EMPTY - Notion MCP will fail!"
+            ALL_OK=false
+          fi
+
+          if [ "$ALL_OK" != "true" ]; then
+            echo ""
+            echo "❌ One or more required secrets are missing!"
+            exit 1
+          fi
+
+          echo ""
+          echo "=== All checks passed ==="
+
       # Run Claude Code with MCP servers
       - name: Generate newsletter with Claude
         id: claude
