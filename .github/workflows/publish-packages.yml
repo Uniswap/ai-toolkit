@@ -464,15 +464,17 @@ jobs:
 
             echo "Checking package: $package"
             PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
-            LATEST_TAG=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | sort -V | tail -n 1)
+            # Find highest stable tag (sort -V doesn't handle semver prereleases correctly)
+            # Filter to stable versions: @X.Y.Z (no hyphen after version = no prerelease suffix)
+            LATEST_TAG=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | grep -E '@[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
 
             if [ -z "$LATEST_TAG" ]; then
-              echo "  ℹ️  No tags found - will create first tag during versioning"
+              echo "  ℹ️  No stable tags found - skipping orphaned check"
               continue
             fi
 
             VERSION="${LATEST_TAG##*@}"
-            echo "  Latest tag: $LATEST_TAG (version: $VERSION)"
+            echo "  Latest stable tag: $LATEST_TAG (version: $VERSION)"
 
             if npm view "${package}@${VERSION}" version --registry=https://registry.npmjs.org &>/dev/null; then
               echo "  ✅ Version $VERSION exists on npm - tag is valid"
@@ -876,6 +878,7 @@ jobs:
 
           FAILED_PACKAGES=()
           SUCCESS_PACKAGES=()
+          declare -A SUCCESS_VERSIONS  # Track versions for each successful package
 
           for i in "${!PROJECTS[@]}"; do
             project="${PROJECTS[$i]}"
@@ -999,8 +1002,9 @@ jobs:
                 fi
               fi
 
-              PACKAGE_TAG=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | sort -V | tail -n 1)
-              if [ -n "$PACKAGE_TAG" ]; then
+              # Use the exact tag we created - don't re-query with sort -V (it doesn't follow semver)
+              PACKAGE_TAG="${package}@${NEW_VERSION}"
+              if git rev-parse "$PACKAGE_TAG" >/dev/null 2>&1; then
                 echo "🏷️  Pushing tag: $PACKAGE_TAG"
                 if git push origin "$PACKAGE_TAG"; then
                   echo "✅ Pushed tag"
@@ -1015,6 +1019,7 @@ jobs:
               fi
 
               SUCCESS_PACKAGES+=("$package")
+              SUCCESS_VERSIONS["$package"]="$NEW_VERSION"  # Track version for GitHub release
               if [ "$PUSH_FAILED" = true ]; then
                 echo "⚠️  Package published but git sync incomplete"
               else
@@ -1041,8 +1046,15 @@ jobs:
           SUCCESS_JSON=$(printf '%s\n' "${SUCCESS_PACKAGES[@]}" | jq -R . | jq -s -c .)
           FAILED_JSON=$(printf '%s\n' "${FAILED_PACKAGES[@]}" | jq -R . | jq -s -c .)
 
+          # Build versions JSON safely using jq: {"@scope/pkg": "1.2.3", ...}
+          VERSIONS_JSON="{}"
+          for pkg in "${SUCCESS_PACKAGES[@]}"; do
+            VERSIONS_JSON=$(echo "$VERSIONS_JSON" | jq --arg k "$pkg" --arg v "${SUCCESS_VERSIONS[$pkg]}" '. + {($k): $v}')
+          done
+
           echo "successful_packages=$SUCCESS_JSON" >> $GITHUB_OUTPUT
           echo "failed_packages=$FAILED_JSON" >> $GITHUB_OUTPUT
+          echo "successful_versions=$VERSIONS_JSON" >> $GITHUB_OUTPUT
           echo "successful_count=${#SUCCESS_PACKAGES[@]}" >> $GITHUB_OUTPUT
           echo "failed_count=${#FAILED_PACKAGES[@]}" >> $GITHUB_OUTPUT
           echo "has_failures=$( [ ${#FAILED_PACKAGES[@]} -gt 0 ] && echo 'true' || echo 'false' )" >> $GITHUB_OUTPUT
@@ -1069,6 +1081,7 @@ jobs:
         if: needs.detect.outputs.is_dry_run != 'true' && steps.publish.outputs.has_successes == 'true'
         env:
           SUCCESSFUL_PACKAGES: ${{ steps.publish.outputs.successful_packages }}
+          SUCCESSFUL_VERSIONS: ${{ steps.publish.outputs.successful_versions }}
           INPUT_IS_PRERELEASE: ${{ needs.detect.outputs.is_prerelease }}
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
         run: |
@@ -1079,24 +1092,26 @@ jobs:
           for package in "${PACKAGES[@]}"; do
             [ -z "$package" ] && continue
 
-            PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
-            LATEST_TAG=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | sort -V | tail -n 1)
+            # Get version from passed data - don't re-query with sort -V (it doesn't follow semver)
+            VERSION=$(echo "$SUCCESSFUL_VERSIONS" | jq -r --arg pkg "$package" '.[$pkg] // empty')
+            if [ -z "$VERSION" ]; then
+              echo "⚠️ No version found for $package, skipping release"
+              continue
+            fi
 
-            if [ -n "$LATEST_TAG" ]; then
-              VERSION="${LATEST_TAG##*@}"
+            TAG="${package}@${VERSION}"
 
-              if gh release view "$LATEST_TAG" &>/dev/null; then
-                echo "✓ Release $LATEST_TAG already exists"
+            if gh release view "$TAG" &>/dev/null; then
+              echo "✓ Release $TAG already exists"
+            else
+              echo "Creating release for $TAG"
+
+              if [ "$INPUT_IS_PRERELEASE" = "true" ]; then
+                gh release create "$TAG" --title "$package $VERSION" --verify-tag --prerelease --notes "Prerelease $VERSION of $package."
               else
-                echo "Creating release for $LATEST_TAG"
-
-                if [ "$INPUT_IS_PRERELEASE" = "true" ]; then
-                  gh release create "$LATEST_TAG" --title "$package $VERSION" --verify-tag --prerelease --notes "Prerelease $VERSION of $package."
-                else
-                  gh release create "$LATEST_TAG" --title "$package $VERSION" --verify-tag --notes "Release $VERSION of $package."
-                fi
-                echo "✅ Created release for $LATEST_TAG"
+                gh release create "$TAG" --title "$package $VERSION" --verify-tag --notes "Release $VERSION of $package."
               fi
+              echo "✅ Created release for $TAG"
             fi
           done
 
