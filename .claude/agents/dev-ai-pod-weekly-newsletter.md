@@ -433,23 +433,30 @@ Anytime a Claude Code /slash command is mentioned (such /daily-standup), make su
 
 ### 8. Create Notion Database Record
 
-**DRY RUN CHECK:** If `dryRun` is `true`, skip this step and Step 9. Instead:
+**DRY RUN CHECK:** If `dryRun` is `true`, skip Notion page creation and Step 9. Instead, you MUST:
 
-- Write the formatted newsletter markdown to `/tmp/newsletter-preview.md`
-- Output the newsletter content to console as well
-- Display a summary of what WOULD have been published
-- Exit with success status
+1. **CRITICAL - Write file first:** Use the Write tool to save the formatted newsletter to `/tmp/newsletter-preview.md`
+2. Output the newsletter content to console
+3. Display a summary of what WOULD have been published
+4. Exit with success status
 
-**File Output (dry run only):**
+**File Output (dry run only) - MANDATORY:**
 
-```bash
-# Write newsletter to file for artifact upload
-cat > /tmp/newsletter-preview.md << 'EOF'
-{newsletter markdown content}
-EOF
+⚠️ **The GitHub Actions workflow expects this file to exist for artifact upload. If you skip this step, the workflow will report "No files were found" and fail to upload the artifact.**
+
+Use the Write tool to create the file:
+
+- **File path:** `/tmp/newsletter-preview.md`
+- **Content:** The complete formatted newsletter markdown from Step 7
+
+Example using Write tool:
+
+```
+file_path: /tmp/newsletter-preview.md
+content: <full newsletter markdown content>
 ```
 
-The workflow will upload this file as a downloadable GitHub Actions artifact.
+After writing, verify the file exists by reading it back or listing the directory.
 
 **Normal Mode (dryRun is false or not provided):**
 

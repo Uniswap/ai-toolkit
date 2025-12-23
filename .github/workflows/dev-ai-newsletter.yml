@@ -207,8 +207,9 @@ jobs:
             If you encounter errors, report them clearly and fail gracefully.
           claude_args: |
             --model ${{ env.MODEL }}
-            --max-turns 75
+            --max-turns 150
             --mcp-config /tmp/mcp-config.json
+            --dangerously-skip-permissions
         env:
           GH_TOKEN: ${{ github.token }}
 
