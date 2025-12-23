@@ -51,7 +51,7 @@ interface NewsletterInput {
   slackPostChannelIds?: string; // Default: "C091XE1DNP2"
 
   // Database IDs (optional, defaults provided)
-  readingDatabaseId?: string; // Default: collection://287c52b2-548b-80e8-ba26-000bd3f9e0a4
+  readingDatabaseId?: string; // Default: collection://287c52b2-548b-8029-98e8-f23e0011bc8d
   useCasesDatabaseId?: string; // Default: collection://28ec52b2-548b-80aa-b880-000b42eedf1f
 
   // GitHub repositories for release tracking (optional)
@@ -117,7 +117,7 @@ Before proceeding with newsletter generation, verify that all required tools are
 // Tool call structure
 mcp__notion__notion -
   search({
-    data_source_url: 'collection://287c52b2-548b-80e8-ba26-000bd3f9e0a4',
+    data_source_url: 'collection://287c52b2-548b-8029-98e8-f23e0011bc8d',
     query: '*', // Wildcard to retrieve all entries
     filters: {
       created_date_range: {
@@ -697,7 +697,7 @@ Action: Recommend retry after delay
 
 **Source Database 1: "📚 What We're Reading"**
 
-- **ID:** `collection://287c52b2-548b-80e8-ba26-000bd3f9e0a4`
+- **ID:** `collection://287c52b2-548b-8029-98e8-f23e0011bc8d`
 - **Properties:**
   - `Name` (title) - Required
   - `userDefined:URL` (url) - Optional

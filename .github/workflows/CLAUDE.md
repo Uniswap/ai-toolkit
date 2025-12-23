@@ -671,12 +671,13 @@ The Notion integration needs access to:
 
 **Configuration Inputs:**
 
-| Input        | Default                      | Description                             |
-| ------------ | ---------------------------- | --------------------------------------- |
-| `days_back`  | `7`                          | Number of days to look back for content |
-| `model`      | `claude-sonnet-4-5-20250929` | Claude model to use                     |
-| `dry_run`    | `false`                      | Generate but don't publish to Notion    |
-| `debug_mode` | `true`                       | Enable full Claude output for debugging |
+| Input                    | Default                      | Description                                                                     |
+| ------------------------ | ---------------------------- | ------------------------------------------------------------------------------- |
+| `days_back`              | `7`                          | Number of days to look back for content                                         |
+| `model`                  | `claude-sonnet-4-5-20250929` | Claude model to use                                                             |
+| `dry_run`                | `false`                      | Generate but don't publish to Notion                                            |
+| `debug_mode`             | `true`                       | Enable full Claude output for debugging                                         |
+| `slack_post_channel_ids` | `C091XE1DNP2`                | Comma-separated Slack channel IDs to post newsletter announcement (e.g., C091XE1DNP2,C094URH6C13) |
 
 **Manual Trigger:**
 
@@ -692,6 +693,9 @@ gh workflow run dev-ai-newsletter.yml -f days_back=14
 
 # Use Opus model for better quality
 gh workflow run dev-ai-newsletter.yml -f model=claude-opus-4-5-20251101
+
+# Post to specific Slack channels
+gh workflow run dev-ai-newsletter.yml -f slack_post_channel_ids="C091XE1DNP2,C094URH6C13"
 ```
 
 **MCP Servers Used:**
