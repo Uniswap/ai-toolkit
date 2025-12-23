@@ -52,7 +52,7 @@ interface NewsletterInput {
 
   // Database IDs (optional, defaults provided)
   readingDatabaseId?: string; // Default: collection://287c52b2-548b-8029-98e8-f23e0011bc8d
-  useCasesDatabaseId?: string; // Default: collection://28ec52b2-548b-80aa-b880-000b42eedf1f
+  useCasesDatabaseId?: string; // Default: collection://28ec52b2-548b-8024-b94c-f8a4aa00a0e4
 
   // GitHub repositories for release tracking (optional)
   githubRepositories?: string[]; // e.g., ['https://github.com/Uniswap/ai-toolkit', 'https://github.com/Uniswap/spec-workflow-mcp']
@@ -147,7 +147,7 @@ mcp__notion__notion -
 // Tool call structure
 mcp__notion__notion -
   search({
-    data_source_url: 'collection://28ec52b2-548b-80aa-b880-000b42eedf1f',
+    data_source_url: 'collection://28ec52b2-548b-8024-b94c-f8a4aa00a0e4',
     query: '*',
     filters: {
       created_date_range: {
@@ -471,7 +471,7 @@ mcp__notion__notion -
   pages({
     parent: {
       type: 'data_source_id',
-      data_source_id: '29cc52b2-548b-807c-b66c-000bdf38c65b',
+      data_source_id: '29cc52b2-548b-8006-9462-c351021f316d',
     },
     pages: [
       {
@@ -627,7 +627,7 @@ Action: Fail immediately with validation error
 
 ```
 Error: "Failed to create newsletter page in Notion"
-Message: "Cannot write to database collection://29cc52b2-548b-807c-b66c-000bdf38c65b.
+Message: "Cannot write to database collection://29cc52b2-548b-8006-9462-c351021f316d.
          Ensure the database is shared with your Notion integration and has write permissions."
 Action: Fail immediately with clear error message and database ID
 ```
@@ -706,7 +706,7 @@ Action: Recommend retry after delay
 
 **Source Database 2: "🌎 Real-World AI Use Cases"**
 
-- **ID:** `collection://28ec52b2-548b-80aa-b880-000b42eedf1f`
+- **ID:** `collection://28ec52b2-548b-8024-b94c-f8a4aa00a0e4`
 - **Properties:**
   - `Name` (title) - Required
   - `Description` (text) - Optional
@@ -714,7 +714,7 @@ Action: Recommend retry after delay
 
 **Target Database: "Dev AI Weekly Newsletters"**
 
-- **ID:** `collection://29cc52b2-548b-807c-b66c-000bdf38c65b`
+- **ID:** `collection://29cc52b2-548b-8006-9462-c351021f316d`
 - **Purpose:** Stores published newsletter pages
 - **Properties:**
   - `Page` (title) - Required, format: "Dev AI Newsletter {startDate} to {endDate}"
