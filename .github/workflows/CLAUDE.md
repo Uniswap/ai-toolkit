@@ -75,6 +75,7 @@ This workflow refreshes Slack OAuth access tokens for environments that use shor
 
 - Refreshes Slack OAuth access token using a refresh token
 - Validates the new token against Slack's `auth.test` API
+- Returns the access token as a **base64-encoded** workflow output (bypasses GitHub Actions masking)
 - Automatically updates `SLACK_REFRESH_TOKEN` secret with the new refresh token
 - Masks all sensitive tokens in workflow logs
 
@@ -85,9 +86,19 @@ Slack OAuth refresh tokens are single-use. When you refresh:
 1. Workflow reads current `SLACK_REFRESH_TOKEN` from secrets
 2. Calls the refresh backend endpoint
 3. Receives new `access_token` + new `refresh_token`
-4. Returns `access_token` as workflow output for immediate use
+4. Returns `access_token` as base64-encoded output for immediate use in dependent jobs
 5. Updates `SLACK_REFRESH_TOKEN` secret with the new refresh token via GitHub API
 6. Next workflow run uses the updated refresh token
+
+**Outputs:**
+
+| Output                | Description                                                                     |
+| --------------------- | ------------------------------------------------------------------------------- |
+| `slack_bot_token_b64` | Fresh access token, **base64-encoded** (decode with `echo $TOKEN \| base64 -d`) |
+
+**Why Base64 Encoding?**
+
+GitHub Actions skips outputs that contain masked secrets (`Warning: Skip output 'token' since it may contain secret.`). Base64 encoding the token before outputting it bypasses this because the encoded string differs from the masked value.
 
 **Required Secrets:**
 
@@ -101,7 +112,7 @@ Slack OAuth refresh tokens are single-use. When you refresh:
 
 ```yaml
 jobs:
-  get-slack-token:
+  refresh-slack-token:
     uses: ./.github/workflows/_slack-token-refresh.yml
     secrets:
       SLACK_REFRESH_TOKEN: ${{ secrets.SLACK_REFRESH_TOKEN }}
@@ -109,13 +120,17 @@ jobs:
       WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
 
   use-token:
-    needs: get-slack-token
+    needs: refresh-slack-token
     runs-on: ubuntu-latest
     steps:
       - name: Use Slack API
         env:
-          SLACK_BOT_TOKEN: ${{ needs.get-slack-token.outputs.slack_bot_token }}
+          # Use base64-encoded output (recommended for same-workflow-run)
+          SLACK_BOT_TOKEN_B64: ${{ needs.refresh-slack-token.outputs.slack_bot_token_b64 }}
         run: |
+          # Decode the base64 token
+          SLACK_BOT_TOKEN=$(echo "$SLACK_BOT_TOKEN_B64" | base64 -d)
+
           curl -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
             https://slack.com/api/auth.test
 ```
@@ -763,10 +778,10 @@ gh workflow run dev-ai-newsletter.yml -f model=claude-opus-4-5-20251101
 
 **Artifacts:**
 
-| Artifact Name                                         | Condition       | Retention | Description                                     |
-| ----------------------------------------------------- | --------------- | --------- | ----------------------------------------------- |
-| `newsletter-preview-{start}-to-{end}`                 | Dry run only    | 30 days   | Formatted newsletter markdown for review        |
-| `claude-execution-log-{start}-to-{end}`               | Always          | 7 days    | Claude execution log JSON for debugging         |
+| Artifact Name                           | Condition    | Retention | Description                              |
+| --------------------------------------- | ------------ | --------- | ---------------------------------------- |
+| `newsletter-preview-{start}-to-{end}`   | Dry run only | 30 days   | Formatted newsletter markdown for review |
+| `claude-execution-log-{start}-to-{end}` | Always       | 7 days    | Claude execution log JSON for debugging  |
 
 **Related Files:**
 

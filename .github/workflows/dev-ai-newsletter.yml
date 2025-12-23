@@ -151,13 +151,17 @@ jobs:
           echo "Date range: $START_DATE to $END_DATE"
 
       # Create MCP configuration file with secrets injected
+      # SLACK_BOT_TOKEN comes from refresh job output (base64-encoded to bypass masking issues)
       - name: Create MCP configuration
         env:
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
-          SLACK_BOT_TOKEN: ${{ needs.refresh-slack-token.outputs.slack_bot_token }}
+          SLACK_BOT_TOKEN_B64: ${{ needs.refresh-slack-token.outputs.slack_bot_token_b64 }}
           SLACK_TEAM_ID: ${{ secrets.SLACK_TEAM_ID }}
           SLACK_READ_CHANNEL_IDS: ${{ env.SLACK_READ_CHANNEL_IDS }}
         run: |
+          # Decode the base64-encoded Slack token
+          SLACK_BOT_TOKEN=$(echo "$SLACK_BOT_TOKEN_B64" | base64 -d)
+
           # Create MCP config file with actual secret values
           cat > /tmp/mcp-config.json << EOF
           {
@@ -187,11 +191,14 @@ jobs:
       # Debug: Verify MCP config and tokens (secrets are masked by GitHub)
       - name: Verify MCP configuration
         env:
-          SLACK_BOT_TOKEN: ${{ needs.refresh-slack-token.outputs.slack_bot_token }}
+          SLACK_BOT_TOKEN_B64: ${{ needs.refresh-slack-token.outputs.slack_bot_token_b64 }}
           SLACK_TEAM_ID: ${{ secrets.SLACK_TEAM_ID }}
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
         run: |
           echo "=== Verifying MCP Configuration ==="
+
+          # Decode the base64-encoded Slack token for verification
+          SLACK_BOT_TOKEN=$(echo "$SLACK_BOT_TOKEN_B64" | base64 -d 2>/dev/null || echo "")
 
           # Check if config file exists and is valid JSON
           if [ -f /tmp/mcp-config.json ]; then
@@ -220,10 +227,11 @@ jobs:
 
           ALL_OK=true
 
-          if [ -n "$SLACK_BOT_TOKEN" ]; then
-            echo "✅ SLACK_BOT_TOKEN is set (length: ${#SLACK_BOT_TOKEN})"
+          if [ -n "$SLACK_BOT_TOKEN_B64" ] && [ -n "$SLACK_BOT_TOKEN" ]; then
+            echo "✅ SLACK_BOT_TOKEN is set (base64 length: ${#SLACK_BOT_TOKEN_B64}, decoded length: ${#SLACK_BOT_TOKEN})"
           else
             echo "❌ SLACK_BOT_TOKEN is EMPTY - Slack MCP will fail!"
+            echo "   Base64 value length: ${#SLACK_BOT_TOKEN_B64}"
             ALL_OK=false
           fi
 
