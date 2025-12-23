@@ -53,6 +53,7 @@ interface NewsletterInput {
   // Database IDs (optional, defaults provided)
   readingDatabaseId?: string; // Default: collection://287c52b2-548b-8029-98e8-f23e0011bc8d
   useCasesDatabaseId?: string; // Default: collection://28ec52b2-548b-8024-b94c-f8a4aa00a0e4
+  quickstartDocsDatabaseId?: string; // Default: collection://249c52b2-548b-80a2-bcb6-d64a65c9c4f2
 
   // GitHub repositories for release tracking (optional)
   githubRepositories?: string[]; // e.g., ['https://github.com/Uniswap/ai-toolkit', 'https://github.com/Uniswap/spec-workflow-mcp']
@@ -169,6 +170,45 @@ mcp__notion__notion -
 - If `Description` missing: Skip description
 - If `Name` missing: Skip entry entirely
 
+### 3b. Query "Dev AI Tools → Quickstart Docs" Database
+
+Query this database for documentation that was either **added** or **updated** during the date range. These will be displayed as two separate subsections.
+
+**For Added Documents (created within date range):**
+
+```sql
+SELECT Title, "Created time", "Last Updated", Status, Category, "userDefined:URL"
+FROM "collection://249c52b2-548b-80a2-bcb6-d64a65c9c4f2"
+WHERE "Created time" >= startDate AND "Created time" <= endDate
+ORDER BY "Created time" DESC
+```
+
+**For Updated Documents (updated within date range, but created before):**
+
+```sql
+SELECT Title, "Created time", "Last Updated", Status, Category, "userDefined:URL"
+FROM "collection://249c52b2-548b-80a2-bcb6-d64a65c9c4f2"
+WHERE "Last Updated" >= startDate AND "Last Updated" <= endDate
+  AND "Created time" < startDate
+ORDER BY "Last Updated" DESC
+```
+
+**Extract Properties:**
+
+- `Title` (title) - Document title
+- `Created time` (created_time) - When document was created
+- `Last Updated` (last_edited_time) - When document was last modified
+- `Status` (status) - Draft, In Review, Approved, Recently Updated, Published
+- `Category` (select) - API Documentation, User Guide, Tutorial, etc.
+- `userDefined:URL` (url) - External URL if any
+
+**Handle Missing Data:**
+
+- If `Title` missing: Skip entry entirely
+- If `Category` missing: Display without category tag
+- If no added docs: Display "No new documentation this week"
+- If no updated docs: Display "No documentation updates this week"
+
 ### 4. Query Slack Channels
 
 **Critical:** Use Slack MCP to search messages in the channels specified by the `slackReadChannelIds` parameter. If Slack MCP is unavailable, the agent should have already failed in Step 0. When using the `slack_get_channel_history` MCP function, always use a limit of 10.
@@ -245,13 +285,13 @@ Use repositories from `githubRepositories` input parameter. If not provided, use
 For each repository, run the following GitHub CLI command via Bash:
 
 ```bash
-gh release list --repo <owner/repo> --limit 10 --json tagName,publishedAt,name,url,body
+gh release list --repo <owner/repo> --limit 10 --json tagName,publishedAt,name,isLatest,isPrerelease
 ```
 
 Example:
 
 ```bash
-gh release list --repo Uniswap/ai-toolkit --limit 10 --json tagName,publishedAt,name,url,body
+gh release list --repo Uniswap/ai-toolkit --limit 10 --json tagName,publishedAt,name,isLatest,isPrerelease
 ```
 
 **Filtering Criteria:**
@@ -302,75 +342,107 @@ Build markdown structure following this section ordering:
 2. 📊 This Week's Agent Usage
 3. 📚 What We're Reading
 4. 🌎 Real World Use Cases
-5. 💬 Slack Summary
-6. 🔨 Tool Updates
+5. 📝 Quickstart Docs (with subsections: Added, Updated)
+6. 💬 Slack Summary
+7. 🔨 Tool Updates
 
-Below is an example output:
+#### ⚠️ CRITICAL FORMATTING RULES (Notion-Flavored Markdown)
+
+**These rules are NON-NEGOTIABLE. The newsletter will look broken without them:**
+
+1. **Section Headers:** ALL main section headers MUST use h2 markdown prefix (`##`)
+   - ✅ CORRECT: `## 📅 Get Involved`
+   - ❌ WRONG: `📅 Get Involved`
+
+2. **Subsection Headers:** ALL subsection headers MUST be bold with `**...**`
+   - ✅ CORRECT: `**Join the Conversation**`
+   - ❌ WRONG: `Join the Conversation`
+
+3. **Week Line:** MUST be bold
+   - ✅ CORRECT: `**Week of:** 2025-12-16 to 2025-12-22`
+   - ❌ WRONG: `Week of: 2025-12-16 to 2025-12-22`
+
+4. **Slack Channel Links:** Emoji OUTSIDE link, channel name bold INSIDE link
+   - ✅ CORRECT: `- 🎉 [**#ai-achieved-internally**](url) - Share your AI wins`
+   - ❌ WRONG: `- [🎉 #ai-achieved-internally - Share your AI wins](url)`
+
+5. **Dashboard Link:** MUST be bold with arrow
+   - ✅ CORRECT: `[**→ View Agent Usage Dashboard**](url)`
+   - ❌ WRONG: `[→ View Agent Usage Dashboard](url)`
+
+6. **Slack Summary Items:** MUST have bold titles on first line, then tab-indented excerpt
+   - ✅ CORRECT: See example output below for proper Slack Summary format
+   - ❌ WRONG: `1. AI-Powered Changelogs Discussion "Brief excerpt..." [→ thread](url)`
+
+7. **Tool Updates Repo Names:** MUST be bold in brackets
+   - ✅ CORRECT: `**[Uniswap/ai-toolkit]**`
+   - ❌ WRONG: `Uniswap/ai-toolkit`
+
+8. **Footer:** MUST have horizontal rule `---` and italics `*...*`
+   - ✅ CORRECT: `---` on its own line, then `*Generated by ai-toolkit newsletter agent*`
+   - ❌ WRONG: `Generated by ai-toolkit newsletter agent`
+
+9. **NO EXCESSIVE EMPTY BLOCKS:** Do NOT add blank lines or `<empty-block/>` between every line. Use natural markdown spacing:
+   - One blank line between major sections
+   - NO blank lines between consecutive bullet points
+   - NO blank lines between numbered list items
+
+Below is an example output (note: this example MUST be followed exactly):
+
+<!-- markdownlint-disable MD010 -->
 
 ```markdown
-# Dev AI Pod Weekly Newsletter
-
-**Week of:** {startDate} to {endDate}
-
-<!-- Note: This is an inclusive range spanning exactly 7 days. Example: 2025-11-03 to 2025-11-09 -->
-
+**Week of:** 2025-11-17 to 2025-11-23
 ## 📅 Get Involved
-
 **Join the Conversation**
-
-- 🎉 **[#ai-achieved-internally](https://uniswapteam.enterprise.slack.com/archives/C08J4JPQ3AM)** - Share your AI wins and success stories
-- 🛠️ **[#pod-dev-ai](https://uniswapteam.enterprise.slack.com/archives/C094URH6C13)** - Provide feedback on this newsletter
-
+- 🎉 [**#ai-achieved-internally**](slackChannel://uniswapteam.enterprise.slack.com/C08J4JPQ3AM) - Share your AI wins and success stories
+- 🛠️ [**#pod-dev-ai**](slackChannel://uniswapteam.enterprise.slack.com/C094URH6C13) - Provide feedback on this newsletter
 **Want Some Help With AI?**
-
 - [Schedule office hours with us!](https://www.notion.so/uniswaplabs/27ac52b2548b80018562f41eacf07f74?v=27ac52b2548b8041a52e000c69551fa1)
-
 ## 📊 This Week's Agent Usage
-
 View detailed agent usage metrics and trends on our Datadog dashboard:
-
-**[→ View Agent Usage Dashboard](https://app.datadoghq.com/dash/integration/32027/anthropic-usage-and-costs-overview?fromUser=false&refresh_mode=sliding&storage=flex_tier&from_ts=1761580066307&to_ts=1762184866307&live=true)**
-
+[**→ View Agent Usage Dashboard**](https://app.datadoghq.com/dash/integration/32027/anthropic-usage-and-costs-overview?fromUser=false&refresh_mode=sliding&storage=flex_tier&from_ts=1761580066307&to_ts=1762184866307&live=true)
 This dashboard tracks:
-
 - Agent invocation counts
 - Success rates and error patterns
 - Token usage and costs
 - Response times and performance metrics
-
 ## 📚 What We're Reading
-
-1. [Article Title](https://example.com) - Brief description
-2. [Another Article](https://example.com) - Description
-3. Article Without URL - Description
-
+1. [OWASP Top 10 for LLMs](https://genai.owasp.org/llm-top-10/) - Framework for understanding critical security risks in LLMs
+2. [Jujitsu (jj) VCS Tool](https://github.com/jj-vcs/jj) - Simplified version control system with intuitive commands
 ## 🌎 Real World Use Cases
-
-1. [Use Case Title](https://example.com) - Description
-2. [Another Use Case](https://example.com) - Description
-
+1. [Use Case Title](https://example.com) - Description of how AI was applied
+2. [Another Use Case](https://example.com) - Description of the implementation
+## 📝 Quickstart Docs
+### Added
+1. [Document Title](https://notion.so/...) - Category: Tutorial
+2. [Another Document](https://notion.so/...) - Category: Getting Started
+### Updated
+1. [Updated Doc Title](https://notion.so/...) - Category: API Documentation
 ## 💬 Slack Summary
-
-1. Message title or first line
-   "Brief excerpt from the message..." [→ thread](https://slack-permalink) • {X} reactions
-
-1. Message title or first line
-   "Brief excerpt from the message..." [→ thread](https://slack-permalink) • {X} reactions
-
+**Top Discussions This Week:**
+1. **AI-Powered Changelogs in GitHub Actions**
+	"Use Claude to generate changelogs between any 2 refs! Pre-configured GitHub Actions..." [→ thread](slackMessage://...) • 10 reactions • 8 replies
+2. **`/address-pr-issues` Command Demo**
+	"Showing how the command addresses all PR comments automatically..." [→ thread](slackMessage://...) • 6 reactions
+3. **Hex MCP Integration Setup**
+	"Setting up Hex MCP for both Slack and Cursor/Claude Code..." [→ thread](slackMessage://...) • 60 replies
 ## 🔨 Tool Updates
-
 **Releases This Week:**
-
-**[Repository Name]** → v1.2.3
-_Released on YYYY-MM-DD_
-
-- Brief changelog or description (truncated to 150 chars)
-- [Full Release Notes](github-release-url)
-
-(Repeat for each release)
-
-_Generated by ai-toolkit newsletter agent_
+**[Uniswap/ai-toolkit]**
+**@uniswap/notion-publisher** → v0.0.4
+*Released on 2025-11-17*
+- Release 0.0.4 of @uniswap/notion-publisher
+- [Full Release Notes](https://github.com/Uniswap/ai-toolkit/releases/tag/%40uniswap/notion-publisher%400.0.4)
+**@uniswap/ai-toolkit-claude-mcp-helper** → v1.0.5
+*Released on 2025-11-17*
+- Release 1.0.5 of @uniswap/ai-toolkit-claude-mcp-helper
+- [Full Release Notes](https://github.com/Uniswap/ai-toolkit/releases/tag/%40uniswap/ai-toolkit-claude-mcp-helper%401.0.5)
+---
+*Generated by ai-toolkit newsletter agent*
 ```
+
+<!-- markdownlint-enable MD010 -->
 
 **Formatting Rules:**
 
@@ -380,8 +452,9 @@ _Generated by ai-toolkit newsletter agent_
 2. 📊 This Week's Agent Usage
 3. 📚 What We're Reading
 4. 🌎 Real World Use Cases
-5. 💬 Slack Summary
-6. 🔨 Tool Updates
+5. 📝 Quickstart Docs (with subsections: Added, Updated)
+6. 💬 Slack Summary
+7. 🔨 Tool Updates
 
 **Code Blocks For /slash Commands**
 
@@ -389,10 +462,13 @@ Anytime a Claude Code /slash command is mentioned (such /daily-standup), make su
 
 **Slack Summary Section:**
 
-- 1 section, whose contents come from the channels specified in `slackReadChannelIds`. DO NOT mention or create subsections for each channel; instead, simply have the list of messages under the "💬 Slack Summary" section header
-- Numbered list format: `Message title`
-- Include brief summary (max 100 chars)
-- Add permalink with "→ thread" link text
+- 1 section, whose contents come from the channels specified in `slackReadChannelIds`. DO NOT mention or create subsections for each channel
+- Start with bold subsection header: `**Top Discussions This Week:**`
+- Each item has TWO lines:
+  - Line 1: Numbered item with **bold title**: `1. **Title of Discussion**`
+  - Line 2: Tab-indented excerpt with permalink and engagement stats
+- Format for line 2: `(tab)"Brief excerpt..." [→ thread](url) • X reactions • Y replies`
+- Include engagement stats: reactions count, reply count (if any)
 - If no messages: Display "No significant discussions this week"
 
 **Tool Updates Section:**
@@ -424,6 +500,16 @@ Anytime a Claude Code /slash command is mentioned (such /daily-standup), make su
 - Same link formatting as Reading section
 - Include descriptions
 - If no items: Display "No new items this week"
+
+**Quickstart Docs Section:**
+
+- Two subsections: "### Added" and "### Updated"
+- Numbered list format within each subsection
+- Format: `[Document Title](notion-url) - Category: {Category}`
+- Link to the Notion page URL for each document
+- Include category tag after the title
+- If no added docs: Display "No new documentation this week" under Added
+- If no updated docs: Display "No documentation updates this week" under Updated
 
 **Get Involved Section:**
 
@@ -522,19 +608,37 @@ For each channel ID, use the Slack MCP `slack_post_message` tool:
 
 ```typescript
 // For each channelId in slackPostChannelIds.split(','):
+
+// Format dates as "Month Day" (e.g., "December 16")
+const formatDate = (isoDate: string) => {
+  const date = new Date(isoDate);
+  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+};
+
+// Build highlights array - ONLY include items with count > 0
+const highlights: string[] = [];
+if (readingItemsCount > 0) highlights.push(`• ${readingItemsCount} reading item${readingItemsCount > 1 ? 's' : ''}`);
+if (useCasesCount > 0) highlights.push(`• ${useCasesCount} real-world use case${useCasesCount > 1 ? 's' : ''}`);
+if (slackDiscussionsCount > 0) highlights.push(`• ${slackDiscussionsCount} top Slack discussion${slackDiscussionsCount > 1 ? 's' : ''}`);
+if (toolReleasesCount > 0) highlights.push(`• ${toolReleasesCount} tool release${toolReleasesCount > 1 ? 's' : ''}`);
+if (quickstartDocsCount > 0) highlights.push(`• ${quickstartDocsCount} quickstart doc update${quickstartDocsCount > 1 ? 's' : ''}`);
+
+const highlightsSection = highlights.length > 0
+  ? `_Highlights this week:_\n${highlights.join('\n')}`
+  : '';
+
 slack_post_message({
   channel_id: channelId.trim(),
-  text: `📰 *Dev AI Newsletter is out!*\n\n*Week of:* ${startDate} to ${endDate}\n\n📖 Read the full newsletter: ${notionPageUrl}\n\n_Highlights this week:_\n• ${readingItemsCount} reading items\n• ${useCasesCount} real-world use cases\n• Top Slack discussions\n• Latest tool updates`,
+  text: `📰 *Dev AI Newsletter is out!*\n\n*From ${formatDate(startDate)} to ${formatDate(endDate)}*\n\n📖 Read the full newsletter: ${notionPageUrl}${highlightsSection ? '\n\n' + highlightsSection : ''}`,
 });
 ```
 
 **Message Content:**
 
 - Newsletter title with emoji
-- Date range covered
+- Date range in human-readable format: "From December 16 to December 22"
 - Direct link to Notion page
-- Brief summary of content counts
-- Call to action to read
+- Dynamic highlights section (only non-zero items shown, omitted entirely if all zero)
 
 **Error Handling:**
 
@@ -711,6 +815,20 @@ Action: Recommend retry after delay
   - `Name` (title) - Required
   - `Description` (text) - Optional
   - `date:Date Added:start` (date) - Required for filtering
+
+**Source Database 3: "Dev AI Tools → Quickstart Docs"**
+
+- **ID:** `collection://249c52b2-548b-80a2-bcb6-d64a65c9c4f2`
+- **Purpose:** Tracks documentation for Dev AI tools
+- **Properties:**
+  - `Title` (title) - Required
+  - `Created time` (created_time) - Required for filtering added docs
+  - `Last Updated` (last_edited_time) - Required for filtering updated docs
+  - `Status` (status) - Draft, In Review, Approved, Recently Updated, Published
+  - `Category` (select) - API Documentation, User Guide, Tutorial, Reference, Getting Started, Troubleshooting, Best Practices, Git
+  - `Tags` (multi_select) - JavaScript, Frontend, Backend, Mobile, Claude Code, Infra, GitHub, Productivity, Claude Desktop
+  - `userDefined:URL` (url) - Optional external URL
+  - `Assigned To` (person) - Optional
 
 **Target Database: "Dev AI Weekly Newsletters"**
 
