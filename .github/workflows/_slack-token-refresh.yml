@@ -153,13 +153,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
           NEW_REFRESH_TOKEN: ${{ steps.refresh.outputs.new_refresh_token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
 
           echo "Updating SLACK_REFRESH_TOKEN secret for next run..."
 
           # Use gh CLI to update the secret
-          # The secret is updated in the current repository
-          gh secret set SLACK_REFRESH_TOKEN --body "$NEW_REFRESH_TOKEN"
+          # Explicitly specify the repository since we don't have a checkout
+          gh secret set SLACK_REFRESH_TOKEN --body "$NEW_REFRESH_TOKEN" -R "$GH_REPO"
 
           echo "✅ SLACK_REFRESH_TOKEN secret updated successfully"
