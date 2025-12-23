@@ -1,50 +1,90 @@
 # Dev AI Pod Weekly Newsletter Generator
+
 #
+
 # This workflow automatically generates the Dev AI Pod weekly newsletter
-# using Claude Code with MCP servers for Notion and Slack integration.
+
+# using Claude Code with MCP servers for Notion and Slack integration
+
 #
+
 # Schedule: Runs weekly on Monday at 9:00 AM EST (14:00 UTC)
+
 # Coverage: Previous 7 days (Sunday to Saturday)
+
 #
-# Prerequisites:
-#   1. ANTHROPIC_API_KEY secret configured
-#   2. NOTION_API_KEY secret configured (Notion integration token)
-#   3. SLACK_REFRESH_TOKEN secret configured (Slack OAuth refresh token)
-#   4. SLACK_REFRESH_URL secret configured (Token refresh backend URL)
-#   5. SLACK_TEAM_ID secret configured
-#   6. WORKFLOW_PAT secret configured (GitHub PAT with repo scope for updating secrets)
-#   7. GitHub CLI is authenticated (uses GITHUB_TOKEN)
+
+# Prerequisites
+
+# 1. ANTHROPIC_API_KEY secret configured
+
+# 2. NOTION_API_KEY secret configured (Notion integration token)
+
+# 3. SLACK_REFRESH_TOKEN secret configured (Slack OAuth refresh token)
+
+# 4. SLACK_REFRESH_URL secret configured (Token refresh backend URL)
+
+# 5. SLACK_TEAM_ID secret configured
+
+# 6. WORKFLOW_PAT secret configured (GitHub PAT with repo scope for updating secrets)
+
+# 7. GitHub CLI is authenticated (uses GITHUB_TOKEN)
+
 #
-# Slack App Requirements:
-#   The Slack app needs these Bot Token Scopes:
-#   - channels:history (view messages in public channels)
-#   - channels:read (view basic channel information)
-#   - reactions:read (read emoji reactions)
-#   - users:read (view users and their basic information)
+
+# Slack App Requirements
+
+# The Slack app needs these Bot Token Scopes
+
+# - channels:history (view messages in public channels)
+
+# - channels:read (view basic channel information)
+
+# - reactions:read (read emoji reactions)
+
+# - users:read (view users and their basic information)
+
 #
-# Token Refresh:
-#   This workflow uses the _slack-token-refresh.yml reusable workflow to
-#   automatically obtain a fresh Slack access token before generating the
-#   newsletter. This is required because Slack OAuth tokens are short-lived.
+
+# Token Refresh
+
+# This workflow refreshes the Slack OAuth token inline before generating the
+
+# newsletter. Slack refresh tokens are single-use, so the workflow automatically
+
+# updates SLACK_REFRESH_TOKEN secret with the new token after each refresh
+
 #
-# Notion Integration Requirements:
-#   The Notion integration needs access to:
-#   - "📚 What We're Reading" database
-#   - "🌎 Real-World AI Use Cases" database
-#   - "Dev AI Weekly Newsletters" database (write access)
+
+# Notion Integration Requirements
+
+# The Notion integration needs access to
+
+# - "📚 What We're Reading" database
+
+# - "🌎 Real-World AI Use Cases" database
+
+# - "Dev AI Weekly Newsletters" database (write access)
+
 #
-# Usage:
-#   - Automatic: Runs weekly on Monday at 9 AM EST
-#   - Manual: Use workflow_dispatch with optional inputs
+
+# Usage
+
+# - Automatic: Runs weekly on Monday at 9 AM EST
+
+# - Manual: Use workflow_dispatch with optional inputs
 
 name: Dev AI Newsletter
 
 on:
-  # Run weekly on Monday at 9:00 AM EST (14:00 UTC)
+
+# Run weekly on Monday at 9:00 AM EST (14:00 UTC)
+
   schedule:
     - cron: "0 14 * * 1"
 
-  # Manual trigger with inputs
+# Manual trigger with inputs
+
   workflow_dispatch:
     inputs:
       days_back:
@@ -81,35 +121,30 @@ on:
         default: "C091XE1DNP2"
 
 # Prevent concurrent runs
+
 concurrency:
   group: dev-ai-newsletter
   cancel-in-progress: false
 
 # Resolved environment variables (handles fallback for scheduled runs)
+
 env:
   DAYS_BACK: ${{ inputs.days_back || '7' }}
   MODEL: ${{ inputs.model || 'claude-sonnet-4-5-20250929' }}
   DRY_RUN: ${{ inputs.dry_run || 'false' }}
   DEBUG_MODE: ${{ inputs.debug_mode || 'true' }}
-  # Slack channel IDs to READ from: #pod-dev-ai (C094URH6C13), # ai-achieved-internally (C08J4JPQ3AM)
+
+# Slack channel IDs to READ from: #pod-dev-ai (C094URH6C13), # ai-achieved-internally (C08J4JPQ3AM)
+
   SLACK_READ_CHANNEL_IDS: "C094URH6C13,C08J4JPQ3AM"
-  # Slack channel IDs to POST to (comma-separated)
+
+# Slack channel IDs to POST to (comma-separated)
+
   SLACK_POST_MESSAGE_CHANNEL_IDS: ${{ inputs.slack_post_channel_ids || 'C091XE1DNP2' }}
 
 jobs:
-  # Step 1: Refresh the Slack OAuth token
-  # This also updates SLACK_REFRESH_TOKEN secret for subsequent runs
-  refresh-slack-token:
-    name: Refresh Slack Token
-    uses: ./.github/workflows/_slack-token-refresh.yml
-    secrets:
-      SLACK_REFRESH_TOKEN: ${{ secrets.SLACK_REFRESH_TOKEN }}
-      SLACK_REFRESH_URL: ${{ secrets.SLACK_REFRESH_URL }}
-      WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
-
-  # Step 2: Generate the newsletter using the fresh token
   generate-newsletter:
-    needs: refresh-slack-token
+    name: Generate Newsletter
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -150,18 +185,104 @@ jobs:
           echo "end_date=$END_DATE" >> $GITHUB_OUTPUT
           echo "Date range: $START_DATE to $END_DATE"
 
+      # Refresh Slack OAuth token
+      # Slack uses short-lived access tokens that must be refreshed before use.
+      # Refresh tokens are single-use, so we update SLACK_REFRESH_TOKEN secret afterward.
+      - name: Refresh Slack OAuth Token
+        id: slack-refresh
+        env:
+          SLACK_REFRESH_TOKEN: ${{ secrets.SLACK_REFRESH_TOKEN }}
+          SLACK_REFRESH_URL: ${{ secrets.SLACK_REFRESH_URL || 'https://ai-toolkit-slack-oauth-backend.vercel.app' }}
+        run: |
+          set -euo pipefail
+
+          # Validate required inputs
+          if [ -z "$SLACK_REFRESH_TOKEN" ]; then
+            echo "::error::SLACK_REFRESH_TOKEN secret is required but not provided"
+            exit 1
+          fi
+
+          # Construct refresh endpoint (remove trailing slash if present)
+          REFRESH_URL="${SLACK_REFRESH_URL%/}/slack/refresh"
+          echo "Refreshing Slack token via: ${REFRESH_URL}"
+
+          # Call the refresh endpoint
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"refresh_token\": \"${SLACK_REFRESH_TOKEN}\"}" \
+            "$REFRESH_URL")
+
+          # Extract HTTP status code (last line) and body (everything else)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          # Check HTTP status
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "::error::Token refresh failed with HTTP $HTTP_CODE"
+            echo "Response: $BODY"
+            exit 1
+          fi
+
+          # Parse response
+          OK=$(echo "$BODY" | jq -r '.ok // false')
+          ACCESS_TOKEN=$(echo "$BODY" | jq -r '.access_token // empty')
+          NEW_REFRESH_TOKEN=$(echo "$BODY" | jq -r '.refresh_token // empty')
+          ERROR=$(echo "$BODY" | jq -r '.error // empty')
+
+          if [ "$OK" != "true" ] || [ -z "$ACCESS_TOKEN" ]; then
+            echo "::error::Token refresh failed: ${ERROR:-Unknown error}"
+            exit 1
+          fi
+
+          # Validate the new token with Slack's auth.test API
+          echo "Validating refreshed token..."
+          AUTH_RESPONSE=$(curl -s \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            "https://slack.com/api/auth.test")
+
+          AUTH_OK=$(echo "$AUTH_RESPONSE" | jq -r '.ok // false')
+          if [ "$AUTH_OK" != "true" ]; then
+            AUTH_ERROR=$(echo "$AUTH_RESPONSE" | jq -r '.error // "unknown"')
+            echo "::error::Token validation failed: ${AUTH_ERROR}"
+            exit 1
+          fi
+
+          # Mask tokens in logs
+          echo "::add-mask::${ACCESS_TOKEN}"
+          if [ -n "$NEW_REFRESH_TOKEN" ]; then
+            echo "::add-mask::${NEW_REFRESH_TOKEN}"
+          fi
+
+          # Output tokens for subsequent steps (within same job, no masking issues)
+          echo "slack_bot_token=${ACCESS_TOKEN}" >> "$GITHUB_OUTPUT"
+          echo "new_refresh_token=${NEW_REFRESH_TOKEN}" >> "$GITHUB_OUTPUT"
+
+          echo "✅ Slack token refreshed and validated successfully"
+
+      # Update SLACK_REFRESH_TOKEN secret for next run
+      # This is required because Slack refresh tokens are single-use
+      - name: Update SLACK_REFRESH_TOKEN secret
+        if: steps.slack-refresh.outputs.new_refresh_token != ''
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+          NEW_REFRESH_TOKEN: ${{ steps.slack-refresh.outputs.new_refresh_token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          echo "Updating SLACK_REFRESH_TOKEN secret for next run..."
+          gh secret set SLACK_REFRESH_TOKEN --body "$NEW_REFRESH_TOKEN" -R "$GH_REPO"
+          echo "✅ SLACK_REFRESH_TOKEN secret updated successfully"
+
       # Create MCP configuration file with secrets injected
-      # SLACK_BOT_TOKEN comes from refresh job output (base64-encoded to bypass masking issues)
       - name: Create MCP configuration
         env:
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
-          SLACK_BOT_TOKEN_B64: ${{ needs.refresh-slack-token.outputs.slack_bot_token_b64 }}
+          SLACK_BOT_TOKEN: ${{ steps.slack-refresh.outputs.slack_bot_token }}
           SLACK_TEAM_ID: ${{ secrets.SLACK_TEAM_ID }}
           SLACK_READ_CHANNEL_IDS: ${{ env.SLACK_READ_CHANNEL_IDS }}
         run: |
-          # Decode the base64-encoded Slack token
-          SLACK_BOT_TOKEN=$(echo "$SLACK_BOT_TOKEN_B64" | base64 -d)
-
           # Create MCP config file with actual secret values
           cat > /tmp/mcp-config.json << EOF
           {
@@ -191,14 +312,11 @@ jobs:
       # Debug: Verify MCP config and tokens (secrets are masked by GitHub)
       - name: Verify MCP configuration
         env:
-          SLACK_BOT_TOKEN_B64: ${{ needs.refresh-slack-token.outputs.slack_bot_token_b64 }}
+          SLACK_BOT_TOKEN: ${{ steps.slack-refresh.outputs.slack_bot_token }}
           SLACK_TEAM_ID: ${{ secrets.SLACK_TEAM_ID }}
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
         run: |
           echo "=== Verifying MCP Configuration ==="
-
-          # Decode the base64-encoded Slack token for verification
-          SLACK_BOT_TOKEN=$(echo "$SLACK_BOT_TOKEN_B64" | base64 -d 2>/dev/null || echo "")
 
           # Check if config file exists and is valid JSON
           if [ -f /tmp/mcp-config.json ]; then
@@ -227,11 +345,10 @@ jobs:
 
           ALL_OK=true
 
-          if [ -n "$SLACK_BOT_TOKEN_B64" ] && [ -n "$SLACK_BOT_TOKEN" ]; then
-            echo "✅ SLACK_BOT_TOKEN is set (base64 length: ${#SLACK_BOT_TOKEN_B64}, decoded length: ${#SLACK_BOT_TOKEN})"
+          if [ -n "$SLACK_BOT_TOKEN" ]; then
+            echo "✅ SLACK_BOT_TOKEN is set (length: ${#SLACK_BOT_TOKEN})"
           else
             echo "❌ SLACK_BOT_TOKEN is EMPTY - Slack MCP will fail!"
-            echo "   Base64 value length: ${#SLACK_BOT_TOKEN_B64}"
             ALL_OK=false
           fi
 

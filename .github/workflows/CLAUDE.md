@@ -40,7 +40,7 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 - `update-action-versions.yml` - Scheduled workflow to update GitHub Actions to latest versions
 - `_update-action-versions-worker.yml` - Reusable worker for analyzing and updating action versions
 
-### Reusable Workflows (9 workflows, prefixed with `_`)
+### Reusable Workflows (8 workflows, prefixed with `_`)
 
 - `_claude-main.yml` - Core Claude AI interaction engine
 - `_claude-welcome.yml` - Reusable welcome message poster
@@ -49,7 +49,6 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 - `_generate-changelog.yml` - AI-powered changelog generation
 - `_generate-pr-metadata.yml` - AI-powered PR title and description generation
 - `_notify-release.yml` - Slack release notifications
-- `_slack-token-refresh.yml` - Slack OAuth token refresh for short-lived tokens
 - `_update-action-versions-worker.yml` - GitHub Actions version update automation
 
 ## Key Files
@@ -65,82 +64,6 @@ These workflows are prefixed with `_` and may be called from other repositories:
 - `_generate-changelog.yml` - AI-generated release notes
 - `_generate-pr-metadata.yml` - AI-generated PR titles and descriptions
 - `_notify-release.yml` - Slack notification dispatcher
-- `_slack-token-refresh.yml` - Refresh Slack OAuth tokens (for short-lived token environments)
-
-### Slack Token Refresh (`_slack-token-refresh.yml`)
-
-This workflow refreshes Slack OAuth access tokens for environments that use short-lived tokens. It handles the complete token rotation cycle, including persisting the new refresh token back to GitHub Secrets.
-
-**Key Features:**
-
-- Refreshes Slack OAuth access token using a refresh token
-- Validates the new token against Slack's `auth.test` API
-- Returns the access token as a **base64-encoded** workflow output (bypasses GitHub Actions masking)
-- Automatically updates `SLACK_REFRESH_TOKEN` secret with the new refresh token
-- Masks all sensitive tokens in workflow logs
-
-**How Token Rotation Works:**
-
-Slack OAuth refresh tokens are single-use. When you refresh:
-
-1. Workflow reads current `SLACK_REFRESH_TOKEN` from secrets
-2. Calls the refresh backend endpoint
-3. Receives new `access_token` + new `refresh_token`
-4. Returns `access_token` as base64-encoded output for immediate use in dependent jobs
-5. Updates `SLACK_REFRESH_TOKEN` secret with the new refresh token via GitHub API
-6. Next workflow run uses the updated refresh token
-
-**Outputs:**
-
-| Output                | Description                                                                     |
-| --------------------- | ------------------------------------------------------------------------------- |
-| `slack_bot_token_b64` | Fresh access token, **base64-encoded** (decode with `echo $TOKEN \| base64 -d`) |
-
-**Why Base64 Encoding?**
-
-GitHub Actions skips outputs that contain masked secrets (`Warning: Skip output 'token' since it may contain secret.`). Base64 encoding the token before outputting it bypasses this because the encoded string differs from the masked value.
-
-**Required Secrets:**
-
-| Secret                | Required | Description                                                      |
-| --------------------- | -------- | ---------------------------------------------------------------- |
-| `SLACK_REFRESH_TOKEN` | Yes      | Slack OAuth refresh token (xoxe-1-...)                           |
-| `SLACK_REFRESH_URL`   | No       | Backend URL (default: ai-toolkit-slack-oauth-backend.vercel.app) |
-| `WORKFLOW_PAT`        | Yes      | GitHub PAT with `repo` scope for updating secrets                |
-
-**Usage example:**
-
-```yaml
-jobs:
-  refresh-slack-token:
-    uses: ./.github/workflows/_slack-token-refresh.yml
-    secrets:
-      SLACK_REFRESH_TOKEN: ${{ secrets.SLACK_REFRESH_TOKEN }}
-      SLACK_REFRESH_URL: ${{ secrets.SLACK_REFRESH_URL }}
-      WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
-
-  use-token:
-    needs: refresh-slack-token
-    runs-on: ubuntu-latest
-    steps:
-      - name: Use Slack API
-        env:
-          # Use base64-encoded output (recommended for same-workflow-run)
-          SLACK_BOT_TOKEN_B64: ${{ needs.refresh-slack-token.outputs.slack_bot_token_b64 }}
-        run: |
-          # Decode the base64 token
-          SLACK_BOT_TOKEN=$(echo "$SLACK_BOT_TOKEN_B64" | base64 -d)
-
-          curl -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-            https://slack.com/api/auth.test
-```
-
-**Security Notes:**
-
-- `WORKFLOW_PAT` requires `repo` scope to update repository secrets
-- All tokens are masked in logs using `::add-mask::`
-- Access tokens are typically valid for 12 hours
-- If the workflow fails mid-execution, the refresh token may be consumed without being saved - manual re-authorization may be required
 
 ### PR Code Review (`_claude-code-review.yml`)
 
@@ -708,8 +631,8 @@ This workflow automatically generates the Dev AI Pod weekly newsletter using Cla
 
 **How It Works:**
 
-1. Refreshes Slack OAuth token via `_slack-token-refresh.yml` workflow
-2. Calculates the date range (previous 7 days)
+1. Calculates the date range (previous 7 days)
+2. Refreshes Slack OAuth token inline (single-use refresh tokens are automatically rotated)
 3. Creates MCP configuration for Notion and Slack servers
 4. Claude reads the agent instructions from `.claude/agents/dev-ai-pod-weekly-newsletter.md`
 5. Queries Notion databases for reading items and use cases
