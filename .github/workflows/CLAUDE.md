@@ -31,6 +31,10 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 - `claude-auto-tasks.yml` - Scheduled autonomous task processing from Linear
 - `_claude-task-worker.yml` - Reusable worker for processing individual Linear tasks
 
+### Newsletter Automation (1 workflow)
+
+- `dev-ai-newsletter.yml` - Weekly Dev AI Pod newsletter generation using Claude with Notion and Slack MCPs
+
 ### Dependency Management (2 workflows)
 
 - `update-action-versions.yml` - Scheduled workflow to update GitHub Actions to latest versions
@@ -610,9 +614,106 @@ These workflows are prefixed with two `__` and are only used within this reposit
 - `claude-code.yml` - Enables @claude mentions
 - `claude-code-review.yml` - Automated code reviews
 - `claude-welcome.yml` - New PR welcomes
+- `dev-ai-newsletter.yml` - Weekly Dev AI Pod newsletter generation (scheduled)
 - `generate-pr-title-description.yml` - Auto-generated PR titles and descriptions
 - `release-update-production.yml` - Production sync automation
 - `update-action-versions.yml` - Automated GitHub Actions version updates (scheduled)
+
+### Dev AI Newsletter (`dev-ai-newsletter.yml`)
+
+This workflow automatically generates the Dev AI Pod weekly newsletter using Claude Code with MCP servers for Notion and Slack integration.
+
+**Schedule:**
+
+- **Frequency**: Every Monday at 9:00 AM EST (14:00 UTC)
+- **Cron**: `0 14 * * 1`
+- **Coverage**: Previous 7 days (Sunday to Saturday)
+
+**How It Works:**
+
+1. Calculates the date range (previous 7 days)
+2. Refreshes Slack OAuth token inline (single-use refresh tokens are automatically rotated)
+3. Creates MCP configuration for Notion and Slack servers
+4. Claude reads the agent instructions from `.claude/agents/dev-ai-pod-weekly-newsletter.md`
+5. Queries Notion databases for reading items and use cases
+6. Queries Slack channels for engaging discussions
+7. Queries GitHub releases for tool updates
+8. Formats the newsletter following the template
+9. Creates a new page in the Notion "Dev AI Weekly Newsletters" database
+
+**Required Secrets:**
+
+| Secret                | Required | Description                                       |
+| --------------------- | -------- | ------------------------------------------------- |
+| `ANTHROPIC_API_KEY`   | Yes      | Anthropic API key for Claude Code                 |
+| `NOTION_API_KEY`      | Yes      | Notion integration token (internal integration)   |
+| `SLACK_REFRESH_TOKEN` | Yes      | Slack OAuth refresh token (xoxe-1-...)            |
+| `SLACK_REFRESH_URL`   | No       | Token refresh backend URL (has default)           |
+| `SLACK_TEAM_ID`       | Yes      | Slack workspace team ID                           |
+| `WORKFLOW_PAT`        | Yes      | GitHub PAT with `repo` scope (for token rotation) |
+
+**Slack App Requirements:**
+
+The Slack app needs these Bot Token Scopes:
+
+- `channels:history` - View messages in public channels
+- `channels:read` - View basic channel information
+- `reactions:read` - Read emoji reactions
+- `users:read` - View users and their basic information
+
+**Notion Integration Requirements:**
+
+The Notion integration needs access to:
+
+- "📚 What We're Reading" database (read)
+- "🌎 Real-World AI Use Cases" database (read)
+- "Dev AI Weekly Newsletters" database (write)
+
+**Configuration Inputs:**
+
+| Input                    | Default                      | Description                                                                     |
+| ------------------------ | ---------------------------- | ------------------------------------------------------------------------------- |
+| `days_back`              | `7`                          | Number of days to look back for content                                         |
+| `model`                  | `claude-sonnet-4-5-20250929` | Claude model to use                                                             |
+| `dry_run`                | `false`                      | Generate but don't publish to Notion                                            |
+| `debug_mode`             | `true`                       | Enable full Claude output for debugging                                         |
+| `slack_post_channel_ids` | `C091XE1DNP2`                | Comma-separated Slack channel IDs to post newsletter announcement (e.g., C091XE1DNP2,C094URH6C13) |
+
+**Manual Trigger:**
+
+```bash
+# Run with defaults (last 7 days)
+gh workflow run dev-ai-newsletter.yml
+
+# Dry run (generate but don't publish)
+gh workflow run dev-ai-newsletter.yml -f dry_run=true
+
+# Custom date range
+gh workflow run dev-ai-newsletter.yml -f days_back=14
+
+# Use Opus model for better quality
+gh workflow run dev-ai-newsletter.yml -f model=claude-opus-4-5-20251101
+
+# Post to specific Slack channels
+gh workflow run dev-ai-newsletter.yml -f slack_post_channel_ids="C091XE1DNP2,C094URH6C13"
+```
+
+**MCP Servers Used:**
+
+- `@notionhq/notion-mcp-server` - Official Notion MCP server
+- `@modelcontextprotocol/server-slack` - Official Slack MCP server
+
+**Artifacts:**
+
+| Artifact Name                           | Condition    | Retention | Description                              |
+| --------------------------------------- | ------------ | --------- | ---------------------------------------- |
+| `newsletter-preview-{start}-to-{end}`   | Dry run only | 30 days   | Formatted newsletter markdown for review |
+| `claude-execution-log-{start}-to-{end}` | Always       | 7 days    | Claude execution log JSON for debugging  |
+
+**Related Files:**
+
+- `.claude/agents/dev-ai-pod-weekly-newsletter.md` - Agent instructions
+- `.claude/commands/dev-ai-pod-weekly-newsletter.md` - Slash command definition
 
 ## Subdirectories
 
@@ -668,6 +769,10 @@ Common secrets referenced:
 - `SERVICE_ACCOUNT_GPG_PRIVATE_KEY` - GPG key for signed commits/tags
 - `LINEAR_API_KEY` - Linear API authentication (for autonomous tasks)
 - `SLACK_WEBHOOK_URL` - Slack notifications
+- `NOTION_API_KEY` - Notion integration token (for newsletter automation)
+- `SLACK_REFRESH_TOKEN` - Slack OAuth refresh token (for newsletter automation, auto-rotated)
+- `SLACK_REFRESH_URL` - Slack token refresh backend URL (optional, has default)
+- `SLACK_TEAM_ID` - Slack workspace team ID (for newsletter automation)
 - `GITHUB_TOKEN` - Built-in token (automatic)
 
 ## Usage Patterns
