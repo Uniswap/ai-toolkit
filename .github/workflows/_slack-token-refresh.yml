@@ -134,15 +134,16 @@ jobs:
             exit 1
           fi
 
-          # Mask tokens in logs
+          # Output the tokens FIRST (before masking, to ensure they're captured)
+          # GitHub Actions can lose masked values when passing between reusable workflows
+          echo "slack_bot_token=${ACCESS_TOKEN}" >> "$GITHUB_OUTPUT"
+          echo "new_refresh_token=${NEW_REFRESH_TOKEN}" >> "$GITHUB_OUTPUT"
+
+          # Now mask tokens in logs (any subsequent echo of these values will be masked)
           echo "::add-mask::${ACCESS_TOKEN}"
           if [ -n "$NEW_REFRESH_TOKEN" ]; then
             echo "::add-mask::${NEW_REFRESH_TOKEN}"
           fi
-
-          # Output the tokens
-          echo "slack_bot_token=${ACCESS_TOKEN}" >> "$GITHUB_OUTPUT"
-          echo "new_refresh_token=${NEW_REFRESH_TOKEN}" >> "$GITHUB_OUTPUT"
 
           echo "✅ Slack token refreshed and validated successfully"
 
