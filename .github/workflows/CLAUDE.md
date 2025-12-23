@@ -761,6 +761,13 @@ gh workflow run dev-ai-newsletter.yml -f model=claude-opus-4-5-20251101
 - `@notionhq/notion-mcp-server` - Official Notion MCP server
 - `@modelcontextprotocol/server-slack` - Official Slack MCP server
 
+**Artifacts:**
+
+| Artifact Name                                         | Condition       | Retention | Description                                     |
+| ----------------------------------------------------- | --------------- | --------- | ----------------------------------------------- |
+| `newsletter-preview-{start}-to-{end}`                 | Dry run only    | 30 days   | Formatted newsletter markdown for review        |
+| `claude-execution-log-{start}-to-{end}`               | Always          | 7 days    | Claude execution log JSON for debugging         |
+
 **Related Files:**
 
 - `.claude/agents/dev-ai-pod-weekly-newsletter.md` - Agent instructions

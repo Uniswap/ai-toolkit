@@ -223,6 +223,16 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
+      # Upload Claude execution log for debugging
+      - name: Upload Claude execution log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: claude-execution-log-${{ steps.dates.outputs.start_date }}-to-${{ steps.dates.outputs.end_date }}
+          path: /home/runner/work/_temp/claude-execution-output.json
+          retention-days: 7
+          if-no-files-found: warn
+
       # Create job summary
       - name: Create job summary
         if: always()
