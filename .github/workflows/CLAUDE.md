@@ -478,6 +478,28 @@ This workflow processes Linear issues autonomously using Claude Code. It's calle
 | **Task Complexity Warnings** | Warns about tasks containing keywords like "audit", "review", "investigate"                              |
 | **Incremental Commits**      | Prompt instructs Claude to commit and push after each major piece of work to preserve progress           |
 | **Linear Integration**       | Updates Linear issue status to "In Progress" when PR is created                                          |
+| **Dual Authentication**      | Supports both API key and OAuth token authentication (OAuth takes precedence)                            |
+
+**Required Secrets:**
+
+| Secret                    | Required                                      | Description                                                                                                                               |
+| ------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`       | Yes (unless `CLAUDE_CODE_OAUTH_TOKEN` is set) | Anthropic API key for Claude access                                                                                                       |
+| `CLAUDE_CODE_OAUTH_TOKEN` | No (alternative to `ANTHROPIC_API_KEY`)       | Claude Code OAuth token for authentication. When provided, takes precedence over `ANTHROPIC_API_KEY`. Generate with `claude setup-token`. |
+| `LINEAR_API_KEY`          | Yes                                           | Linear API key for issue updates                                                                                                          |
+| `NODE_AUTH_TOKEN`         | Yes                                           | npm token for installing `@uniswap` scoped packages                                                                                       |
+| `WORKFLOW_PAT`            | No                                            | Personal Access Token with `repo` scope for pushing branches (falls back to `GITHUB_TOKEN`)                                               |
+
+**Authentication Methods:**
+
+You can authenticate with Claude using either method:
+
+1. **API Key (Traditional):** Set `ANTHROPIC_API_KEY` with your Anthropic API key
+2. **OAuth Token (Pro/Max Users):** Set `CLAUDE_CODE_OAUTH_TOKEN` with a token generated via `claude setup-token`
+
+If both are provided, OAuth token takes precedence. At least one authentication method must be configured.
+
+> **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
 
 **Turn Budget (built into prompt):**
 
@@ -518,7 +540,7 @@ The job summary includes:
 - Failure reason (if applicable)
 - Linear status update
 
-**Usage example:**
+**Usage example (API Key):**
 
 ```yaml
 uses: ./.github/workflows/_claude-task-worker.yml
@@ -535,6 +557,27 @@ with:
   pr_type: 'draft' # or 'published' for non-draft PRs
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+  NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+```
+
+**Usage example (OAuth Token):**
+
+```yaml
+uses: ./.github/workflows/_claude-task-worker.yml
+with:
+  issue_id: ${{ matrix.issue_id }}
+  issue_identifier: ${{ matrix.issue_identifier }}
+  issue_title: ${{ matrix.issue_title }}
+  issue_description: ${{ matrix.issue_description }}
+  issue_url: ${{ matrix.issue_url }}
+  branch_name: ${{ matrix.branch_name }}
+  target_branch: 'next'
+  model: 'claude-opus-4-5-20251101'
+  debug_mode: true
+  pr_type: 'draft'
+secrets:
+  CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
   LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
   NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 ```
