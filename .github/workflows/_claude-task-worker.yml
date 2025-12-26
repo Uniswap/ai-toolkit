@@ -40,7 +40,8 @@
 # - pr_type: Type of PR to create - "draft" or "published" (default: "draft")
 #
 # SECRETS REQUIRED:
-# - ANTHROPIC_API_KEY: Claude API key
+# - ANTHROPIC_API_KEY: Claude API key (required unless CLAUDE_CODE_OAUTH_TOKEN is set)
+# - CLAUDE_CODE_OAUTH_TOKEN: (optional) OAuth token for Claude Code (alternative to API key)
 # - LINEAR_API_KEY: Linear API key
 # - NODE_AUTH_TOKEN: npm token for installing @uniswap scoped packages
 # - WORKFLOW_PAT: (optional) PAT for pushing branches (falls back to GITHUB_TOKEN)
@@ -120,8 +121,12 @@ on:
 
     secrets:
       ANTHROPIC_API_KEY:
-        description: "Anthropic API key for Claude Code"
-        required: true
+        description: "Anthropic API key for Claude Code (required unless CLAUDE_CODE_OAUTH_TOKEN is set)"
+        required: false
+
+      CLAUDE_CODE_OAUTH_TOKEN:
+        description: "OAuth token for Claude Code (alternative to ANTHROPIC_API_KEY, takes precedence if both set)"
+        required: false
 
       LINEAR_API_KEY:
         description: "Linear API key for issue updates"
@@ -385,11 +390,13 @@ jobs:
           fi
 
       # Run Claude Code with Linear MCP configured
+      # Supports both API key and OAuth token authentication (OAuth takes precedence)
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@8a1c4371755898f67cd97006ba7c97702d5fc4bf # v1.0.16
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: ${{ steps.build-prompt.outputs.prompt }}
           show_full_output: ${{ inputs.debug_mode }}
           claude_args: |
