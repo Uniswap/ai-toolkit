@@ -145,10 +145,20 @@ These artifacts are available in the workflow run's "Artifacts" section and are 
 
 **Required Secrets:**
 
-| Secret              | Required | Description                                                                                                                       |
-| ------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `ANTHROPIC_API_KEY` | Yes      | Anthropic API key for Claude access                                                                                               |
-| `WORKFLOW_PAT`      | Optional | Personal Access Token with `repo` scope. Only needed for resolving review threads via GraphQL API (falls back to `GITHUB_TOKEN`). |
+| Secret                    | Required                                      | Description                                                                                                                               |
+| ------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`       | Yes (unless `CLAUDE_CODE_OAUTH_TOKEN` is set) | Anthropic API key for Claude access                                                                                                       |
+| `CLAUDE_CODE_OAUTH_TOKEN` | No (alternative to `ANTHROPIC_API_KEY`)       | Claude Code OAuth token for authentication. When provided, takes precedence over `ANTHROPIC_API_KEY`. Generate with `claude setup-token`. |
+| `WORKFLOW_PAT`            | No                                            | Personal Access Token with `repo` scope. Only needed for resolving review threads via GraphQL API (falls back to `GITHUB_TOKEN`).         |
+
+**Authentication Methods:**
+
+You can authenticate with Claude using either method:
+
+1. **API Key (Traditional):** Set `ANTHROPIC_API_KEY` with your Anthropic API key
+2. **OAuth Token (Pro/Max Users):** Set `CLAUDE_CODE_OAUTH_TOKEN` with a token generated via `claude setup-token`
+
+If both are provided, OAuth token takes precedence. At least one authentication method must be configured.
 
 > **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
 >
@@ -234,7 +244,7 @@ secrets:
 - Override files must exist in the repository; missing files will cause an error
 - Each override file should contain properly formatted markdown for that section
 
-**Usage example:**
+**Usage example (API Key):**
 
 ```yaml
 uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
@@ -245,6 +255,19 @@ with:
   toolkit_ref: 'main' # or 'next' to test unreleased changes
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+```
+
+**Usage example (OAuth Token):**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  base_ref: ${{ github.base_ref }}
+  model: 'claude-sonnet-4-5-20250929'
+secrets:
+  CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
   WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
 ```
 
@@ -671,12 +694,12 @@ The Notion integration needs access to:
 
 **Configuration Inputs:**
 
-| Input                    | Default                      | Description                                                                     |
-| ------------------------ | ---------------------------- | ------------------------------------------------------------------------------- |
-| `days_back`              | `7`                          | Number of days to look back for content                                         |
-| `model`                  | `claude-sonnet-4-5-20250929` | Claude model to use                                                             |
-| `dry_run`                | `false`                      | Generate but don't publish to Notion                                            |
-| `debug_mode`             | `true`                       | Enable full Claude output for debugging                                         |
+| Input                    | Default                      | Description                                                                                       |
+| ------------------------ | ---------------------------- | ------------------------------------------------------------------------------------------------- |
+| `days_back`              | `7`                          | Number of days to look back for content                                                           |
+| `model`                  | `claude-sonnet-4-5-20250929` | Claude model to use                                                                               |
+| `dry_run`                | `false`                      | Generate but don't publish to Notion                                                              |
+| `debug_mode`             | `true`                       | Enable full Claude output for debugging                                                           |
 | `slack_post_channel_ids` | `C091XE1DNP2`                | Comma-separated Slack channel IDs to post newsletter announcement (e.g., C091XE1DNP2,C094URH6C13) |
 
 **Manual Trigger:**
@@ -763,7 +786,8 @@ Version pinning is centralized using GitHub repository variables (`vars.*`):
 
 Common secrets referenced:
 
-- `ANTHROPIC_API_KEY` - Claude AI API authentication (also requires the [Claude GitHub App](https://github.com/apps/claude) to be installed on the repository)
+- `ANTHROPIC_API_KEY` - Claude AI API authentication (also requires the [Claude GitHub App](https://github.com/apps/claude) to be installed on the repository). Alternative: use `CLAUDE_CODE_OAUTH_TOKEN` instead.
+- `CLAUDE_CODE_OAUTH_TOKEN` - Claude Code OAuth token for authentication (alternative to `ANTHROPIC_API_KEY`). Generate with `claude setup-token`. For Pro/Max users.
 - `NODE_AUTH_TOKEN` - NPM registry authentication (for publishing and installing `@uniswap` scoped packages)
 - `WORKFLOW_PAT` - Personal Access Token with `repo` scope for: (1) pushing commits/tags in force-publish, (2) cross-repo access to fetch default prompts from ai-toolkit in `_claude-code-review.yml` and `_generate-pr-metadata.yml`, (3) resolving review threads via GraphQL API in `_claude-code-review.yml` (the default `GITHUB_TOKEN` lacks permissions for the `resolveReviewThread` mutation). **Important:** The account that owns the PAT must have write, maintain, or admin access to the repository for thread resolution to work.
 - `SERVICE_ACCOUNT_GPG_PRIVATE_KEY` - GPG key for signed commits/tags

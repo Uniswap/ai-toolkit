@@ -181,8 +181,11 @@ on:
 
     secrets:
       ANTHROPIC_API_KEY:
-        description: "Anthropic API key for Claude access"
-        required: true
+        description: "Anthropic API key for Claude access. Required unless CLAUDE_CODE_OAUTH_TOKEN is provided."
+        required: false
+      CLAUDE_CODE_OAUTH_TOKEN:
+        description: "Claude Code OAuth token for authentication. Alternative to ANTHROPIC_API_KEY. When provided, takes precedence over API key."
+        required: false
       WORKFLOW_PAT:
         description: "Personal Access Token with repo scope. Only needed for resolving review threads via GraphQL API (falls back to GITHUB_TOKEN if not provided)."
         required: false
@@ -207,6 +210,24 @@ jobs:
         uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
         with:
           egress-policy: audit
+
+      # Validate authentication: either ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN must be provided
+      - name: Validate Authentication
+        env:
+          HAS_API_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+          HAS_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+        run: |
+          echo "ℹ️  Validating authentication configuration..."
+
+          if [ "$HAS_OAUTH_TOKEN" = "true" ]; then
+            echo "✅ Using Claude Code OAuth token for authentication"
+          elif [ "$HAS_API_KEY" = "true" ]; then
+            echo "✅ Using Anthropic API key for authentication"
+          else
+            echo "❌ ERROR: No authentication provided"
+            echo "   Either ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN must be set"
+            exit 1
+          fi
 
       # Fetch PR metadata via API:
       # - head_sha: Checkout the exact PR commit (not GitHub's merge commit)
@@ -978,12 +999,17 @@ jobs:
           echo "✅ Configured read-only tools (${#ALLOWED_TOOLS} chars)"
 
       # Run Claude Code Action to perform the review (analysis only, outputs JSON)
+      # Supports both API key and OAuth token authentication (validated in earlier step)
       - name: Run Claude Code Review
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
         id: claude
         uses: anthropics/claude-code-action@a7e4c51380c42dd89b127f5e5f9be7b54020bc6b # v1.0.21
         with:
+          # Authentication: provide either API key or OAuth token (validated in earlier step)
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # github_token is required for OAuth authentication
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: ${{ steps.build-prompt.outputs.final_prompt }}
           # Disable built-in progress tracking - we handle our own PR comments
           track_progress: false
