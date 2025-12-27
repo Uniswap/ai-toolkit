@@ -33,20 +33,25 @@ export async function promptForMissingOptions<T extends Record<string, any>>(
   context: {
     availableCommands?: string[];
     availableAgents?: string[];
+    availableSkills?: string[];
     availableAddons?: string[];
     commandDescriptions?: Record<string, string>;
     agentDescriptions?: Record<string, string>;
+    skillDescriptions?: Record<string, string>;
     addonDescriptions?: Record<string, string>;
     // Explicit global/local format
     globalExistingCommands?: Set<string>;
     globalExistingAgents?: Set<string>;
+    globalExistingSkills?: Set<string>;
     localExistingCommands?: Set<string>;
     localExistingAgents?: Set<string>;
+    localExistingSkills?: Set<string>;
     // Dynamic packages support
     availablePackages?: string[];
     // Default selections for default mode
     defaultCommands?: string[];
     defaultAgents?: string[];
+    defaultSkills?: string[];
   } = {},
   explicitlyProvidedOptions?: Map<string, any> | Set<string>
 ): Promise<T> {

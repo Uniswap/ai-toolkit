@@ -1,0 +1,6 @@
+{
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "name": "@ai-toolkit/skills-agnostic",
+  "sourceRoot": "packages/skills/agnostic/src",
+  "projectType": "library"
+}
