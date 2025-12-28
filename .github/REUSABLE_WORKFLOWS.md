@@ -247,11 +247,12 @@ This workflow does not have outputs (Claude responds directly in PR/issue commen
 
 #### Secrets
 
-| Secret              | Required | Description                        |
-| ------------------- | -------- | ---------------------------------- |
-| `ANTHROPIC_API_KEY` | Yes      | API key from console.anthropic.com |
+| Secret                    | Required                                           | Description                                                                                          |
+| ------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`       | Yes (unless `CLAUDE_CODE_OAUTH_TOKEN` is provided) | API key from console.anthropic.com                                                                   |
+| `CLAUDE_CODE_OAUTH_TOKEN` | No (alternative to `ANTHROPIC_API_KEY`)            | OAuth token for Claude Code authentication. When provided, takes precedence over `ANTHROPIC_API_KEY` |
 
-**Note**: The secret must be passed explicitly from the calling workflow.
+**Note**: You must provide either `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`. The secrets must be passed explicitly from the calling workflow.
 
 #### Permissions Required (Fixed)
 
@@ -1013,11 +1014,13 @@ This workflow does not have outputs (reviews are submitted directly to GitHub PR
 
 #### Secrets
 
-| Secret              | Required | Description                        |
-| ------------------- | -------- | ---------------------------------- |
-| `ANTHROPIC_API_KEY` | Yes      | API key from console.anthropic.com |
+| Secret                    | Required                                           | Description                                                                                          |
+| ------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`       | Yes (unless `CLAUDE_CODE_OAUTH_TOKEN` is provided) | API key from console.anthropic.com                                                                   |
+| `CLAUDE_CODE_OAUTH_TOKEN` | No (alternative to `ANTHROPIC_API_KEY`)            | OAuth token for Claude Code authentication. When provided, takes precedence over `ANTHROPIC_API_KEY` |
+| `WORKFLOW_PAT`            | No                                                 | Personal Access Token with repo scope. Only needed for resolving review threads via GraphQL API      |
 
-**Note**: The secret must be passed explicitly from the calling workflow.
+**Note**: You must provide either `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`. The secrets must be passed explicitly from the calling workflow.
 
 #### Permissions Required (Fixed)
 
