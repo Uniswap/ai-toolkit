@@ -110,8 +110,11 @@ on:
 
     secrets:
       ANTHROPIC_API_KEY:
-        description: "Anthropic API key for Claude access"
-        required: true
+        description: "Anthropic API key for Claude access. Required unless CLAUDE_CODE_OAUTH_TOKEN is provided."
+        required: false
+      CLAUDE_CODE_OAUTH_TOKEN:
+        description: "OAuth token for Claude Code (alternative to ANTHROPIC_API_KEY, takes precedence if both set). Generate with 'claude setup-token'."
+        required: false
       WORKFLOW_PAT:
         description: "Deprecated. No longer required as ai-toolkit is now a public repository."
         required: false
@@ -629,12 +632,14 @@ jobs:
           echo "✅ Configured allowed tools (${#ALLOWED_TOOLS} chars)"
 
       # Run Claude Code Action to generate the metadata
+      # Supports both API key and OAuth token authentication (OAuth takes precedence)
       - name: Run Claude Code Generation
         if: steps.cache-check.outputs.cache-hit != 'true'
         id: claude
         uses: anthropics/claude-code-action@a7e4c51380c42dd89b127f5e5f9be7b54020bc6b # v1.0.21
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: ${{ steps.build-prompt.outputs.final_prompt }}
           track_progress: false # Disable to avoid PR comments
           allowed_bots: dependabot

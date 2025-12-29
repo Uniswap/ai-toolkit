@@ -187,6 +187,7 @@ jobs:
 
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
 
   # Manual review triggered by workflow_dispatch
@@ -213,6 +214,7 @@ jobs:
 
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
 
   # Comment-triggered review: Add "@request-claude-review" to any PR comment
@@ -239,6 +241,7 @@ jobs:
 
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
 
   # Auto-merge Dependabot security updates after successful review
