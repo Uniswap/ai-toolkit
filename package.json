@@ -61,7 +61,7 @@
     "jest-util": "^30.0.2",
     "jsonc-eslint-parser": "^2.1.0",
     "lefthook": "^1.12.3",
-    "markdownlint-cli2": "^0.18.1",
+    "markdownlint-cli2": "^0.20.0",
     "nx": "22.0.2",
     "prettier": "^2.6.2",
     "supertest": "^7.1.4",
