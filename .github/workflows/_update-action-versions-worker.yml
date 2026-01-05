@@ -26,7 +26,8 @@
 #   - debug_mode: Show full Claude output (default: true)
 #
 # SECRETS REQUIRED:
-#   - ANTHROPIC_API_KEY: Claude API key
+#   - ANTHROPIC_API_KEY: Claude API key (required unless CLAUDE_CODE_OAUTH_TOKEN is set)
+#   - CLAUDE_CODE_OAUTH_TOKEN: (optional) OAuth token for Claude Code (alternative to API key)
 #   - WORKFLOW_PAT: (optional) PAT for pushing branches
 
 name: "[internal] Update Action Versions Worker"
@@ -71,8 +72,12 @@ on:
 
     secrets:
       ANTHROPIC_API_KEY:
-        description: "Anthropic API key for Claude Code"
-        required: true
+        description: "Anthropic API key for Claude Code (required unless CLAUDE_CODE_OAUTH_TOKEN is set)"
+        required: false
+
+      CLAUDE_CODE_OAUTH_TOKEN:
+        description: "OAuth token for Claude Code (alternative to ANTHROPIC_API_KEY, takes precedence if both set). Generate with 'claude setup-token'."
+        required: false
 
       WORKFLOW_PAT:
         description: "PAT for pushing branches (optional)"
@@ -95,6 +100,12 @@ jobs:
         uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
         with:
           egress-policy: audit
+
+      - name: Validate authentication
+        uses: ./.github/actions/validate-claude-auth
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
       # Checkout the update branch
       - name: Checkout repository
@@ -292,11 +303,13 @@ jobs:
           echo "PROMPT_DELIM" >> $GITHUB_OUTPUT
 
       # Run Claude Code
+      # Supports both API key and OAuth token authentication (OAuth takes precedence)
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@8a1c4371755898f67cd97006ba7c97702d5fc4bf # v1.0.16
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: ${{ steps.build-prompt.outputs.prompt }}
           show_full_output: ${{ inputs.debug_mode }}
           claude_args: |
