@@ -243,23 +243,11 @@ jobs:
         with:
           fetch-depth: 50
 
-      # Validate authentication: either ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN must be provided
       - name: Validate Authentication
-        env:
-          HAS_API_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
-          HAS_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
-        run: |
-          echo "ℹ️  Validating authentication configuration..."
-
-          if [ "$HAS_OAUTH_TOKEN" = "true" ]; then
-            echo "✅ Using Claude Code OAuth token for authentication"
-          elif [ "$HAS_API_KEY" = "true" ]; then
-            echo "✅ Using Anthropic API key for authentication"
-          else
-            echo "❌ ERROR: No authentication provided"
-            echo "   Either ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN must be set"
-            exit 1
-          fi
+        uses: ./.github/actions/validate-claude-auth
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
       # Build claude_args with CLI arguments
       - name: Build Claude CLI arguments
