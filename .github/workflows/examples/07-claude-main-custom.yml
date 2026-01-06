@@ -41,7 +41,9 @@ jobs:
 
     uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
     secrets:
+      # At least one of these authentication methods is required
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
     with:
       # MODEL SELECTION
       # Choose the Claude model based on your needs:

@@ -149,4 +149,5 @@ jobs:
       debug_mode: true
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
