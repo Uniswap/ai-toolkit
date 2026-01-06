@@ -6,19 +6,16 @@
     "outDir": "dist",
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
     "emitDeclarationOnly": false,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "es2022",
+    "forceConsistentCasingInFileNames": true,
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
   "references": [
     {
-      "path": "../agents/agnostic/tsconfig.lib.json"
-    },
-    {
-      "path": "../claude-skills/tsconfig.lib.json"
-    },
-    {
-      "path": "../commands/agnostic/tsconfig.lib.json"
+      "path": "../utils/tsconfig.lib.json"
     }
   ]
 }

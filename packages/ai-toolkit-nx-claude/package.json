@@ -91,6 +91,11 @@
               "input": "./packages/agents/agnostic/src",
               "glob": "**/*.md",
               "output": "content/agents/agnostic"
+            },
+            {
+              "input": "./packages/claude-skills/src/skills",
+              "glob": "**/*",
+              "output": "content/skills"
             }
           ]
         }
@@ -129,6 +134,12 @@
           {
             "projects": [
               "@ai-toolkit/commands-agnostic"
+            ],
+            "target": "build"
+          },
+          {
+            "projects": [
+              "@ai-toolkit/claude-skills"
             ],
             "target": "build"
           }
@@ -184,6 +195,7 @@
   },
   "devDependencies": {
     "@ai-toolkit/commands-agnostic": "0.1.16-next.7",
-    "@ai-toolkit/agents-agnostic": "0.2.12-next.7"
+    "@ai-toolkit/agents-agnostic": "0.2.12-next.7",
+    "@ai-toolkit/claude-skills": "0.1.0"
   }
 }

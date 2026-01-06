@@ -4,13 +4,7 @@
   "include": [],
   "references": [
     {
-      "path": "../agents/agnostic"
-    },
-    {
-      "path": "../claude-skills"
-    },
-    {
-      "path": "../commands/agnostic"
+      "path": "../utils"
     },
     {
       "path": "./tsconfig.lib.json"
