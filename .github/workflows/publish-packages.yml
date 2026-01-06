@@ -550,6 +550,9 @@ jobs:
           echo "npm tag: $INPUT_NPM_TAG"
           echo "Version strategy: $INPUT_VERSION_STRATEGY"
 
+          # Source shared validation function (defense-in-depth for bash arithmetic)
+          source .github/scripts/validate-numeric.sh
+
           calculate_prerelease_version() {
             local package="$1"
             local preid="$2"
@@ -564,6 +567,12 @@ jobs:
             local major minor patch
             IFS='.' read -r major minor patch <<< "$latest_version"
             patch="${patch%%-*}"
+
+            # Validate version components before arithmetic (defense-in-depth)
+            major=$(validate_numeric "$major" "major") || return 1
+            minor=$(validate_numeric "$minor" "minor") || return 1
+            patch=$(validate_numeric "$patch" "patch") || return 1
+
             local base_version="${major}.${minor}.$((patch + 1))"
 
             local npm_prerelease=-1
@@ -632,6 +641,11 @@ jobs:
 
             local major minor patch
             IFS='.' read -r major minor patch <<< "$base_version"
+
+            # Validate version components before arithmetic (defense-in-depth)
+            major=$(validate_numeric "$major" "major") || return 1
+            minor=$(validate_numeric "$minor" "minor") || return 1
+            patch=$(validate_numeric "$patch" "patch") || return 1
 
             local npm_versions
             npm_versions=$(npm view "$package" versions --json --registry=https://registry.npmjs.org 2>/dev/null || echo "[]")
@@ -717,6 +731,9 @@ jobs:
           echo "For each package: version → publish → push (or revert on failure)"
           echo ""
 
+          # Source shared validation function (defense-in-depth for bash arithmetic)
+          source .github/scripts/validate-numeric.sh
+
           calculate_prerelease_version() {
             local package="$1"
             local preid="$2"
@@ -736,6 +753,12 @@ jobs:
             local major minor patch
             IFS='.' read -r major minor patch <<< "$latest_version"
             patch="${patch%%-*}"
+
+            # Validate version components before arithmetic (defense-in-depth)
+            major=$(validate_numeric "$major" "major") || return 1
+            minor=$(validate_numeric "$minor" "minor") || return 1
+            patch=$(validate_numeric "$patch" "patch") || return 1
+
             local base_version="${major}.${minor}.$((patch + 1))"
             echo "  📐 Base version: $base_version" >&2
 
@@ -834,6 +857,11 @@ jobs:
             # Base version exists or latest is stable, need to bump patch
             local major minor patch
             IFS='.' read -r major minor patch <<< "$base_version"
+
+            # Validate version components before arithmetic (defense-in-depth)
+            major=$(validate_numeric "$major" "major") || return 1
+            minor=$(validate_numeric "$minor" "minor") || return 1
+            patch=$(validate_numeric "$patch" "patch") || return 1
 
             # Find the highest stable version on npm
             local npm_versions
