@@ -914,8 +914,17 @@ gh workflow run dev-ai-newsletter.yml -f slack_post_channel_ids="C091XE1DNP2,C09
 
 **MCP Servers Used:**
 
-- `@notionhq/notion-mcp-server` - Official Notion MCP server
+- `@notionhq/notion-mcp-server@1.9.1` - Official Notion MCP server (pinned to v1.9.1 due to breaking changes in v2.0.0)
 - `@modelcontextprotocol/server-slack` - Official Slack MCP server
+
+> **Important: MCP Server Version Pinning**
+>
+> The Notion MCP server is pinned to v1.9.1 because v2.0.0 (released Dec 24, 2025) introduced breaking changes:
+>
+> - Tool names changed from `notion-*` to `API-*` format
+> - Parameter format changed (e.g., `parent` must be an object, not a JSON string)
+>
+> The agent instructions in `.claude/agents/dev-ai-pod-weekly-newsletter.md` are written for v1.x API. To upgrade to v2.0.0, update both the version and the agent instructions.
 
 **Artifacts:**
 
