@@ -168,7 +168,7 @@ jobs:
       pr_number: ${{ github.event.pull_request.number }}
       base_ref: ${{ github.base_ref }}
       force_review: false
-      max_diff_lines: ${{ vars.MAX_DIFF_LINES }}
+      max_diff_lines: ${{ fromJSON(vars.MAX_DIFF_LINES) }}
 
       # Use Opus 4.5 for comprehensive reviews with reliable inline comments
       # Opus is more capable at following complex multi-step instructions
@@ -206,7 +206,7 @@ jobs:
       pr_number: ${{ needs.get-pr-info.outputs.pr_number }}
       base_ref: ${{ needs.get-pr-info.outputs.base_ref }}
       force_review: ${{ inputs.force_review }}
-      max_diff_lines: ${{ vars.MAX_DIFF_LINES }}
+      max_diff_lines: ${{ fromJSON(vars.MAX_DIFF_LINES) }}
 
       # Use Opus 4.5 for comprehensive reviews with reliable inline comments
       model: "claude-opus-4-5"
@@ -234,7 +234,7 @@ jobs:
       pr_number: ${{ needs.get-pr-info.outputs.pr_number }}
       base_ref: ${{ needs.get-pr-info.outputs.base_ref }}
       force_review: true # Always force when triggered by comment
-      max_diff_lines: ${{ vars.MAX_DIFF_LINES }}
+      max_diff_lines: ${{ fromJSON(vars.MAX_DIFF_LINES) }}
 
       # Use Opus 4.5 for comprehensive reviews with reliable inline comments
       model: "claude-opus-4-5"
