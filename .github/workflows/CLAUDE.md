@@ -186,15 +186,25 @@ This logic is built into the workflow's system prompt, so all consumers get cons
 
 This workflow uses a hybrid approach with testable TypeScript components:
 
-1. A TypeScript script (`build-prompt.ts`) assembles the prompt from modular section files
-2. Claude analyzes the PR and outputs structured JSON
-3. A TypeScript script (`post-review.ts`) parses the JSON and posts the review via `gh` CLI
+1. A TypeScript script (`build-prompt.ts`) assembles the prompt from modular section files and writes it to a temp file
+2. Claude receives a file reference (`@/tmp/final-prompt.txt`) and reads the prompt from disk
+3. Claude analyzes the PR and outputs structured JSON
+4. A TypeScript script (`post-review.ts`) parses the JSON and posts the review via `gh` CLI
+
+**Why file reference instead of direct prompt passing?**
+
+Large prompts (big diffs, many existing comments) can cause parsing issues when passed through GitHub Actions outputs to Bun. By writing the prompt to a file and using Claude Code's `@path` reference syntax, we avoid:
+
+- GitHub Actions output size limitations
+- Bun's string parsing issues with large heredoc content
+- Shell escaping problems with complex prompt content
 
 This architecture ensures:
 
 - All comments appear as `github-actions[bot]` using the official Anthropic action
 - Prompt building logic is testable (see `.github/scripts/build-prompt.spec.ts`)
 - External repos can use the workflow by downloading scripts from ai-toolkit
+- Large prompts are handled reliably regardless of content size
 
 **Real-Time Status Updates:**
 

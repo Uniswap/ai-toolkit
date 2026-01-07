@@ -848,14 +848,16 @@ jobs:
             --pr-diff-file "/tmp/pr-diff.txt" \
             --existing-comments-file "/tmp/existing-comments.json"
 
-          # Export as output for next step
-          {
-            echo "final_prompt<<PROMPT_DELIMITER_EOF"
-            cat "/tmp/final-prompt.txt"
-            echo "PROMPT_DELIMITER_EOF"
-          } >> $GITHUB_OUTPUT
+          # Output the file path (not content) to avoid Bun parsing issues with large prompts
+          # The prompt content is written to /tmp/final-prompt.txt by the script above
+          # Claude Code will read the file via the @path reference in the prompt
+          echo "prompt_file_path=/tmp/final-prompt.txt" >> $GITHUB_OUTPUT
 
-          # Show first few lines for debugging
+          # Show prompt size and preview for debugging
+          echo ""
+          PROMPT_SIZE=$(wc -c < "/tmp/final-prompt.txt")
+          PROMPT_LINES=$(wc -l < "/tmp/final-prompt.txt")
+          echo "📊 Prompt size: $PROMPT_SIZE bytes, $PROMPT_LINES lines"
           echo ""
           echo "📄 Prompt preview (first 15 lines):"
           head -n 15 "/tmp/final-prompt.txt"
@@ -994,6 +996,8 @@ jobs:
 
       # Run Claude Code Action to perform the review (analysis only, outputs JSON)
       # Supports both API key and OAuth token authentication (validated in earlier step)
+      # NOTE: We use a file reference (@path) instead of passing prompt content directly
+      # to avoid Bun parsing issues with large prompts (GitHub Actions output size limits)
       - name: Run Claude Code Review
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
         id: claude
@@ -1004,7 +1008,9 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # github_token is required for OAuth authentication
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          prompt: ${{ steps.build-prompt.outputs.final_prompt }}
+          # Use file reference to avoid passing large prompt content through GitHub Actions outputs
+          # Claude Code will read the file and execute the instructions within it
+          prompt: "Read and act upon the prompt at @${{ steps.build-prompt.outputs.prompt_file_path }}"
           # Disable built-in progress tracking - we handle our own PR comments
           track_progress: false
           # Show full Claude output in logs for debugging
