@@ -15,9 +15,6 @@
       "path": "../agents/agnostic/tsconfig.lib.json"
     },
     {
-      "path": "../claude-skills/tsconfig.lib.json"
-    },
-    {
       "path": "../commands/agnostic/tsconfig.lib.json"
     }
   ]

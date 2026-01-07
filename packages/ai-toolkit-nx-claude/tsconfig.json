@@ -7,9 +7,6 @@
       "path": "../agents/agnostic"
     },
     {
-      "path": "../claude-skills"
-    },
-    {
       "path": "../commands/agnostic"
     },
     {
