@@ -282,7 +282,7 @@ You must enable GitHub Actions to create and approve pull requests:
 | `prompt_override_communication_style` | No       | `""`                         | Path to markdown file overriding "Communication Style" section                                                                 |
 | `prompt_override_pattern_recognition` | No       | `""`                         | Path to markdown file overriding "Pattern Recognition" section                                                                 |
 | `timeout_minutes`                     | No       | `30`                         | Job timeout in minutes                                                                                                         |
-| `max_diff_lines`                      | No       | `2000`                       | Maximum diff lines before skipping Claude review (PR considered too large)                                                     |
+| `max_diff_lines`                      | No       | `5000`                       | Maximum diff lines before skipping Claude review (PR considered too large)                                                     |
 | `allowed_tools`                       | No       | `""`                         | Comma-separated list of allowed tools for Claude                                                                               |
 | `toolkit_ref`                         | No       | `main`                       | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
 
@@ -951,6 +951,21 @@ gh workflow run dev-ai-newsletter.yml -f slack_post_channel_ids="C091XE1DNP2,C09
 ## Subdirectories
 
 - `examples/` - Example implementations of workflows (13 numbered files)
+
+## Workflow Configuration
+
+### Environment Variables
+
+Workflows may define workflow-level environment variables for centralized configuration:
+
+**Claude Code Review (`claude-code-review.yml`):**
+
+```yaml
+env:
+  MAX_DIFF_LINES: 5000
+```
+
+This sets the default maximum diff line count before skipping Claude reviews (PR too large). The value is passed to all review jobs and can be overridden per job if needed.
 
 ## Conventions
 
