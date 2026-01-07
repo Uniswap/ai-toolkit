@@ -33,20 +33,25 @@ export async function promptForMissingOptions<T extends Record<string, any>>(
   context: {
     availableCommands?: string[];
     availableAgents?: string[];
+    availableSkills?: string[];
     availableAddons?: string[];
     commandDescriptions?: Record<string, string>;
     agentDescriptions?: Record<string, string>;
+    skillDescriptions?: Record<string, string>;
     addonDescriptions?: Record<string, string>;
     // Explicit global/local format
     globalExistingCommands?: Set<string>;
     globalExistingAgents?: Set<string>;
+    globalExistingSkills?: Set<string>;
     localExistingCommands?: Set<string>;
     localExistingAgents?: Set<string>;
+    localExistingSkills?: Set<string>;
     // Dynamic packages support
     availablePackages?: string[];
     // Default selections for default mode
     defaultCommands?: string[];
     defaultAgents?: string[];
+    defaultSkills?: string[];
   } = {},
   explicitlyProvidedOptions?: Map<string, any> | Set<string>
 ): Promise<T> {
@@ -219,20 +224,25 @@ async function promptForProperty(
   context: {
     availableCommands?: string[];
     availableAgents?: string[];
+    availableSkills?: string[];
     availableAddons?: string[];
     commandDescriptions?: Record<string, string>;
     agentDescriptions?: Record<string, string>;
+    skillDescriptions?: Record<string, string>;
     addonDescriptions?: Record<string, string>;
     // Explicit global/local format
     globalExistingCommands?: Set<string>;
     globalExistingAgents?: Set<string>;
+    globalExistingSkills?: Set<string>;
     localExistingCommands?: Set<string>;
     localExistingAgents?: Set<string>;
+    localExistingSkills?: Set<string>;
     // Dynamic packages support
     availablePackages?: string[];
     // Default selections for default mode
     defaultCommands?: string[];
     defaultAgents?: string[];
+    defaultSkills?: string[];
   },
   currentValues?: Record<string, any>
 ): Promise<any> {
@@ -352,6 +362,32 @@ async function promptForProperty(
       );
     }
 
+    if (key === 'skills' && context.availableSkills) {
+      // Determine which file sets to use based on installation type
+      const installationType = currentValues?.installationType;
+
+      let existingSet: Set<string> | undefined;
+      let otherLocationSet: Set<string> | undefined;
+
+      if (installationType === 'global') {
+        existingSet = context.globalExistingSkills;
+        otherLocationSet = context.localExistingSkills;
+      } else if (installationType === 'local') {
+        existingSet = context.localExistingSkills;
+        otherLocationSet = context.globalExistingSkills;
+      }
+
+      return await promptMultiSelectWithAll(
+        promptMessage,
+        context.availableSkills,
+        'skills',
+        context.skillDescriptions,
+        existingSet,
+        otherLocationSet,
+        installationType
+      );
+    }
+
     if (key === 'addons' && context.availableAddons) {
       return await promptMultiSelectWithAll(
         promptMessage,
@@ -395,7 +431,7 @@ async function promptForProperty(
 async function promptMultiSelectWithAll(
   message: string,
   choices: string[],
-  type: 'commands' | 'agents' | 'addons',
+  type: 'commands' | 'agents' | 'addons' | 'skills',
   descriptions?: Record<string, string>,
   existingItems?: Set<string>,
   otherLocationItems?: Set<string>,
