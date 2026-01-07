@@ -1,0 +1,36 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"systemMessage\": \"If this request is ambiguous or has multiple valid approaches, ask clarifying questions before proceeding.\"}'"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/post-edit-lint.sh",
+            "timeout": 60000
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"$CLAUDE_ENV_FILE\" ]; then echo 'export NX_DAEMON=false' >> \"$CLAUDE_ENV_FILE\"; fi"
+          }
+        ]
+      }
+    ]
+  }
+}
