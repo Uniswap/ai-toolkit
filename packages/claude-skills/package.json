@@ -1,0 +1,6 @@
+{
+  "name": "@ai-toolkit/claude-skills",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Claude Code skill definitions - markdown-based workflow configurations"
+}

@@ -33,20 +33,25 @@ export async function promptForMissingOptions<T extends Record<string, any>>(
   context: {
     availableCommands?: string[];
     availableAgents?: string[];
+    availableSkills?: string[];
     availableAddons?: string[];
     commandDescriptions?: Record<string, string>;
     agentDescriptions?: Record<string, string>;
+    skillDescriptions?: Record<string, string>;
     addonDescriptions?: Record<string, string>;
     // Explicit global/local format
     globalExistingCommands?: Set<string>;
     globalExistingAgents?: Set<string>;
+    globalExistingSkills?: Set<string>;
     localExistingCommands?: Set<string>;
     localExistingAgents?: Set<string>;
+    localExistingSkills?: Set<string>;
     // Dynamic packages support
     availablePackages?: string[];
     // Default selections for default mode
     defaultCommands?: string[];
     defaultAgents?: string[];
+    defaultSkills?: string[];
   } = {},
   explicitlyProvidedOptions?: Map<string, any> | Set<string>
 ): Promise<T> {
@@ -110,8 +115,7 @@ export async function promptForMissingOptions<T extends Record<string, any>>(
         !wasExplicitlyProvided
       : // For regular fields (backward compatibility with x-prompt),
         // skip if value exists at all (provided or defaulted)
-        (result[key] === undefined || result[key] === null) &&
-        !wasExplicitlyProvided;
+        (result[key] === undefined || result[key] === null) && !wasExplicitlyProvided;
 
     if (!shouldPrompt) {
       continue;
@@ -142,22 +146,14 @@ export async function promptForMissingOptions<T extends Record<string, any>>(
 
     // Check for conditional prompting (prompt-when)
     if (property['prompt-when']) {
-      const shouldShow = evaluatePromptCondition(
-        property['prompt-when'],
-        result
-      );
+      const shouldShow = evaluatePromptCondition(property['prompt-when'], result);
       if (!shouldShow) {
         continue;
       }
     }
 
     // Generate prompt based on property type
-    const promptResult = await promptForProperty(
-      key,
-      property,
-      context,
-      result
-    );
+    const promptResult = await promptForProperty(key, property, context, result);
     if (promptResult !== undefined) {
       result[key] = promptResult;
 
@@ -214,9 +210,7 @@ export async function promptForMissingOptions<T extends Record<string, any>>(
         result.installationType === 'local' &&
         promptResult === false
       ) {
-        throw new Error(
-          'Installation cancelled - please run from your project root'
-        );
+        throw new Error('Installation cancelled - please run from your project root');
       }
     }
   }
@@ -230,20 +224,25 @@ async function promptForProperty(
   context: {
     availableCommands?: string[];
     availableAgents?: string[];
+    availableSkills?: string[];
     availableAddons?: string[];
     commandDescriptions?: Record<string, string>;
     agentDescriptions?: Record<string, string>;
+    skillDescriptions?: Record<string, string>;
     addonDescriptions?: Record<string, string>;
     // Explicit global/local format
     globalExistingCommands?: Set<string>;
     globalExistingAgents?: Set<string>;
+    globalExistingSkills?: Set<string>;
     localExistingCommands?: Set<string>;
     localExistingAgents?: Set<string>;
+    localExistingSkills?: Set<string>;
     // Dynamic packages support
     availablePackages?: string[];
     // Default selections for default mode
     defaultCommands?: string[];
     defaultAgents?: string[];
+    defaultSkills?: string[];
   },
   currentValues?: Record<string, any>
 ): Promise<any> {
@@ -363,6 +362,32 @@ async function promptForProperty(
       );
     }
 
+    if (key === 'skills' && context.availableSkills) {
+      // Determine which file sets to use based on installation type
+      const installationType = currentValues?.installationType;
+
+      let existingSet: Set<string> | undefined;
+      let otherLocationSet: Set<string> | undefined;
+
+      if (installationType === 'global') {
+        existingSet = context.globalExistingSkills;
+        otherLocationSet = context.localExistingSkills;
+      } else if (installationType === 'local') {
+        existingSet = context.localExistingSkills;
+        otherLocationSet = context.globalExistingSkills;
+      }
+
+      return await promptMultiSelectWithAll(
+        promptMessage,
+        context.availableSkills,
+        'skills',
+        context.skillDescriptions,
+        existingSet,
+        otherLocationSet,
+        installationType
+      );
+    }
+
     if (key === 'addons' && context.availableAddons) {
       return await promptMultiSelectWithAll(
         promptMessage,
@@ -406,7 +431,7 @@ async function promptForProperty(
 async function promptMultiSelectWithAll(
   message: string,
   choices: string[],
-  type: 'commands' | 'agents' | 'addons',
+  type: 'commands' | 'agents' | 'addons' | 'skills',
   descriptions?: Record<string, string>,
   existingItems?: Set<string>,
   otherLocationItems?: Set<string>,
@@ -414,9 +439,7 @@ async function promptMultiSelectWithAll(
 ): Promise<string[] | undefined> {
   // Create choices with descriptions and existence indicators
   const displayChoices = choices.map((choice) => {
-    let display = descriptions?.[choice]
-      ? `${choice}: ${descriptions[choice]}`
-      : choice;
+    let display = descriptions?.[choice] ? `${choice}: ${descriptions[choice]}` : choice;
 
     // Add indicators for existing files
     const indicators: string[] = [];
@@ -428,8 +451,7 @@ async function promptMultiSelectWithAll(
 
     // Check if exists in other location
     if (otherLocationItems?.has(choice)) {
-      const otherLocation =
-        installationType === 'global' ? 'locally' : 'globally';
+      const otherLocation = installationType === 'global' ? 'locally' : 'globally';
       indicators.push(`exists ${otherLocation}`);
     }
 
@@ -469,10 +491,7 @@ async function promptMultiSelectWithAll(
     let endIndex = selection.length;
     if (colonIndex > -1 && (parenIndex === -1 || colonIndex < parenIndex)) {
       endIndex = colonIndex;
-    } else if (
-      parenIndex > -1 &&
-      (colonIndex === -1 || parenIndex < colonIndex)
-    ) {
+    } else if (parenIndex > -1 && (colonIndex === -1 || parenIndex < colonIndex)) {
       endIndex = parenIndex;
     }
 

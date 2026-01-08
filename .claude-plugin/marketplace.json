@@ -1,0 +1,59 @@
+{
+  "name": "uniswap-ai-toolkit",
+  "owner": {
+    "name": "Uniswap Labs",
+    "email": "devai@uniswap.org"
+  },
+  "metadata": {
+    "description": "Uniswap Developer AI Skills - A curated collection of AI-powered development workflows for implementation planning, code review, PR management, and codebase exploration.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "planning-skills",
+      "description": "Implementation planning and execution workflows with multi-agent collaboration",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./packages/claude-skills/src/implementation-planner",
+        "./packages/claude-skills/src/plan-executor",
+        "./packages/claude-skills/src/plan-reviewer",
+        "./packages/claude-skills/src/plan-swarm"
+      ]
+    },
+    {
+      "name": "pr-skills",
+      "description": "Pull request management including review, creation, and issue resolution",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./packages/claude-skills/src/pr-reviewer",
+        "./packages/claude-skills/src/pr-creator",
+        "./packages/claude-skills/src/pr-issue-resolver",
+        "./packages/claude-skills/src/graphite-stack-updater"
+      ]
+    },
+    {
+      "name": "codebase-skills",
+      "description": "Codebase exploration, refactoring, and quality analysis",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./packages/claude-skills/src/codebase-explorer",
+        "./packages/claude-skills/src/code-refactorer",
+        "./packages/claude-skills/src/tech-debt-analyzer"
+      ]
+    },
+    {
+      "name": "productivity-skills",
+      "description": "Documentation, research, and prompt optimization tools",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./packages/claude-skills/src/claude-docs-updater",
+        "./packages/claude-skills/src/topic-researcher",
+        "./packages/claude-skills/src/prompt-optimizer"
+      ]
+    }
+  ]
+}
