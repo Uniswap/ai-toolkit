@@ -223,6 +223,7 @@ jobs:
       debug_mode: ${{ inputs.debug_mode != '' && inputs.debug_mode || true }}
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
       NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 

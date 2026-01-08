@@ -64,6 +64,7 @@ jobs:
 
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 # Optional: Add a second job that only runs on security-sensitive paths
 # jobs:
 #   security-review:

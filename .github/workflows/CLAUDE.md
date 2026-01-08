@@ -65,6 +65,89 @@ These workflows are prefixed with `_` and may be called from other repositories:
 - `_generate-pr-metadata.yml` - AI-generated PR titles and descriptions
 - `_notify-release.yml` - Slack notification dispatcher
 
+### Claude AI Assistant (`_claude-main.yml`)
+
+This workflow enables Claude to respond to @claude mentions in issues, PRs, comments, and reviews. It's the core Claude AI interaction engine for GitHub.
+
+**Key Features:**
+
+| Feature                 | Description                                                                   |
+| ----------------------- | ----------------------------------------------------------------------------- |
+| **@claude Mentions**    | Responds to @claude mentions in issue comments, PR comments, PR reviews       |
+| **Security Scanning**   | Built-in Bullfrog security scanning (egress-policy: audit)                    |
+| **Configurable Model**  | Choose between Sonnet, Opus, or Haiku models                                  |
+| **Tool Control**        | Restrict or allow specific tools via `allowed_tools` and `disallowed_tools`   |
+| **Custom Instructions** | Add system prompt instructions via `custom_instructions`                      |
+| **MCP Support**         | Configure MCP servers via `mcp_config`                                        |
+| **Dual Authentication** | Supports both API key and OAuth token authentication (OAuth takes precedence) |
+
+**Required Secrets:**
+
+| Secret                    | Required                                      | Description                                                                                                                               |
+| ------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`       | Yes (unless `CLAUDE_CODE_OAUTH_TOKEN` is set) | Anthropic API key for Claude access                                                                                                       |
+| `CLAUDE_CODE_OAUTH_TOKEN` | No (alternative to `ANTHROPIC_API_KEY`)       | Claude Code OAuth token for authentication. When provided, takes precedence over `ANTHROPIC_API_KEY`. Generate with `claude setup-token`. |
+
+**Authentication Methods:**
+
+You can authenticate with Claude using either method:
+
+1. **API Key (Traditional):** Set `ANTHROPIC_API_KEY` with your Anthropic API key
+2. **OAuth Token (Pro/Max Users):** Set `CLAUDE_CODE_OAUTH_TOKEN` with a token generated via `claude setup-token`
+
+If both are provided, OAuth token takes precedence. At least one authentication method must be configured.
+
+> **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
+
+**Configuration Inputs:**
+
+| Input                           | Required | Default                    | Description                                         |
+| ------------------------------- | -------- | -------------------------- | --------------------------------------------------- |
+| `prompt`                        | No       | `""`                       | Direct automation prompt (enables automation mode)  |
+| `model`                         | No       | `claude-opus-4-5-20251101` | Claude model to use                                 |
+| `allowed_tools`                 | No       | `""`                       | Comma-separated list of allowed tools               |
+| `disallowed_tools`              | No       | `""`                       | Comma-separated list of disallowed tools            |
+| `custom_instructions`           | No       | CLAUDE.md instructions     | Additional system prompt instructions               |
+| `max_turns`                     | No       | unlimited                  | Maximum conversation turns                          |
+| `mcp_config`                    | No       | `""`                       | MCP server configuration (JSON)                     |
+| `settings`                      | No       | `""`                       | Additional settings including env vars (JSON)       |
+| `timeout_minutes`               | No       | `10`                       | Job timeout in minutes                              |
+| `anthropic_api_key_secret_name` | No       | `ANTHROPIC_API_KEY`        | Name of the secret containing the Anthropic API key |
+
+**Usage example (API Key):**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+with:
+  model: 'claude-sonnet-4-5-20250929'
+  custom_instructions: |
+    Focus on code quality and security.
+    Follow CLAUDE.md guidelines.
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+**Usage example (OAuth Token):**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+with:
+  model: 'claude-sonnet-4-5-20250929'
+secrets:
+  CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+```
+
+**Usage example (Both - OAuth takes precedence):**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+with:
+  model: 'claude-sonnet-4-5-20250929'
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+```
+
 ### PR Code Review (`_claude-code-review.yml`)
 
 This workflow performs automated PR code reviews using Claude AI with the following features:
@@ -103,15 +186,25 @@ This logic is built into the workflow's system prompt, so all consumers get cons
 
 This workflow uses a hybrid approach with testable TypeScript components:
 
-1. A TypeScript script (`build-prompt.ts`) assembles the prompt from modular section files
-2. Claude analyzes the PR and outputs structured JSON
-3. A TypeScript script (`post-review.ts`) parses the JSON and posts the review via `gh` CLI
+1. A TypeScript script (`build-prompt.ts`) assembles the prompt from modular section files and writes it to a temp file
+2. Claude receives a file reference (`@/tmp/final-prompt.txt`) and reads the prompt from disk
+3. Claude analyzes the PR and outputs structured JSON
+4. A TypeScript script (`post-review.ts`) parses the JSON and posts the review via `gh` CLI
+
+**Why file reference instead of direct prompt passing?**
+
+Large prompts (big diffs, many existing comments) can cause parsing issues when passed through GitHub Actions outputs to Bun. By writing the prompt to a file and using Claude Code's `@path` reference syntax, we avoid:
+
+- GitHub Actions output size limitations
+- Bun's string parsing issues with large heredoc content
+- Shell escaping problems with complex prompt content
 
 This architecture ensures:
 
 - All comments appear as `github-actions[bot]` using the official Anthropic action
 - Prompt building logic is testable (see `.github/scripts/build-prompt.spec.ts`)
 - External repos can use the workflow by downloading scripts from ai-toolkit
+- Large prompts are handled reliably regardless of content size
 
 **Real-Time Status Updates:**
 
@@ -145,14 +238,35 @@ These artifacts are available in the workflow run's "Artifacts" section and are 
 
 **Required Secrets:**
 
-| Secret              | Required | Description                                                                                                                       |
-| ------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `ANTHROPIC_API_KEY` | Yes      | Anthropic API key for Claude access                                                                                               |
-| `WORKFLOW_PAT`      | Optional | Personal Access Token with `repo` scope. Only needed for resolving review threads via GraphQL API (falls back to `GITHUB_TOKEN`). |
+| Secret                    | Required                                      | Description                                                                                                                               |
+| ------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`       | Yes (unless `CLAUDE_CODE_OAUTH_TOKEN` is set) | Anthropic API key for Claude access                                                                                                       |
+| `CLAUDE_CODE_OAUTH_TOKEN` | No (alternative to `ANTHROPIC_API_KEY`)       | Claude Code OAuth token for authentication. When provided, takes precedence over `ANTHROPIC_API_KEY`. Generate with `claude setup-token`. |
+| `WORKFLOW_PAT`            | No                                            | Personal Access Token with `repo` scope. Only needed for resolving review threads via GraphQL API (falls back to `GITHUB_TOKEN`).         |
+
+**Authentication Methods:**
+
+You can authenticate with Claude using either method:
+
+1. **API Key (Traditional):** Set `ANTHROPIC_API_KEY` with your Anthropic API key
+2. **OAuth Token (Pro/Max Users):** Set `CLAUDE_CODE_OAUTH_TOKEN` with a token generated via `claude setup-token`
+
+If both are provided, OAuth token takes precedence. At least one authentication method must be configured.
 
 > **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
 >
 > **Note:** If you need assistance installing the Claude GitHub App, please open an issue at [GitHub Issues](https://github.com/Uniswap/ai-toolkit/issues).
+
+**Repository Settings (Required):**
+
+You must enable GitHub Actions to create and approve pull requests:
+
+1. Go to your repository's **Settings** → **Actions** → **General**
+2. Scroll to **"Workflow permissions"**
+3. Check **"Allow GitHub Actions to create and approve pull requests"**
+4. Click **Save**
+
+> **Why this is needed:** The Claude Code Review workflow submits formal GitHub reviews (APPROVE/REQUEST_CHANGES/COMMENT). Without this setting enabled, the workflow cannot post review verdicts.
 
 **Configuration Inputs:**
 
@@ -168,7 +282,7 @@ These artifacts are available in the workflow run's "Artifacts" section and are 
 | `prompt_override_communication_style` | No       | `""`                         | Path to markdown file overriding "Communication Style" section                                                                 |
 | `prompt_override_pattern_recognition` | No       | `""`                         | Path to markdown file overriding "Pattern Recognition" section                                                                 |
 | `timeout_minutes`                     | No       | `30`                         | Job timeout in minutes                                                                                                         |
-| `max_diff_lines`                      | No       | `2000`                       | Maximum diff lines before skipping Claude review (PR considered too large)                                                     |
+| `max_diff_lines`                      | No       | `5000`                       | Maximum diff lines before skipping Claude review (PR considered too large)                                                     |
 | `allowed_tools`                       | No       | `""`                         | Comma-separated list of allowed tools for Claude                                                                               |
 | `toolkit_ref`                         | No       | `main`                       | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
 
@@ -234,7 +348,7 @@ secrets:
 - Override files must exist in the repository; missing files will cause an error
 - Each override file should contain properly formatted markdown for that section
 
-**Usage example:**
+**Usage example (API Key):**
 
 ```yaml
 uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
@@ -245,6 +359,19 @@ with:
   toolkit_ref: 'main' # or 'next' to test unreleased changes
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+```
+
+**Usage example (OAuth Token):**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  base_ref: ${{ github.base_ref }}
+  model: 'claude-sonnet-4-5-20250929'
+secrets:
+  CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
   WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
 ```
 
@@ -386,18 +513,27 @@ The `generation_mode` input is a comma-separated list that controls what the wor
 
 **Required Secrets:**
 
-| Secret              | Required | Description                         |
-| ------------------- | -------- | ----------------------------------- |
-| `ANTHROPIC_API_KEY` | Yes      | Anthropic API key for Claude access |
+| Secret                    | Required                                      | Description                                                                                                                               |
+| ------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`       | Yes (unless `CLAUDE_CODE_OAUTH_TOKEN` is set) | Anthropic API key for Claude access                                                                                                       |
+| `CLAUDE_CODE_OAUTH_TOKEN` | No (alternative to `ANTHROPIC_API_KEY`)       | Claude Code OAuth token for authentication. When provided, takes precedence over `ANTHROPIC_API_KEY`. Generate with `claude setup-token`. |
+
+**Authentication Methods:**
+
+You can authenticate with Claude using either method:
+
+1. **API Key (Traditional):** Set `ANTHROPIC_API_KEY` with your Anthropic API key
+2. **OAuth Token (Pro/Max Users):** Set `CLAUDE_CODE_OAUTH_TOKEN` with a token generated via `claude setup-token`
+
+If both are provided, OAuth token takes precedence. At least one authentication method must be configured.
 
 > **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
 >
 > **Note:** If you need assistance installing the Claude GitHub App, please open an issue at [GitHub Issues](https://github.com/Uniswap/ai-toolkit/issues).
 
-**Usage examples:**
+**Usage example (API Key):**
 
 ```yaml
-# Generate description with suggested title (non-intrusive)
 uses: Uniswap/ai-toolkit/.github/workflows/_generate-pr-metadata.yml@main
 with:
   pr_number: ${{ github.event.pull_request.number }}
@@ -407,19 +543,21 @@ secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-```yaml
-# Generate both title and description
-uses: Uniswap/ai-toolkit/.github/workflows/_generate-pr-metadata.yml@main
-with:
-  pr_number: ${{ github.event.pull_request.number }}
-  base_ref: ${{ github.base_ref }}
-  generation_mode: 'title,description'
-secrets:
-  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-```
+**Usage example (OAuth Token):**
 
 ```yaml
-# Generate both title and description
+uses: Uniswap/ai-toolkit/.github/workflows/_generate-pr-metadata.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  base_ref: ${{ github.base_ref }}
+  generation_mode: 'description,title-suggestion'
+secrets:
+  CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+```
+
+**Usage example (Both - OAuth takes precedence):**
+
+```yaml
 uses: Uniswap/ai-toolkit/.github/workflows/_generate-pr-metadata.yml@main
 with:
   pr_number: ${{ github.event.pull_request.number }}
@@ -427,7 +565,7 @@ with:
   generation_mode: 'title,description'
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+  CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
 
 **Prompt Configuration Options:**
@@ -455,6 +593,28 @@ This workflow processes Linear issues autonomously using Claude Code. It's calle
 | **Task Complexity Warnings** | Warns about tasks containing keywords like "audit", "review", "investigate"                              |
 | **Incremental Commits**      | Prompt instructs Claude to commit and push after each major piece of work to preserve progress           |
 | **Linear Integration**       | Updates Linear issue status to "In Progress" when PR is created                                          |
+| **Dual Authentication**      | Supports both API key and OAuth token authentication (OAuth takes precedence)                            |
+
+**Required Secrets:**
+
+| Secret                    | Required                                      | Description                                                                                                                               |
+| ------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`       | Yes (unless `CLAUDE_CODE_OAUTH_TOKEN` is set) | Anthropic API key for Claude access                                                                                                       |
+| `CLAUDE_CODE_OAUTH_TOKEN` | No (alternative to `ANTHROPIC_API_KEY`)       | Claude Code OAuth token for authentication. When provided, takes precedence over `ANTHROPIC_API_KEY`. Generate with `claude setup-token`. |
+| `LINEAR_API_KEY`          | Yes                                           | Linear API key for issue updates                                                                                                          |
+| `NODE_AUTH_TOKEN`         | Yes                                           | npm token for installing `@uniswap` scoped packages                                                                                       |
+| `WORKFLOW_PAT`            | No                                            | Personal Access Token with `repo` scope for pushing branches (falls back to `GITHUB_TOKEN`)                                               |
+
+**Authentication Methods:**
+
+You can authenticate with Claude using either method:
+
+1. **API Key (Traditional):** Set `ANTHROPIC_API_KEY` with your Anthropic API key
+2. **OAuth Token (Pro/Max Users):** Set `CLAUDE_CODE_OAUTH_TOKEN` with a token generated via `claude setup-token`
+
+If both are provided, OAuth token takes precedence. At least one authentication method must be configured.
+
+> **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
 
 **Turn Budget (built into prompt):**
 
@@ -495,7 +655,7 @@ The job summary includes:
 - Failure reason (if applicable)
 - Linear status update
 
-**Usage example:**
+**Usage example (API Key):**
 
 ```yaml
 uses: ./.github/workflows/_claude-task-worker.yml
@@ -512,6 +672,27 @@ with:
   pr_type: 'draft' # or 'published' for non-draft PRs
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+  NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+```
+
+**Usage example (OAuth Token):**
+
+```yaml
+uses: ./.github/workflows/_claude-task-worker.yml
+with:
+  issue_id: ${{ matrix.issue_id }}
+  issue_identifier: ${{ matrix.issue_identifier }}
+  issue_title: ${{ matrix.issue_title }}
+  issue_description: ${{ matrix.issue_description }}
+  issue_url: ${{ matrix.issue_url }}
+  branch_name: ${{ matrix.branch_name }}
+  target_branch: 'next'
+  model: 'claude-opus-4-5-20251101'
+  debug_mode: true
+  pr_type: 'draft'
+secrets:
+  CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
   LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
   NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 ```
@@ -535,14 +716,34 @@ This workflow uses Claude Code to automatically update GitHub Actions to their l
 
 **Key Features:**
 
-| Feature                      | Description                                                     |
-| ---------------------------- | --------------------------------------------------------------- |
-| **SHA Pinning Maintained**   | Updates SHA references while preserving security best practices |
-| **Version Comments Updated** | Updates both the SHA and the version comment (e.g., `# v4.2.0`) |
-| **All Versions Updated**     | Updates to latest regardless of major/minor/patch               |
-| **Comprehensive PR**         | Creates PR with table showing all updates and changelog links   |
-| **Dry Run Mode**             | Can analyze without making changes                              |
-| **Fallback PR**              | Creates fallback PR if Claude commits but doesn't create PR     |
+| Feature                      | Description                                                                   |
+| ---------------------------- | ----------------------------------------------------------------------------- |
+| **SHA Pinning Maintained**   | Updates SHA references while preserving security best practices               |
+| **Version Comments Updated** | Updates both the SHA and the version comment (e.g., `# v4.2.0`)               |
+| **All Versions Updated**     | Updates to latest regardless of major/minor/patch                             |
+| **Comprehensive PR**         | Creates PR with table showing all updates and changelog links                 |
+| **Dry Run Mode**             | Can analyze without making changes                                            |
+| **Fallback PR**              | Creates fallback PR if Claude commits but doesn't create PR                   |
+| **Dual Authentication**      | Supports both API key and OAuth token authentication (OAuth takes precedence) |
+
+**Required Secrets:**
+
+| Secret                    | Required                                      | Description                                                                                                                               |
+| ------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`       | Yes (unless `CLAUDE_CODE_OAUTH_TOKEN` is set) | Anthropic API key for Claude access                                                                                                       |
+| `CLAUDE_CODE_OAUTH_TOKEN` | No (alternative to `ANTHROPIC_API_KEY`)       | Claude Code OAuth token for authentication. When provided, takes precedence over `ANTHROPIC_API_KEY`. Generate with `claude setup-token`. |
+| `WORKFLOW_PAT`            | No                                            | Personal Access Token with `repo` scope for pushing branches (falls back to `GITHUB_TOKEN`)                                               |
+
+**Authentication Methods:**
+
+You can authenticate with Claude using either method:
+
+1. **API Key (Traditional):** Set `ANTHROPIC_API_KEY` with your Anthropic API key
+2. **OAuth Token (Pro/Max Users):** Set `CLAUDE_CODE_OAUTH_TOKEN` with a token generated via `claude setup-token`
+
+If both are provided, OAuth token takes precedence. At least one authentication method must be configured.
+
+> **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
 
 **Configuration:**
 
@@ -582,7 +783,7 @@ gh workflow run update-action-versions.yml -f dry_run=true
 gh workflow run update-action-versions.yml -f model=claude-opus-4-5-20251101
 ```
 
-**Usage example (calling from another repo):**
+**Usage example (API Key):**
 
 ```yaml
 uses: Uniswap/ai-toolkit/.github/workflows/_update-action-versions-worker.yml@main
@@ -591,6 +792,29 @@ with:
   target_branch: 'main'
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+**Usage example (OAuth Token):**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_update-action-versions-worker.yml@main
+with:
+  branch_name: 'chore/update-action-versions-2024-01-15'
+  target_branch: 'main'
+secrets:
+  CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+```
+
+**Usage example (Both - OAuth takes precedence):**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_update-action-versions-worker.yml@main
+with:
+  branch_name: 'chore/update-action-versions-2024-01-15'
+  target_branch: 'main'
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
 
 ### Shared Internal Workflows
@@ -671,12 +895,12 @@ The Notion integration needs access to:
 
 **Configuration Inputs:**
 
-| Input                    | Default                      | Description                                                                     |
-| ------------------------ | ---------------------------- | ------------------------------------------------------------------------------- |
-| `days_back`              | `7`                          | Number of days to look back for content                                         |
-| `model`                  | `claude-sonnet-4-5-20250929` | Claude model to use                                                             |
-| `dry_run`                | `false`                      | Generate but don't publish to Notion                                            |
-| `debug_mode`             | `true`                       | Enable full Claude output for debugging                                         |
+| Input                    | Default                      | Description                                                                                       |
+| ------------------------ | ---------------------------- | ------------------------------------------------------------------------------------------------- |
+| `days_back`              | `7`                          | Number of days to look back for content                                                           |
+| `model`                  | `claude-sonnet-4-5-20250929` | Claude model to use                                                                               |
+| `dry_run`                | `false`                      | Generate but don't publish to Notion                                                              |
+| `debug_mode`             | `true`                       | Enable full Claude output for debugging                                                           |
 | `slack_post_channel_ids` | `C091XE1DNP2`                | Comma-separated Slack channel IDs to post newsletter announcement (e.g., C091XE1DNP2,C094URH6C13) |
 
 **Manual Trigger:**
@@ -700,8 +924,17 @@ gh workflow run dev-ai-newsletter.yml -f slack_post_channel_ids="C091XE1DNP2,C09
 
 **MCP Servers Used:**
 
-- `@notionhq/notion-mcp-server` - Official Notion MCP server
+- `@notionhq/notion-mcp-server@1.9.1` - Official Notion MCP server (pinned to v1.9.1 due to breaking changes in v2.0.0)
 - `@modelcontextprotocol/server-slack` - Official Slack MCP server
+
+> **Important: MCP Server Version Pinning**
+>
+> The Notion MCP server is pinned to v1.9.1 because v2.0.0 (released Dec 24, 2025) introduced breaking changes:
+>
+> - Tool names changed from `notion-*` to `API-*` format
+> - Parameter format changed (e.g., `parent` must be an object, not a JSON string)
+>
+> The agent instructions in `.claude/agents/dev-ai-pod-weekly-newsletter.md` are written for v1.x API. To upgrade to v2.0.0, update both the version and the agent instructions.
 
 **Artifacts:**
 
@@ -718,6 +951,21 @@ gh workflow run dev-ai-newsletter.yml -f slack_post_channel_ids="C091XE1DNP2,C09
 ## Subdirectories
 
 - `examples/` - Example implementations of workflows (13 numbered files)
+
+## Workflow Configuration
+
+### Environment Variables
+
+Workflows may define workflow-level environment variables for centralized configuration:
+
+**Claude Code Review (`claude-code-review.yml`):**
+
+```yaml
+env:
+  MAX_DIFF_LINES: 5000
+```
+
+This sets the default maximum diff line count before skipping Claude reviews (PR too large). The value is passed to all review jobs and can be overridden per job if needed.
 
 ## Conventions
 
@@ -763,7 +1011,8 @@ Version pinning is centralized using GitHub repository variables (`vars.*`):
 
 Common secrets referenced:
 
-- `ANTHROPIC_API_KEY` - Claude AI API authentication (also requires the [Claude GitHub App](https://github.com/apps/claude) to be installed on the repository)
+- `ANTHROPIC_API_KEY` - Claude AI API authentication (also requires the [Claude GitHub App](https://github.com/apps/claude) to be installed on the repository). Alternative: use `CLAUDE_CODE_OAUTH_TOKEN` instead.
+- `CLAUDE_CODE_OAUTH_TOKEN` - Claude Code OAuth token for authentication (alternative to `ANTHROPIC_API_KEY`). Generate with `claude setup-token`. For Pro/Max users.
 - `NODE_AUTH_TOKEN` - NPM registry authentication (for publishing and installing `@uniswap` scoped packages)
 - `WORKFLOW_PAT` - Personal Access Token with `repo` scope for: (1) pushing commits/tags in force-publish, (2) cross-repo access to fetch default prompts from ai-toolkit in `_claude-code-review.yml` and `_generate-pr-metadata.yml`, (3) resolving review threads via GraphQL API in `_claude-code-review.yml` (the default `GITHUB_TOKEN` lacks permissions for the `resolveReviewThread` mutation). **Important:** The account that owns the PAT must have write, maintain, or admin access to the repository for thread resolution to work.
 - `SERVICE_ACCOUNT_GPG_PRIVATE_KEY` - GPG key for signed commits/tags
@@ -790,6 +1039,7 @@ jobs:
       allowed_tools: 'read-write'
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
 
 **Note**: `publish-packages.yml` is NOT a reusable workflow. It's a unified workflow triggered directly by push events and workflow_dispatch. See [Architecture: Publish Workflow](#architecture-publish-workflow) for details.

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "extraKnownMarketplaces": {
+    "uniswap-ai-toolkit": {
+      "source": {
+        "source": "github",
+        "repo": "Uniswap/ai-toolkit",
+        "ref": "main",
+        "path": ".claude-plugin"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "planning-skills@uniswap-ai-toolkit": true,
+    "pr-skills@uniswap-ai-toolkit": true,
+    "codebase-skills@uniswap-ai-toolkit": true,
+    "productivity-skills@uniswap-ai-toolkit": true
+  }
+}

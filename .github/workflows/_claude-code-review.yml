@@ -181,8 +181,11 @@ on:
 
     secrets:
       ANTHROPIC_API_KEY:
-        description: "Anthropic API key for Claude access"
-        required: true
+        description: "Anthropic API key for Claude access. Required unless CLAUDE_CODE_OAUTH_TOKEN is provided."
+        required: false
+      CLAUDE_CODE_OAUTH_TOKEN:
+        description: "Claude Code OAuth token for authentication. Alternative to ANTHROPIC_API_KEY. When provided, takes precedence over API key."
+        required: false
       WORKFLOW_PAT:
         description: "Personal Access Token with repo scope. Only needed for resolving review threads via GraphQL API (falls back to GITHUB_TOKEN if not provided)."
         required: false
@@ -207,6 +210,18 @@ jobs:
         uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
         with:
           egress-policy: audit
+
+      # Checkout required before using local composite actions
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 50
+
+      - name: Validate Authentication
+        uses: ./.github/actions/validate-claude-auth
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
       # Fetch PR metadata via API:
       # - head_sha: Checkout the exact PR commit (not GitHub's merge commit)
@@ -833,14 +848,16 @@ jobs:
             --pr-diff-file "/tmp/pr-diff.txt" \
             --existing-comments-file "/tmp/existing-comments.json"
 
-          # Export as output for next step
-          {
-            echo "final_prompt<<PROMPT_DELIMITER_EOF"
-            cat "/tmp/final-prompt.txt"
-            echo "PROMPT_DELIMITER_EOF"
-          } >> $GITHUB_OUTPUT
+          # Output the file path (not content) to avoid Bun parsing issues with large prompts
+          # The prompt content is written to /tmp/final-prompt.txt by the script above
+          # Claude Code will read the file via the @path reference in the prompt
+          echo "prompt_file_path=/tmp/final-prompt.txt" >> $GITHUB_OUTPUT
 
-          # Show first few lines for debugging
+          # Show prompt size and preview for debugging
+          echo ""
+          PROMPT_SIZE=$(wc -c < "/tmp/final-prompt.txt")
+          PROMPT_LINES=$(wc -l < "/tmp/final-prompt.txt")
+          echo "📊 Prompt size: $PROMPT_SIZE bytes, $PROMPT_LINES lines"
           echo ""
           echo "📄 Prompt preview (first 15 lines):"
           head -n 15 "/tmp/final-prompt.txt"
@@ -978,13 +995,22 @@ jobs:
           echo "✅ Configured read-only tools (${#ALLOWED_TOOLS} chars)"
 
       # Run Claude Code Action to perform the review (analysis only, outputs JSON)
+      # Supports both API key and OAuth token authentication (validated in earlier step)
+      # NOTE: We use a file reference (@path) instead of passing prompt content directly
+      # to avoid Bun parsing issues with large prompts (GitHub Actions output size limits)
       - name: Run Claude Code Review
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
         id: claude
         uses: anthropics/claude-code-action@a7e4c51380c42dd89b127f5e5f9be7b54020bc6b # v1.0.21
         with:
+          # Authentication: provide either API key or OAuth token (validated in earlier step)
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          prompt: ${{ steps.build-prompt.outputs.final_prompt }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # github_token is required for OAuth authentication
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Use file reference to avoid passing large prompt content through GitHub Actions outputs
+          # Claude Code will read the file and execute the instructions within it
+          prompt: "Read and act upon the prompt at @${{ steps.build-prompt.outputs.prompt_file_path }}"
           # Disable built-in progress tracking - we handle our own PR comments
           track_progress: false
           # Show full Claude output in logs for debugging

@@ -1,0 +1,59 @@
+{
+  "name": "uniswap-ai-toolkit",
+  "owner": {
+    "name": "Uniswap Labs",
+    "email": "devai@uniswap.org"
+  },
+  "metadata": {
+    "description": "Uniswap Developer AI Skills - A curated collection of AI-powered development workflows for implementation planning, code review, PR management, and codebase exploration.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "planning-skills",
+      "description": "Implementation planning and execution workflows with multi-agent collaboration",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/implementation-planner",
+        "./skills/plan-executor",
+        "./skills/plan-reviewer",
+        "./skills/plan-swarm"
+      ]
+    },
+    {
+      "name": "pr-skills",
+      "description": "Pull request management including review, creation, and issue resolution",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/pr-reviewer",
+        "./skills/pr-creator",
+        "./skills/pr-issue-resolver",
+        "./skills/graphite-stack-updater"
+      ]
+  },
+    {
+      "name": "codebase-skills",
+      "description": "Codebase exploration, refactoring, and quality analysis",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/codebase-explorer",
+        "./skills/code-refactorer",
+        "./skills/tech-debt-analyzer"
+      ]
+    },
+    {
+      "name": "productivity-skills",
+      "description": "Documentation, research, and prompt optimization tools",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/claude-docs-updater",
+        "./skills/topic-researcher",
+        "./skills/prompt-optimizer"
+      ]
+    }
+  ]
+}

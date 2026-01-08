@@ -52,8 +52,9 @@
 # - timeout_minutes (optional): Job timeout in minutes (default: 10)
 # - anthropic_api_key_secret_name (optional): Name of the secret containing the Anthropic API key (default: ANTHROPIC_API_KEY)
 #
-# SECRETS REQUIRED:
-# - ANTHROPIC_API_KEY (or custom secret name via anthropic_api_key_secret_name input)
+# SECRETS (at least one required):
+# - ANTHROPIC_API_KEY: Anthropic API key (or custom secret name via anthropic_api_key_secret_name input)
+# - CLAUDE_CODE_OAUTH_TOKEN: OAuth token for Claude Code (alternative to API key, takes precedence if both set)
 #
 # FIXED SETTINGS (cannot be overridden):
 # - Security: bullfrog egress-policy: audit
@@ -203,8 +204,11 @@ on:
 
     secrets:
       ANTHROPIC_API_KEY:
-        description: "Anthropic API key for Claude Code. Must be passed explicitly from the calling workflow."
-        required: true
+        description: "Anthropic API key for Claude Code. Required unless CLAUDE_CODE_OAUTH_TOKEN is provided."
+        required: false
+      CLAUDE_CODE_OAUTH_TOKEN:
+        description: "Claude Code OAuth token for authentication. Alternative to ANTHROPIC_API_KEY. When provided, takes precedence over API key. Generate with 'claude setup-token'."
+        required: false
 
 jobs:
   claude:
@@ -238,6 +242,12 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 50
+
+      - name: Validate Authentication
+        uses: ./.github/actions/validate-claude-auth
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
       # Build claude_args with CLI arguments
       - name: Build Claude CLI arguments
@@ -287,11 +297,14 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       # Run Claude Code
+      # Supports both API key and OAuth token authentication (validated in earlier step)
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@a7e4c51380c42dd89b127f5e5f9be7b54020bc6b # v1.0.21
         with:
+          # Authentication: provide either API key or OAuth token (validated in earlier step)
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: ${{ inputs.prompt }}
           claude_args: ${{ steps.build-args.outputs.claude_args }}
           settings: ${{ inputs.settings }}

@@ -289,7 +289,7 @@ jobs:
             "mcpServers": {
               "notion": {
                 "command": "npx",
-                "args": ["-y", "@notionhq/notion-mcp-server"],
+                "args": ["-y", "@notionhq/notion-mcp-server@1.9.1"],
                 "env": {
                   "NOTION_TOKEN": "${NOTION_API_KEY}"
                 }
