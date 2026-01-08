@@ -1,0 +1,17 @@
+{
+  "description": "Post-edit hook that runs formatting, linting, and typechecking on modified TypeScript/JavaScript files",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/post-edit-lint.sh",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}
