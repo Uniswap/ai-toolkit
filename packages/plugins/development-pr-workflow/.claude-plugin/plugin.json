@@ -1,0 +1,12 @@
+{
+  "name": "development-pr-workflow",
+  "version": "0.0.1",
+  "description": "Pull request management including review, creation, issue resolution, and Graphite stack management",
+  "author": {
+    "name": "Uniswap Labs",
+    "email": "devai@uniswap.org"
+  },
+  "homepage": "https://github.com/Uniswap/ai-toolkit",
+  "keywords": ["pull-request", "pr-review", "graphite", "git"],
+  "license": "MIT"
+}

@@ -1,7 +1,7 @@
 ---
 name: pr-reviewer
 description: Reviews PRs, addresses comments with plans or code changes, and fixes CI pipeline issues
-model: sonnet-4.5
+model: claude-sonnet-4-5-20250929
 ---
 
 # pr-reviewer Agent
