@@ -2,6 +2,7 @@
 name: graphite-stack-updater
 description: Automate Graphite PR stack updates by resolving review comments and syncing all affected PRs. Use when user has a Graphite stack with comments to address, needs to update multiple PRs, or wants to sync stack after changes. Triggers: "update the stack", "address stack comments", "sync graphite", "gt stack update", "update upstack", "resolve PR comments", "graphite sync".
 allowed-tools: Bash(gt:*), Bash(gh:*), Bash(git:*), Read, Write, Edit, Task(subagent_type:graphite-stack-updater), Task(subagent_type:code-reviewer)
+model: opus
 ---
 
 # Graphite Stack Updater

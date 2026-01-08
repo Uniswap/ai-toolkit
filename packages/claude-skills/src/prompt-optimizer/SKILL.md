@@ -2,6 +2,7 @@
 name: prompt-optimizer
 description: Optimize AI prompts for better model performance using prompt engineering techniques. Use when user wants to improve a prompt, optimize for better AI responses, reduce token usage, or apply prompt engineering best practices. Triggers: "optimize prompt", "improve prompt", "better prompt", "prompt engineering", "token efficiency", "prompt tuning", "refine prompt", "prompt performance".
 allowed-tools: Read, Write, WebSearch, WebFetch, Task(subagent_type:prompt-engineer)
+model: opus
 ---
 
 # Prompt Optimizer

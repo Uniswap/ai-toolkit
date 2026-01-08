@@ -2,6 +2,7 @@
 name: pr-creator
 description: Create or update Graphite PRs with auto-generated conventional commit messages and comprehensive descriptions. Use PROACTIVELY when user wants to create a PR, push changes for review, or submit work. Triggers: "create PR", "make a PR", "submit PR", "push for review", "open PR", "create pull request", "gt submit", "ready for review".
 allowed-tools: Bash(git:*), Bash(gt:*), Bash(gh:*), Read, Glob, Grep, Task(subagent_type:pr-creator), Task(subagent_type:commit-message-generator)
+model: opus
 ---
 
 # PR Creator

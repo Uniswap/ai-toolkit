@@ -57,7 +57,3 @@ Provides:
 - Dependency ordering
 - Rollback procedures
 - Validation checkpoints
-
-## Detailed Reference
-
-For strategies, patterns, and safety mechanisms, see [refactoring-guide.md](refactoring-guide.md).

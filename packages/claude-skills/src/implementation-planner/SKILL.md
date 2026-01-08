@@ -2,7 +2,7 @@
 name: implementation-planner
 description: Create actionable implementation plans through multi-agent collaborative refinement. Use PROACTIVELY and AUTOMATICALLY when user wants to implement a feature, add functionality, refactor code, fix complex bugs, or make architectural changes. Triggers: "implement", "add", "build", "create", "develop", "refactor", "migrate", "design", "architect", "plan", "feature", "how should I", "what's the best way to".
 allowed-tools: Read, Glob, Grep, LS, Task, WebSearch, WebFetch, Write(*.md), Bash(git ls-files:*), Bash(mkdir:*)
-model: claude-sonnet-4-5-20250929
+model: opus
 ---
 
 # Implementation Planner

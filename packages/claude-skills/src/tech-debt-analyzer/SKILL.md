@@ -2,6 +2,7 @@
 name: tech-debt-analyzer
 description: Identify, quantify, and prioritize technical debt with actionable remediation plans. Use PROACTIVELY when user mentions technical debt, code quality issues, maintenance challenges, or wants to understand what's slowing development. Triggers: "technical debt", "tech debt", "code quality", "maintenance burden", "what's slowing us down", "legacy code", "cleanup needed", "code health", "debt analysis".
 allowed-tools: Read, Glob, Grep, Bash(git log:*), Bash(git diff:*), Task, WebSearch
+model: opus
 ---
 
 # Technical Debt Analyzer
@@ -89,7 +90,3 @@ Includes quality gates:
 - CI pipeline checks
 - Code review requirements
 - Debt budget tracking
-
-## Detailed Reference
-
-For metrics, strategies, and templates, see [debt-guide.md](debt-guide.md).

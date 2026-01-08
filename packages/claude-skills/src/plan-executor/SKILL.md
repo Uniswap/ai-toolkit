@@ -2,6 +2,7 @@
 name: plan-executor
 description: Execute implementation plans step-by-step with progress tracking and optional test/doc generation. Use AUTOMATICALLY when user wants to execute a plan, implement a planned feature, or has an approved plan ready. Triggers: "execute", "implement the plan", "run the plan", "start implementing", "let's build", "go ahead", "proceed with", "start the implementation", "follow the plan".
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task(subagent_type:test-writer), Task(subagent_type:doc-writer)
+model: opus
 ---
 
 # Plan Executor

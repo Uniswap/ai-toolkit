@@ -1,124 +1,59 @@
 {
-  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "uniswap-ai-toolkit",
-  "description": "Uniswap Developer AI Skills - A curated collection of AI-powered development workflows for implementation planning, code review, PR management, and codebase exploration.",
-  "version": "1.0.0",
   "owner": {
     "name": "Uniswap Labs",
     "email": "devai@uniswap.org"
   },
+  "metadata": {
+    "description": "Uniswap Developer AI Skills - A curated collection of AI-powered development workflows for implementation planning, code review, PR management, and codebase exploration.",
+    "version": "1.0.0"
+  },
   "plugins": [
     {
-      "name": "implementation-planner",
-      "description": "Create actionable implementation plans through multi-agent collaborative refinement. Use when implementing features, adding functionality, refactoring code, or making architectural changes.",
-      "version": "1.0.0",
-      "source": "./packages/claude-skills/src/implementation-planner",
-      "category": "development",
-      "keywords": ["planning", "implementation", "architecture", "multi-agent"]
+      "name": "planning-skills",
+      "description": "Implementation planning and execution workflows with multi-agent collaboration",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./packages/claude-skills/src/implementation-planner",
+        "./packages/claude-skills/src/plan-executor",
+        "./packages/claude-skills/src/plan-reviewer",
+        "./packages/claude-skills/src/plan-swarm"
+      ]
     },
     {
-      "name": "plan-executor",
-      "description": "Execute implementation plans step-by-step with progress tracking and optional test/doc generation.",
-      "version": "1.0.0",
-      "source": "./packages/claude-skills/src/plan-executor",
-      "category": "development",
-      "keywords": ["execution", "implementation", "progress-tracking"]
+      "name": "pr-skills",
+      "description": "Pull request management including review, creation, and issue resolution",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./packages/claude-skills/src/pr-reviewer",
+        "./packages/claude-skills/src/pr-creator",
+        "./packages/claude-skills/src/pr-issue-resolver",
+        "./packages/claude-skills/src/graphite-stack-updater"
+      ]
     },
     {
-      "name": "plan-reviewer",
-      "description": "Critically review implementation plans for completeness, feasibility, and alignment with codebase patterns.",
-      "version": "1.0.0",
-      "source": "./packages/claude-skills/src/plan-reviewer",
-      "category": "development",
-      "keywords": ["review", "validation", "planning"]
+      "name": "codebase-skills",
+      "description": "Codebase exploration, refactoring, and quality analysis",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./packages/claude-skills/src/codebase-explorer",
+        "./packages/claude-skills/src/code-refactorer",
+        "./packages/claude-skills/src/tech-debt-analyzer"
+      ]
     },
     {
-      "name": "plan-swarm",
-      "description": "Collaboratively refine plans through multi-agent discussion and consensus-building.",
-      "version": "1.0.0",
-      "source": "./packages/claude-skills/src/plan-swarm",
-      "category": "development",
-      "keywords": ["collaboration", "multi-agent", "consensus", "planning"]
-    },
-    {
-      "name": "pr-reviewer",
-      "description": "Orchestrate comprehensive pull request review using specialized agents for architecture, security, performance, testing, and maintainability.",
-      "version": "1.0.0",
-      "source": "./packages/claude-skills/src/pr-reviewer",
-      "category": "development",
-      "keywords": ["code-review", "pull-request", "security", "performance"]
-    },
-    {
-      "name": "pr-creator",
-      "description": "Create or update Graphite PRs with auto-generated conventional commit messages and comprehensive descriptions.",
-      "version": "1.0.0",
-      "source": "./packages/claude-skills/src/pr-creator",
-      "category": "development",
-      "keywords": ["pull-request", "graphite", "commit-messages"]
-    },
-    {
-      "name": "pr-issue-resolver",
-      "description": "Review GitHub PRs, address review comments, and fix CI/CD failures to make PRs merge-ready.",
-      "version": "1.0.0",
-      "source": "./packages/claude-skills/src/pr-issue-resolver",
-      "category": "development",
-      "keywords": ["pull-request", "ci-cd", "code-review", "fixes"]
-    },
-    {
-      "name": "codebase-explorer",
-      "description": "Deep codebase exploration and understanding. Use when asking how something works, understanding architecture, or finding implementations.",
-      "version": "1.0.0",
-      "source": "./packages/claude-skills/src/codebase-explorer",
-      "category": "development",
-      "keywords": ["exploration", "architecture", "understanding", "codebase"]
-    },
-    {
-      "name": "code-refactorer",
-      "description": "Orchestrate comprehensive code refactoring with architectural analysis, pattern application, and incremental safety checks.",
-      "version": "1.0.0",
-      "source": "./packages/claude-skills/src/code-refactorer",
-      "category": "development",
-      "keywords": ["refactoring", "patterns", "code-quality", "cleanup"]
-    },
-    {
-      "name": "topic-researcher",
-      "description": "Research topics by combining web search with codebase analysis for comprehensive understanding.",
-      "version": "1.0.0",
-      "source": "./packages/claude-skills/src/topic-researcher",
-      "category": "productivity",
-      "keywords": ["research", "documentation", "best-practices", "learning"]
-    },
-    {
-      "name": "claude-docs-updater",
-      "description": "Intelligently update CLAUDE.md files based on code changes.",
-      "version": "1.0.0",
-      "source": "./packages/claude-skills/src/claude-docs-updater",
-      "category": "productivity",
-      "keywords": ["documentation", "claude-md", "automation"]
-    },
-    {
-      "name": "tech-debt-analyzer",
-      "description": "Identify, quantify, and prioritize technical debt with actionable remediation plans.",
-      "version": "1.0.0",
-      "source": "./packages/claude-skills/src/tech-debt-analyzer",
-      "category": "development",
-      "keywords": ["technical-debt", "code-quality", "maintenance", "analysis"]
-    },
-    {
-      "name": "prompt-optimizer",
-      "description": "Optimize AI prompts for better model performance using prompt engineering techniques.",
-      "version": "1.0.0",
-      "source": "./packages/claude-skills/src/prompt-optimizer",
-      "category": "productivity",
-      "keywords": ["prompts", "optimization", "ai", "engineering"]
-    },
-    {
-      "name": "graphite-stack-updater",
-      "description": "Automate Graphite PR stack updates by resolving review comments and syncing all affected PRs.",
-      "version": "1.0.0",
-      "source": "./packages/claude-skills/src/graphite-stack-updater",
-      "category": "development",
-      "keywords": ["graphite", "stacked-prs", "automation", "sync"]
+      "name": "productivity-skills",
+      "description": "Documentation, research, and prompt optimization tools",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./packages/claude-skills/src/claude-docs-updater",
+        "./packages/claude-skills/src/topic-researcher",
+        "./packages/claude-skills/src/prompt-optimizer"
+      ]
     }
   ]
 }

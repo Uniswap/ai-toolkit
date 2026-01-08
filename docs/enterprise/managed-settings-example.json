@@ -11,11 +11,9 @@
     }
   },
   "enabledPlugins": {
-    "implementation-planner@uniswap-ai-toolkit": true,
-    "plan-executor@uniswap-ai-toolkit": true,
-    "plan-reviewer@uniswap-ai-toolkit": true,
-    "pr-reviewer@uniswap-ai-toolkit": true,
-    "pr-creator@uniswap-ai-toolkit": true,
-    "codebase-explorer@uniswap-ai-toolkit": true
+    "planning-skills@uniswap-ai-toolkit": true,
+    "pr-skills@uniswap-ai-toolkit": true,
+    "codebase-skills@uniswap-ai-toolkit": true,
+    "productivity-skills@uniswap-ai-toolkit": true
   }
 }

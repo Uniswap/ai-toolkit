@@ -2,6 +2,7 @@
 name: topic-researcher
 description: Research topics by combining web search with codebase analysis for comprehensive understanding. Use PROACTIVELY and AUTOMATICALLY when user asks about documentation, best practices, how other projects do something, or needs external information combined with codebase context. Triggers: "research", "look up", "find out", "best practices", "how do others", "documentation", "what's the", "learn about", "compare with", "check the docs".
 allowed-tools: WebSearch, WebFetch, Read, Glob, Grep, Bash(git ls-files:*), Bash(git log:*), Task(subagent_type:researcher)
+model: opus
 ---
 
 # Topic Researcher

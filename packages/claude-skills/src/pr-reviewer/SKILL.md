@@ -2,6 +2,7 @@
 name: pr-reviewer
 description: Orchestrate comprehensive pull request review using specialized agents for architecture, security, performance, testing, and maintainability. Use PROACTIVELY and AUTOMATICALLY when user wants code reviewed before merge, needs PR feedback, or asks for review of changes. Triggers: "review my changes", "review this PR", "check before merge", "code review", "review the diff", "feedback on changes", "is this ready to merge".
 allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git branch:*), Bash(git log:*), Bash(git show:*), Task, Read, Grep
+model: opus
 ---
 
 # PR Reviewer
@@ -53,7 +54,3 @@ Provides:
 ## Recommendation
 
 Returns: `approve`, `request-changes`, or `comment`
-
-## Detailed Reference
-
-For review phases and output formats, see [review-guide.md](review-guide.md).

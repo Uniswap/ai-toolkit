@@ -7,9 +7,6 @@
       "path": "./packages/ai-toolkit-nx-claude"
     },
     {
-      "path": "./packages/claude-skills"
-    },
-    {
       "path": "./packages/commands/agnostic"
     },
     {

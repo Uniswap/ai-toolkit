@@ -2,7 +2,7 @@
 name: plan-swarm
 description: Collaboratively refine plans through multi-agent discussion and consensus-building. Use when user wants multiple perspectives on a plan, needs expert opinions, or wants to improve a strategy through collaborative refinement. Triggers: "get feedback from experts", "multiple perspectives", "collaborative review", "swarm", "expert opinions", "refine the plan", "discuss the approach".
 allowed-tools: Read, Glob, Grep, Task, WebSearch, WebFetch
-model: claude-sonnet-4-5-20250929
+model: opus
 ---
 
 # Plan Swarm
@@ -73,7 +73,3 @@ Agents are encouraged to:
 - Build on other agents' ideas
 - Change positions when persuaded
 - Acknowledge expertise limits
-
-## Detailed Reference
-
-For agent combinations and discussion protocols, see [swarm-guide.md](swarm-guide.md).
