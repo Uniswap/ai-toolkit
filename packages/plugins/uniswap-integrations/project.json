@@ -1,20 +1,20 @@
 {
-  "name": "development-productivity",
+  "name": "uniswap-integrations",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "packages/plugins/development-productivity",
+  "sourceRoot": "packages/plugins/uniswap-integrations",
   "projectType": "library",
-  "tags": ["type:plugin", "scope:productivity"],
+  "tags": ["type:plugin", "scope:integrations"],
   "targets": {
     "lint-markdown": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npm exec markdownlint-cli2 -- 'packages/plugins/development-productivity/**/*.md'"
+        "command": "npm exec markdownlint-cli2 -- 'packages/plugins/uniswap-integrations/**/*.md'"
       }
     },
     "validate": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "node scripts/validate-plugin.cjs packages/plugins/development-productivity"
+        "command": "node scripts/validate-plugin.cjs packages/plugins/uniswap-integrations"
       }
     },
     "publish": {

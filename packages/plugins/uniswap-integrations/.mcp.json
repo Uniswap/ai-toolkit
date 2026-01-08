@@ -6,12 +6,6 @@
       "args": ["@uniswap/spec-workflow-mcp@latest", "--AutoStartDashboard"],
       "env": {}
     },
-    "graphite": {
-      "type": "stdio",
-      "command": "gt",
-      "args": ["mcp"],
-      "env": {}
-    },
     "nx-mcp": {
       "type": "stdio",
       "command": "npx",
