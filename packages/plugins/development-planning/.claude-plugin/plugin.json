@@ -1,0 +1,12 @@
+{
+  "name": "development-planning",
+  "version": "0.0.1",
+  "description": "Implementation planning and execution workflows with multi-agent collaboration",
+  "author": {
+    "name": "Uniswap Labs",
+    "email": "devai@uniswap.org"
+  },
+  "homepage": "https://github.com/Uniswap/ai-toolkit",
+  "keywords": ["planning", "implementation", "workflow", "multi-agent"],
+  "license": "MIT"
+}

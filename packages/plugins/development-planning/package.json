@@ -1,0 +1,31 @@
+{
+  "name": "@uniswap/development-planning",
+  "version": "0.0.1",
+  "description": "Implementation planning and execution workflows for Claude Code - includes plan creation, execution, review, and multi-agent collaboration",
+  "author": "Uniswap Labs <devai@uniswap.org>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Uniswap/ai-toolkit.git",
+    "directory": "packages/plugins/development-planning"
+  },
+  "keywords": [
+    "claude-code",
+    "plugin",
+    "planning",
+    "implementation",
+    "workflow",
+    "multi-agent",
+    "ai-toolkit"
+  ],
+  "files": [
+    ".claude-plugin",
+    "skills",
+    "agents",
+    "commands",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

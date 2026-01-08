@@ -1,0 +1,24 @@
+{
+  "name": "development-codebase-tools",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/plugins/development-codebase-tools",
+  "projectType": "library",
+  "tags": ["type:plugin", "scope:codebase"],
+  "targets": {
+    "lint-markdown": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm exec markdownlint-cli2 -- 'packages/plugins/development-codebase-tools/**/*.md'"
+      }
+    },
+    "validate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node scripts/validate-plugin.js packages/plugins/development-codebase-tools"
+      }
+    },
+    "publish": {
+      "executor": "@nx/js:release-publish"
+    }
+  }
+}
