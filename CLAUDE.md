@@ -138,6 +138,43 @@ The project enforces this version through:
 
 All packages use the `@ai-toolkit` scope.
 
+## Repository Structure
+
+### Claude Skills Directory
+
+The repository includes a dedicated `skills/` directory at the root level containing all Claude Code skill definitions:
+
+```text
+/
+├── skills/                           # Claude Code skills
+│   ├── claude-docs-updater/
+│   ├── code-refactorer/
+│   ├── codebase-explorer/
+│   ├── graphite-stack-updater/
+│   ├── implementation-planner/
+│   ├── plan-executor/
+│   ├── plan-reviewer/
+│   ├── plan-swarm/
+│   ├── pr-creator/
+│   ├── pr-issue-resolver/
+│   ├── pr-reviewer/
+│   ├── prompt-optimizer/
+│   ├── tech-debt-analyzer/
+│   └── topic-researcher/
+├── .claude-plugin/
+│   └── marketplace.json              # Plugin marketplace configuration
+└── packages/
+    ├── claude-skills/                # Metadata & registry package
+    └── ...
+```
+
+**Key Points:**
+
+- Skills are stored at the repository root in `./skills/` (not in `packages/claude-skills/src/`)
+- The `.claude-plugin/marketplace.json` file references skills via relative paths: `"./skills/<skill-name>"`
+- The `@ai-toolkit/claude-skills` package serves as a metadata hub and plugin registry
+- Skills are grouped into 4 plugins: planning-skills, pr-skills, codebase-skills, productivity-skills
+
 ## Documentation Management
 
 ### CLAUDE.md File Management
@@ -252,6 +289,49 @@ When using GitHub expressions in workflow bash scripts, always use environment v
 - Environment variables are properly quoted and sanitized by the shell
 - This prevents command injection where special characters (`;`, `|`, `$()`) could execute arbitrary commands
 - Apply this pattern to ALL untrusted inputs: `github.event.inputs.*`, `github.event.pull_request.title`, `github.event.issue.body`, etc.
+
+### Type Conversion for Workflow Inputs
+
+**CRITICAL: Repository variables (`vars.*`) are always strings, even when they contain numbers.**
+
+When passing repository variables to reusable workflows that expect numeric inputs, use `fromJSON()` to convert strings to numbers:
+
+**❌ BAD - String passed to number input:**
+
+```yaml
+with:
+  max_diff_lines: ${{ vars.MAX_DIFF_LINES }}
+  # ❌ "5000" (string) passed to type: number input → type mismatch
+```
+
+**✅ GOOD - Convert to number with fromJSON():**
+
+```yaml
+with:
+  max_diff_lines: ${{ fromJSON(vars.MAX_DIFF_LINES || '5000') }}
+  # ✅ 5000 (number) passed to type: number input → correct type
+```
+
+**Why this matters:**
+
+- GitHub Actions repository variables are **always stored as strings**, regardless of content
+- Reusable workflow inputs typed as `type: number` expect actual numbers, not string representations
+- Without conversion, you'll get type mismatches and unexpected behavior
+- The `|| '5000'` fallback provides a safe default if the variable is empty or undefined
+- This pattern applies to any variable value that needs to be a non-string type (numbers, booleans, arrays, objects)
+
+**Other type conversions:**
+
+```yaml
+# Boolean conversion
+enable_feature: ${{ fromJSON(vars.ENABLE_FEATURE || 'false') }}
+
+# Array conversion (JSON string variable)
+allowed_users: ${{ fromJSON(vars.ALLOWED_USERS || '[]') }}
+
+# Object conversion (JSON string variable)
+config: ${{ fromJSON(vars.CONFIG || '{}') }}
+```
 
 ### Script Separation Policy
 

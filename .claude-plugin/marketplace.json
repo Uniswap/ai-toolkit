@@ -15,10 +15,10 @@
       "source": "./",
       "strict": false,
       "skills": [
-        "./packages/claude-skills/src/implementation-planner",
-        "./packages/claude-skills/src/plan-executor",
-        "./packages/claude-skills/src/plan-reviewer",
-        "./packages/claude-skills/src/plan-swarm"
+        "./skills/implementation-planner",
+        "./skills/plan-executor",
+        "./skills/plan-reviewer",
+        "./skills/plan-swarm"
       ]
     },
     {
@@ -27,21 +27,21 @@
       "source": "./",
       "strict": false,
       "skills": [
-        "./packages/claude-skills/src/pr-reviewer",
-        "./packages/claude-skills/src/pr-creator",
-        "./packages/claude-skills/src/pr-issue-resolver",
-        "./packages/claude-skills/src/graphite-stack-updater"
+        "./skills/pr-reviewer",
+        "./skills/pr-creator",
+        "./skills/pr-issue-resolver",
+        "./skills/graphite-stack-updater"
       ]
-    },
+  },
     {
       "name": "codebase-skills",
       "description": "Codebase exploration, refactoring, and quality analysis",
       "source": "./",
       "strict": false,
       "skills": [
-        "./packages/claude-skills/src/codebase-explorer",
-        "./packages/claude-skills/src/code-refactorer",
-        "./packages/claude-skills/src/tech-debt-analyzer"
+        "./skills/codebase-explorer",
+        "./skills/code-refactorer",
+        "./skills/tech-debt-analyzer"
       ]
     },
     {
@@ -50,9 +50,9 @@
       "source": "./",
       "strict": false,
       "skills": [
-        "./packages/claude-skills/src/claude-docs-updater",
-        "./packages/claude-skills/src/topic-researcher",
-        "./packages/claude-skills/src/prompt-optimizer"
+        "./skills/claude-docs-updater",
+        "./skills/topic-researcher",
+        "./skills/prompt-optimizer"
       ]
     }
   ]
