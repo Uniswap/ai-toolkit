@@ -1,0 +1,12 @@
+{
+  "name": "uniswap-integrations",
+  "version": "0.0.1",
+  "description": "External service integrations (Linear, Notion, Nx, Chrome DevTools) and deployment orchestration",
+  "author": {
+    "name": "Uniswap Labs",
+    "email": "devai@uniswap.org"
+  },
+  "homepage": "https://github.com/Uniswap/ai-toolkit",
+  "keywords": ["integrations", "linear", "notion", "nx", "deployment", "mcp"],
+  "license": "MIT"
+}
