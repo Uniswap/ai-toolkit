@@ -1,6 +1,6 @@
 ---
 name: implementation-planner
-description: Create actionable implementation plans through multi-agent collaborative refinement. Use PROACTIVELY and AUTOMATICALLY when user wants to implement a feature, add functionality, refactor code, fix complex bugs, or make architectural changes. Triggers: "implement", "add", "build", "create", "develop", "refactor", "migrate", "design", "architect", "plan", "feature", "how should I", "what's the best way to".
+description: Create implementation plans for features and changes. Use when user says "plan how to implement user authentication", "how should I add dark mode to the app", "what's the best way to refactor the database layer", "create a plan for migrating to the new API", or "I need to implement [feature] - help me plan it out".
 allowed-tools: Read, Glob, Grep, LS, Task, WebSearch, WebFetch, Write(*.md), Bash(git ls-files:*), Bash(mkdir:*)
 model: opus
 ---

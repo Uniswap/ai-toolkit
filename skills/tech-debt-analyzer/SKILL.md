@@ -1,6 +1,6 @@
 ---
 name: tech-debt-analyzer
-description: Identify, quantify, and prioritize technical debt with actionable remediation plans. Use PROACTIVELY when user mentions technical debt, code quality issues, maintenance challenges, or wants to understand what's slowing development. Triggers: "technical debt", "tech debt", "code quality", "maintenance burden", "what's slowing us down", "legacy code", "cleanup needed", "code health", "debt analysis".
+description: Analyze and prioritize technical debt with remediation plans. Use when user says "analyze the technical debt in this codebase", "what's the code quality like in this module", "identify what's slowing down our development", "assess the maintenance burden of this legacy code", "create a plan to pay down our tech debt", or "where should we focus our cleanup efforts".
 allowed-tools: Read, Glob, Grep, Bash(git log:*), Bash(git diff:*), Task, WebSearch
 model: opus
 ---

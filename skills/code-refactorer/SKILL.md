@@ -1,6 +1,6 @@
 ---
 name: code-refactorer
-description: Orchestrate comprehensive code refactoring with architectural analysis, pattern application, and incremental safety checks. Use PROACTIVELY and AUTOMATICALLY when user wants to refactor code, improve code quality, reduce complexity, apply design patterns, or clean up technical debt. Triggers: "refactor", "clean up", "improve", "simplify", "reduce complexity", "apply pattern", "restructure", "reorganize", "technical debt", "code smell", "extract", "inline".
+description: Refactor code with safety checks and pattern application. Use when user says "refactor this code", "clean up this function", "simplify this logic", "extract this into a separate function", "apply the strategy pattern here", "reduce the complexity of this module", or "reorganize this file structure".
 allowed-tools: Read, Grep, Bash(git diff:*), Bash(git show:*), Task(subagent_type:refactorer), Task(subagent_type:style-enforcer), Task(subagent_type:code-explainer), Task(subagent_type:test-writer), Task(subagent_type:agent-orchestrator)
 ---
 
