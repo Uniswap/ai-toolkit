@@ -1,6 +1,6 @@
 ---
 name: codebase-explorer
-description: Deep codebase exploration and understanding. Use PROACTIVELY and AUTOMATICALLY when user asks how something works, wants to understand code, asks about architecture, needs to find where something is implemented, or before planning any feature. Triggers: "how does", "where is", "understand", "find", "explain", "architecture", "implementation", "show me", "what does", "trace", "follow", "dig into", "explore".
+description: Explore and understand how the codebase works. Use when user asks "how does the authentication work", "where is the API endpoint defined", "show me how data flows through the system", "explain this module's architecture", "trace the request from controller to database", or "I need to understand this feature before making changes".
 allowed-tools: Bash(git ls-files:*), Bash(find:*), Bash(git log:*), Bash(git show:*), Bash(npx nx graph:*), Glob, Grep, Read, WebFetch, Task(subagent_type:context-loader)
 model: opus
 ---

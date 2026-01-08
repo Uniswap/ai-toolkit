@@ -1,6 +1,6 @@
 ---
 name: plan-reviewer
-description: Critically review implementation plans for completeness, feasibility, and alignment with codebase patterns. Use PROACTIVELY and AUTOMATICALLY when user has a plan to review, wants feedback on an implementation strategy, or needs validation before executing. Triggers: "review the plan", "check the plan", "is this plan good", "validate plan", "feedback on plan", "before we execute", "does this look right".
+description: Review implementation plans for completeness and feasibility. Use when user says "review this plan before I start", "is this implementation plan complete", "check if this plan aligns with our patterns", "give me feedback on my implementation strategy", or "validate this plan before we execute it".
 allowed-tools: Read, Glob, Grep, LS, WebSearch, WebFetch, Task(subagent_type:plan-reviewer)
 model: opus
 ---

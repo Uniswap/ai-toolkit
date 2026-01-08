@@ -175,6 +175,10 @@ The repository includes a dedicated `skills/` directory at the root level contai
 - The `@ai-toolkit/claude-skills` package serves as a metadata hub and plugin registry
 - Skills are grouped into 4 plugins: planning-skills, pr-skills, codebase-skills, productivity-skills
 
+**Recent Changes (2026-01-07):**
+
+All 14 skill descriptions were rewritten to use natural language example phrases instead of keyword-based "Triggers:" lists. This improves Claude Code's semantic matching for automatic skill invocation. See `skills/CLAUDE.md` for details on the new description pattern.
+
 ## Documentation Management
 
 ### CLAUDE.md File Management

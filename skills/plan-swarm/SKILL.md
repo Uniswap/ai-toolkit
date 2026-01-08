@@ -1,6 +1,6 @@
 ---
 name: plan-swarm
-description: Collaboratively refine plans through multi-agent discussion and consensus-building. Use when user wants multiple perspectives on a plan, needs expert opinions, or wants to improve a strategy through collaborative refinement. Triggers: "get feedback from experts", "multiple perspectives", "collaborative review", "swarm", "expert opinions", "refine the plan", "discuss the approach".
+description: Refine plans through multi-agent expert discussion. Use when user says "get multiple expert opinions on this plan", "I want different perspectives on this approach", "have the agents discuss this strategy", "refine the plan through collaborative review", or "what would different specialists think about this design".
 allowed-tools: Read, Glob, Grep, Task, WebSearch, WebFetch
 model: opus
 ---

@@ -1,6 +1,6 @@
 ---
 name: pr-issue-resolver
-description: Review GitHub PRs, address review comments, and fix CI/CD failures to make PRs merge-ready. Use PROACTIVELY and AUTOMATICALLY when user mentions PR review comments, CI failures, failing checks, needs to fix a PR, or wants to address feedback on a pull request. Triggers: "PR", "pull request", "review comments", "CI failing", "checks failing", "fix the PR", "address comments", "address feedback", "merge blocked", "pipeline failed", "build failing", "tests failing on PR".
+description: Fix PR issues including review comments and CI failures. Use when user says "fix the failing CI on my PR", "address the review comments on PR #123", "my PR has failing checks", "help me resolve the feedback on my pull request", "the build is failing on my PR", or "make my PR merge-ready".
 allowed-tools: Bash, Read, Write, Edit, Grep, Glob, WebFetch, WebSearch, Task, mcp__github__pull_request_read, mcp__github__get_file_contents, mcp__github__pull_request_review_write, mcp__github__add_issue_comment
 model: opus
 ---

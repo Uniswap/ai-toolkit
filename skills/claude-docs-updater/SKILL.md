@@ -1,6 +1,6 @@
 ---
 name: claude-docs-updater
-description: Intelligently update CLAUDE.md files based on code changes. Use PROACTIVELY after making significant code changes, when user mentions updating documentation, or when staged changes should be reflected in CLAUDE.md. Triggers: "update claude.md", "update documentation", "sync docs", "document changes", "update the docs", "reflect changes in docs", "keep docs updated".
+description: Update CLAUDE.md documentation files after code changes. Use when user says "update the CLAUDE.md", "sync the docs with my changes", "document what I changed", "update documentation for this package", or after making significant code modifications that should be reflected in project documentation.
 allowed-tools: Read, Write, Edit, Bash(git diff:*), Bash(git status:*), Glob
 model: opus
 ---
