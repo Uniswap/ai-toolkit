@@ -15,23 +15,6 @@
   },
   "nx": {
     "targets": {
-      "generate-index": {
-        "executor": "nx:run-commands",
-        "options": {
-          "command": "npx tsx scripts/generate.ts",
-          "cwd": "packages/claude-skills"
-        },
-        "dependsOn": [
-          "@ai-toolkit/utils:build"
-        ],
-        "inputs": [
-          "{projectRoot}/src/*/SKILL.md",
-          "{projectRoot}/scripts/generate.ts"
-        ],
-        "outputs": [
-          "{projectRoot}/src/index.ts"
-        ]
-      },
       "build": {
         "executor": "@nx/js:tsc",
         "outputs": [
@@ -48,10 +31,7 @@
               "output": "."
             }
           ]
-        },
-        "dependsOn": [
-          "generate-index"
-        ]
+        }
       }
     }
   },

@@ -39,9 +39,7 @@ packages/claude-skills/
 │   │   └── SKILL.md
 │   ├── topic-researcher/
 │   │   └── SKILL.md
-│   └── index.ts              # Auto-generated exports
-├── scripts/
-│   └── generate.ts           # Index generator script
+│   └── index.ts              # Skills exports
 ├── package.json
 ├── tsconfig.json
 ├── tsconfig.lib.json
@@ -144,14 +142,6 @@ export const skillNames: SkillName[];
 
 ## Build Process
 
-### Generate Index
-
-The `generate-index` target reads all SKILL.md files and generates `src/index.ts`:
-
-```bash
-npx nx run @ai-toolkit/claude-skills:generate-index
-```
-
 ### Build Package
 
 ```bash
@@ -160,17 +150,16 @@ npx nx run @ai-toolkit/claude-skills:build
 
 This:
 
-1. Runs `generate-index` first (dependency)
-2. Compiles TypeScript to `dist/src/`
-3. Copies `.md` files to `dist/` preserving directory structure
+1. Compiles TypeScript to `dist/src/`
+2. Copies `.md` files to `dist/` preserving directory structure
 
-## Integration with ai-toolkit-nx-claude
+## Distribution
 
-This package is a content dependency for `@uniswap/ai-toolkit-nx-claude`:
+Skills are distributed via the Claude Code plugin marketplace:
 
-1. Skills are bundled into the ai-toolkit-nx-claude distribution
-2. The init generator can install skills to `~/.claude/skills/` or `./.claude/skills/`
-3. Skills are installed as directories (not flat files like commands/agents)
+1. Skills are defined in `.claude-plugin/marketplace.json`
+2. Enterprise users can deploy via MDM managed-settings.json (see `docs/enterprise/`)
+3. Skills can also be manually installed to `~/.claude/skills/` or `./.claude/skills/`
 
 ## Adding New Skills
 
@@ -200,11 +189,9 @@ allowed-tools: Read, Write, Glob, Grep
 touch src/my-new-skill/guide.md
 ```
 
-### 4. Regenerate Index
+### 4. Update index.ts
 
-```bash
-npx nx run @ai-toolkit/claude-skills:generate-index
-```
+Add the new skill to `src/index.ts` exports.
 
 ### 5. Rebuild Package
 
