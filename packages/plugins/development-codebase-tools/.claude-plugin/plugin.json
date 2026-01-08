@@ -1,0 +1,12 @@
+{
+  "name": "development-codebase-tools",
+  "version": "0.0.1",
+  "description": "Codebase exploration, refactoring, and quality analysis",
+  "author": {
+    "name": "Uniswap Labs",
+    "email": "devai@uniswap.org"
+  },
+  "homepage": "https://github.com/Uniswap/ai-toolkit",
+  "keywords": ["codebase", "exploration", "refactoring", "tech-debt"],
+  "license": "MIT"
+}
