@@ -14,7 +14,7 @@
     "validate": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "node scripts/validate-plugin.js packages/plugins/development-codebase-tools"
+        "command": "node scripts/validate-plugin.cjs packages/plugins/development-codebase-tools"
       }
     },
     "publish": {
