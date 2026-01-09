@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "graphite": {
+      "type": "stdio",
+      "command": "gt",
+      "args": ["mcp"],
+      "env": {}
+    }
+  }
+}
