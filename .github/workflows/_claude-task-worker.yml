@@ -169,29 +169,50 @@ jobs:
           fetch-depth: 50
           token: ${{ secrets.WORKFLOW_PAT || github.token }}
 
-      # Validate Claude authentication - inlined to avoid external action dependency
-      # Ensures at least one of ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN is provided
-      - name: Validate authentication
-        env:
-          API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      # Download validate-claude-auth action if caller repo doesn't have it
+      # This allows external repos to use this reusable workflow without copying the action
+      - name: Ensure validate-claude-auth action exists
         run: |
-          echo "Validating authentication configuration..."
+          ACTION_FILE=".github/actions/validate-claude-auth/action.yml"
 
-          if [ -n "$OAUTH_TOKEN" ]; then
-            echo "Using Claude Code OAuth token for authentication"
-          elif [ -n "$API_KEY" ]; then
-            echo "Using Anthropic API key for authentication"
+          if [ -f "$ACTION_FILE" ]; then
+            echo "Using local validate-claude-auth action"
           else
-            echo "::error::No authentication provided. At least one of ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN must be set."
-            echo ""
-            echo "Authentication options:"
-            echo "  1. ANTHROPIC_API_KEY: Your Anthropic API key"
-            echo "  2. CLAUDE_CODE_OAUTH_TOKEN: OAuth token generated with 'claude setup-token' (Pro/Max users)"
-            echo ""
-            echo "If both are provided, CLAUDE_CODE_OAUTH_TOKEN takes precedence."
-            exit 1
+            echo "Downloading validate-claude-auth action from ai-toolkit..."
+            mkdir -p .github/actions/validate-claude-auth
+
+            # Use GitHub API (same pattern as _generate-pr-metadata.yml)
+            if ! curl -fSs --max-time 30 --max-redirs 3 \
+                      -H "Accept: application/vnd.github.v4.raw" \
+                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/actions/validate-claude-auth/action.yml" \
+                      -o "$ACTION_FILE" 2>&1 | tee /tmp/curl-error.log; then
+              echo "::error::Failed to download validate-claude-auth action from ai-toolkit"
+              cat /tmp/curl-error.log
+              exit 1
+            fi
+
+            # Verify the file was downloaded and has content
+            if [ ! -s "$ACTION_FILE" ]; then
+              echo "::error::Downloaded action.yml is empty"
+              exit 1
+            fi
+
+            # Verify it's a valid action file (has 'runs:' section)
+            if ! grep -q "^runs:" "$ACTION_FILE"; then
+              echo "::error::Downloaded action.yml is invalid (missing 'runs:' section)"
+              echo "File contents:"
+              cat "$ACTION_FILE"
+              exit 1
+            fi
+
+            echo "Successfully downloaded validate-claude-auth action"
           fi
+
+      - name: Validate authentication
+        uses: ./.github/actions/validate-claude-auth
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
       # Setup Node.js for the linear-task-utils CLI
       - name: Setup Node.js
