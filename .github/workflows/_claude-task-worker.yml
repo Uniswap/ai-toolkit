@@ -169,6 +169,19 @@ jobs:
           fetch-depth: 50
           token: ${{ secrets.WORKFLOW_PAT || github.token }}
 
+      # Download validate-claude-auth action if caller repo doesn't have it
+      # This allows external repos to use this reusable workflow without copying the action
+      - name: Ensure validate-claude-auth action exists
+        run: |
+          if [ ! -f ".github/actions/validate-claude-auth/action.yml" ]; then
+            echo "Downloading validate-claude-auth action from ai-toolkit..."
+            mkdir -p .github/actions/validate-claude-auth
+            curl -sSL "https://raw.githubusercontent.com/Uniswap/ai-toolkit/${{ github.job_workflow_sha }}/.github/actions/validate-claude-auth/action.yml" \
+              -o .github/actions/validate-claude-auth/action.yml
+          else
+            echo "Using local validate-claude-auth action"
+          fi
+
       - name: Validate authentication
         uses: ./.github/actions/validate-claude-auth
         with:
