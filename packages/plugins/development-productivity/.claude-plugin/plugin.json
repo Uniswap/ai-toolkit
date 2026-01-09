@@ -1,0 +1,12 @@
+{
+  "name": "development-productivity",
+  "version": "0.0.1",
+  "description": "Documentation, research, test generation, and prompt optimization tools",
+  "author": {
+    "name": "Uniswap Labs",
+    "email": "devai@uniswap.org"
+  },
+  "homepage": "https://github.com/Uniswap/ai-toolkit",
+  "keywords": ["documentation", "research", "testing", "prompt-engineering"],
+  "license": "MIT"
+}
