@@ -119,6 +119,12 @@ on:
         type: string
         default: "draft"
 
+      toolkit_ref:
+        description: "Git ref (branch, tag, or SHA) of ai-toolkit to use for downloading the validate-claude-auth action. Defaults to 'main'. Use 'next' or a specific SHA to test unreleased changes."
+        required: false
+        type: string
+        default: "main"
+
     secrets:
       ANTHROPIC_API_KEY:
         description: "Anthropic API key for Claude Code (required unless CLAUDE_CODE_OAUTH_TOKEN is set)"
@@ -172,21 +178,23 @@ jobs:
       # Download validate-claude-auth action if caller repo doesn't have it
       # This allows external repos to use this reusable workflow without copying the action
       - name: Ensure validate-claude-auth action exists
+        env:
+          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
         run: |
           ACTION_FILE=".github/actions/validate-claude-auth/action.yml"
 
           if [ -f "$ACTION_FILE" ]; then
             echo "Using local validate-claude-auth action"
           else
-            echo "Downloading validate-claude-auth action from ai-toolkit..."
+            echo "Downloading validate-claude-auth action from ai-toolkit@${TOOLKIT_REF}..."
             mkdir -p .github/actions/validate-claude-auth
 
-            # Use GitHub API (same pattern as _generate-pr-metadata.yml)
+            # Use GitHub API (same pattern as _generate-pr-metadata.yml and _claude-code-review.yml)
             if ! curl -fSs --max-time 30 --max-redirs 3 \
                       -H "Accept: application/vnd.github.v4.raw" \
-                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/actions/validate-claude-auth/action.yml" \
+                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/actions/validate-claude-auth/action.yml?ref=${TOOLKIT_REF}" \
                       -o "$ACTION_FILE" 2>&1 | tee /tmp/curl-error.log; then
-              echo "::error::Failed to download validate-claude-auth action from ai-toolkit"
+              echo "::error::Failed to download validate-claude-auth action from ai-toolkit@${TOOLKIT_REF}"
               cat /tmp/curl-error.log
               exit 1
             fi
@@ -205,7 +213,7 @@ jobs:
               exit 1
             fi
 
-            echo "Successfully downloaded validate-claude-auth action"
+            echo "Successfully downloaded validate-claude-auth action from ai-toolkit@${TOOLKIT_REF}"
           fi
 
       - name: Validate authentication
