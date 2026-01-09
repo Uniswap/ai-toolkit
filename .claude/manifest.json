@@ -1,7 +1,0 @@
-{
-  "version": "1.0.0",
-  "installedAt": "2025-12-22T18:56:11.429Z",
-  "commands": ["review-code"],
-  "agents": ["feedback-collector"],
-  "files": ["commands/review-code.md", "agents/feedback-collector.md"]
-}

@@ -12,7 +12,7 @@ name: Semantic Deduplicator
 
 Given two sets of data:
 
-1. **New question clusters** from Slack (from the question-extractor agent)
+1. **New question clusters** from Slack (from the upstream analysis workflow)
 2. **Existing FAQ questions** from the Notion database
 
 Identify which new questions are **genuinely novel** versus already covered in the existing database. Use semantic understanding to detect duplicates even when phrased differently.
