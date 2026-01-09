@@ -1,59 +1,39 @@
 {
   "name": "uniswap-ai-toolkit",
+  "version": "2.0.0",
   "owner": {
     "name": "Uniswap Labs",
     "email": "devai@uniswap.org"
   },
   "metadata": {
-    "description": "Uniswap Developer AI Skills - A curated collection of AI-powered development workflows for implementation planning, code review, PR management, and codebase exploration.",
-    "version": "1.0.0"
+    "description": "Uniswap Developer AI Toolkit - Comprehensive AI-powered development workflows for implementation planning, code review, PR management, codebase exploration, and external service integrations.",
+    "repository": "https://github.com/Uniswap/ai-toolkit"
   },
   "plugins": [
     {
-      "name": "planning-skills",
-      "description": "Implementation planning and execution workflows with multi-agent collaboration",
-      "source": "./",
-      "strict": false,
-      "skills": [
-        "./skills/implementation-planner",
-        "./skills/plan-executor",
-        "./skills/plan-reviewer",
-        "./skills/plan-swarm"
-      ]
+      "name": "development-planning",
+      "source": "./packages/plugins/development-planning",
+      "description": "Implementation planning and execution workflows with multi-agent collaboration"
     },
     {
-      "name": "pr-skills",
-      "description": "Pull request management including review, creation, and issue resolution",
-      "source": "./",
-      "strict": false,
-      "skills": [
-        "./skills/pr-reviewer",
-        "./skills/pr-creator",
-        "./skills/pr-issue-resolver",
-        "./skills/graphite-stack-updater"
-      ]
-  },
-    {
-      "name": "codebase-skills",
-      "description": "Codebase exploration, refactoring, and quality analysis",
-      "source": "./",
-      "strict": false,
-      "skills": [
-        "./skills/codebase-explorer",
-        "./skills/code-refactorer",
-        "./skills/tech-debt-analyzer"
-      ]
+      "name": "development-pr-workflow",
+      "source": "./packages/plugins/development-pr-workflow",
+      "description": "Pull request management, review, creation, and Graphite stack management"
     },
     {
-      "name": "productivity-skills",
-      "description": "Documentation, research, and prompt optimization tools",
-      "source": "./",
-      "strict": false,
-      "skills": [
-        "./skills/claude-docs-updater",
-        "./skills/topic-researcher",
-        "./skills/prompt-optimizer"
-      ]
+      "name": "development-codebase-tools",
+      "source": "./packages/plugins/development-codebase-tools",
+      "description": "Codebase exploration, refactoring, and quality analysis"
+    },
+    {
+      "name": "development-productivity",
+      "source": "./packages/plugins/development-productivity",
+      "description": "Documentation, research, and prompt optimization tools"
+    },
+    {
+      "name": "uniswap-integrations",
+      "source": "./packages/plugins/uniswap-integrations",
+      "description": "External service integrations (Linear, Notion, Nx, Chrome DevTools)"
     }
   ]
 }
