@@ -1,3 +1,7 @@
+---
+name: Semantic Deduplicator
+---
+
 # Semantic Deduplication Agent
 
 > **Usage**: This agent is referenced by the `/aggregate-people-team-faqs` slash command. When the command runs, it follows the deduplication logic defined in this file. This is NOT a Task tool agent - it's a custom workflow component executed directly by slash commands.
