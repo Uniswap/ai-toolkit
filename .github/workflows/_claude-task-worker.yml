@@ -176,8 +176,33 @@ jobs:
           if [ ! -f ".github/actions/validate-claude-auth/action.yml" ]; then
             echo "Downloading validate-claude-auth action from ai-toolkit..."
             mkdir -p .github/actions/validate-claude-auth
-            curl -sSL "https://raw.githubusercontent.com/Uniswap/ai-toolkit/${{ github.job_workflow_sha }}/.github/actions/validate-claude-auth/action.yml" \
-              -o .github/actions/validate-claude-auth/action.yml
+
+            ACTION_URL="https://raw.githubusercontent.com/Uniswap/ai-toolkit/${{ github.job_workflow_sha }}/.github/actions/validate-claude-auth/action.yml"
+            ACTION_FILE=".github/actions/validate-claude-auth/action.yml"
+
+            echo "URL: $ACTION_URL"
+
+            # Download with error handling (-f fails on HTTP errors, --retry for transient failures)
+            if ! curl -fsSL --retry 3 --retry-delay 2 "$ACTION_URL" -o "$ACTION_FILE"; then
+              echo "::error::Failed to download validate-claude-auth action from ai-toolkit"
+              exit 1
+            fi
+
+            # Verify the file was downloaded and has content
+            if [ ! -s "$ACTION_FILE" ]; then
+              echo "::error::Downloaded action.yml is empty"
+              exit 1
+            fi
+
+            # Verify it's a valid action file (has 'runs:' section)
+            if ! grep -q "^runs:" "$ACTION_FILE"; then
+              echo "::error::Downloaded action.yml is invalid (missing 'runs:' section)"
+              echo "File contents:"
+              cat "$ACTION_FILE"
+              exit 1
+            fi
+
+            echo "Successfully downloaded validate-claude-auth action"
           else
             echo "Using local validate-claude-auth action"
           fi
