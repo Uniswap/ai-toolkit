@@ -1,3 +1,7 @@
+---
+name: Slack Message Fetcher
+---
+
 # Slack Message Fetcher
 
 > **Usage**: This agent is referenced by the `/aggregate-people-team-faqs` slash command and other Slack-related workflows to fetch and filter messages from Slack channels with minimal token usage.
