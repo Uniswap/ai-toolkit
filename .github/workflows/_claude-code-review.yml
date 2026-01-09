@@ -222,6 +222,8 @@ jobs:
       - name: Ensure validate-claude-auth action exists
         env:
           TOOLKIT_REF: ${{ inputs.toolkit_ref }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
         run: |
           ACTION_FILE=".github/actions/validate-claude-auth/action.yml"
 
