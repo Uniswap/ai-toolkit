@@ -186,8 +186,8 @@ function printResults(errors, warnings) {
 const pluginPath = process.argv[2];
 
 if (!pluginPath) {
-  console.error('Usage: node scripts/validate-plugin.js <plugin-path>');
-  console.error('Example: node scripts/validate-plugin.js packages/plugins/plugin-planning');
+  console.error('Usage: node scripts/validate-plugin.cjs <plugin-path>');
+  console.error('Example: node scripts/validate-plugin.cjs packages/plugins/plugin-planning');
   process.exit(1);
 }
 
