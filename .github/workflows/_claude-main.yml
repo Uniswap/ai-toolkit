@@ -258,6 +258,7 @@ jobs:
       - name: Ensure validate-claude-auth action exists
         env:
           TOOLKIT_REF: ${{ inputs.toolkit_ref }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ACTION_FILE=".github/actions/validate-claude-auth/action.yml"
 
@@ -268,8 +269,10 @@ jobs:
             mkdir -p .github/actions/validate-claude-auth
 
             # Use GitHub API (same pattern as other reusable workflows)
+            # Authentication required to avoid GitHub API rate limits on shared runner IPs
             if ! curl -fSs --max-time 30 --max-redirs 3 \
                       -H "Accept: application/vnd.github.v4.raw" \
+                      -H "Authorization: Bearer $GITHUB_TOKEN" \
                       -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/actions/validate-claude-auth/action.yml?ref=${TOOLKIT_REF}" \
                       -o "$ACTION_FILE" 2>&1 | tee /tmp/curl-error.log; then
               echo "::error::Failed to download validate-claude-auth action from ai-toolkit@${TOOLKIT_REF}"
