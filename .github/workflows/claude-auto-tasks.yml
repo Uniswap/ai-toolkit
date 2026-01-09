@@ -8,8 +8,7 @@
 # 1. Create a "claude" label in your Linear team (or configure a different label)
 # 2. Add LINEAR_API_KEY secret to your repository
 # 3. Ensure ANTHROPIC_API_KEY secret is configured
-# 4. Add NODE_AUTH_TOKEN secret (for installing @uniswap scoped packages)
-# 5. Add issues with the "claude" label in "Backlog" or "Todo" status
+# 4. Add issues with the "claude" label in "Backlog" or "Todo" status
 #
 # USAGE:
 # - Automatic: Runs daily at 5am EST
@@ -96,7 +95,6 @@ jobs:
       target_branch: ${{ inputs.target_branch || 'next' }}
     secrets:
       LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-      NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
   # Job 2: Process each task in parallel
   process-task:
@@ -124,7 +122,6 @@ jobs:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-      NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
   # Job 3: Summary (always runs)
   summary:
