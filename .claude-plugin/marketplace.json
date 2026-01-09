@@ -1,6 +1,6 @@
 {
   "name": "uniswap-ai-toolkit",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "owner": {
     "name": "Uniswap Labs",
     "email": "devai@uniswap.org"
@@ -18,7 +18,7 @@
     {
       "name": "development-pr-workflow",
       "source": "./packages/plugins/development-pr-workflow",
-      "description": "Pull request management, review, creation, and Graphite stack management"
+      "description": "Pull request management including review, creation, issue resolution, and Graphite stack management"
     },
     {
       "name": "development-codebase-tools",
@@ -28,12 +28,12 @@
     {
       "name": "development-productivity",
       "source": "./packages/plugins/development-productivity",
-      "description": "Documentation, research, and prompt optimization tools"
+      "description": "Documentation, research, test generation, and prompt optimization tools"
     },
     {
       "name": "uniswap-integrations",
       "source": "./packages/plugins/uniswap-integrations",
-      "description": "External service integrations (Linear, Notion, Nx, Chrome DevTools)"
+      "description": "External service integrations (Linear, Notion, Nx, Chrome DevTools) and deployment orchestration"
     }
   ]
 }
