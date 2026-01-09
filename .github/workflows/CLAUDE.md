@@ -594,10 +594,9 @@ This reusable workflow queries Linear for issues matching specified criteria and
 
 **Required Secrets:**
 
-| Secret            | Required | Description                                         |
-| ----------------- | -------- | --------------------------------------------------- |
-| `LINEAR_API_KEY`  | Yes      | Linear API key for querying issues                  |
-| `NODE_AUTH_TOKEN` | Yes      | npm token for installing `@uniswap` scoped packages |
+| Secret           | Required | Description                        |
+| ---------------- | -------- | ---------------------------------- |
+| `LINEAR_API_KEY` | Yes      | Linear API key for querying issues |
 
 **Configuration Inputs:**
 
@@ -630,7 +629,6 @@ jobs:
       max_issues: '5'
     secrets:
       LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-      NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
   process-task:
     needs: prepare
@@ -651,7 +649,6 @@ jobs:
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-      NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 ```
 
 ### Autonomous Task Processing (`_claude-task-worker.yml`)
@@ -680,7 +677,6 @@ This workflow processes Linear issues autonomously using Claude Code. It's calle
 | `ANTHROPIC_API_KEY`       | Yes (unless `CLAUDE_CODE_OAUTH_TOKEN` is set) | Anthropic API key for Claude access                                                                                                       |
 | `CLAUDE_CODE_OAUTH_TOKEN` | No (alternative to `ANTHROPIC_API_KEY`)       | Claude Code OAuth token for authentication. When provided, takes precedence over `ANTHROPIC_API_KEY`. Generate with `claude setup-token`. |
 | `LINEAR_API_KEY`          | Yes                                           | Linear API key for issue updates                                                                                                          |
-| `NODE_AUTH_TOKEN`         | Yes                                           | npm token for installing `@uniswap` scoped packages                                                                                       |
 | `WORKFLOW_PAT`            | No                                            | Personal Access Token with `repo` scope for pushing branches (falls back to `GITHUB_TOKEN`)                                               |
 
 **Authentication Methods:**
@@ -751,7 +747,6 @@ with:
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
   LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-  NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 ```
 
 **Usage example (OAuth Token):**
@@ -772,7 +767,6 @@ with:
 secrets:
   CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
   LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-  NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 ```
 
 ### GitHub Actions Version Updater (`_update-action-versions-worker.yml`)
@@ -1091,7 +1085,7 @@ Common secrets referenced:
 
 - `ANTHROPIC_API_KEY` - Claude AI API authentication (also requires the [Claude GitHub App](https://github.com/apps/claude) to be installed on the repository). Alternative: use `CLAUDE_CODE_OAUTH_TOKEN` instead.
 - `CLAUDE_CODE_OAUTH_TOKEN` - Claude Code OAuth token for authentication (alternative to `ANTHROPIC_API_KEY`). Generate with `claude setup-token`. For Pro/Max users.
-- `NODE_AUTH_TOKEN` - NPM registry authentication (for publishing and installing `@uniswap` scoped packages)
+- `NODE_AUTH_TOKEN` - NPM registry authentication (for publishing `@uniswap` scoped packages)
 - `WORKFLOW_PAT` - Personal Access Token with `repo` scope for: (1) pushing commits/tags in force-publish, (2) cross-repo access to fetch default prompts from ai-toolkit in `_claude-code-review.yml` and `_generate-pr-metadata.yml`, (3) resolving review threads via GraphQL API in `_claude-code-review.yml` (the default `GITHUB_TOKEN` lacks permissions for the `resolveReviewThread` mutation). **Important:** The account that owns the PAT must have write, maintain, or admin access to the repository for thread resolution to work.
 - `SERVICE_ACCOUNT_GPG_PRIVATE_KEY` - GPG key for signed commits/tags
 - `LINEAR_API_KEY` - Linear API authentication (for autonomous tasks)

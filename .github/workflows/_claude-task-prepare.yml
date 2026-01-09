@@ -16,7 +16,6 @@
 #       max_issues: "3"
 #     secrets:
 #       LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-#       NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 #
 #   process-task:
 #     needs: prepare
@@ -37,7 +36,6 @@
 #
 # SECRETS REQUIRED:
 # - LINEAR_API_KEY: Linear API key for querying issues
-# - NODE_AUTH_TOKEN: npm token for installing @uniswap scoped packages
 
 name: "[claude] Task Prepare"
 
@@ -94,10 +92,6 @@ on:
         description: "Linear API key for querying issues"
         required: true
 
-      NODE_AUTH_TOKEN:
-        description: "npm token for installing @uniswap scoped packages"
-        required: true
-
 jobs:
   prepare:
     runs-on: ubuntu-latest
@@ -123,9 +117,6 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
           node-version: "22.21.1"
-          cache: "npm"
-          registry-url: "https://registry.npmjs.org"
-          scope: "@uniswap"
 
       # Ensure the claude label exists
       - name: Ensure label exists
@@ -135,7 +126,6 @@ jobs:
             --label "$LINEAR_LABEL"
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
           LINEAR_TASK_UTILS_TAG: ${{ inputs.linear_task_utils_tag }}
           LINEAR_TEAM: ${{ inputs.linear_team }}
           LINEAR_LABEL: ${{ inputs.linear_label }}
@@ -169,7 +159,6 @@ jobs:
           fi
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
           LINEAR_TASK_UTILS_TAG: ${{ inputs.linear_task_utils_tag }}
           LINEAR_TEAM: ${{ inputs.linear_team }}
           LINEAR_LABEL: ${{ inputs.linear_label }}
