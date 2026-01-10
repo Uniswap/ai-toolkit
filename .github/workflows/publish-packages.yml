@@ -1228,7 +1228,6 @@ jobs:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
       RELEASE_NOTES_NOTION_DATABASE_ID: ${{ secrets.RELEASE_NOTES_NOTION_DATABASE_ID }}
-      NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
   # ============================================================================
   # SYNC NEXT: Sync next branch with main after main releases or workflow changes
