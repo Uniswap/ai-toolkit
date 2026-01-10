@@ -98,14 +98,6 @@ on:
           Extract from database URL: notion.so/{workspace}/{database_id}?v=...
         required: false
 
-      NODE_AUTH_TOKEN:
-        description: |
-          npm authentication token for accessing @uniswap scoped packages.
-          Required if "notion" included in destinations (to install @uniswap/ai-toolkit-notion-publisher).
-          Format: npm_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-          Obtain from: https://www.npmjs.com/settings/~/tokens
-        required: false
-
 jobs:
   prepare:
     runs-on: ubuntu-24.04
@@ -131,7 +123,6 @@ jobs:
         env:
           INPUT_DESTINATIONS: ${{ inputs.destinations }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
           RELEASE_NOTES_NOTION_DATABASE_ID: ${{ secrets.RELEASE_NOTES_NOTION_DATABASE_ID }}
         run: |
@@ -146,9 +137,6 @@ jobs:
 
           # Check Notion secrets if Notion destination is configured
           if [[ "$INPUT_DESTINATIONS" == *"notion"* ]]; then
-            if [[ -z "$NODE_AUTH_TOKEN" ]]; then
-              MISSING_SECRETS+=("NODE_AUTH_TOKEN (required to install @uniswap/ai-toolkit-notion-publisher)")
-            fi
             if [[ -z "$NOTION_API_KEY" ]]; then
               MISSING_SECRETS+=("NOTION_API_KEY")
             fi
@@ -334,38 +322,6 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           scope: '@uniswap'
 
-      - name: Configure npm authentication for Notion publisher
-        if: contains(inputs.destinations, 'notion')
-        run: |
-          # Configure .npmrc for accessing @uniswap/ai-toolkit-notion-publisher (private package)
-          # This is only needed for Notion destinations, not Slack
-
-          # Ensure .npmrc exists
-          touch ~/.npmrc
-
-          # Add scoped registry if not already present
-          if ! grep -q "@uniswap:registry" ~/.npmrc; then
-            echo "@uniswap:registry=https://registry.npmjs.org" >> ~/.npmrc
-          fi
-
-          # Add default registry if not already present
-          if ! grep -q "^registry=" ~/.npmrc; then
-            echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
-          fi
-
-          # Add or update auth token
-          if grep -q "//registry.npmjs.org/:_authToken" ~/.npmrc; then
-            # Update existing token line
-            sed -i "s|//registry.npmjs.org/:_authToken=.*|//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}|" ~/.npmrc
-          else
-            # Add new token line
-            echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" >> ~/.npmrc
-          fi
-
-          echo "✅ Configured npm authentication for @uniswap/ai-toolkit-notion-publisher"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-
       - name: Publish to Notion
         id: notion-publish
         continue-on-error: true
@@ -379,7 +335,6 @@ jobs:
             --branch "$BRANCH")
           echo "page-url=$PAGE_URL" >> $GITHUB_OUTPUT
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
           RELEASE_NOTES_NOTION_DATABASE_ID: ${{ secrets.RELEASE_NOTES_NOTION_DATABASE_ID }}
           TITLE: ${{ needs.prepare.outputs.final_title }}
@@ -409,7 +364,6 @@ jobs:
           The Notion page could not be created. Check the workflow logs for details.
 
           Common issues:
-          - Missing or invalid NODE_AUTH_TOKEN secret (required to install @uniswap/ai-toolkit-notion-publisher)
           - Invalid NOTION_API_KEY secret
           - Invalid RELEASE_NOTES_NOTION_DATABASE_ID secret
           - Notion integration doesn't have access to the database

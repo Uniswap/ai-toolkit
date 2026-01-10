@@ -140,44 +140,39 @@ All packages use the `@ai-toolkit` scope.
 
 ## Repository Structure
 
-### Claude Skills Directory
+### Plugin Architecture
 
-The repository includes a dedicated `skills/` directory at the root level containing all Claude Code skill definitions:
+The repository uses a plugin-based architecture where Claude Code capabilities are organized into dedicated plugin packages:
 
 ```text
 /
-├── skills/                           # Claude Code skills
-│   ├── claude-docs-updater/
-│   ├── code-refactorer/
-│   ├── codebase-explorer/
-│   ├── graphite-stack-updater/
-│   ├── implementation-planner/
-│   ├── plan-executor/
-│   ├── plan-reviewer/
-│   ├── plan-swarm/
-│   ├── pr-creator/
-│   ├── pr-issue-resolver/
-│   ├── pr-reviewer/
-│   ├── prompt-optimizer/
-│   ├── tech-debt-analyzer/
-│   └── topic-researcher/
 ├── .claude-plugin/
 │   └── marketplace.json              # Plugin marketplace configuration
-└── packages/
-    ├── claude-skills/                # Metadata & registry package
-    └── ...
+├── packages/
+│   └── plugins/
+│       ├── development-planning/     # Implementation planning & execution workflows
+│       ├── development-pr-workflow/  # PR management, review, & Graphite integration
+│       ├── development-codebase-tools/  # Code exploration & refactoring
+│       ├── development-productivity/ # Documentation, research, & prompt optimization
+│       └── uniswap-integrations/     # External service integrations (Linear, Notion, Nx)
+└── scripts/
+    └── validate-plugin.cjs           # Plugin structure validation script
 ```
 
 **Key Points:**
 
-- Skills are stored at the repository root in `./skills/` (not in `packages/claude-skills/src/`)
-- The `.claude-plugin/marketplace.json` file references skills via relative paths: `"./skills/<skill-name>"`
-- The `@ai-toolkit/claude-skills` package serves as a metadata hub and plugin registry
-- Skills are grouped into 4 plugins: planning-skills, pr-skills, codebase-skills, productivity-skills
+- Plugins are stored in `./packages/plugins/<plugin-name>/`
+- Each plugin is a self-contained Nx package with its own `package.json`, `project.json`, and `.claude-plugin/plugin.json`
+- The `.claude-plugin/marketplace.json` file references plugins via relative paths: `"./packages/plugins/<plugin-name>"`
+- There are 5 plugins: development-planning, development-pr-workflow, development-codebase-tools, development-productivity, uniswap-integrations
 
-**Recent Changes (2026-01-07):**
+**Plugin Validation:**
 
-All 14 skill descriptions were rewritten to use natural language example phrases instead of keyword-based "Triggers:" lists. This improves Claude Code's semantic matching for automatic skill invocation. See `skills/CLAUDE.md` for details on the new description pattern.
+Use the validation script to check plugin structure:
+
+```bash
+node scripts/validate-plugin.cjs packages/plugins/<plugin-name>
+```
 
 ## Documentation Management
 

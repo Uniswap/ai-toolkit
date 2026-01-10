@@ -217,6 +217,50 @@ jobs:
         with:
           fetch-depth: 50
 
+      # Download validate-claude-auth action if caller repo doesn't have it
+      # This allows external repos to use this reusable workflow without copying the action
+      - name: Ensure validate-claude-auth action exists
+        env:
+          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ACTION_FILE=".github/actions/validate-claude-auth/action.yml"
+
+          if [ -f "$ACTION_FILE" ]; then
+            echo "Using local validate-claude-auth action"
+          else
+            echo "Downloading validate-claude-auth action from ai-toolkit@${TOOLKIT_REF}..."
+            mkdir -p .github/actions/validate-claude-auth
+
+            # Use GitHub API (same pattern as _generate-pr-metadata.yml and _claude-task-worker.yml)
+            # Authentication required to avoid GitHub API rate limits on shared runner IPs
+            if ! curl -fSs --max-time 30 --max-redirs 3 \
+                      -H "Accept: application/vnd.github.v4.raw" \
+                      -H "Authorization: Bearer $GITHUB_TOKEN" \
+                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/actions/validate-claude-auth/action.yml?ref=${TOOLKIT_REF}" \
+                      -o "$ACTION_FILE" 2>&1 | tee /tmp/curl-error.log; then
+              echo "::error::Failed to download validate-claude-auth action from ai-toolkit@${TOOLKIT_REF}"
+              cat /tmp/curl-error.log
+              exit 1
+            fi
+
+            # Verify the file was downloaded and has content
+            if [ ! -s "$ACTION_FILE" ]; then
+              echo "::error::Downloaded action.yml is empty"
+              exit 1
+            fi
+
+            # Verify it's a valid action file (has 'runs:' section)
+            if ! grep -q "^runs:" "$ACTION_FILE"; then
+              echo "::error::Downloaded action.yml is invalid (missing 'runs:' section)"
+              echo "File contents:"
+              cat "$ACTION_FILE"
+              exit 1
+            fi
+
+            echo "Successfully downloaded validate-claude-auth action from ai-toolkit@${TOOLKIT_REF}"
+          fi
+
       - name: Validate Authentication
         uses: ./.github/actions/validate-claude-auth
         with:

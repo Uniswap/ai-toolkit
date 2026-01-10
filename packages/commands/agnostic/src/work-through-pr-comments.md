@@ -572,17 +572,14 @@ Updating scripts/lefthook/lint-markdown.sh...
 Total comments processed: 3
 Comments addressed: 3
 Comments skipped: 0
-Files modified: 7
+Files modified: 4
 
 **Files changed:**
 
 - scripts/lefthook/lint-markdown.sh
 - CLAUDE.md
-- .claude/commands/aggregate-people-team-faqs.md
-- .claude/agents/slack-fetcher.md
-- .claude/agents/slack-analyzer.md
-- .claude/agents/question-extractor.md
-- .claude/agents/deduplicator.md
+- packages/plugins/development-productivity/skills/prompt-improver/skill.md
+- src/utils/validation.ts
 
 🔍 Running code quality checks...
 ✅ Code formatting complete
@@ -592,13 +589,10 @@ Files modified: 7
 
 ```
 
-M  .claude/agents/deduplicator.md
-M  .claude/agents/question-extractor.md
-M  .claude/agents/slack-analyzer.md
-M  .claude/agents/slack-fetcher.md
-R  .claude/commands/aggregate-faqs.md -> .claude/commands/aggregate-people-team-faqs.md
 M  CLAUDE.md
+M  packages/plugins/development-productivity/skills/prompt-improver/skill.md
 M  scripts/lefthook/lint-markdown.sh
+M  src/utils/validation.ts
 
 ```
 

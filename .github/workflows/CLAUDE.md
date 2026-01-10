@@ -26,9 +26,10 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 
 - `ci-check-pr-title.yml` - Validates PR titles follow conventional commit format
 
-### Autonomous Task Processing (2 workflows)
+### Autonomous Task Processing (3 workflows)
 
 - `claude-auto-tasks.yml` - Scheduled autonomous task processing from Linear
+- `_claude-task-prepare.yml` - Reusable workflow for querying Linear and preparing task matrix
 - `_claude-task-worker.yml` - Reusable worker for processing individual Linear tasks
 
 ### Newsletter Automation (1 workflow)
@@ -40,11 +41,12 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 - `update-action-versions.yml` - Scheduled workflow to update GitHub Actions to latest versions
 - `_update-action-versions-worker.yml` - Reusable worker for analyzing and updating action versions
 
-### Reusable Workflows (8 workflows, prefixed with `_`)
+### Reusable Workflows (9 workflows, prefixed with `_`)
 
 - `_claude-main.yml` - Core Claude AI interaction engine
 - `_claude-welcome.yml` - Reusable welcome message poster
 - `_claude-code-review.yml` - Reusable PR review automation
+- `_claude-task-prepare.yml` - Linear task querying and matrix preparation
 - `_claude-task-worker.yml` - Autonomous task execution from Linear issues
 - `_generate-changelog.yml` - AI-powered changelog generation
 - `_generate-pr-metadata.yml` - AI-powered PR title and description generation
@@ -59,6 +61,7 @@ These workflows are prefixed with `_` and may be called from other repositories:
 
 - `_claude-main.yml` - Claude AI assistant for GitHub interactions
 - `_claude-code-review.yml` - Formal GitHub PR reviews with inline comments
+- `_claude-task-prepare.yml` - Query Linear and prepare task matrix for parallel processing
 - `_claude-task-worker.yml` - Process single Linear task autonomously
 - `_claude-welcome.yml` - Welcome messages for new contributors
 - `_generate-changelog.yml` - AI-generated release notes
@@ -576,6 +579,78 @@ The workflow determines which prompt to use in this priority order:
 2. **`custom_prompt_path` input**: Path to a prompt file in the calling repository (default: `.github/prompts/generate-pr-title-description.md`)
 3. **Default prompt from ai-toolkit**: Fetched from `Uniswap/ai-toolkit` repository (public, no authentication required)
 
+### Linear Task Preparation (`_claude-task-prepare.yml`)
+
+This reusable workflow queries Linear for issues matching specified criteria and outputs a matrix for parallel processing. It's designed to be called by orchestrating workflows that need to fan out to multiple Claude task workers.
+
+**Key Features:**
+
+| Feature              | Description                                                            |
+| -------------------- | ---------------------------------------------------------------------- |
+| **Label Management** | Ensures the specified label exists before querying                     |
+| **Priority Sorting** | Issues sorted by priority (Urgent > High > Normal > Low > No Priority) |
+| **Matrix Output**    | Outputs JSON matrix compatible with GitHub Actions `strategy.matrix`   |
+| **Configurable**     | Customizable team, label, max issues, and npm tag                      |
+
+**Required Secrets:**
+
+| Secret           | Required | Description                        |
+| ---------------- | -------- | ---------------------------------- |
+| `LINEAR_API_KEY` | Yes      | Linear API key for querying issues |
+
+**Configuration Inputs:**
+
+| Input                   | Required | Default | Description                                         |
+| ----------------------- | -------- | ------- | --------------------------------------------------- |
+| `linear_team`           | Yes      | -       | Linear team name to query                           |
+| `linear_label`          | Yes      | -       | Label to filter issues by                           |
+| `max_issues`            | No       | `3`     | Maximum number of issues to process                 |
+| `linear_task_utils_tag` | No       | `next`  | npm tag for `@uniswap/ai-toolkit-linear-task-utils` |
+| `target_branch`         | No       | `next`  | Branch to checkout                                  |
+
+**Outputs:**
+
+| Output                  | Description                                                  |
+| ----------------------- | ------------------------------------------------------------ |
+| `matrix_json`           | Matrix JSON for `strategy.matrix` (contains `include` array) |
+| `has_tasks`             | `'true'` if tasks found, `'false'` otherwise                 |
+| `result`                | Full query result JSON for summary/debugging                 |
+| `linear_task_utils_tag` | Resolved tag for passing to worker                           |
+
+**Usage example:**
+
+```yaml
+jobs:
+  prepare:
+    uses: ./.github/workflows/_claude-task-prepare.yml
+    with:
+      linear_team: 'Developer AI'
+      linear_label: 'claude'
+      max_issues: '5'
+    secrets:
+      LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+
+  process-task:
+    needs: prepare
+    if: needs.prepare.outputs.has_tasks == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix_json) }}
+    uses: ./.github/workflows/_claude-task-worker.yml
+    with:
+      issue_id: ${{ matrix.issue_id }}
+      issue_identifier: ${{ matrix.issue_identifier }}
+      issue_title: ${{ matrix.issue_title }}
+      issue_description: ${{ matrix.issue_description }}
+      issue_url: ${{ matrix.issue_url }}
+      branch_name: ${{ matrix.branch_name }}
+      linear_task_utils_tag: ${{ needs.prepare.outputs.linear_task_utils_tag }}
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+```
+
 ### Autonomous Task Processing (`_claude-task-worker.yml`)
 
 This workflow processes Linear issues autonomously using Claude Code. It's called by `claude-auto-tasks.yml` for each task in the matrix.
@@ -602,7 +677,6 @@ This workflow processes Linear issues autonomously using Claude Code. It's calle
 | `ANTHROPIC_API_KEY`       | Yes (unless `CLAUDE_CODE_OAUTH_TOKEN` is set) | Anthropic API key for Claude access                                                                                                       |
 | `CLAUDE_CODE_OAUTH_TOKEN` | No (alternative to `ANTHROPIC_API_KEY`)       | Claude Code OAuth token for authentication. When provided, takes precedence over `ANTHROPIC_API_KEY`. Generate with `claude setup-token`. |
 | `LINEAR_API_KEY`          | Yes                                           | Linear API key for issue updates                                                                                                          |
-| `NODE_AUTH_TOKEN`         | Yes                                           | npm token for installing `@uniswap` scoped packages                                                                                       |
 | `WORKFLOW_PAT`            | No                                            | Personal Access Token with `repo` scope for pushing branches (falls back to `GITHUB_TOKEN`)                                               |
 
 **Authentication Methods:**
@@ -673,7 +747,6 @@ with:
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
   LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-  NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 ```
 
 **Usage example (OAuth Token):**
@@ -694,7 +767,6 @@ with:
 secrets:
   CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
   LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-  NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 ```
 
 ### GitHub Actions Version Updater (`_update-action-versions-worker.yml`)
@@ -1013,7 +1085,7 @@ Common secrets referenced:
 
 - `ANTHROPIC_API_KEY` - Claude AI API authentication (also requires the [Claude GitHub App](https://github.com/apps/claude) to be installed on the repository). Alternative: use `CLAUDE_CODE_OAUTH_TOKEN` instead.
 - `CLAUDE_CODE_OAUTH_TOKEN` - Claude Code OAuth token for authentication (alternative to `ANTHROPIC_API_KEY`). Generate with `claude setup-token`. For Pro/Max users.
-- `NODE_AUTH_TOKEN` - NPM registry authentication (for publishing and installing `@uniswap` scoped packages)
+- `NODE_AUTH_TOKEN` - NPM registry authentication (for publishing `@uniswap` scoped packages)
 - `WORKFLOW_PAT` - Personal Access Token with `repo` scope for: (1) pushing commits/tags in force-publish, (2) cross-repo access to fetch default prompts from ai-toolkit in `_claude-code-review.yml` and `_generate-pr-metadata.yml`, (3) resolving review threads via GraphQL API in `_claude-code-review.yml` (the default `GITHUB_TOKEN` lacks permissions for the `resolveReviewThread` mutation). **Important:** The account that owns the PAT must have write, maintain, or admin access to the repository for thread resolution to work.
 - `SERVICE_ACCOUNT_GPG_PRIVATE_KEY` - GPG key for signed commits/tags
 - `LINEAR_API_KEY` - Linear API authentication (for autonomous tasks)

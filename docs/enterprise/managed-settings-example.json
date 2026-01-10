@@ -4,16 +4,15 @@
     "uniswap-ai-toolkit": {
       "source": {
         "source": "github",
-        "repo": "Uniswap/ai-toolkit",
-        "ref": "main",
-        "path": ".claude-plugin"
+        "repo": "Uniswap/ai-toolkit"
       }
     }
   },
   "enabledPlugins": {
-    "planning-skills@uniswap-ai-toolkit": true,
-    "pr-skills@uniswap-ai-toolkit": true,
-    "codebase-skills@uniswap-ai-toolkit": true,
-    "productivity-skills@uniswap-ai-toolkit": true
+    "development-planning@uniswap-ai-toolkit": true,
+    "development-pr-workflow@uniswap-ai-toolkit": true,
+    "development-codebase-tools@uniswap-ai-toolkit": true,
+    "development-productivity@uniswap-ai-toolkit": true,
+    "uniswap-integrations@uniswap-ai-toolkit": true
   }
 }
