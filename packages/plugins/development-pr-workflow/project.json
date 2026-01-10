@@ -16,9 +16,6 @@
       "options": {
         "command": "node scripts/validate-plugin.cjs packages/plugins/development-pr-workflow"
       }
-    },
-    "publish": {
-      "executor": "@nx/js:release-publish"
     }
   }
 }
