@@ -16,9 +16,6 @@
       "options": {
         "command": "node scripts/validate-plugin.cjs packages/plugins/development-productivity"
       }
-    },
-    "publish": {
-      "executor": "@nx/js:release-publish"
     }
   }
 }
