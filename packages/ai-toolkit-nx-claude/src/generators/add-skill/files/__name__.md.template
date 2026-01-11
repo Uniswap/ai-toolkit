@@ -1,0 +1,45 @@
+---
+name: <%= name %>
+description: <%= description %>
+<% if (allowedTools) { %>allowed-tools: <%= allowedTools %>
+<% } %>---
+
+# <%= name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') %> Skill
+
+<!-- TODO: Add detailed instructions for this skill -->
+
+## When to Use
+
+Activate this skill when:
+
+- <!-- TODO: Describe trigger conditions -->
+- <!-- TODO: Add more conditions -->
+
+## Instructions
+
+<!-- TODO: Add step-by-step guidance for Claude -->
+
+### Step 1: [First Action]
+
+<!-- TODO: Describe the first step -->
+
+### Step 2: [Second Action]
+
+<!-- TODO: Describe the second step -->
+
+## Output Format
+
+<!-- TODO: Describe expected output format -->
+
+```markdown
+## Summary
+[Summary of findings/actions]
+
+## Details
+[Detailed information]
+```
+
+## Best Practices
+
+- <!-- TODO: Add best practices -->
+- <!-- TODO: Add more guidelines -->

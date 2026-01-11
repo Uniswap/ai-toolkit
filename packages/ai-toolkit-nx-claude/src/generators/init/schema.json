@@ -99,6 +99,32 @@
         }
       ]
     },
+    "installSkills": {
+      "type": "boolean",
+      "description": "Whether to install skills (model-invoked capabilities)",
+      "default": true,
+      "prompt-when": "installMode === 'custom'",
+      "prompt-message": "🎯 Install skills? (model-invoked capabilities Claude uses autonomously)",
+      "prompt-type": "confirm"
+    },
+    "skillSelectionMode": {
+      "type": "string",
+      "description": "Whether to install all skills or select specific ones",
+      "enum": ["all", "specific"],
+      "prompt-when": "installMode === 'custom' && installSkills === true",
+      "prompt-message": "🎯 Select skills to install:",
+      "prompt-type": "list",
+      "prompt-items": [
+        {
+          "value": "all",
+          "label": "All skills"
+        },
+        {
+          "value": "specific",
+          "label": "Select specific skills"
+        }
+      ]
+    },
     "commands": {
       "type": "array",
       "description": "Specific commands to install",
@@ -114,6 +140,14 @@
         "type": "string"
       },
       "prompt-when": "installMode === 'custom' && installAgents === true && agentSelectionMode === 'specific'"
+    },
+    "skills": {
+      "type": "array",
+      "description": "Specific skills to install",
+      "items": {
+        "type": "string"
+      },
+      "prompt-when": "installMode === 'custom' && installSkills === true && skillSelectionMode === 'specific'"
     },
     "installHooks": {
       "type": "boolean",
