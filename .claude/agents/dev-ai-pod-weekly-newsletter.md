@@ -579,6 +579,18 @@ After writing, verify the file exists by reading it back or listing the director
 
 Create a new page in the Notion database with the newsletter content.
 
+⚠️ **CRITICAL - CORRECT TOOL SELECTION:**
+
+You MUST use `mcp__notion__notion-create-pages` (the high-level Notion MCP tool).
+
+**DO NOT USE these raw API tools:**
+
+- ❌ `mcp__notion__API-post-page` - Raw API, doesn't accept markdown content
+- ❌ `mcp__notion__API-patch-block-children` - Requires manual block conversion
+- ❌ Any tool starting with `mcp__notion__API-` - These are low-level and don't support markdown
+
+**WHY:** The high-level `mcp__notion__notion-create-pages` tool accepts a `content` property with Notion-flavored markdown and automatically converts it to Notion blocks. Raw API tools require manual conversion of markdown to Notion block objects, which is complex and error-prone.
+
 Use the `mcp__notion__notion-create-pages` tool to create a new database entry:
 
 ```typescript
