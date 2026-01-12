@@ -448,26 +448,18 @@ This dashboard tracks:
 
 **Top Discussions This Week:**
 
-1. **AI-Powered Changelogs in GitHub Actions**
-   "Use Claude to generate changelogs between any 2 refs! Pre-configured GitHub Actions..." [→ thread](slackMessage://...) • 10 reactions • 8 replies
-2. **`/address-pr-issues` Command Demo**
-   "Showing how the command addresses all PR comments automatically..." [→ thread](slackMessage://...) • 6 reactions
-3. **Hex MCP Integration Setup**
-   "Setting up Hex MCP for both Slack and Cursor/Claude Code..." [→ thread](slackMessage://...) • 60 replies
+1. **AI-Powered Changelogs in GitHub Actions** - "Use Claude to generate changelogs between any 2 refs!..." [→ thread](slackMessage://...) • 10 reactions • 8 replies
+2. **`/address-pr-issues` Command Demo** - "Showing how the command addresses all PR comments..." [→ thread](slackMessage://...) • 6 reactions
+3. **Hex MCP Integration Setup** - "Setting up Hex MCP for both Slack and Cursor/Claude Code..." [→ thread](slackMessage://...) • 60 replies
 
 ## 🔨 Tool Updates
 
 **Releases This Week:**
 **[Uniswap/ai-toolkit]**
-**@uniswap/notion-publisher** → v0.0.4
-_Released on 2025-11-17_
+@uniswap/notion-publisher → v0.0.4
+@uniswap/ai-toolkit-claude-mcp-helper → v1.0.5
 
-- Release 0.0.4 of @uniswap/notion-publisher
-- [Full Release Notes](https://github.com/Uniswap/ai-toolkit/releases/tag/%40uniswap/notion-publisher%400.0.4)
-  **@uniswap/ai-toolkit-claude-mcp-helper** → v1.0.5
-  _Released on 2025-11-17_
-- Release 1.0.5 of @uniswap/ai-toolkit-claude-mcp-helper
-- [Full Release Notes](https://github.com/Uniswap/ai-toolkit/releases/tag/%40uniswap/ai-toolkit-claude-mcp-helper%401.0.5)
+**Notable Changes:** The notion-publisher adds support for database queries. The claude-mcp-helper improves connection reliability.
 
 ---
 
@@ -496,21 +488,47 @@ Anytime a Claude Code /slash command is mentioned (such /daily-standup), make su
 
 - 1 section, whose contents come from the channels specified in `slackReadChannelIds`. DO NOT mention or create subsections for each channel
 - Start with bold subsection header: `**Top Discussions This Week:**`
-- Each item has TWO lines:
-  - Line 1: Numbered item with **bold title**: `1. **Title of Discussion**`
-  - Line 2: Tab-indented excerpt with permalink and engagement stats
-- Format for line 2: `(tab)"Brief excerpt..." [→ thread](url) • X reactions • Y replies`
+- ⚠️ **CRITICAL FORMAT:** Each item MUST be on a SINGLE line with number, title, and details together
+- Format: `1. **Title** - "Brief excerpt..." [→ thread](url) • X reactions • Y replies`
+- Do NOT put the number on its own line - this breaks Notion rendering
 - Include engagement stats: reactions count, reply count (if any)
 - If no messages: Display "No significant discussions this week"
 
+**Slack Summary Format Example:**
+
+```
+1. **Claude Code Plugin Marketplace Preview** - "A pre-weekend quick sneak-peak / preview..." [→ thread](url) • 14 reactions • 5 replies
+2. **Git Worktrees for Parallel Sessions** - "i'm starting to use git worktrees to do multiple CC sessions..." [→ thread](url) • 1 reaction • 11 replies
+```
+
 **Tool Updates Section:**
 
-- Group by repository
-- Format: `**[Repository Name]** → vX.Y.Z`
-- Include release date: `*Released on YYYY-MM-DD*`
-- Bulleted changelog (max 150 chars per release)
-- Link to full release notes: `[Full Release Notes](url)`
+- Group releases by repository
+- Keep the list COMPACT - one line per package update
+- Format for each update: `@package/name → vX.Y.Z`
+- Do NOT include per-release details (no release dates, no individual changelogs, no "Full Release Notes" links per item)
+- After the complete list, add a **Notable Changes** summary (2-3 sentences) if there are significant features; otherwise omit
 - If no releases: Display "No releases this week"
+
+**Tool Updates Format Example:**
+
+```
+**Releases This Week:**
+**[Uniswap/ai-toolkit]**
+@uniswap/ai-toolkit-notion-publisher → v0.0.10
+@uniswap/ai-toolkit-linear-task-utils → v0.0.13
+@uniswap/ai-toolkit-claude-mcp-helper → v1.0.16
+@uniswap/ai-toolkit-nx-claude → v0.5.28
+
+**Notable Changes:** The notion-publisher now supports bulk page creation. The claude-mcp-helper adds improved error handling for MCP server connections.
+```
+
+**How to find notable changes:**
+
+1. Fetch release notes from GitHub for each release
+2. Look for meaningful feature additions or bug fixes (not just version bumps)
+3. Summarize in 2-3 sentences focusing on user-facing improvements
+4. If all releases are minor patches with no notable changes, omit the "Notable Changes" section entirely
 
 **Agent Usage Section:**
 
@@ -636,7 +654,9 @@ Before passing the markdown content to `mcp__notion__notion-create-pages`, verif
 | Subsection "Want Some Help With AI?" | `**Want Some Help With AI?**` (bold)                           | ☐     |
 | Quickstart Docs subsections          | `### Added` and `### Updated` (h3 headers)                     | ☐     |
 | Slack summary header                 | `**Top Discussions This Week:**` (bold)                        | ☐     |
+| Slack summary items                  | SINGLE LINE: `1. **Title** - "excerpt..." [→ thread](url) • X` | ☐     |
 | Tool updates header                  | `**Releases This Week:**` (bold)                               | ☐     |
+| Tool updates list                    | COMPACT: `@package/name → vX.Y.Z` (one per line, no dates)     | ☐     |
 | Repository names                     | `**[Uniswap/ai-toolkit]**` (bold in brackets)                  | ☐     |
 | Dashboard link                       | `[**→ View Agent Usage Dashboard**](url)` (bold text in link)  | ☐     |
 | Footer                               | `---` followed by `*Generated by ai-toolkit newsletter agent*` | ☐     |
@@ -648,6 +668,8 @@ Before passing the markdown content to `mcp__notion__notion-create-pages`, verif
 - ❌ Plain `Added` instead of `### Added`
 - ❌ Plain `Top Discussions This Week:` instead of `**Top Discussions This Week:**`
 - ❌ Putting category inside link: `[Title - Category: X](url)` should be `[Title](url) - Category: X`
+- ❌ Slack summary items on multiple lines (number on its own line breaks Notion rendering)
+- ❌ Verbose tool updates with dates, changelogs, or "Full Release Notes" links per item
 
 ### 9. Post Newsletter Announcement to Slack
 
