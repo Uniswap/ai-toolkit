@@ -1,6 +1,7 @@
 ---
 name: shared:setup-worktree-core
 title: Worktree Setup Core (Shared)
+user-invocable: false
 description: |
   Shared worktree setup logic used by multiple slash commands.
   This file provides reusable instructions that other commands reference.

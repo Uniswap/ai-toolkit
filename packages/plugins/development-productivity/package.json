@@ -2,7 +2,7 @@
   "name": "@uniswap/development-productivity",
   "version": "0.0.1",
   "description": "Documentation, research, and prompt optimization tools for Claude Code",
-  "author": "Uniswap Labs <devai@uniswap.org>",
+  "author": "Uniswap Labs <ai-services@uniswap.org>",
   "license": "MIT",
   "repository": {
     "type": "git",

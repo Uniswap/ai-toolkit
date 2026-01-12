@@ -1,12 +1,35 @@
 {
   "name": "development-pr-workflow",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Pull request management including review, creation, issue resolution, and Graphite stack management",
   "author": {
     "name": "Uniswap Labs",
-    "email": "devai@uniswap.org"
+    "email": "ai-services@uniswap.org"
   },
   "homepage": "https://github.com/Uniswap/ai-toolkit",
   "keywords": ["pull-request", "pr-review", "graphite", "git"],
-  "license": "MIT"
+  "license": "MIT",
+  "skills": [
+    "./skills/commit-message-generator",
+    "./skills/git-worktree-orchestrator",
+    "./skills/graphite-stack-updater",
+    "./skills/pr-creator",
+    "./skills/pr-issue-resolver",
+    "./skills/pr-reviewer",
+    "./skills/stack-splitter"
+  ],
+  "commands": [
+    "./commands/address-pr-issues.md",
+    "./commands/create-linear-task-and-pr-from-changes.md",
+    "./commands/git-worktree-orchestrator.md",
+    "./commands/review-pr.md",
+    "./commands/work-through-pr-comments.md",
+    "./skills/commit-message-generator/commit-message-generator.md",
+    "./skills/git-worktree-orchestrator/git-worktree-orchestrator.md",
+    "./skills/graphite-stack-updater/graphite-stack-updater.md",
+    "./skills/pr-creator/pr-creator.md",
+    "./skills/pr-issue-resolver/pr-issue-resolver.md",
+    "./skills/pr-reviewer/pr-reviewer.md",
+    "./skills/stack-splitter/stack-splitter.md"
+  ]
 }

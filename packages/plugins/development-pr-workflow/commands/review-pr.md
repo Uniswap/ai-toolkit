@@ -1,5 +1,4 @@
 ---
-name: review-pr
 description: Orchestrate comprehensive pull request review using specialized agents for architecture, security, performance, testing, and maintainability analysis.
 argument-hint: [branch|commit-range] [--depth standard|comprehensive] [--suggest-fixes] [--check-coverage]
 allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git branch:*), Bash(git log:*), Bash(git show:*), Task(subagent_type:agent-orchestrator), Task(subagent_type:*), Read(*), Grep(*)

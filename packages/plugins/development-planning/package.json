@@ -2,7 +2,7 @@
   "name": "@uniswap/development-planning",
   "version": "0.0.1",
   "description": "Implementation planning and execution workflows for Claude Code - includes plan creation, execution, review, and multi-agent collaboration",
-  "author": "Uniswap Labs <devai@uniswap.org>",
+  "author": "Uniswap Labs <ai-services@uniswap.org>",
   "license": "MIT",
   "repository": {
     "type": "git",

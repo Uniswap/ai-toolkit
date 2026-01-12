@@ -1,5 +1,4 @@
 ---
-name: work-through-pr-comments
 description: Methodically work through GitHub pull request comments in a conversational workflow, analyzing each comment, presenting solution options, gathering your decisions, and implementing approved changes.
 argument-hint: <pr-number> OR <owner/repo> <pr-number>
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*), Grep(*), Glob(*), AskUserQuestion(*), mcp__github__get_pull_request(*), mcp__github__get_pull_request_comments(*), mcp__github__get_pull_request_reviews(*)
