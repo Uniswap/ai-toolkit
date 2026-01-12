@@ -1,6 +1,7 @@
 ---
 name: code-refactorer
 description: Refactor code with safety checks and pattern application. Use when user says "refactor this code", "clean up this function", "simplify this logic", "extract this into a separate function", "apply the strategy pattern here", "reduce the complexity of this module", or "reorganize this file structure".
+user-invocable: true
 allowed-tools: Read, Grep, Bash(git diff:*), Bash(git show:*), Task(subagent_type:refactorer), Task(subagent_type:style-enforcer), Task(subagent_type:code-explainer), Task(subagent_type:test-writer), Task(subagent_type:agent-orchestrator)
 ---
 

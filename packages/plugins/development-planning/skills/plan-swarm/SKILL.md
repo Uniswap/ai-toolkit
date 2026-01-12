@@ -1,6 +1,7 @@
 ---
 name: plan-swarm
 description: Refine plans through multi-agent expert discussion. Use when user says "get multiple expert opinions on this plan", "I want different perspectives on this approach", "have the agents discuss this strategy", "refine the plan through collaborative review", or "what would different specialists think about this design".
+user-invocable: true
 allowed-tools: Read, Glob, Grep, Task, WebSearch, WebFetch
 model: opus
 ---

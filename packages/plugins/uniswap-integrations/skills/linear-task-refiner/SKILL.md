@@ -1,6 +1,7 @@
 ---
 name: linear-task-refiner
 description: Refine and enhance Linear task descriptions. Use when user says "refine this Linear task", "improve task description", "make this task clearer", "enhance Linear issue", or needs to improve clarity, completeness, and actionability of Linear issues.
+user-invocable: true
 allowed-tools: Read(*), Glob(*), Grep(*), Task(subagent_type:Explore), WebSearch(*), WebFetch(*), mcp__linear__linear_search_issues(*), mcp__linear__linear_update_issue(*), mcp__linear__linear_add_comment(*)
 ---
 

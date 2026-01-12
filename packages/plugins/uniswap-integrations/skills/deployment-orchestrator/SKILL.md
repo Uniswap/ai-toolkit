@@ -1,6 +1,7 @@
 ---
 name: deployment-orchestrator
 description: Orchestrate deployment pipelines and infrastructure. Use when user says "deploy to staging", "set up CI/CD for this project", "configure deployment pipeline", "deploy to production with canary", or "rollback the last deployment".
+user-invocable: true
 allowed-tools: Read, Write, Glob, Grep, Task(subagent_type:cicd-agent), Task(subagent_type:infrastructure-agent), Bash(git:*), Bash(docker:*), Bash(kubectl:*), Bash(terraform:*)
 model: sonnet
 ---
@@ -19,11 +20,11 @@ Orchestrate deployment pipelines, infrastructure setup, and CI/CD configuration.
 
 ## Deployment Strategies
 
-| Strategy | Description |
-| --- | --- |
-| `rolling` | Deploy in batches with health checks (default) |
-| `blue-green` | Zero-downtime with environment switch |
-| `canary` | Gradual rollout with automatic rollback |
+| Strategy     | Description                                    |
+| ------------ | ---------------------------------------------- |
+| `rolling`    | Deploy in batches with health checks (default) |
+| `blue-green` | Zero-downtime with environment switch          |
+| `canary`     | Gradual rollout with automatic rollback        |
 
 ## Process
 
@@ -36,14 +37,14 @@ Orchestrate deployment pipelines, infrastructure setup, and CI/CD configuration.
 
 ## Parameters
 
-| Option | Values | Default |
-| --- | --- | --- |
-| `--environment` | dev, staging, prod | dev |
-| `--strategy` | rolling, blue-green, canary | rolling |
-| `--infrastructure` | Include infra provisioning | false |
-| `--monitoring` | Setup monitoring/alerts | true |
-| `--rollback` | Rollback to previous version | false |
-| `--dry-run` | Preview without executing | false |
+| Option             | Values                       | Default |
+| ------------------ | ---------------------------- | ------- |
+| `--environment`    | dev, staging, prod           | dev     |
+| `--strategy`       | rolling, blue-green, canary  | rolling |
+| `--infrastructure` | Include infra provisioning   | false   |
+| `--monitoring`     | Setup monitoring/alerts      | true    |
+| `--rollback`       | Rollback to previous version | false   |
+| `--dry-run`        | Preview without executing    | false   |
 
 ## Agent Coordination
 

@@ -1,6 +1,7 @@
 ---
 name: daily-standup
 description: Generate daily standup reports from GitHub and Linear. Use when user says "what did I work on yesterday", "generate my standup update", "summarize my recent activity", "what's on my plate today", or "prepare my daily update for the team".
+user-invocable: true
 allowed-tools: Task(mcp__linear__*), Task(mcp__github__*), Read, Glob
 model: haiku
 ---
@@ -47,10 +48,10 @@ Generate daily standup reports by aggregating activity from GitHub and Linear.
 
 ## Parameters
 
-| Parameter | Description | Default |
-| --- | --- | --- |
-| `user:` | Linear user (email, name, or ID) | "me" |
-| `github:` | GitHub username | (prompts if missing) |
+| Parameter | Description                      | Default              |
+| --------- | -------------------------------- | -------------------- |
+| `user:`   | Linear user (email, name, or ID) | "me"                 |
+| `github:` | GitHub username                  | (prompts if missing) |
 
 ## Usage
 

@@ -21,8 +21,7 @@ This plugin provides pull request management workflows for Claude Code, includin
 - **review-pr**: Comprehensive multi-agent PR review for architecture, security, performance
 - **work-through-pr-comments**: Methodically work through PR comments in a conversational workflow
 - **address-pr-issues**: Review and fix PR comments and CI failures to make PRs merge-ready
-- **git-worktree-orchestrator**: Create and manage git worktrees with Graphite and Linear integration
-- **create-linear-task-and-pr-from-changes**: Take local changes, create a Linear task, create a branch (optionally in a worktree), commit, and publish a PR
+- **linear-task-and-pr-from-changes**: Take local changes, create a Linear task, create a branch (optionally in a worktree), commit, and publish a PR
 
 ### Shared (./shared/)
 
@@ -43,9 +42,22 @@ This plugin bundles the Graphite MCP server for:
 - PR submission with `gt submit`
 - Stack synchronization with `gt sync`
 
+## Development Guidelines
+
+### Git Worktree Tooling
+
+**IMPORTANT**: When creating or updating any Claude Code tooling (agents, skills, commands) that involves git worktrees, ALWAYS:
+
+1. **Use** the shared `./shared/setup-worktree-core.md` file for worktree setup logic
+2. **Reference** it from your skill/command rather than duplicating the workflow
+3. **Update** `setup-worktree-core.md` if you need new worktree functionality that could benefit other tools
+
+This ensures consistent worktree behavior across all tooling and avoids duplication.
+
 ## Integration Notes
 
-- Skills are the primary interface for all workflows
+- Skills are the primary interface for all workflows (all have `user-invocable: true`)
+- Skills can be invoked via `/skill-name` or auto-discovered based on context
 - Agents are auto-discovered from the `agents/` directory
 - Skills invoke agents via `Task(subagent_type:agent-name)`
 - Graphite MCP enables stacked PR workflows
@@ -68,8 +80,7 @@ development-pr-workflow/
 │   ├── review-pr.md
 │   ├── work-through-pr-comments.md
 │   ├── address-pr-issues.md
-│   ├── git-worktree-orchestrator.md
-│   └── create-linear-task-and-pr-from-changes.md
+│   └── linear-task-and-pr-from-changes.md
 ├── shared/
 │   └── setup-worktree-core.md
 ├── agents/

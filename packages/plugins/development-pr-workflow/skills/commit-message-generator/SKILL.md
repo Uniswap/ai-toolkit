@@ -1,6 +1,7 @@
 ---
 name: commit-message-generator
 description: Generate well-structured git commit messages. Use when user says "generate commit message", "write a commit", "what should my commit message be", "create commit message for these changes", or needs help crafting conventional commit messages.
+user-invocable: true
 allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git log:*), Task(subagent_type:commit-message-generator)
 ---
 
@@ -18,6 +19,7 @@ Generate a structured git commit message based on current changes and repository
 ## Quick Process
 
 1. **Gather Git Information**:
+
    - Run `git status` to see staged and unstaged changes
    - Run `git diff --cached` to get detailed staged changes
    - Run `git diff` to get unstaged changes (if any)

@@ -1,6 +1,7 @@
 ---
 name: implement-spec
 description: Orchestrate implementation of spec-workflow tasks. Use when user says "implement the spec", "execute spec tasks", "run the spec workflow", "implement spec-name tasks", or needs to coordinate agent execution for spec-workflow documents.
+user-invocable: true
 allowed-tools: Read(*), Task(subagent_type:agent-orchestrator), Task(subagent_type:*), mcp__spec-workflow__manage-tasks(*), mcp__spec-workflow__get-spec-context(*)
 ---
 
@@ -38,6 +39,7 @@ Parse from request:
 ### Phase 1: Context & Planning
 
 1. **Spec Loading**:
+
    - Use `mcp__spec-workflow__get-spec-context` to load spec documents
    - Use `mcp__spec-workflow__manage-tasks` to get task status
    - Identify pending tasks and dependencies

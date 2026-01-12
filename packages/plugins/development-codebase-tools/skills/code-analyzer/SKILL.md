@@ -1,6 +1,7 @@
 ---
 name: code-analyzer
 description: Comprehensive code explanation and analysis. Use when user says "explain this file to me", "what does this code do", "analyze the security of this module", "review the performance of this function", or "help me understand this architecture".
+user-invocable: true
 allowed-tools: Read, Grep, Glob, Bash(git show:*), Bash(git ls-files:*), Task(subagent_type:code-explainer), Task(subagent_type:security-analyzer), Task(subagent_type:performance-analyzer), Task(subagent_type:context-loader)
 model: sonnet
 ---
@@ -27,11 +28,11 @@ Provide comprehensive code explanation through multi-agent analysis for architec
 
 ## Analysis Depth
 
-| Depth | Description | Agents Used |
-| --- | --- | --- |
-| `overview` | Quick summary | code-explainer |
-| `deep` | Comprehensive analysis | code-explainer, security-analyzer, performance-analyzer |
-| `architectural` | System-level context | All agents + context-loader |
+| Depth           | Description            | Agents Used                                             |
+| --------------- | ---------------------- | ------------------------------------------------------- |
+| `overview`      | Quick summary          | code-explainer                                          |
+| `deep`          | Comprehensive analysis | code-explainer, security-analyzer, performance-analyzer |
+| `architectural` | System-level context   | All agents + context-loader                             |
 
 ## Focus Areas
 
