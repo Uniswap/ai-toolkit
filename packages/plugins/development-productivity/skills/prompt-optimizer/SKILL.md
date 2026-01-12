@@ -1,6 +1,7 @@
 ---
 name: prompt-optimizer
 description: Optimize prompts for better AI performance. Use when user says "improve this prompt for better results", "optimize this prompt to reduce tokens", "apply prompt engineering best practices to this", "make this prompt more effective", "help me refine this system prompt", or "tune this prompt for the AI model I'm using".
+user-invocable: true
 allowed-tools: Read, Write, WebSearch, WebFetch, Task(subagent_type:prompt-engineer)
 model: opus
 ---

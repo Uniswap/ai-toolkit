@@ -1,5 +1,5 @@
 ---
-name: create-linear-task-and-pr-from-changes
+name: linear-task-and-pr-from-changes
 description: Take local changes, create a Linear task, create a branch (optionally in a worktree), commit, and publish a PR
 argument-hint: [--team <id>] [--trunk <branch>] [--create-worktree] [--use-graphite]
 allowed-tools: Bash(*), Read(*), Write(*), AskUserQuestion(*), mcp__graphite__run_gt_cmd(*), mcp__linear__create_issue(*), mcp__linear__get_user(*), mcp__linear__list_teams(*), mcp__linear__list_projects(*), mcp__linear__list_issue_labels(*)
@@ -225,7 +225,7 @@ BRANCH_NAME="${BRANCH_PREFIX}/${TASK_ID}-${SLUG}"
 
 ### If `--create-worktree` — Worktree Mode
 
-Set configuration variables and follow the shared worktree setup instructions:
+Set configuration variables and follow the shared worktree setup instructions in `@../shared/setup-worktree-core.md`:
 
 ```bash
 # Configuration for shared worktree setup
@@ -237,7 +237,14 @@ TRUNK_BRANCH="${trunk}"
 SKIP_INDEX_RESET=""
 ```
 
-The shared setup will create the worktree, copy settings, configure Graphite, and run setup scripts.
+Follow the complete worktree setup workflow defined in `@../shared/setup-worktree-core.md`. The shared setup handles:
+
+- Worktrees directory detection and creation
+- Git worktree creation with proper branch setup
+- Claude settings copying (`.claude/` directory)
+- Graphite branch tracking configuration
+- Auto-detection and execution of setup scripts (npm, yarn, pnpm, bun)
+- Git index reset for corruption prevention
 
 **Move Changes to Worktree:**
 
@@ -400,31 +407,31 @@ You are now on branch: johndoe/DEV-123-task-slug
 ### Basic Usage (will prompt for all required details)
 
 ```
-/create-linear-task-and-pr-from-changes
+/linear-task-and-pr-from-changes
 ```
 
 ### Quick PR with Simple Branch (no worktree)
 
 ```
-/create-linear-task-and-pr-from-changes --trunk main
+/linear-task-and-pr-from-changes --trunk main
 ```
 
 ### Full Worktree Setup for Parallel Development
 
 ```
-/create-linear-task-and-pr-from-changes --create-worktree --trunk main
+/linear-task-and-pr-from-changes --create-worktree --trunk main
 ```
 
 ### With Team and Priority Specified
 
 ```
-/create-linear-task-and-pr-from-changes --team DEV --priority high
+/linear-task-and-pr-from-changes --team DEV --priority high
 ```
 
 ### Using GitHub CLI Instead of Graphite
 
 ```
-/create-linear-task-and-pr-from-changes --team DEV --use-graphite false --trunk main
+/linear-task-and-pr-from-changes --team DEV --use-graphite false --trunk main
 ```
 
 ---

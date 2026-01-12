@@ -1,6 +1,7 @@
 ---
 name: codebase-explorer
 description: Explore and understand how the codebase works. Use when user asks "how does the authentication work", "where is the API endpoint defined", "show me how data flows through the system", "explain this module's architecture", "trace the request from controller to database", or "I need to understand this feature before making changes".
+user-invocable: true
 allowed-tools: Bash(git ls-files:*), Bash(find:*), Bash(git log:*), Bash(git show:*), Bash(npx nx graph:*), Glob, Grep, Read, WebFetch, Task(subagent_type:context-loader)
 model: opus
 ---

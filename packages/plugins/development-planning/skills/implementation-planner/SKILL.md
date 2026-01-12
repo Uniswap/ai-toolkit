@@ -1,6 +1,7 @@
 ---
 name: implementation-planner
 description: Create implementation plans for features and changes. Use when user says "plan how to implement user authentication", "how should I add dark mode to the app", "what's the best way to refactor the database layer", "create a plan for migrating to the new API", or "I need to implement [feature] - help me plan it out".
+user-invocable: true
 allowed-tools: Read, Glob, Grep, LS, Task, WebSearch, WebFetch, Write(*.md), Bash(git ls-files:*), Bash(mkdir:*)
 model: opus
 ---

@@ -1,6 +1,7 @@
 ---
 name: pr-reviewer
 description: Review pull requests for quality, security, and performance. Use when user says "review my changes before I merge", "do a code review on this PR", "check if this is ready to merge", "review the diff for any issues", "give me feedback on these changes", or "is this PR ready for review".
+user-invocable: true
 allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git branch:*), Bash(git log:*), Bash(git show:*), Task, Read, Grep
 model: opus
 ---
