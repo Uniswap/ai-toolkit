@@ -49,8 +49,10 @@
             "packages/ai-toolkit-nx-claude/src/scripts/claude-plus/index.ts",
             "packages/ai-toolkit-nx-claude/src/generators/add-agent/generator.ts",
             "packages/ai-toolkit-nx-claude/src/generators/add-command/generator.ts",
+            "packages/ai-toolkit-nx-claude/src/generators/add-skill/generator.ts",
             "packages/ai-toolkit-nx-claude/src/generators/addons/generator.ts",
             "packages/ai-toolkit-nx-claude/src/generators/hooks/generator.ts",
+            "packages/ai-toolkit-nx-claude/src/generators/init-plugin/generator.ts",
             "packages/ai-toolkit-nx-claude/src/generators/init/generator.ts"
           ],
           "tsConfig": "packages/ai-toolkit-nx-claude/tsconfig.lib.json",

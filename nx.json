@@ -34,7 +34,8 @@
       "exclude": [
         "packages/commands/agnostic/*",
         "packages/agents/agnostic/*",
-        "packages/commands/typescript/*"
+        "packages/commands/typescript/*",
+        "packages/skills/agnostic/*"
       ]
     },
     {
@@ -42,7 +43,8 @@
       "include": [
         "packages/commands/agnostic/*",
         "packages/agents/agnostic/*",
-        "packages/commands/typescript/*"
+        "packages/commands/typescript/*",
+        "packages/skills/agnostic/*"
       ],
       "options": {
         "typecheck": {
