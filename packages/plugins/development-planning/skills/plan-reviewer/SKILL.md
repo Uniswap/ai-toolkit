@@ -1,6 +1,7 @@
 ---
 name: plan-reviewer
 description: Review implementation plans for completeness and feasibility. Use when user says "review this plan before I start", "is this implementation plan complete", "check if this plan aligns with our patterns", "give me feedback on my implementation strategy", or "validate this plan before we execute it".
+user-invocable: true
 allowed-tools: Read, Glob, Grep, LS, WebSearch, WebFetch, Task(subagent_type:plan-reviewer)
 model: opus
 ---

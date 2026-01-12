@@ -1,6 +1,7 @@
 ---
 name: plan-executor
 description: Execute implementation plans step-by-step. Use when user says "execute the plan", "implement the plan we created", "start building based on the plan", "go ahead and implement it", "proceed with the implementation", or references a plan file and wants to begin coding.
+user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task(subagent_type:test-writer), Task(subagent_type:doc-writer)
 model: opus
 ---

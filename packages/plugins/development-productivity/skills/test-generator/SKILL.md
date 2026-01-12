@@ -1,6 +1,7 @@
 ---
 name: test-generator
 description: Generate comprehensive tests for code. Use when user says "write tests for this function", "add unit tests to this file", "generate integration tests for the API", "I need test coverage for this module", or "create e2e tests for the checkout flow".
+user-invocable: true
 allowed-tools: Read, Grep, Glob, Task(subagent_type:test-writer), Task(subagent_type:context-loader), Task(subagent_type:security-analyzer)
 model: sonnet
 ---
@@ -27,12 +28,12 @@ Generate comprehensive tests with advanced testing strategies, scenario generati
 
 ## Options
 
-| Option | Values | Default |
-| --- | --- | --- |
-| `--framework` | jest, vitest, pytest, cypress, playwright | auto-detect |
-| `--type` | unit, integration, e2e, all | unit |
-| `--strategy` | standard, scenario, property, mutation | standard |
-| `--requirements` | User stories for scenario generation | (none) |
+| Option           | Values                                    | Default     |
+| ---------------- | ----------------------------------------- | ----------- |
+| `--framework`    | jest, vitest, pytest, cypress, playwright | auto-detect |
+| `--type`         | unit, integration, e2e, all               | unit        |
+| `--strategy`     | standard, scenario, property, mutation    | standard    |
+| `--requirements` | User stories for scenario generation      | (none)      |
 
 ## Strategies
 

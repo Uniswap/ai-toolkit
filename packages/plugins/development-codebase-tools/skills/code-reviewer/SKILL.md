@@ -1,6 +1,7 @@
 ---
 name: code-reviewer
 description: Comprehensive multi-agent code review. Use when user says "review my code", "check this for issues", "analyze code quality", "security review", "performance review", or needs architecture, security, performance, and style analysis of code changes.
+user-invocable: true
 allowed-tools: Read(*), Grep(*), Glob(*), Task(subagent_type:agent-orchestrator), Task(subagent_type:context-loader), Task(subagent_type:style-enforcer), Task(subagent_type:security-analyzer), Task(subagent_type:performance-analyzer), Task(subagent_type:code-explainer), Task(subagent_type:refactorer), Task(subagent_type:test-writer), Task(subagent_type:test-runner)
 ---
 
@@ -40,6 +41,7 @@ Parse from request:
 ### Phase 1: Code Analysis Preparation
 
 1. **Identify Review Scope**:
+
    - If no paths provided, get current git changes
    - Expand directories to file lists
    - Filter by file types and patterns
@@ -71,6 +73,7 @@ For deep review, additional specialized analysis:
 Combine insights from all agents:
 
 1. **Issue Prioritization**:
+
    - Critical: Security vulnerabilities, breaking changes
    - High: Performance issues, architectural violations
    - Medium: Style inconsistencies, missing tests

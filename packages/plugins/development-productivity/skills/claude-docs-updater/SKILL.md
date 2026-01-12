@@ -1,6 +1,7 @@
 ---
 name: claude-docs-updater
 description: Update CLAUDE.md documentation files after code changes. Use when user says "update the CLAUDE.md", "sync the docs with my changes", "document what I changed", "update documentation for this package", or after making significant code modifications that should be reflected in project documentation.
+user-invocable: true
 allowed-tools: Read, Write, Edit, Bash(git diff:*), Bash(git status:*), Glob
 model: opus
 ---
