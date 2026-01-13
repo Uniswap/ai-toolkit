@@ -174,7 +174,6 @@ Include these additional questions in the Phase 1 prompt from the shared config:
 - **Title**: Only prompt if `--title` not provided AND you want user confirmation of auto-generated title
 - **Create Worktree**: "Create isolated worktree?" (Yes/No)
 
- (feat(plugins): add user-invocable flag to skills and reorganize commands)
 **Auto-applied (never prompt):**
 
 - **Assignee**: Current authenticated user (via `mcp__linear__get_user` with "me")
