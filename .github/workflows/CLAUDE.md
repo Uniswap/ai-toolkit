@@ -8,7 +8,7 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 
 ### CI & Quality Assurance (2 workflows)
 
-- `ci-pr-checks.yml` - Validates PRs with build, lint, format, and test checks
+- `ci-pr-checks.yml` - Validates PRs with build, lint, format, test, and plugin validation checks
 - `claude-welcome.yml` - Posts welcome messages from Claude to new PRs
 
 ### Release & Deployment (2 workflows)
@@ -104,18 +104,38 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 
 **Configuration Inputs:**
 
-| Input                           | Required | Default                    | Description                                         |
-| ------------------------------- | -------- | -------------------------- | --------------------------------------------------- |
-| `prompt`                        | No       | `""`                       | Direct automation prompt (enables automation mode)  |
-| `model`                         | No       | `claude-opus-4-5-20251101` | Claude model to use                                 |
-| `allowed_tools`                 | No       | `""`                       | Comma-separated list of allowed tools               |
-| `disallowed_tools`              | No       | `""`                       | Comma-separated list of disallowed tools            |
-| `custom_instructions`           | No       | CLAUDE.md instructions     | Additional system prompt instructions               |
-| `max_turns`                     | No       | unlimited                  | Maximum conversation turns                          |
-| `mcp_config`                    | No       | `""`                       | MCP server configuration (JSON)                     |
-| `settings`                      | No       | `""`                       | Additional settings including env vars (JSON)       |
-| `timeout_minutes`               | No       | `10`                       | Job timeout in minutes                              |
-| `anthropic_api_key_secret_name` | No       | `ANTHROPIC_API_KEY`        | Name of the secret containing the Anthropic API key |
+| Input                           | Required | Default                    | Description                                                              |
+| ------------------------------- | -------- | -------------------------- | ------------------------------------------------------------------------ |
+| `prompt`                        | No       | `""`                       | Direct automation prompt (enables automation mode)                       |
+| `model`                         | No       | `claude-opus-4-5-20251101` | Claude model to use                                                      |
+| `allowed_tools`                 | No       | `""`                       | Comma-separated list of allowed tools                                    |
+| `disallowed_tools`              | No       | `""`                       | Comma-separated list of disallowed tools                                 |
+| `custom_instructions`           | No       | CLAUDE.md instructions     | Additional system prompt instructions                                    |
+| `max_turns`                     | No       | unlimited                  | Maximum conversation turns                                               |
+| `mcp_config`                    | No       | `""`                       | MCP server configuration (JSON)                                          |
+| `settings`                      | No       | `""`                       | Additional settings including env vars (JSON)                            |
+| `timeout_minutes`               | No       | `10`                       | Job timeout in minutes                                                   |
+| `anthropic_api_key_secret_name` | No       | `ANTHROPIC_API_KEY`        | Name of the secret containing the Anthropic API key                      |
+| `install_local_plugins`         | No       | `false`                    | Auto-install plugins from local `.claude-plugin/marketplace.json`        |
+| `plugin_marketplaces`           | No       | `""`                       | Newline-separated list of marketplace paths (local or Git URLs)          |
+| `plugins`                       | No       | `""`                       | Newline-separated list of plugins to install (`plugin-name@marketplace`) |
+
+**Plugin Configuration:**
+
+The workflow supports installing Claude Code plugins from marketplaces. For repositories with a local marketplace (`.claude-plugin/marketplace.json`), set `install_local_plugins: true` to automatically install all plugins defined in the marketplace.
+
+**Usage example (with local plugins):**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+with:
+  model: 'claude-sonnet-4-5-20250929'
+  install_local_plugins: true
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+> **Note:** Plugin support requires claude-code-action v1.0.28+. External repositories calling this workflow will not have access to plugins from the ai-toolkit repository unless they have their own marketplace or specify external marketplaces.
 
 **Usage example (API Key):**
 
