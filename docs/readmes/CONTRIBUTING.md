@@ -305,11 +305,12 @@ npx nx g @nx/js:lib packages/ai-toolkit-my-package \
 ### New Agent
 
 ```bash
-# Use the generator
-npx nx generate @uniswap/ai-toolkit-nx-claude:add-agent
+# Agents are now distributed through plugins
+# Create in the appropriate plugin's agents/ directory:
+# packages/plugins/<plugin-name>/agents/your-agent.md
 
-# Or manually create in packages/agents/agnostic/
-# Follow the agent template format
+# Or use the generator
+npx nx generate @uniswap/ai-toolkit-nx-claude:add-agent
 ```
 
 ### New Command

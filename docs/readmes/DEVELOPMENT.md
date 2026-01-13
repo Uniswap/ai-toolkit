@@ -52,8 +52,11 @@ graph TD
         CLI[ai-toolkit-nx-claude<br/>CLI & Generators]
     end
 
+    subgraph "Plugin Layer"
+        PLUGINS[plugins/*<br/>Agents & Skills]
+    end
+
     subgraph "Content Layer"
-        AGENTS[agents-agnostic]
         COMMANDS[commands-agnostic]
         COMMANDS_TS[commands-typescript]
     end
@@ -62,12 +65,11 @@ graph TD
         UTILS[utils]
     end
 
-    CLI --> AGENTS
+    CLI --> PLUGINS
     CLI --> COMMANDS
     CLI --> COMMANDS_TS
     CLI --> UTILS
 
-    COMMANDS --> AGENTS
     COMMANDS_TS --> COMMANDS
 ```
 
@@ -79,7 +81,7 @@ graph TD
 | ---------------- | ------------------- | ---------------- | ------------------------------- |
 | **Applications** | User-facing tools   | Published        | `@uniswap/ai-toolkit-nx-claude` |
 | **Libraries**    | Shared code         | May be published | `@ai-toolkit/utils`             |
-| **Content**      | Templates & configs | Private          | `@ai-toolkit/agents-agnostic`   |
+| **Plugins**      | Claude Code plugins | Private          | `packages/plugins/*`            |
 
 ### Package Anatomy
 
@@ -273,8 +275,8 @@ Each package versions independently based on its changes:
     "projectsRelationship": "independent",
     "projects": [
       "@uniswap/ai-toolkit-nx-claude", // 1.2.3
-      "@ai-toolkit/utils", // 2.0.1
-      "@ai-toolkit/agents-agnostic" // 0.5.0
+      "@uniswap/ai-toolkit-claude-mcp-helper", // 0.1.0
+      "@uniswap/ai-toolkit-linear-task-utils" // 0.2.0
     ]
   }
 }

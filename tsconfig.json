@@ -10,9 +10,6 @@
       "path": "./packages/commands/agnostic"
     },
     {
-      "path": "./packages/agents/agnostic"
-    },
-    {
       "path": "./packages/commands/typescript"
     },
     {
