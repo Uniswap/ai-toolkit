@@ -122,6 +122,23 @@ As a [user type], I want [goal/capability] so that [benefit/value].
 
 **IMPORTANT: Collect all missing information in a SINGLE prompt at the beginning.** Do not prompt the user at multiple steps throughout the workflow.
 
+### Phase 1: Fetch Linear User and Teams (REQUIRED)
+
+**CRITICAL: Before presenting ANY prompts, you MUST fetch the Linear user to get the username for branch prefix options.**
+
+```
+# Get current Linear user (for assignee and username prefix)
+linear_user = mcp__linear__get_user(query="me")
+LINEAR_USER_ID = linear_user.id
+LINEAR_USERNAME = linear_user.displayName.lower().replace(" ", "").replace("-", "")
+# Example: "Nick Koutrelakos" → "nickkoutrelakos"
+
+# Get available teams
+teams = mcp__linear__list_teams()
+```
+
+### Phase 2: Collect Configuration
+
 Follow the shared configuration collection instructions in `@../shared/linear-task-config.md`.
 
 **Pre-set these variables from command-line arguments before the shared config:**
@@ -133,6 +150,17 @@ Follow the shared configuration collection instructions in `@../shared/linear-ta
 - `BRANCH_PREFIX` from `--branch-prefix` (if provided)
 - `TRUNK_BRANCH` from `--trunk` (if provided)
 - `DUE_DATE` from `--due-date` (if provided)
+
+**IMPORTANT: When prompting for branch prefix, the first option MUST be the user's personal namespace:**
+
+```
+Branch Prefix options:
+1. "{LINEAR_USERNAME}/" (Recommended) - e.g., "nickkoutrelakos/"
+2. "feature/" - Standard feature convention
+3. "fix/" - For bug fixes
+4. "chore/" - For maintenance tasks
+5. "Custom" - Enter a custom prefix
+```
 
 **Additional fields specific to this command:**
 
