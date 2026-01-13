@@ -23,7 +23,7 @@ Analyzes staged changes and updates affected CLAUDE.md files.
 
 ```bash
 /update-claude-md apps/slack-oauth-backend
-/update-claude-md packages/agents/agnostic
+/update-claude-md packages/plugins/development-planning
 ```
 
 Updates CLAUDE.md for a specific path.
