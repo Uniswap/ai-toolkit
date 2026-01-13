@@ -212,26 +212,13 @@ on:
         type: string
         default: "main"
 
-      install_local_plugins:
-        description: |
-          Whether to automatically install plugins from the local marketplace
-          (.claude-plugin/marketplace.json) in the checked-out repository.
-
-          When enabled, Claude will have access to all plugins defined in
-          the marketplace, including their skills, agents, and commands.
-
-          Default: false (for backward compatibility with external consumers)
-        required: false
-        type: boolean
-        default: false
-
       plugin_marketplaces:
         description: |
-          Additional plugin marketplace paths to install from.
+          Additional plugin marketplace paths beyond the default uniswap-ai-toolkit.
           Newline-separated list of local paths or Git URLs.
 
-          Local paths are relative to the repository root.
-          Git URLs should point to repositories containing marketplace.json.
+          Note: The uniswap-ai-toolkit marketplace is ALWAYS installed automatically.
+          Use this input to add additional marketplaces from your repository.
 
           Example:
           plugin_marketplaces: |
@@ -243,11 +230,11 @@ on:
 
       plugins:
         description: |
-          Specific plugins to install from registered marketplaces.
+          Additional plugins to install beyond the default uniswap-ai-toolkit plugins.
           Newline-separated list in 'plugin-name@marketplace-name' format.
 
-          The marketplace must be registered via plugin_marketplaces or
-          install_local_plugins must be enabled.
+          Note: All uniswap-ai-toolkit plugins are ALWAYS installed automatically.
+          Use this input to add plugins from additional marketplaces.
 
           Example:
           plugins: |
@@ -395,51 +382,126 @@ jobs:
           echo "$ARGS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      # Setup Uniswap AI Toolkit plugins
+      # Downloads marketplace and plugins from ai-toolkit for external repositories
+      # This ensures all Claude Code sessions have access to the full plugin suite
+      - name: Setup Uniswap AI Toolkit plugins
+        id: setup-uniswap-plugins
+        env:
+          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # Check if we're running from the ai-toolkit repository
+          if [ "$GITHUB_REPOSITORY" = "Uniswap/ai-toolkit" ]; then
+            echo "ℹ️  Running from ai-toolkit - using local plugins"
+            echo "use_local=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "ℹ️  Running from external repository - downloading plugins from Uniswap/ai-toolkit@${TOOLKIT_REF}"
+          echo "use_local=false" >> $GITHUB_OUTPUT
+
+          # Create temporary directory for download
+          WORK_DIR=$(mktemp -d)
+          cd "$WORK_DIR"
+
+          # Download repository tarball
+          echo "📦 Downloading ai-toolkit tarball..."
+          TARBALL_URL="https://api.github.com/repos/Uniswap/ai-toolkit/tarball/${TOOLKIT_REF}"
+
+          if ! curl -fSsL --max-time 60 \
+                    -H "Accept: application/vnd.github+json" \
+                    -H "Authorization: Bearer $GITHUB_TOKEN" \
+                    -o ai-toolkit.tar.gz \
+                    "$TARBALL_URL" 2>&1; then
+            echo "::error::Failed to download ai-toolkit tarball from ${TOOLKIT_REF}"
+            exit 1
+          fi
+
+          # Extract tarball
+          echo "📂 Extracting tarball..."
+          tar -xzf ai-toolkit.tar.gz
+          EXTRACTED_DIR=$(ls -d Uniswap-ai-toolkit-* | head -1)
+
+          if [ -z "$EXTRACTED_DIR" ]; then
+            echo "::error::Failed to find extracted directory"
+            exit 1
+          fi
+
+          # Copy marketplace to workspace
+          DEST_MARKETPLACE="${GITHUB_WORKSPACE}/.claude-plugin"
+          mkdir -p "$DEST_MARKETPLACE"
+
+          if [ -f "${EXTRACTED_DIR}/.claude-plugin/marketplace.json" ]; then
+            cp "${EXTRACTED_DIR}/.claude-plugin/marketplace.json" "$DEST_MARKETPLACE/"
+            echo "✅ Copied marketplace.json"
+          else
+            echo "::error::marketplace.json not found in ai-toolkit"
+            exit 1
+          fi
+
+          # Copy plugin directories
+          DEST_PLUGINS="${GITHUB_WORKSPACE}/packages/plugins"
+          mkdir -p "$DEST_PLUGINS"
+
+          for plugin_dir in "${EXTRACTED_DIR}"/packages/plugins/*/; do
+            plugin_name=$(basename "$plugin_dir")
+            echo "📁 Copying plugin: $plugin_name"
+            cp -r "$plugin_dir" "$DEST_PLUGINS/"
+          done
+
+          # Verify plugin structure
+          PLUGIN_COUNT=$(jq '.plugins | length' "$DEST_MARKETPLACE/marketplace.json")
+          echo "✅ Setup complete: $PLUGIN_COUNT plugins installed"
+
+          # Cleanup
+          cd "${GITHUB_WORKSPACE}"
+          rm -rf "$WORK_DIR"
+
       # Build plugin configuration
-      # Handles both local marketplace auto-discovery and explicit plugin configuration
+      # Configures uniswap-ai-toolkit plugins plus any additional plugins from inputs
       - name: Build plugin configuration
         id: build-plugins
         env:
-          INSTALL_LOCAL: ${{ inputs.install_local_plugins }}
           EXTRA_MARKETPLACES: ${{ inputs.plugin_marketplaces }}
           EXTRA_PLUGINS: ${{ inputs.plugins }}
         run: |
           MARKETPLACES=""
           PLUGINS=""
 
-          # Check for local marketplace if install_local_plugins is enabled
-          if [[ "$INSTALL_LOCAL" == "true" ]]; then
-            MARKETPLACE_FILE=".claude-plugin/marketplace.json"
-            if [[ -f "$MARKETPLACE_FILE" ]]; then
-              echo "Found local marketplace: $MARKETPLACE_FILE"
+          # Always include uniswap-ai-toolkit marketplace
+          MARKETPLACE_FILE=".claude-plugin/marketplace.json"
+          if [[ -f "$MARKETPLACE_FILE" ]]; then
+            echo "Found marketplace: $MARKETPLACE_FILE"
 
-              # Add the marketplace directory as a local path
-              MARKETPLACES="./.claude-plugin"$'\n'
+            # Add the marketplace directory as a local path
+            MARKETPLACES="./.claude-plugin"$'\n'
 
-              # Get marketplace name for plugin references
-              MARKETPLACE_NAME=$(jq -r '.name' "$MARKETPLACE_FILE")
-              echo "Marketplace name: $MARKETPLACE_NAME"
+            # Get marketplace name for plugin references
+            MARKETPLACE_NAME=$(jq -r '.name' "$MARKETPLACE_FILE")
+            echo "Marketplace name: $MARKETPLACE_NAME"
 
-              # Build plugins list from marketplace
-              PLUGIN_COUNT=$(jq '.plugins | length' "$MARKETPLACE_FILE")
-              echo "Found $PLUGIN_COUNT plugins in marketplace"
+            # Build plugins list from marketplace
+            PLUGIN_COUNT=$(jq '.plugins | length' "$MARKETPLACE_FILE")
+            echo "Found $PLUGIN_COUNT plugins in marketplace"
 
-              for i in $(seq 0 $((PLUGIN_COUNT - 1))); do
-                PLUGIN_NAME=$(jq -r ".plugins[$i].name" "$MARKETPLACE_FILE")
-                PLUGINS="${PLUGINS}${PLUGIN_NAME}@${MARKETPLACE_NAME}"$'\n'
-                echo "  - $PLUGIN_NAME@$MARKETPLACE_NAME"
-              done
-            else
-              echo "::warning::install_local_plugins is true but no marketplace found at $MARKETPLACE_FILE"
-            fi
+            for i in $(seq 0 $((PLUGIN_COUNT - 1))); do
+              PLUGIN_NAME=$(jq -r ".plugins[$i].name" "$MARKETPLACE_FILE")
+              PLUGINS="${PLUGINS}${PLUGIN_NAME}@${MARKETPLACE_NAME}"$'\n'
+              echo "  - $PLUGIN_NAME@$MARKETPLACE_NAME"
+            done
+          else
+            echo "::warning::No marketplace found at $MARKETPLACE_FILE"
           fi
 
-          # Add extra marketplaces
+          # Add extra marketplaces from inputs
           if [[ -n "$EXTRA_MARKETPLACES" ]]; then
             MARKETPLACES="${MARKETPLACES}${EXTRA_MARKETPLACES}"$'\n'
           fi
 
-          # Add extra plugins
+          # Add extra plugins from inputs
           if [[ -n "$EXTRA_PLUGINS" ]]; then
             PLUGINS="${PLUGINS}${EXTRA_PLUGINS}"$'\n'
           fi

@@ -104,38 +104,39 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 
 **Configuration Inputs:**
 
-| Input                           | Required | Default                    | Description                                                              |
-| ------------------------------- | -------- | -------------------------- | ------------------------------------------------------------------------ |
-| `prompt`                        | No       | `""`                       | Direct automation prompt (enables automation mode)                       |
-| `model`                         | No       | `claude-opus-4-5-20251101` | Claude model to use                                                      |
-| `allowed_tools`                 | No       | `""`                       | Comma-separated list of allowed tools                                    |
-| `disallowed_tools`              | No       | `""`                       | Comma-separated list of disallowed tools                                 |
-| `custom_instructions`           | No       | CLAUDE.md instructions     | Additional system prompt instructions                                    |
-| `max_turns`                     | No       | unlimited                  | Maximum conversation turns                                               |
-| `mcp_config`                    | No       | `""`                       | MCP server configuration (JSON)                                          |
-| `settings`                      | No       | `""`                       | Additional settings including env vars (JSON)                            |
-| `timeout_minutes`               | No       | `10`                       | Job timeout in minutes                                                   |
-| `anthropic_api_key_secret_name` | No       | `ANTHROPIC_API_KEY`        | Name of the secret containing the Anthropic API key                      |
-| `install_local_plugins`         | No       | `false`                    | Auto-install plugins from local `.claude-plugin/marketplace.json`        |
-| `plugin_marketplaces`           | No       | `""`                       | Newline-separated list of marketplace paths (local or Git URLs)          |
-| `plugins`                       | No       | `""`                       | Newline-separated list of plugins to install (`plugin-name@marketplace`) |
+| Input                           | Required | Default                    | Description                                                         |
+| ------------------------------- | -------- | -------------------------- | ------------------------------------------------------------------- |
+| `prompt`                        | No       | `""`                       | Direct automation prompt (enables automation mode)                  |
+| `model`                         | No       | `claude-opus-4-5-20251101` | Claude model to use                                                 |
+| `allowed_tools`                 | No       | `""`                       | Comma-separated list of allowed tools                               |
+| `disallowed_tools`              | No       | `""`                       | Comma-separated list of disallowed tools                            |
+| `custom_instructions`           | No       | CLAUDE.md instructions     | Additional system prompt instructions                               |
+| `max_turns`                     | No       | unlimited                  | Maximum conversation turns                                          |
+| `mcp_config`                    | No       | `""`                       | MCP server configuration (JSON)                                     |
+| `settings`                      | No       | `""`                       | Additional settings including env vars (JSON)                       |
+| `timeout_minutes`               | No       | `10`                       | Job timeout in minutes                                              |
+| `anthropic_api_key_secret_name` | No       | `ANTHROPIC_API_KEY`        | Name of the secret containing the Anthropic API key                 |
+| `plugin_marketplaces`           | No       | `""`                       | Additional marketplace paths (newline-separated, local or Git URLs) |
+| `plugins`                       | No       | `""`                       | Additional plugins to install (newline-separated)                   |
 
 **Plugin Configuration:**
 
-The workflow supports installing Claude Code plugins from marketplaces. For repositories with a local marketplace (`.claude-plugin/marketplace.json`), set `install_local_plugins: true` to automatically install all plugins defined in the marketplace.
+All Uniswap AI Toolkit plugins are **automatically installed** for every workflow invocation. This includes:
 
-**Usage example (with local plugins):**
+- `development-planning` - Implementation planning & execution workflows
+- `development-pr-workflow` - PR management, review, & Graphite integration
+- `development-codebase-tools` - Code exploration & refactoring
+- `development-productivity` - Documentation, research, & prompt optimization
+- `uniswap-integrations` - External service integrations (Linear, Notion, Nx)
 
-```yaml
-uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
-with:
-  model: 'claude-sonnet-4-5-20250929'
-  install_local_plugins: true
-secrets:
-  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-```
+**How it works:**
 
-> **Note:** Plugin support requires claude-code-action v1.0.28+. External repositories calling this workflow will not have access to plugins from the ai-toolkit repository unless they have their own marketplace or specify external marketplaces.
+- When running from the ai-toolkit repository: Local plugins are used directly
+- When running from external repositories: Plugins are downloaded from `Uniswap/ai-toolkit` and installed automatically
+
+You can use the `plugin_marketplaces` and `plugins` inputs to install **additional** plugins beyond the default set.
+
+> **Note:** Plugin support requires claude-code-action v1.0.29+.
 
 **Usage example (API Key):**
 

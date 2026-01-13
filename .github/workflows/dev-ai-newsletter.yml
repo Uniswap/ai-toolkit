@@ -375,6 +375,69 @@ jobs:
           echo ""
           echo "=== All checks passed ==="
 
+      # Setup Uniswap AI Toolkit plugins
+      - name: Setup Uniswap AI Toolkit plugins
+        id: setup-uniswap-plugins
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ "$GITHUB_REPOSITORY" = "Uniswap/ai-toolkit" ]; then
+            echo "ℹ️  Running from ai-toolkit - using local plugins"
+            exit 0
+          fi
+
+          echo "ℹ️  Downloading plugins from Uniswap/ai-toolkit@main"
+          WORK_DIR=$(mktemp -d)
+          cd "$WORK_DIR"
+
+          curl -fSsL --max-time 60 \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -o ai-toolkit.tar.gz \
+            "https://api.github.com/repos/Uniswap/ai-toolkit/tarball/main"
+
+          tar -xzf ai-toolkit.tar.gz
+          EXTRACTED_DIR=$(ls -d Uniswap-ai-toolkit-* | head -1)
+
+          mkdir -p "${GITHUB_WORKSPACE}/.claude-plugin"
+          cp "${EXTRACTED_DIR}/.claude-plugin/marketplace.json" "${GITHUB_WORKSPACE}/.claude-plugin/"
+
+          mkdir -p "${GITHUB_WORKSPACE}/packages/plugins"
+          for plugin_dir in "${EXTRACTED_DIR}"/packages/plugins/*/; do
+            cp -r "$plugin_dir" "${GITHUB_WORKSPACE}/packages/plugins/"
+          done
+
+          PLUGIN_COUNT=$(jq '.plugins | length' "${GITHUB_WORKSPACE}/.claude-plugin/marketplace.json")
+          echo "✅ Setup complete: $PLUGIN_COUNT plugins installed"
+
+          cd "${GITHUB_WORKSPACE}"
+          rm -rf "$WORK_DIR"
+
+      # Build plugin configuration
+      - name: Build plugin configuration
+        id: build-plugins
+        run: |
+          PLUGINS=""
+          MARKETPLACE_FILE=".claude-plugin/marketplace.json"
+          if [[ -f "$MARKETPLACE_FILE" ]]; then
+            MARKETPLACE_NAME=$(jq -r '.name' "$MARKETPLACE_FILE")
+            PLUGIN_COUNT=$(jq '.plugins | length' "$MARKETPLACE_FILE")
+            for i in $(seq 0 $((PLUGIN_COUNT - 1))); do
+              PLUGIN_NAME=$(jq -r ".plugins[$i].name" "$MARKETPLACE_FILE")
+              PLUGINS="${PLUGINS}${PLUGIN_NAME}@${MARKETPLACE_NAME}"$'\n'
+            done
+          fi
+          PLUGINS=$(echo -n "$PLUGINS" | sed '/^$/d')
+
+          echo "plugin_marketplaces=./.claude-plugin" >> $GITHUB_OUTPUT
+          {
+            echo "plugins<<EOF"
+            echo "$PLUGINS"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
       # Run Claude Code with MCP servers
       - name: Generate newsletter with Claude
         id: claude
@@ -401,6 +464,8 @@ jobs:
             --max-turns 150
             --mcp-config /tmp/mcp-config.json
             --dangerously-skip-permissions
+          plugin_marketplaces: ${{ steps.build-plugins.outputs.plugin_marketplaces }}
+          plugins: ${{ steps.build-plugins.outputs.plugins }}
         env:
           GH_TOKEN: ${{ github.token }}
 
