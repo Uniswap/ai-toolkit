@@ -2,7 +2,9 @@
 
 ## Overview
 
-The `@uniswap/ai-toolkit-nx-claude` package (published as `@uniswap/ai-toolkit-nx-claude` to private npmjs registry) provides Nx generators for setting up and managing Claude Code configurations, commands, agents, and notification hooks. This package is the primary tooling interface for the AI Toolkit, offering both one-shot installers and incremental configuration management.
+The `@uniswap/ai-toolkit-nx-claude` package provides Nx generators for installing Claude Code notification hooks and addon MCP servers. The package also includes the `claude-plus` script for enhanced Claude Code startup.
+
+> **Note**: The init, add-command, and add-agent generators have been removed. For Claude Code setup, use the marketplace-based plugin architecture instead.
 
 ### Standalone Package Usage
 
@@ -11,84 +13,36 @@ This package can be run directly via npx without cloning the repository:
 ```bash
 # For Uniswap organization members only
 npx @uniswap/ai-toolkit-nx-claude@latest
+```
 
 Authentication to private npmjs registry is required (see README for setup instructions).
 
 ## Package Structure
 
-```
-
+```text
 packages/ai-toolkit-nx-claude/
 ├── src/
-│ ├── generators/
-│ │ ├── init/ # One-shot installer for commands/agents
-│ │ ├── hooks/ # Notification hooks installer
-│ │ ├── add-command/ # Add individual commands
-│ │ └── add-agent/ # Add individual agents
-│ ├── scripts/
-│ │ └── claude-plus/ # Enhanced Claude launcher with MCP + Slack
-│ └── index.ts # Package exports
-├── generators.json # Generator registration
-└── package.json # Package configuration
-
-````
+│   ├── generators/
+│   │   ├── hooks/      # Notification hooks installer
+│   │   └── addons/     # MCP server addon installer
+│   ├── scripts/
+│   │   └── claude-plus/ # Enhanced Claude launcher with MCP + Slack
+│   └── index.ts        # Package exports
+├── generators.json     # Generator registration
+└── package.json        # Package configuration
+```
 
 ## Available Generators
 
-### 1. init - One-Shot Configuration Installer
-
-**Purpose**: Primary entry point for setting up Claude Code configurations
-
-**Recommended Usage** (via CLI menu):
-
-```bash
-npx @uniswap/ai-toolkit-nx-claude@latest
-# Presents menu with two options:
-# - default-install: Recommended setup with pre-selected components
-# - custom-install: Choose exactly what to install
-```
-
-**Direct Usage**:
-
-```bash
-npx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=default
-# or
-npx nx generate @uniswap/ai-toolkit-nx-claude:init --install-mode=custom
-```
-
-**Key Features**:
-
-- **Two installation modes**:
-  - **Default**: Pre-configured with 6 essential commands and 6 essential agents, global installation, minimal prompts
-  - **Custom**: Full control with granular prompts for location, components, hooks, addons, and dry-run
-- **Interactive installation wizard** with conditional prompting based on mode
-- **Automatic Claude CLI installation with fallback mechanism**:
-  - Primary: curl installation method
-  - Fallback: npm installation if curl fails
-  - Manual: Instructions provided if both fail
-- **Auto-update notifications**: Checks for new versions once per week
-  - Background execution (non-blocking, <5ms startup overhead)
-  - Self-updating script with version tracking
-  - Can be disabled via `AI_TOOLKIT_SKIP_UPDATE_CHECK` environment variable
-  - Supports bash, zsh, and fish shells
-- **Integrated hooks installation**: Can install notification hooks as part of init flow
-- **Integrated addons installation**: Can install addons like spec-mcp-workflow (custom mode only)
-- Global (~/.claude) or local (./.claude) installation
-- Detects existing files and offers overwrite options
-- Creates manifest.json for tracking installations
-- Sources content from @ai-toolkit content packages
-- Cross-platform support (macOS, Linux, Windows)
-- **Installation summary**: Shows comprehensive summary of what was installed
-
-**Documentation**: [src/generators/init/CLAUDE.md](src/generators/init/CLAUDE.md)
-
-### 2. hooks - Notification Hooks Installer
+### 1. hooks - Notification Hooks Installer
 
 **Purpose**: Installs audio/speech notifications for Claude Code
 
 **Usage**:
 
 ```bash
+npx @uniswap/ai-toolkit-nx-claude@latest hooks
+# or
 npx nx generate @uniswap/ai-toolkit-nx-claude:hooks
 ```
 
@@ -102,29 +56,26 @@ npx nx generate @uniswap/ai-toolkit-nx-claude:hooks
 
 **Documentation**: [src/generators/hooks/CLAUDE.md](src/generators/hooks/CLAUDE.md)
 
-### 3. add-command - Add Individual Commands
+### 2. addons - MCP Server Addon Installer
 
-**Purpose**: Add a single command to an existing Claude configuration
-
-**Usage**:
-
-```bash
-npx nx generate @uniswap/ai-toolkit-nx-claude:add-command
-```
-
-**Status**: Placeholder implementation - needs completion
-
-### 4. add-agent - Add Individual Agents
-
-**Purpose**: Add a single agent to an existing Claude configuration
+**Purpose**: Install and configure Claude Code addons including MCP servers
 
 **Usage**:
 
 ```bash
-npx nx generate @uniswap/ai-toolkit-nx-claude:add-agent
+npx @uniswap/ai-toolkit-nx-claude@latest addons
+# or
+npx nx generate @uniswap/ai-toolkit-nx-claude:addons
 ```
 
-**Status**: Placeholder implementation - needs completion
+**Key Features**:
+
+- Interactive addon selection
+- MCP server configuration
+- Global or local installation
+- Spec-workflow, AWS log analyzer, and more
+
+**Documentation**: [src/generators/addons/CLAUDE.md](src/generators/addons/CLAUDE.md)
 
 ## Standalone Scripts
 
@@ -223,7 +174,6 @@ await childGenerator(tree, {
 ```
 
 **Benefits**:
-
 
 - Eliminates duplicate prompts
 - Maintains backward compatibility (works standalone)
@@ -350,14 +300,6 @@ Example schema showcasing all features:
 }
 ```
 
-### Content Resolution
-
-Generators source content from dedicated packages:
-
-- `@ai-toolkit/commands-agnostic`: Language-agnostic commands
-- `@ai-toolkit/agents-agnostic`: Language-agnostic agents
-- Future: Language-specific content packages
-
 ### Error Handling Patterns
 
 Consistent error handling across generators:
@@ -379,39 +321,6 @@ Standard approaches for file management:
 5. Preserve user customizations
 
 ## Shared Utilities
-
-### auto-update-utils.ts
-
-Located at `src/utils/auto-update-utils.ts`, this utility provides auto-update functionality for the init generator:
-
-**Core Functions**:
-
-- **getCurrentToolkitVersion()**: Extracts current version from package.json
-- **detectShell()**: Detects user's shell (bash, zsh, or fish)
-- **getShellConfigPath()**: Returns the config file path for detected shell
-- **generateAutoUpdateSnippet()**: Generates bash/zsh update check script with version
-- **generateFishAutoUpdateSnippet()**: Generates fish-specific update check script
-- **installUpdateChecker()**: Installs update checker into shell configuration
-
-**Key Features**:
-
-- **Weekly checking**: Runs once per week using cached timestamp in `~/.uniswap-ai-toolkit/.last-update-check`
-- **Background execution**: Spawns background process to avoid blocking shell startup
-- **Self-maintaining**: Stores version in script comment for automatic updates on re-run
-- **User control**: Respects `AI_TOOLKIT_SKIP_UPDATE_CHECK` environment variable
-- **Minimal overhead**: <5ms when cached, ~3ms when spawning background check
-- **Shell support**: Generates appropriate syntax for bash/zsh (POSIX) and fish shells
-
-**Update Check Behavior**:
-
-1. Checks if `AI_TOOLKIT_SKIP_UPDATE_CHECK` is set (exits if true)
-2. Reads cache timestamp from `~/.uniswap-ai-toolkit/.last-update-check`
-3. Skips if checked within last week
-4. Spawns background process that:
-   - Extracts current version from shell config comment
-   - Queries npm registry for latest version
-   - Displays notification if update available
-   - Updates cache timestamp
 
 ### prompt-utils.ts
 
@@ -450,17 +359,16 @@ All generators are registered in `generators.json`:
 ```json
 {
   "generators": {
-    "init": {
-      "factory": "./dist/generators/init/generator",
-      "schema": "./dist/generators/init/schema.json",
-      "description": "One-shot installer for Claude Code configs"
-    },
     "hooks": {
       "factory": "./dist/generators/hooks/generator",
       "schema": "./dist/generators/hooks/schema.json",
       "description": "Install Claude Code notification hooks"
+    },
+    "addons": {
+      "factory": "./dist/generators/addons/generator",
+      "schema": "./dist/generators/addons/schema.json",
+      "description": "Install and configure Claude Code addons including MCP servers"
     }
-    // ... other generators
   }
 }
 ```
@@ -551,15 +459,10 @@ Every generator MUST maintain:
 - `enquirer`: Interactive prompts
 - Built-in Node.js modules (fs, path, child_process)
 
-### Content Dependencies
-
-- `@ai-toolkit/commands-agnostic`: Command templates
-- `@ai-toolkit/agents-agnostic`: Agent configurations
-
 ### External Tools (via generators)
 
-- **init**: Requires Claude CLI (checks and offers installation)
 - **hooks**: Requires Node.js, npm, Git
+- **addons**: Requires Claude CLI for MCP server configuration
 
 ## Maintenance Requirements
 
@@ -573,20 +476,6 @@ Every generator MUST maintain:
 - File structures change
 
 This documentation serves as the source of truth for AI assistants working with the ai-toolkit-nx-claude package.
-
-## Troubleshooting
-
-### Claude CLI Installation Issues
-
-If the `init` generator fails to install Claude CLI:
-
-1. **curl fails on Linux/WSL**: The generator will automatically attempt npm installation
-2. **npm permission errors**: Run `npm install -g @anthropic-ai/claude-code` manually, then `claude migrate-installer`
-3. **npm not found**: Install Node.js from <https://nodejs.org/>
-4. **PATH issues**: After installation, restart your terminal or manually add Claude to PATH
-5. **Platform-specific issues**: Visit <https://claude.ai/download> for platform-specific instructions
-
-The generator provides automatic fallback from curl to npm installation, ensuring Claude CLI can be installed on most systems.
 
 ## Publishing and Distribution
 
@@ -636,5 +525,5 @@ If the `next` branch version gets out of sync with `latest`:
 - **1.1.0**: Added hooks generator for notifications
 - **1.2.0**: Added automatic fallback mechanism for Claude CLI installation (curl → npm)
 - **1.3.0**: Added standalone package publishing and direct npx/npx execution
+- **0.6.0**: Removed init, add-command, and add-agent generators (replaced by marketplace plugins)
 - Future versions will be documented here
-````

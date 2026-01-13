@@ -1,20 +1,5 @@
 {
   "generators": {
-    "init": {
-      "factory": "./dist/generators/init/generator",
-      "schema": "./dist/generators/init/schema.json",
-      "description": "One-shot installer for Claude Code configs"
-    },
-    "add-command": {
-      "factory": "./dist/generators/add-command/generator",
-      "schema": "./dist/generators/add-command/schema.json",
-      "description": "Add a new Claude Code command to existing or new packages"
-    },
-    "add-agent": {
-      "factory": "./dist/generators/add-agent/generator",
-      "schema": "./dist/generators/add-agent/schema.json",
-      "description": "Add a new Claude Code agent to existing or new packages"
-    },
     "hooks": {
       "factory": "./dist/generators/hooks/generator",
       "schema": "./dist/generators/hooks/schema.json",
