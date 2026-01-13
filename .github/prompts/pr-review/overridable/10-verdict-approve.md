@@ -11,10 +11,10 @@ Use APPROVE when:
 
 ## Examples
 
-| Review Content | Verdict | Why |
-|----------------|---------|-----|
-| "No issues found, code looks good" | APPROVE | Positive review, no blockers |
+| Review Content                                        | Verdict | Why                             |
+| ----------------------------------------------------- | ------- | ------------------------------- |
+| "No issues found, code looks good"                    | APPROVE | Positive review, no blockers    |
 | "Good changes! Consider extracting this to a utility" | APPROVE | Positive + suggestion = APPROVE |
-| "Questions about the architecture choice here" | APPROVE | Questions are not blockers |
+| "Questions about the architecture choice here"        | APPROVE | Questions are not blockers      |
 
 ---

@@ -10,8 +10,8 @@ Use COMMENT **sparingly** when:
 
 ## Examples
 
-| Review Content | Verdict | Why |
-|----------------|---------|-----|
+| Review Content                                            | Verdict | Why                         |
+| --------------------------------------------------------- | ------- | --------------------------- |
 | "5 style issues, 2 unclear variable names, missing tests" | COMMENT | Multiple issues, needs work |
 
 ## When Uncertain

@@ -174,6 +174,46 @@ Use the validation script to check plugin structure:
 node scripts/validate-plugin.cjs packages/plugins/<plugin-name>
 ```
 
+### Adding New Skills and Commands to Plugins
+
+When making changes to `packages/plugins/`, follow these guidelines:
+
+#### A. Adding User-Invocable Skills
+
+For new skills that do NOT have `user-invocable: false` in their frontmatter, use this workaround to make them invocable via Claude Code's slash command syntax:
+
+**Steps:**
+
+1. **Remove `name` field** from skill frontmatter (this causes the command to use the filename instead)
+2. **Rename SKILL.md** to `<skillname>.md` (e.g., `sre.md`)
+3. **Create symlink**: `ln -s <skillname>.md SKILL.md` (so the skills array still finds it for auto-activation)
+4. **Add to commands array** in `plugin.json`: `./skills/<name>/<name>.md`
+5. **Keep in skills array** for auto-activation: `./skills/<name>`
+
+**Example structure:**
+
+```text
+skills/sre/
+├── sre.md           # actual content, no "name" field in frontmatter
+└── SKILL.md -> sre.md   # symlink for auto-activation
+```
+
+**plugin.json configuration:**
+
+```json
+{
+  "skills": ["./skills/sre"], // for auto-activation
+  "commands": ["./skills/sre/sre.md"] // for slash menu
+}
+```
+
+#### B. Adding New Slash Commands
+
+When adding new slash commands:
+
+1. **Do NOT add a `name` field** in the YAML frontmatter (let it use the filename)
+2. **Add the path** of the new slash command to the plugin's `plugin.json` commands array
+
 ## Documentation Management
 
 ### CLAUDE.md File Management
