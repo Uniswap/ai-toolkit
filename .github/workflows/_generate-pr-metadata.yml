@@ -114,6 +114,32 @@ on:
         type: string
         default: "description,title-suggestion"
 
+      install_uniswap_plugins:
+        description: |
+          Whether to install the uniswap-ai-toolkit plugins automatically.
+
+          When true (default): All 5 uniswap-ai-toolkit plugins are installed:
+          - development-planning
+          - development-pr-workflow
+          - development-codebase-tools
+          - development-productivity
+          - uniswap-integrations
+
+          When false: No uniswap plugins are installed. Use this if you want to
+          use only your own plugins via plugin_marketplaces and plugins inputs.
+        required: false
+        type: boolean
+        default: true
+
+      plugin_ref:
+        description: |
+          Git ref of ai-toolkit to use for the build-plugin-config composite
+          action. Must be 'main' (stable) or 'next' (pre-release). Defaults to
+          'main'.
+        required: false
+        type: string
+        default: "main"
+
     secrets:
       ANTHROPIC_API_KEY:
         description: "Anthropic API key for Claude access. Required unless CLAUDE_CODE_OAUTH_TOKEN is provided."
@@ -688,12 +714,29 @@ jobs:
           echo "CLAUDE_ARGS_EOF" >> $GITHUB_OUTPUT
           echo "✅ Configured allowed tools (${#ALLOWED_TOOLS} chars)"
 
+      # Build plugin configuration using shared composite action
+      # Note: GitHub Actions requires static refs in 'uses:', so we use conditional
+      # steps instead of dynamic interpolation for security and predictability.
+      - name: Build plugin configuration (main)
+        if: steps.cache-check.outputs.cache-hit != 'true' && (inputs.plugin_ref == 'main' || inputs.plugin_ref == '')
+        id: build-plugins-main
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main
+        with:
+          install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+
+      - name: Build plugin configuration (next)
+        if: steps.cache-check.outputs.cache-hit != 'true' && inputs.plugin_ref == 'next'
+        id: build-plugins-next
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next
+        with:
+          install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+
       # Run Claude Code Action to generate the metadata
       # Supports both API key and OAuth token authentication (OAuth takes precedence)
       - name: Run Claude Code Generation
         if: steps.cache-check.outputs.cache-hit != 'true'
         id: claude
-        uses: anthropics/claude-code-action@a7e4c51380c42dd89b127f5e5f9be7b54020bc6b # v1.0.21
+        uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71 # v1.0.29
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -701,6 +744,9 @@ jobs:
           track_progress: false # Disable to avoid PR comments
           allowed_bots: dependabot
           claude_args: ${{ steps.build-args.outputs.claude_args }}
+          # Coalesce outputs from conditional steps (only one will have run)
+          plugin_marketplaces: ${{ steps.build-plugins-main.outputs.plugin_marketplaces || steps.build-plugins-next.outputs.plugin_marketplaces }}
+          plugins: ${{ steps.build-plugins-main.outputs.plugins || steps.build-plugins-next.outputs.plugins }}
 
       # Update PR title and description using generated files
       - name: Update PR Metadata

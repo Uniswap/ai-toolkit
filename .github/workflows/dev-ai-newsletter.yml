@@ -375,10 +375,17 @@ jobs:
           echo ""
           echo "=== All checks passed ==="
 
+      # Build plugin configuration using shared composite action
+      - name: Build plugin configuration
+        id: build-plugins
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next
+        with:
+          install_uniswap_plugins: 'true'
+
       # Run Claude Code with MCP servers
       - name: Generate newsletter with Claude
         id: claude
-        uses: anthropics/claude-code-action@a7e4c51380c42dd89b127f5e5f9be7b54020bc6b # v1.0.21
+        uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71 # v1.0.29
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
@@ -401,6 +408,8 @@ jobs:
             --max-turns 150
             --mcp-config /tmp/mcp-config.json
             --dangerously-skip-permissions
+          plugin_marketplaces: ${{ steps.build-plugins.outputs.plugin_marketplaces }}
+          plugins: ${{ steps.build-plugins.outputs.plugins }}
         env:
           GH_TOKEN: ${{ github.token }}
 
