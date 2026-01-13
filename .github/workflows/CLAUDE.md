@@ -1346,6 +1346,57 @@ Always pin external actions to **specific commit hashes** with version comments:
 
 Never use tags or branch names directly.
 
+### Static Refs in `uses:` Field (CRITICAL)
+
+**The `uses:` field in GitHub Actions requires STATIC strings at workflow parse time.**
+
+Dynamic interpolation via `${{ inputs.* }}`, `${{ github.* }}`, or environment variables is **explicitly disallowed** for security and predictability reasons. The workflow YAML is parsed and validated before any job runs, so variables are not yet available when `uses:` is evaluated.
+
+**❌ WRONG - This will FAIL:**
+
+```yaml
+# This looks like it would work, but GitHub Actions rejects it at parse time
+- uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@${{ inputs.plugin_ref }}
+```
+
+**✅ CORRECT - Use conditional steps with static refs:**
+
+```yaml
+# Use two steps with if conditions instead
+- name: Build plugin configuration (main)
+  if: inputs.plugin_ref == 'main' || inputs.plugin_ref == ''
+  id: build-plugins-main
+  uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main
+  with:
+    install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+
+- name: Build plugin configuration (next)
+  if: inputs.plugin_ref == 'next'
+  id: build-plugins-next
+  uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next
+  with:
+    install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+```
+
+**Why this constraint exists:**
+
+- **Security**: Prevents injection attacks where malicious input could change which action is executed
+- **Predictability**: GitHub validates the action reference exists before running any workflow code
+- **Caching**: GitHub can pre-fetch actions before job execution begins
+
+**Pattern for handling multiple refs:**
+
+1. Define a limited set of supported refs (e.g., `main` and `next`)
+2. Create separate conditional steps for each ref with static `uses:` values
+3. Use `if:` conditions to select which step runs
+4. Coalesce outputs with `||` operator: `${{ steps.main.outputs.foo || steps.next.outputs.foo }}`
+
+**This constraint applies to:**
+
+- External actions: `uses: owner/repo/.github/actions/action@ref`
+- Reusable workflows: `uses: owner/repo/.github/workflows/workflow.yml@ref`
+- Local actions/workflows: `uses: ./.github/actions/action` (no ref, always local)
+
 ### Reusable Workflow Permissions (CRITICAL)
 
 When calling reusable workflows via `uses:`, permissions defined in the reusable workflow's job are **NOT automatically inherited**. The **caller workflow** must explicitly define all required permissions.
