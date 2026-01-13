@@ -10,9 +10,9 @@ Use REQUEST_CHANGES when:
 
 ## Examples
 
-| Review Content | Verdict | Why |
-|----------------|---------|-----|
-| "Found potential null pointer on line 42" | REQUEST_CHANGES | Bug identified |
+| Review Content                                        | Verdict         | Why                    |
+| ----------------------------------------------------- | --------------- | ---------------------- |
+| "Found potential null pointer on line 42"             | REQUEST_CHANGES | Bug identified         |
 | "SQL query uses string concatenation with user input" | REQUEST_CHANGES | Security vulnerability |
 
 ---

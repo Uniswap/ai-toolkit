@@ -22,10 +22,12 @@ This plugin provides pull request management workflows for Claude Code, includin
 - **work-through-pr-comments**: Methodically work through PR comments in a conversational workflow
 - **address-pr-issues**: Review and fix PR comments and CI failures to make PRs merge-ready
 - **linear-task-and-pr-from-changes**: Take local changes, create a Linear task, create a branch (optionally in a worktree), commit, and publish a PR
+- **start-linear-task**: Start working on a new Linear task by creating a worktree environment (for when you have no local changes yet)
 
 ### Shared (./shared/)
 
 - **setup-worktree-core**: Reusable worktree setup logic used by multiple commands
+- **linear-task-config**: Reusable Linear task configuration collection (team, project, priority, etc.)
 
 ### Agents (./agents/)
 
@@ -80,9 +82,11 @@ development-pr-workflow/
 │   ├── review-pr.md
 │   ├── work-through-pr-comments.md
 │   ├── address-pr-issues.md
-│   └── linear-task-and-pr-from-changes.md
+│   ├── linear-task-and-pr-from-changes.md
+│   └── start-linear-task.md
 ├── shared/
-│   └── setup-worktree-core.md
+│   ├── setup-worktree-core.md
+│   └── linear-task-config.md
 ├── agents/
 │   ├── pr-creator.md
 │   ├── pr-reviewer.md
