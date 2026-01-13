@@ -212,6 +212,58 @@ on:
         type: string
         default: "main"
 
+      plugin_marketplaces:
+        description: |
+          Additional plugin marketplace paths beyond uniswap-ai-toolkit (if enabled).
+          Newline-separated list of local paths or Git URLs.
+
+          Example:
+          plugin_marketplaces: |
+            ./custom-plugins
+            https://github.com/org/marketplace.git
+        required: false
+        type: string
+        default: ""
+
+      plugins:
+        description: |
+          Additional plugins to install beyond the uniswap-ai-toolkit plugins.
+          Newline-separated list in 'plugin-name@marketplace-name' format.
+
+          Example:
+          plugins: |
+            code-review@my-marketplace
+            pr-helper@my-marketplace
+        required: false
+        type: string
+        default: ""
+
+      install_uniswap_plugins:
+        description: |
+          Whether to install the uniswap-ai-toolkit plugins automatically.
+
+          When true (default): All 5 uniswap-ai-toolkit plugins are installed:
+          - development-planning
+          - development-pr-workflow
+          - development-codebase-tools
+          - development-productivity
+          - uniswap-integrations
+
+          When false: No uniswap plugins are installed. Use this if you want to
+          use only your own plugins via plugin_marketplaces and plugins inputs.
+        required: false
+        type: boolean
+        default: true
+
+      plugin_ref:
+        description: |
+          Git ref of ai-toolkit to use for the build-plugin-config composite
+          action. Must be 'main' (stable) or 'next' (pre-release). Defaults to
+          'main'.
+        required: false
+        type: string
+        default: "main"
+
     secrets:
       ANTHROPIC_API_KEY:
         description: "Anthropic API key for Claude Code. Required unless CLAUDE_CODE_OAUTH_TOKEN is provided."
@@ -350,11 +402,32 @@ jobs:
           echo "$ARGS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      # Build plugin configuration using shared composite action
+      # Note: GitHub Actions requires static refs in 'uses:', so we use conditional
+      # steps instead of dynamic interpolation for security and predictability.
+      - name: Build plugin configuration (main)
+        id: build-plugins-main
+        if: inputs.plugin_ref == 'main' || inputs.plugin_ref == ''
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main
+        with:
+          install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+          plugin_marketplaces: ${{ inputs.plugin_marketplaces }}
+          plugins: ${{ inputs.plugins }}
+
+      - name: Build plugin configuration (next)
+        id: build-plugins-next
+        if: inputs.plugin_ref == 'next'
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next
+        with:
+          install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+          plugin_marketplaces: ${{ inputs.plugin_marketplaces }}
+          plugins: ${{ inputs.plugins }}
+
       # Run Claude Code
       # Supports both API key and OAuth token authentication (validated in earlier step)
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@a7e4c51380c42dd89b127f5e5f9be7b54020bc6b # v1.0.21
+        uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71 # v1.0.29
         with:
           # Authentication: provide either API key or OAuth token (validated in earlier step)
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -362,6 +435,10 @@ jobs:
           prompt: ${{ inputs.prompt }}
           claude_args: ${{ steps.build-args.outputs.claude_args }}
           settings: ${{ inputs.settings }}
+          # Plugin configuration (requires claude-code-action v1.0.28+)
+          # Coalesce outputs from conditional steps (only one will have run)
+          plugin_marketplaces: ${{ steps.build-plugins-main.outputs.plugin_marketplaces || steps.build-plugins-next.outputs.plugin_marketplaces }}
+          plugins: ${{ steps.build-plugins-main.outputs.plugins || steps.build-plugins-next.outputs.plugins }}
           additional_permissions: |
             actions: read
 

@@ -1,8 +1,9 @@
 {
   "name": "@uniswap/development-productivity",
   "version": "0.0.1",
+  "private": true,
   "description": "Documentation, research, and prompt optimization tools for Claude Code",
-  "author": "Uniswap Labs <devai@uniswap.org>",
+  "author": "Uniswap Labs <ai-services@uniswap.org>",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -23,8 +24,5 @@
     "agents",
     "commands",
     "README.md"
-  ],
-  "publishConfig": {
-    "access": "public"
-  }
+  ]
 }

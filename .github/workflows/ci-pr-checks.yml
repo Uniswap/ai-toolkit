@@ -75,3 +75,26 @@ jobs:
           echo "Running tests..."
           npx nx affected --target=test --parallel=3 --coverage --verbose
           echo "✅ Tests passed"
+
+  validate-plugins:
+    name: Validate Plugins
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: ${{ vars.NODE_VERSION }}
+
+      - name: Validate all plugins
+        uses: ./.github/actions/validate-plugins
+        with:
+          marketplace-path: '.claude-plugin/marketplace.json'
+          fail-on-warning: 'false'

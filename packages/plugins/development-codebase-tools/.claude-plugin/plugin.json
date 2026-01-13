@@ -1,12 +1,26 @@
 {
   "name": "development-codebase-tools",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Codebase exploration, refactoring, and quality analysis",
   "author": {
     "name": "Uniswap Labs",
-    "email": "devai@uniswap.org"
+    "email": "ai-services@uniswap.org"
   },
   "homepage": "https://github.com/Uniswap/ai-toolkit",
   "keywords": ["codebase", "exploration", "refactoring", "tech-debt"],
-  "license": "MIT"
+  "license": "MIT",
+  "skills": [
+    "./skills/code-analyzer",
+    "./skills/code-refactorer",
+    "./skills/code-reviewer",
+    "./skills/codebase-explorer",
+    "./skills/tech-debt-analyzer"
+  ],
+  "commands": [
+    "./skills/code-analyzer/code-analyzer.md",
+    "./skills/code-refactorer/code-refactorer.md",
+    "./skills/code-reviewer/code-reviewer.md",
+    "./skills/codebase-explorer/codebase-explorer.md",
+    "./skills/tech-debt-analyzer/tech-debt-analyzer.md"
+  ]
 }

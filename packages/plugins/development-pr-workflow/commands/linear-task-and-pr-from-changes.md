@@ -1,5 +1,4 @@
 ---
-name: linear-task-and-pr-from-changes
 description: Take local changes, create a Linear task, create a branch (optionally in a worktree), commit, and publish a PR
 argument-hint: [--team <id>] [--trunk <branch>] [--create-worktree] [--use-graphite]
 allowed-tools: Bash(*), Read(*), Write(*), AskUserQuestion(*), mcp__graphite__run_gt_cmd(*), mcp__linear__create_issue(*), mcp__linear__get_user(*), mcp__linear__list_teams(*), mcp__linear__list_projects(*), mcp__linear__list_issue_labels(*)
@@ -121,67 +120,59 @@ As a [user type], I want [goal/capability] so that [benefit/value].
 
 ## Step 2: Collect ALL Configuration Upfront
 
-**IMPORTANT: Collect all missing information in a SINGLE prompt at the beginning.** Do not prompt the user at multiple steps throughout the workflow. Use `AskUserQuestion` with multiple questions to gather everything at once.
+**IMPORTANT: Collect all missing information in a SINGLE prompt at the beginning.** Do not prompt the user at multiple steps throughout the workflow.
 
-First, check which arguments were provided via command line. Then, for ALL missing arguments, present them together in one prompt.
+### Phase 1: Fetch Linear User and Teams (REQUIRED)
 
-**Information to Collect (prompt for any not provided as arguments):**
-
-| Field               | Required | Default        | Notes                                                                      |
-| ------------------- | -------- | -------------- | -------------------------------------------------------------------------- |
-| Team                | Yes      | -              | Linear team identifier. Use `mcp__linear__list_teams` to list options.     |
-| Project             | No       | None           | Linear project within the selected team. **Fetched after team selection.** |
-| Title               | Yes      | Auto-generated | From change analysis if not provided                                       |
-| Priority            | Yes      | -              | urgent, high, normal, low, none                                            |
-| Base Branch (trunk) | Yes      | -              | Target branch for PR (e.g., "main", "develop")                             |
-| Branch Prefix       | Yes      | -              | Options: username, feature, fix, chore, or custom                          |
-| Use Graphite        | Yes      | -              | true = `gt submit`, false = `gh pr create`                                 |
-| Create Worktree     | Yes      | -              | true = isolated worktree, false = branch in current repo                   |
-| Label               | No       | None           | Linear label(s) to apply                                                   |
-| Due Date            | No       | None           | Task due date                                                              |
-
-**Dependent Fields (require prior selection):**
-
-- **Project** depends on **Team** - After team is selected, fetch projects via `mcp__linear__list_projects` with the team filter to show available projects
-
-**Branch Prefix Options** (present if not provided):
-
-**IMPORTANT**: Before presenting branch prefix options, fetch the current Linear user via `mcp__linear__get_user` with query "me" to get their display name. Convert to lowercase and remove spaces for the username prefix.
-
-1. **Username (Recommended)** - Derived from Linear user's display name
-2. **feature/** - Standard feature branch convention
-3. **fix/** - For bug fixes
-4. **chore/** - For maintenance tasks
-5. **Custom** - Let user enter their own prefix
-
-**Prompting Flow** (two phases):
+**CRITICAL: Before presenting ANY prompts, you MUST fetch the Linear user to get the username for branch prefix options.**
 
 ```
-# ============================================
-# PHASE 1: Collect team and independent fields
-# ============================================
+# Get current Linear user (for assignee and username prefix)
 linear_user = mcp__linear__get_user(query="me")
-username_prefix = linear_user.displayName.lower().replace(" ", "")
+LINEAR_USER_ID = linear_user.id
+LINEAR_USERNAME = linear_user.displayName.lower().replace(" ", "").replace("-", "")
+# Example: "Nick Koutrelakos" → "nickkoutrelakos"
+
+# Get available teams
 teams = mcp__linear__list_teams()
-
-# Prompt for ALL missing fields in Phase 1
-AskUserQuestion (Phase 1):
-- Team: "Which Linear team?" (options from teams list)
-- Priority: "Priority level?" (urgent/high/normal/low/none)
-- Base Branch: "Target branch for PR?" (main/develop/other)
-- Branch Prefix: "What branch prefix should be used?"
-- Use Graphite: "PR creation method?" (Graphite/GitHub CLI)
-- Create Worktree: "Create isolated worktree?" (Yes/No)
-
-# ============================================
-# PHASE 2: ALWAYS prompt for project selection
-# ============================================
-selected_team = <from Phase 1 answer or --team argument>
-projects = mcp__linear__list_projects(team=selected_team)
-
-AskUserQuestion (Phase 2):
-- Project: "Which project should this task be added to?"
 ```
+
+### Phase 2: Collect Configuration
+
+Follow the shared configuration collection instructions in `@../shared/linear-task-config.md`.
+
+**Pre-set these variables from command-line arguments before the shared config:**
+
+- `TEAM` from `--team` (if provided)
+- `PROJECT` from `--project` (if provided)
+- `PRIORITY` from `--priority` (if provided)
+- `LABEL` from `--label` (if provided)
+- `BRANCH_PREFIX` from `--branch-prefix` (if provided)
+- `TRUNK_BRANCH` from `--trunk` (if provided)
+- `DUE_DATE` from `--due-date` (if provided)
+
+**IMPORTANT: When prompting for branch prefix, the first option MUST be the user's personal namespace:**
+
+```
+Branch Prefix options:
+1. "{LINEAR_USERNAME}/" (Recommended) - e.g., "nickkoutrelakos/"
+2. "feature/" - Standard feature convention
+3. "fix/" - For bug fixes
+4. "chore/" - For maintenance tasks
+5. "Custom" - Enter a custom prefix
+```
+
+**Additional fields specific to this command:**
+
+| Field           | Required | Default        | Notes                                                     |
+| --------------- | -------- | -------------- | --------------------------------------------------------- |
+| Title           | Yes      | Auto-generated | From change analysis (Step 1) if not provided via --title |
+| Create Worktree | Yes      | -              | true = isolated worktree, false = branch in current repo  |
+
+Include these additional questions in the Phase 1 prompt from the shared config:
+
+- **Title**: Only prompt if `--title` not provided AND you want user confirmation of auto-generated title
+- **Create Worktree**: "Create isolated worktree?" (Yes/No)
 
 **Auto-applied (never prompt):**
 

@@ -1,5 +1,4 @@
 ---
-name: address-pr-issues
 description: Reviews a GitHub PR, addresses comments, and fixes CI issues
 argument-hint: <pr-number> [--owner=<owner>] [--repo=<repo>]
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*), MultiEdit(*), Grep(*), Glob(*), WebFetch(*), WebSearch(*), Task(*), mcp__github__get_pull_request(*), mcp__github__get_pull_request_files(*), mcp__github__get_pull_request_comments(*), mcp__github__get_pull_request_reviews(*), mcp__github__get_file_contents(*), mcp__github__create_pull_request_review(*), mcp__github__add_issue_comment(*)

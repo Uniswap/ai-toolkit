@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "owner": {
     "name": "Uniswap Labs",
-    "email": "devai@uniswap.org"
+    "email": "ai-services@uniswap.org"
   },
   "metadata": {
     "description": "Uniswap Developer AI Toolkit - Comprehensive AI-powered development workflows for implementation planning, code review, PR management, codebase exploration, and external service integrations.",

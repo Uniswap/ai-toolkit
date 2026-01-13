@@ -8,17 +8,18 @@ The `@uniswap/ai-toolkit-claude-mcp-helper` package (source directory: `packages
 
 This tool solves the problem of managing MCP server availability in Claude Code by:
 
-- Reading from multiple sources: global (`~/.claude.json`), project-specific (`~/.claude.json` projects), and project-local (`./.mcp.json`)
+- Reading from multiple sources: global (`~/.claude.json`), project-specific (`~/.claude.json` projects), project-local (`./.mcp.json`), and **installed plugins**
 - Managing enabled/disabled state through local settings (`./.claude/settings.local.json`)
 - Presenting a unified view of all available servers with their enabled/disabled status
 - Allowing easy multi-select interface to toggle server availability
 - Maintaining proper configuration priority (local overrides global)
+- **Grouping servers by origin** (User Config, Project, Plugins) for easy identification
 
 ## Architecture
 
 ### Configuration System
 
-The tool implements a **multi-source configuration system** that discovers MCP servers from three locations and manages their enabled/disabled state:
+The tool implements a **multi-source configuration system** that discovers MCP servers from four locations and manages their enabled/disabled state:
 
 #### MCP Server Sources (Discovery)
 
@@ -26,18 +27,31 @@ The tool implements a **multi-source configuration system** that discovers MCP s
 
    - Contains user-wide MCP server definitions in `mcpServers` object
    - Accessible across all projects
+   - UI label: `[global]`
    - Example: `{ "mcpServers": { "github": { "command": "npx", "args": [...] } } }`
 
 2. **Project-Specific Config** (`~/.claude.json` → `projects[cwd].mcpServers`):
 
    - Project-specific MCP server definitions within the global config
    - Scoped to specific working directories
+   - UI label: `[project]`
    - Example: `{ "projects": { "/path/to/project": { "mcpServers": { "custom-tool": {...} } } } }`
 
 3. **Project-Local Config** (`./.mcp.json`):
+
    - Project-committed MCP server definitions
    - Allows teams to share MCP server configurations via version control
+   - UI label: `[.mcp.json]`
    - Example: `{ "mcpServers": { "team-tool": { "command": "npx", "args": [...] } } }`
+
+4. **Installed Plugins** (`~/.claude/plugins/installed_plugins.json` → plugin `.mcp.json`):
+
+   - MCP servers defined in installed Claude Code plugins
+   - Each plugin can provide its own `.mcp.json` at its install path
+   - UI label: `[plugin: pluginName]` (cyan colored)
+   - Discovery: Reads `~/.claude/plugins/installed_plugins.json`, extracts `installPath` for each plugin, checks for `.mcp.json` file
+
+**Discovery Priority**: Servers are labeled with the source where they were FIRST discovered. If a server exists in both global config and a plugin, it shows as `[global]` because global config takes precedence.
 
 #### Enabled/Disabled State Management
 
@@ -50,10 +64,7 @@ The tool implements a **multi-source configuration system** that discovers MCP s
 
 ```json
 {
-  "deniedMcpServers": [
-    { "serverName": "chrome-devtools" },
-    { "serverName": "claude-historian" }
-  ]
+  "deniedMcpServers": [{ "serverName": "chrome-devtools" }, { "serverName": "claude-historian" }]
 }
 ```
 
@@ -65,10 +76,7 @@ The `deniedMcpServers` array uses an **object format** (not string array):
 
 ```json
 {
-  "deniedMcpServers": [
-    { "serverName": "chrome-devtools" },
-    { "serverName": "claude-historian" }
-  ]
+  "deniedMcpServers": [{ "serverName": "chrome-devtools" }, { "serverName": "claude-historian" }]
 }
 ```
 
@@ -169,9 +177,7 @@ export function getAvailableServers(): string[] {
 
   // 2. Project-specific from ~/.claude.json projects[cwd].mcpServers
   if (globalConfig.projects?.[cwd]?.mcpServers) {
-    Object.keys(globalConfig.projects[cwd].mcpServers!).forEach((name) =>
-      servers.add(name)
-    );
+    Object.keys(globalConfig.projects[cwd].mcpServers!).forEach((name) => servers.add(name));
   }
 
   // 3. Project-local from ./.mcp.json
@@ -220,9 +226,7 @@ export function updateLocalConfig(deniedServers: string[]): void {
   }
 
   // CRITICAL: Convert to object format
-  config.deniedMcpServers = deniedServers.map(
-    (serverName): DeniedMcpServer => ({ serverName })
-  );
+  config.deniedMcpServers = deniedServers.map((serverName): DeniedMcpServer => ({ serverName }));
 
   // Write with formatting
   writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');

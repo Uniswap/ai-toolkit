@@ -8,7 +8,7 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 
 ### CI & Quality Assurance (2 workflows)
 
-- `ci-pr-checks.yml` - Validates PRs with build, lint, format, and test checks
+- `ci-pr-checks.yml` - Validates PRs with build, lint, format, test, and plugin validation checks
 - `claude-welcome.yml` - Posts welcome messages from Claude to new PRs
 
 ### Release & Deployment (2 workflows)
@@ -104,18 +104,41 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 
 **Configuration Inputs:**
 
-| Input                           | Required | Default                    | Description                                         |
-| ------------------------------- | -------- | -------------------------- | --------------------------------------------------- |
-| `prompt`                        | No       | `""`                       | Direct automation prompt (enables automation mode)  |
-| `model`                         | No       | `claude-opus-4-5-20251101` | Claude model to use                                 |
-| `allowed_tools`                 | No       | `""`                       | Comma-separated list of allowed tools               |
-| `disallowed_tools`              | No       | `""`                       | Comma-separated list of disallowed tools            |
-| `custom_instructions`           | No       | CLAUDE.md instructions     | Additional system prompt instructions               |
-| `max_turns`                     | No       | unlimited                  | Maximum conversation turns                          |
-| `mcp_config`                    | No       | `""`                       | MCP server configuration (JSON)                     |
-| `settings`                      | No       | `""`                       | Additional settings including env vars (JSON)       |
-| `timeout_minutes`               | No       | `10`                       | Job timeout in minutes                              |
-| `anthropic_api_key_secret_name` | No       | `ANTHROPIC_API_KEY`        | Name of the secret containing the Anthropic API key |
+| Input                           | Required | Default                    | Description                                                         |
+| ------------------------------- | -------- | -------------------------- | ------------------------------------------------------------------- |
+| `prompt`                        | No       | `""`                       | Direct automation prompt (enables automation mode)                  |
+| `model`                         | No       | `claude-opus-4-5-20251101` | Claude model to use                                                 |
+| `allowed_tools`                 | No       | `""`                       | Comma-separated list of allowed tools                               |
+| `disallowed_tools`              | No       | `""`                       | Comma-separated list of disallowed tools                            |
+| `custom_instructions`           | No       | CLAUDE.md instructions     | Additional system prompt instructions                               |
+| `max_turns`                     | No       | unlimited                  | Maximum conversation turns                                          |
+| `mcp_config`                    | No       | `""`                       | MCP server configuration (JSON)                                     |
+| `settings`                      | No       | `""`                       | Additional settings including env vars (JSON)                       |
+| `timeout_minutes`               | No       | `10`                       | Job timeout in minutes                                              |
+| `anthropic_api_key_secret_name` | No       | `ANTHROPIC_API_KEY`        | Name of the secret containing the Anthropic API key                 |
+| `plugin_marketplaces`           | No       | `""`                       | Additional marketplace paths (newline-separated, local or Git URLs) |
+| `plugins`                       | No       | `""`                       | Additional plugins to install (newline-separated)                   |
+| `install_uniswap_plugins`       | No       | `true`                     | Auto-install uniswap-ai-toolkit plugins (false to opt out)          |
+
+**Plugin Configuration:**
+
+All Uniswap AI Toolkit plugins are **automatically installed** by default for every workflow invocation. This includes:
+
+- `development-planning` - Implementation planning & execution workflows
+- `development-pr-workflow` - PR management, review, & Graphite integration
+- `development-codebase-tools` - Code exploration & refactoring
+- `development-productivity` - Documentation, research, & prompt optimization
+- `uniswap-integrations` - External service integrations (Linear, Notion, Nx)
+
+**How it works:**
+
+The workflows pass the Git URL `https://github.com/Uniswap/ai-toolkit.git` to the `plugin_marketplaces` input, and the claude-code-action handles cloning and installing the plugins automatically.
+
+**Opt-out:** Set `install_uniswap_plugins: false` to disable automatic plugin installation. Use this when you want to use only your own plugins.
+
+You can use the `plugin_marketplaces` and `plugins` inputs to install **additional** plugins beyond the default set (or as the only plugins when `install_uniswap_plugins: false`).
+
+> **Note:** Plugin support requires claude-code-action v1.0.29+.
 
 **Usage example (API Key):**
 
@@ -288,6 +311,7 @@ You must enable GitHub Actions to create and approve pull requests:
 | `max_diff_lines`                      | No       | `5000`                       | Maximum diff lines before skipping Claude review (PR considered too large)                                                     |
 | `allowed_tools`                       | No       | `""`                         | Comma-separated list of allowed tools for Claude                                                                               |
 | `toolkit_ref`                         | No       | `main`                       | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
+| `install_uniswap_plugins`             | No       | `true`                       | Auto-install uniswap-ai-toolkit plugins. Set to false to opt out and use only custom plugins.                                  |
 
 **Section Overrides (Granular Prompt Customization):**
 
@@ -701,13 +725,14 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 
 **Configuration:**
 
-| Input             | Default                    | Description                                  |
-| ----------------- | -------------------------- | -------------------------------------------- |
-| `model`           | `claude-opus-4-5-20251101` | Claude model to use                          |
-| `max_turns`       | `150`                      | Maximum conversation turns                   |
-| `debug_mode`      | `true`                     | Show full Claude output                      |
-| `timeout_minutes` | `60`                       | Job timeout                                  |
-| `pr_type`         | `draft`                    | Type of PR to create: "draft" or "published" |
+| Input                     | Default                    | Description                                     |
+| ------------------------- | -------------------------- | ----------------------------------------------- |
+| `model`                   | `claude-opus-4-5-20251101` | Claude model to use                             |
+| `max_turns`               | `150`                      | Maximum conversation turns                      |
+| `debug_mode`              | `true`                     | Show full Claude output                         |
+| `timeout_minutes`         | `60`                       | Job timeout                                     |
+| `pr_type`                 | `draft`                    | Type of PR to create: "draft" or "published"    |
+| `install_uniswap_plugins` | `true`                     | Auto-install uniswap plugins (false to opt out) |
 
 **Validation Behavior:**
 
@@ -819,14 +844,15 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 
 **Configuration:**
 
-| Input             | Default                      | Description                    |
-| ----------------- | ---------------------------- | ------------------------------ |
-| `branch_name`     | required                     | Branch to work on              |
-| `target_branch`   | `main`                       | Base branch for PR             |
-| `dry_run`         | `false`                      | Analyze only, skip PR creation |
-| `model`           | `claude-sonnet-4-5-20250929` | Claude model to use            |
-| `timeout_minutes` | `30`                         | Maximum execution time         |
-| `debug_mode`      | `true`                       | Show full Claude output        |
+| Input                     | Default                      | Description                                     |
+| ------------------------- | ---------------------------- | ----------------------------------------------- |
+| `branch_name`             | required                     | Branch to work on                               |
+| `target_branch`           | `main`                       | Base branch for PR                              |
+| `dry_run`                 | `false`                      | Analyze only, skip PR creation                  |
+| `model`                   | `claude-sonnet-4-5-20250929` | Claude model to use                             |
+| `timeout_minutes`         | `30`                         | Maximum execution time                          |
+| `debug_mode`              | `true`                       | Show full Claude output                         |
+| `install_uniswap_plugins` | `true`                       | Auto-install uniswap plugins (false to opt out) |
 
 **Example Transformation:**
 
@@ -1319,6 +1345,57 @@ Always pin external actions to **specific commit hashes** with version comments:
 ```
 
 Never use tags or branch names directly.
+
+### Static Refs in `uses:` Field (CRITICAL)
+
+**The `uses:` field in GitHub Actions requires STATIC strings at workflow parse time.**
+
+Dynamic interpolation via `${{ inputs.* }}`, `${{ github.* }}`, or environment variables is **explicitly disallowed** for security and predictability reasons. The workflow YAML is parsed and validated before any job runs, so variables are not yet available when `uses:` is evaluated.
+
+**❌ WRONG - This will FAIL:**
+
+```yaml
+# This looks like it would work, but GitHub Actions rejects it at parse time
+- uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@${{ inputs.plugin_ref }}
+```
+
+**✅ CORRECT - Use conditional steps with static refs:**
+
+```yaml
+# Use two steps with if conditions instead
+- name: Build plugin configuration (main)
+  if: inputs.plugin_ref == 'main' || inputs.plugin_ref == ''
+  id: build-plugins-main
+  uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main
+  with:
+    install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+
+- name: Build plugin configuration (next)
+  if: inputs.plugin_ref == 'next'
+  id: build-plugins-next
+  uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next
+  with:
+    install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+```
+
+**Why this constraint exists:**
+
+- **Security**: Prevents injection attacks where malicious input could change which action is executed
+- **Predictability**: GitHub validates the action reference exists before running any workflow code
+- **Caching**: GitHub can pre-fetch actions before job execution begins
+
+**Pattern for handling multiple refs:**
+
+1. Define a limited set of supported refs (e.g., `main` and `next`)
+2. Create separate conditional steps for each ref with static `uses:` values
+3. Use `if:` conditions to select which step runs
+4. Coalesce outputs with `||` operator: `${{ steps.main.outputs.foo || steps.next.outputs.foo }}`
+
+**This constraint applies to:**
+
+- External actions: `uses: owner/repo/.github/actions/action@ref`
+- Reusable workflows: `uses: owner/repo/.github/workflows/workflow.yml@ref`
+- Local actions/workflows: `uses: ./.github/actions/action` (no ref, always local)
 
 ### Reusable Workflow Permissions (CRITICAL)
 
