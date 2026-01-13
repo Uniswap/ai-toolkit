@@ -143,7 +143,7 @@ See the full example at `.github/workflows/examples/11-autonomous-linear-tasks.y
 | Model                        | Best For                                  |
 | ---------------------------- | ----------------------------------------- |
 | `claude-sonnet-4-5-20250929` | Balance of speed and capability (default) |
-| `claude-opus-4-5-20251101`     | Complex tasks requiring deep reasoning    |
+| `claude-opus-4-5-20251101`   | Complex tasks requiring deep reasoning    |
 | `claude-haiku-4-5@20251001`  | Simple tasks, cost optimization           |
 
 ## Creating Good Task Descriptions

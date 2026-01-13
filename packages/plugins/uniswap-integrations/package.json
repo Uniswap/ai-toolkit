@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "description": "External service integrations for Claude Code - Linear, Notion, Nx, Chrome DevTools, and more",
-  "author": "Uniswap Labs <devai@uniswap.org>",
+  "author": "Uniswap Labs <ai-services@uniswap.org>",
   "license": "MIT",
   "repository": {
     "type": "git",

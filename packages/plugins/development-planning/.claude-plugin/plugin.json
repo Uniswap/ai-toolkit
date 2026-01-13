@@ -1,12 +1,27 @@
 {
   "name": "development-planning",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Implementation planning and execution workflows with multi-agent collaboration",
   "author": {
     "name": "Uniswap Labs",
-    "email": "devai@uniswap.org"
+    "email": "ai-services@uniswap.org"
   },
   "homepage": "https://github.com/Uniswap/ai-toolkit",
   "keywords": ["planning", "implementation", "workflow", "multi-agent"],
-  "license": "MIT"
+  "license": "MIT",
+  "skills": [
+    "./skills/implement-spec",
+    "./skills/implementation-planner",
+    "./skills/plan-executor",
+    "./skills/plan-reviewer",
+    "./skills/plan-swarm"
+  ],
+  "commands": [
+    "./commands/auto-spec.md",
+    "./skills/implement-spec/implement-spec.md",
+    "./skills/implementation-planner/implementation-planner.md",
+    "./skills/plan-executor/plan-executor.md",
+    "./skills/plan-reviewer/plan-reviewer.md",
+    "./skills/plan-swarm/plan-swarm.md"
+  ]
 }

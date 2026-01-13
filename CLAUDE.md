@@ -174,6 +174,46 @@ Use the validation script to check plugin structure:
 node scripts/validate-plugin.cjs packages/plugins/<plugin-name>
 ```
 
+### Adding New Skills and Commands to Plugins
+
+When making changes to `packages/plugins/`, follow these guidelines:
+
+#### A. Adding User-Invocable Skills
+
+For new skills that do NOT have `user-invocable: false` in their frontmatter, use this workaround to make them invocable via Claude Code's slash command syntax:
+
+**Steps:**
+
+1. **Remove `name` field** from skill frontmatter (this causes the command to use the filename instead)
+2. **Rename SKILL.md** to `<skillname>.md` (e.g., `sre.md`)
+3. **Create symlink**: `ln -s <skillname>.md SKILL.md` (so the skills array still finds it for auto-activation)
+4. **Add to commands array** in `plugin.json`: `./skills/<name>/<name>.md`
+5. **Keep in skills array** for auto-activation: `./skills/<name>`
+
+**Example structure:**
+
+```text
+skills/sre/
+├── sre.md           # actual content, no "name" field in frontmatter
+└── SKILL.md -> sre.md   # symlink for auto-activation
+```
+
+**plugin.json configuration:**
+
+```json
+{
+  "skills": ["./skills/sre"], // for auto-activation
+  "commands": ["./skills/sre/sre.md"] // for slash menu
+}
+```
+
+#### B. Adding New Slash Commands
+
+When adding new slash commands:
+
+1. **Do NOT add a `name` field** in the YAML frontmatter (let it use the filename)
+2. **Add the path** of the new slash command to the plugin's `plugin.json` commands array
+
 ## Documentation Management
 
 ### CLAUDE.md File Management
@@ -209,6 +249,25 @@ After making any changes to files in this repository, Claude Code MUST:
 After making any changes to files in this repository, Claude Code MUST:
 
 1. check all `README.md` files in directories with changes and, if appropriate, UPDATE the `README.md` file(s) so they're accurate, reliable, valid, and indicative of the state of the repository with the added changes
+
+### Plugin Marketplace Documentation
+
+**IMPORTANT**: After making any changes to files in `packages/plugins/`, Claude Code MUST:
+
+1. **Check the Notion Plugin Marketplace doc**: Review the [Uniswap Claude Code Plugin Marketplace](https://www.notion.so/uniswaplabs/Uniswap-Claude-Code-Plugin-Marketplace-2e4c52b2548b815795a5f88c58894eac) documentation
+
+2. **Update if necessary**: If changes affect the plugin inventory (skills, agents, commands, MCP servers), update the Notion doc to reflect:
+
+   - New skills/agents/commands added
+   - Removed or renamed components
+   - Updated descriptions or capabilities
+   - Changes to plugin structure
+
+3. **Keep stats accurate**: The overview section contains counts of total Skills, Agents, and Commands - ensure these numbers stay accurate
+
+4. **Maintain per-plugin sections**: Each of the 5 plugins has its own section listing components - update the relevant section(s) when plugins change
+
+This ensures the external documentation stays synchronized with the actual plugin codebase.
 
 ## Git Hooks Configuration
 

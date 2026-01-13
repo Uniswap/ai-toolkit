@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "description": "Pull request management workflows for Claude Code - includes PR creation, review, issue resolution, and Graphite stack management",
-  "author": "Uniswap Labs <devai@uniswap.org>",
+  "author": "Uniswap Labs <ai-services@uniswap.org>",
   "license": "MIT",
   "repository": {
     "type": "git",

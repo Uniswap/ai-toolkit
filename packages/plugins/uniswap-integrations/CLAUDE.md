@@ -52,7 +52,6 @@ uniswap-integrations/
 │   ├── migration-assistant.md
 │   ├── slack-analyzer.md
 │   ├── slack-fetcher.md
-│   └── dev-ai-pod-weekly-newsletter.md
 ├── .mcp.json
 ├── project.json
 ├── package.json

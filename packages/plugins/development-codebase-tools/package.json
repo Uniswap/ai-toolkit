@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "description": "Codebase exploration, refactoring, and quality analysis tools for Claude Code",
-  "author": "Uniswap Labs <devai@uniswap.org>",
+  "author": "Uniswap Labs <ai-services@uniswap.org>",
   "license": "MIT",
   "repository": {
     "type": "git",
