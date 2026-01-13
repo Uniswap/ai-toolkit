@@ -1,4 +1,4 @@
-import type { ServerStatus } from '../config/types';
+import type { ServerOrigin, ServerStatus } from '../config/types';
 
 /**
  * ANSI color codes
@@ -11,7 +11,26 @@ const colors = {
   yellow: '\x1b[33m',
   blue: '\x1b[34m',
   gray: '\x1b[90m',
+  cyan: '\x1b[36m',
 };
+
+/**
+ * Format origin for display
+ */
+function formatOriginDisplay(origin: ServerOrigin | undefined): string {
+  if (!origin) return '';
+
+  switch (origin.type) {
+    case 'global':
+      return colorize('[global]', 'gray');
+    case 'project':
+      return colorize('[project]', 'gray');
+    case 'local':
+      return colorize('[.mcp.json]', 'gray');
+    case 'plugin':
+      return colorize(`[plugin: ${origin.pluginName}]`, 'cyan');
+  }
+}
 
 /**
  * Format text with color
@@ -26,12 +45,7 @@ export function colorize(text: string, color: keyof typeof colors): string {
 export function displayServerList(statuses: ServerStatus[]): void {
   if (statuses.length === 0) {
     console.log(colorize('No MCP servers configured.', 'yellow'));
-    console.log(
-      colorize(
-        '\nConfigure MCP servers in ~/.claude.json to get started.',
-        'gray'
-      )
-    );
+    console.log(colorize('\nConfigure MCP servers in ~/.claude.json to get started.', 'gray'));
     return;
   }
 
@@ -41,24 +55,22 @@ export function displayServerList(statuses: ServerStatus[]): void {
   if (enabled.length > 0) {
     console.log(colorize('\n✓ Enabled Servers:', 'bold'));
     enabled.forEach((server) => {
-      console.log(`  ${colorize('✓', 'green')} ${server.name}`);
+      const origin = formatOriginDisplay(server.origin);
+      console.log(`  ${colorize('✓', 'green')} ${server.name} ${origin}`);
     });
   }
 
   if (disabled.length > 0) {
     console.log(colorize('\n✗ Disabled Servers:', 'bold'));
     disabled.forEach((server) => {
+      const origin = formatOriginDisplay(server.origin);
       const source =
-        server.source === 'local'
-          ? colorize('(local)', 'gray')
-          : colorize('(global)', 'gray');
-      console.log(`  ${colorize('✗', 'red')} ${server.name} ${source}`);
+        server.source === 'local' ? colorize('(local)', 'gray') : colorize('(global)', 'gray');
+      console.log(`  ${colorize('✗', 'red')} ${server.name} ${origin} ${source}`);
     });
   }
 
-  console.log(
-    colorize(`\n${enabled.length} enabled, ${disabled.length} disabled`, 'gray')
-  );
+  console.log(colorize(`\n${enabled.length} enabled, ${disabled.length} disabled`, 'gray'));
 }
 
 /**
@@ -74,12 +86,8 @@ export function displayDetailedStatus(statuses: ServerStatus[]): void {
   console.log(colorize('─'.repeat(60), 'gray'));
 
   statuses.forEach((server) => {
-    const statusIcon = server.enabled
-      ? colorize('✓', 'green')
-      : colorize('✗', 'red');
-    const statusText = server.enabled
-      ? colorize('Enabled', 'green')
-      : colorize('Disabled', 'red');
+    const statusIcon = server.enabled ? colorize('✓', 'green') : colorize('✗', 'red');
+    const statusText = server.enabled ? colorize('Enabled', 'green') : colorize('Disabled', 'red');
 
     let sourceText = '';
     if (!server.enabled) {
@@ -89,7 +97,9 @@ export function displayDetailedStatus(statuses: ServerStatus[]): void {
           : colorize(' (global config)', 'gray');
     }
 
-    console.log(`${statusIcon} ${server.name}`);
+    const originText = server.origin ? ` ${formatOriginDisplay(server.origin)}` : '';
+
+    console.log(`${statusIcon} ${server.name}${originText}`);
     console.log(`   Status: ${statusText}${sourceText}`);
     console.log('');
   });
@@ -99,10 +109,7 @@ export function displayDetailedStatus(statuses: ServerStatus[]): void {
 
   console.log(colorize('─'.repeat(60), 'gray'));
   console.log(
-    colorize(
-      `Total: ${statuses.length} servers (${enabled} enabled, ${disabled} disabled)`,
-      'gray'
-    )
+    colorize(`Total: ${statuses.length} servers (${enabled} enabled, ${disabled} disabled)`, 'gray')
   );
 }
 
