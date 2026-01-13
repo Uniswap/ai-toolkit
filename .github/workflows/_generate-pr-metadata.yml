@@ -131,6 +131,16 @@ on:
         type: boolean
         default: true
 
+      plugin_ref:
+        description: |
+          Git ref (branch, tag, or SHA) of ai-toolkit to use for the
+          build-plugin-config composite action. Defaults to 'main'.
+
+          Use 'next' or a specific SHA to test unreleased changes.
+        required: false
+        type: string
+        default: "main"
+
     secrets:
       ANTHROPIC_API_KEY:
         description: "Anthropic API key for Claude access. Required unless CLAUDE_CODE_OAUTH_TOKEN is provided."
@@ -705,38 +715,13 @@ jobs:
           echo "CLAUDE_ARGS_EOF" >> $GITHUB_OUTPUT
           echo "✅ Configured allowed tools (${#ALLOWED_TOOLS} chars)"
 
-      # Build plugin configuration
-      # Uses Git URL for uniswap-ai-toolkit - the action handles cloning and installation
+      # Build plugin configuration using shared composite action
       - name: Build plugin configuration
         if: steps.cache-check.outputs.cache-hit != 'true'
         id: build-plugins
-        env:
-          INSTALL_UNISWAP_PLUGINS: ${{ inputs.install_uniswap_plugins }}
-        run: |
-          MARKETPLACES=""
-          PLUGINS=""
-
-          # Include uniswap-ai-toolkit marketplace via Git URL (unless opt-out is set)
-          if [[ "$INSTALL_UNISWAP_PLUGINS" != "false" ]]; then
-            echo "Including uniswap-ai-toolkit plugins from Git"
-            MARKETPLACES="https://github.com/Uniswap/ai-toolkit.git"
-            PLUGINS="development-planning@uniswap-ai-toolkit
-          development-pr-workflow@uniswap-ai-toolkit
-          development-codebase-tools@uniswap-ai-toolkit
-          development-productivity@uniswap-ai-toolkit
-          uniswap-integrations@uniswap-ai-toolkit"
-            echo "✅ Configured 5 plugins from uniswap-ai-toolkit"
-          else
-            echo "Skipping uniswap-ai-toolkit plugins (install_uniswap_plugins=false)"
-          fi
-          PLUGINS=$(echo -n "$PLUGINS" | sed '/^$/d')
-
-          echo "plugin_marketplaces=$MARKETPLACES" >> $GITHUB_OUTPUT
-          {
-            echo "plugins<<EOF"
-            echo "$PLUGINS"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@${{ inputs.plugin_ref }}
+        with:
+          install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
 
       # Run Claude Code Action to generate the metadata
       # Supports both API key and OAuth token authentication (OAuth takes precedence)

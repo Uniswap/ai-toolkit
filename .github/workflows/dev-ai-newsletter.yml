@@ -375,28 +375,13 @@ jobs:
           echo ""
           echo "=== All checks passed ==="
 
-      # Build plugin configuration
-      # Uses Git URL for uniswap-ai-toolkit - the action handles cloning and installation
+      # Build plugin configuration using shared composite action
+      # Note: dev-ai-newsletter always uses 'main' ref since it's an internal workflow
       - name: Build plugin configuration
         id: build-plugins
-        run: |
-          echo "Including uniswap-ai-toolkit plugins from Git"
-          MARKETPLACES="https://github.com/Uniswap/ai-toolkit.git"
-          PLUGINS="development-planning@uniswap-ai-toolkit
-          development-pr-workflow@uniswap-ai-toolkit
-          development-codebase-tools@uniswap-ai-toolkit
-          development-productivity@uniswap-ai-toolkit
-          uniswap-integrations@uniswap-ai-toolkit"
-          echo "✅ Configured 5 plugins from uniswap-ai-toolkit"
-
-          PLUGINS=$(echo -n "$PLUGINS" | sed '/^$/d')
-
-          echo "plugin_marketplaces=$MARKETPLACES" >> $GITHUB_OUTPUT
-          {
-            echo "plugins<<EOF"
-            echo "$PLUGINS"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main
+        with:
+          install_uniswap_plugins: 'true'
 
       # Run Claude Code with MCP servers
       - name: Generate newsletter with Claude

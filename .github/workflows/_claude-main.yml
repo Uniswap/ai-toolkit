@@ -255,6 +255,16 @@ on:
         type: boolean
         default: true
 
+      plugin_ref:
+        description: |
+          Git ref (branch, tag, or SHA) of ai-toolkit to use for the
+          build-plugin-config composite action. Defaults to 'main'.
+
+          Use 'next' or a specific SHA to test unreleased changes.
+        required: false
+        type: string
+        default: "main"
+
     secrets:
       ANTHROPIC_API_KEY:
         description: "Anthropic API key for Claude Code. Required unless CLAUDE_CODE_OAUTH_TOKEN is provided."
@@ -393,72 +403,14 @@ jobs:
           echo "$ARGS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      # Build plugin configuration
-      # Configures uniswap-ai-toolkit plugins via Git URL (if enabled) plus any additional plugins from inputs
+      # Build plugin configuration using shared composite action
       - name: Build plugin configuration
         id: build-plugins
-        env:
-          INSTALL_UNISWAP_PLUGINS: ${{ inputs.install_uniswap_plugins }}
-          EXTRA_MARKETPLACES: ${{ inputs.plugin_marketplaces }}
-          EXTRA_PLUGINS: ${{ inputs.plugins }}
-        run: |
-          MARKETPLACES=""
-          PLUGINS=""
-
-          # Include uniswap-ai-toolkit marketplace via Git URL (unless opt-out is set)
-          if [[ "$INSTALL_UNISWAP_PLUGINS" != "false" ]]; then
-            echo "Including uniswap-ai-toolkit plugins from Git"
-            MARKETPLACES="https://github.com/Uniswap/ai-toolkit.git"$'\n'
-            PLUGINS="development-planning@uniswap-ai-toolkit
-          development-pr-workflow@uniswap-ai-toolkit
-          development-codebase-tools@uniswap-ai-toolkit
-          development-productivity@uniswap-ai-toolkit
-          uniswap-integrations@uniswap-ai-toolkit"$'\n'
-          else
-            echo "Skipping uniswap-ai-toolkit plugins (install_uniswap_plugins=false)"
-          fi
-
-          # Add extra marketplaces from inputs
-          if [[ -n "$EXTRA_MARKETPLACES" ]]; then
-            MARKETPLACES="${MARKETPLACES}${EXTRA_MARKETPLACES}"$'\n'
-          fi
-
-          # Add extra plugins from inputs
-          if [[ -n "$EXTRA_PLUGINS" ]]; then
-            PLUGINS="${PLUGINS}${EXTRA_PLUGINS}"$'\n'
-          fi
-
-          # Trim trailing newlines and empty lines
-          MARKETPLACES=$(echo -n "$MARKETPLACES" | sed '/^$/d')
-          PLUGINS=$(echo -n "$PLUGINS" | sed '/^$/d')
-
-          # Output results
-          {
-            echo "plugin_marketplaces<<EOF"
-            echo "$MARKETPLACES"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
-
-          {
-            echo "plugins<<EOF"
-            echo "$PLUGINS"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
-
-          # Log configuration
-          if [[ -n "$MARKETPLACES" ]]; then
-            echo "Plugin marketplaces:"
-            echo "$MARKETPLACES" | while read -r line; do
-              [[ -n "$line" ]] && echo "  - $line"
-            done
-          fi
-
-          if [[ -n "$PLUGINS" ]]; then
-            echo "Plugins to install:"
-            echo "$PLUGINS" | while read -r line; do
-              [[ -n "$line" ]] && echo "  - $line"
-            done
-          fi
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@${{ inputs.plugin_ref }}
+        with:
+          install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+          plugin_marketplaces: ${{ inputs.plugin_marketplaces }}
+          plugins: ${{ inputs.plugins }}
 
       # Run Claude Code
       # Supports both API key and OAuth token authentication (validated in earlier step)
