@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Nx generator for installing optional add-on components to the AI Toolkit. Add-ons provide extended functionality like MCP servers, workflows, and integrations.
+Nx generator for installing optional MCP server add-ons to the AI Toolkit. These are MCP servers that are NOT bundled via plugins and require manual installation.
 
 ## Usage
 
@@ -11,12 +11,12 @@ Nx generator for installing optional add-on components to the AI Toolkit. Add-on
 npx nx generate @uniswap/ai-toolkit-nx-claude:addons
 
 # Install all addons
-npx nx generate @uniswap/ai-toolkit-nx-claude:addons --install-mode=all
+npx nx generate @uniswap/ai-toolkit-nx-claude:addons --selection-mode=all
 
 # Install specific addon
 npx nx generate @uniswap/ai-toolkit-nx-claude:addons \
-  --install-mode=specific \
-  --addon=spec-mcp-workflow
+  --selection-mode=specific \
+  --addons=slack-mcp
 ```
 
 ## Options
@@ -24,7 +24,7 @@ npx nx generate @uniswap/ai-toolkit-nx-claude:addons \
 ### Installation Control
 
 - `selectionMode` - Selection mode for which addons to install:
-  - `all` - Install all available addons
+  - `all` - Install all available addons (6 MCP servers)
   - `specific` - Choose specific addons to install
 - `addons` - Specific addons to install (when `selectionMode=specific`)
 - `installationType` - Installation location for MCP servers:
@@ -39,28 +39,53 @@ npx nx generate @uniswap/ai-toolkit-nx-claude:addons \
 
 ## Available Addons
 
-Registered in `addon-registry.ts`:
+Registered in `addon-registry.ts`. These 6 MCP servers are available for manual installation:
 
-### 1. spec-mcp-workflow
+### 1. slack-mcp
 
-**Purpose**: MCP server for spec-driven development workflows
+**Purpose**: Slack workspace integration for Claude Code
 
 **Features**:
 
-- Spec document management
-- Task orchestration
-- Approval workflows
-- Steering document integration
+- Send and receive Slack messages
+- Search channels and conversations
+- Manage workspace interactions
 
-**Setup File**: `spec-workflow-setup.ts`
+**Requires**: Slack Bot Token authentication
 
-**Installation**:
+### 2. github-mcp
 
-- Adds MCP server configuration to Claude config
-- Creates `.spec-workflow/` directory structure
-- Installs necessary dependencies
+**Purpose**: GitHub repository integration
 
-### 2. aws-log-analyzer
+**Features**:
+
+- Repository management
+- Issue and PR interactions
+- Code review capabilities
+
+**Requires**: GitHub Personal Access Token (can be obtained via `gh auth token`)
+
+### 3. figma-mcp
+
+**Purpose**: Figma design platform integration
+
+**Features**:
+
+- Access design files
+- Extract design components
+- Translate designs to code
+
+### 4. vercel-mcp
+
+**Purpose**: Vercel deployment platform integration
+
+**Features**:
+
+- Deployment management
+- Environment configuration
+- Project monitoring
+
+### 5. aws-log-analyzer-mcp
 
 **Purpose**: MCP server for AWS CloudWatch log analysis
 
@@ -75,28 +100,36 @@ Registered in `addon-registry.ts`:
 
 **Installation**:
 
+- Clones the AWS Log Analyzer repository
+- Installs Python dependencies with uv
 - Adds MCP server configuration
-- Prompts for AWS credentials
-- Creates necessary configuration files
 
-### 3. claude-mcp-installer
+**Requires**: AWS credentials with CloudWatchLogsReadOnlyAccess
 
-**Purpose**: Universal MCP server installer
+### 6. pulumi-mcp
+
+**Purpose**: Pulumi infrastructure as code integration
 
 **Features**:
 
-- Discover available MCP servers
-- Install from Claude MCP registry
-- Manage MCP server configurations
-- Auto-detect and configure servers
+- Infrastructure management
+- Resource state inspection
+- Deployment automation
 
-**Setup File**: `claude-mcp-installer.ts`
+**Requires**: Pulumi Personal Access Token (PAT)
 
-**Installation**:
+## Note on Plugin-Bundled MCP Servers
 
-- Interactive server selection
-- Auto-configuration with sensible defaults
-- Integration with existing Claude config
+The following MCP servers are **NOT** available via this addons generator because they are bundled via plugins:
+
+- **spec-workflow-mcp** - Available via development-planning plugin
+- **graphite-mcp** - Available via development-pr-workflow plugin
+- **nx-mcp** - Available via uniswap-integrations plugin
+- **notion-mcp** - Available via uniswap-integrations plugin
+- **linear-mcp** - Available via uniswap-integrations plugin
+- **chrome-devtools-mcp** - Available via development-productivity plugin
+
+To access these, install the corresponding plugin from the Claude Code Plugin Marketplace.
 
 ## Generator Flow
 
@@ -114,7 +147,7 @@ Registered in `addon-registry.ts`:
 3. **Installation**:
 
    - For each selected addon:
-     - Run addon's setup function
+     - Run addon's setup function (if any)
      - Install MCP server using `claude mcp add` with appropriate scope:
        - `--scope user` for global installation
        - `--scope project` for local installation
@@ -132,67 +165,37 @@ Registered in `addon-registry.ts`:
 - `schema.json` - Configuration schema with conditional prompting
 - `schema.d.ts` - TypeScript interface
 - `addon-registry.ts` - Registry of available addons
-- `*-setup.ts` - Individual addon setup implementations
+- `aws-log-analyzer-setup.ts` - AWS Log Analyzer setup implementation
+- `claude-mcp-installer.ts` - MCP server installation utilities
 
 ## Addon Registry
 
 The registry (`addon-registry.ts`) defines available addons:
 
 ```typescript
-export interface AddonDefinition {
+export interface McpServerAddon {
   id: string;
   name: string;
   description: string;
-  setupFunction: (tree: Tree, options: any) => Promise<void>;
-  dependencies?: string[];
+  mcp: {
+    command: string;
+    args: string[];
+    env?: Record<string, string>;
+  };
+  requirements?: string[];
 }
 
-export const addons: AddonDefinition[] = [
-  {
-    id: 'spec-mcp-workflow',
-    name: 'Spec MCP Workflow',
-    description: 'Spec-driven development with MCP server',
-    setupFunction: setupSpecWorkflow,
-  },
-  // ... more addons
-];
-```
-
-## Creating New Addons
-
-### Step 1: Create Setup File
-
-Create `{addon-name}-setup.ts`:
-
-```typescript
-export async function setupMyAddon(tree: Tree, options: AddonsGeneratorSchema): Promise<void> {
-  // 1. Validate prerequisites
-  // 2. Create configuration files
-  // 3. Update Claude config
-  // 4. Install dependencies
-  // 5. Provide usage instructions
+export function getAvailableAddons(): McpServerAddon[] {
+  return [
+    {
+      id: 'slack-mcp',
+      name: 'Slack MCP',
+      description: 'Slack workspace integration',
+      mcp: { command: 'npx', args: ['-y', '@anthropic/slack-mcp'] },
+    },
+    // ... more addons
+  ];
 }
-```
-
-### Step 2: Register in addon-registry.ts
-
-```typescript
-{
-  id: 'my-addon',
-  name: 'My Addon',
-  description: 'Description of what it does',
-  setupFunction: setupMyAddon,
-  dependencies: ['optional-deps']
-}
-```
-
-### Step 3: Test
-
-```bash
-npx nx generate @uniswap/ai-toolkit-nx-claude:addons \
-  --install-mode=specific \
-  --addon=my-addon \
-  --dry-run
 ```
 
 ## Integration with Init Generator
@@ -207,8 +210,6 @@ await addonsGenerator(tree, {
   installationType: normalizedOptions.installationType, // 'global' or 'local'
   force: false,
   skipVerification: false,
-  dashboardMode: 'always',
-  port: 0,
 });
 ```
 
@@ -234,11 +235,11 @@ Addons update `~/.claude/claude.json` (global) or `./.claude/claude.json` (local
 ```json
 {
   "mcpServers": {
-    "spec-workflow": {
-      "command": "node",
-      "args": ["/path/to/spec-workflow-server.js"],
+    "slack": {
+      "command": "npx",
+      "args": ["-y", "@anthropic/slack-mcp"],
       "env": {
-        "WORKSPACE_ROOT": "${workspaceFolder}"
+        "SLACK_BOT_TOKEN": "xoxb-..."
       }
     }
   }
@@ -249,7 +250,7 @@ Addons update `~/.claude/claude.json` (global) or `./.claude/claude.json` (local
 
 ### Addon Setup Functions
 
-All setup functions follow this pattern:
+For addons that require special setup (like aws-log-analyzer-mcp), create a setup file:
 
 1. **Validate Prerequisites**:
 
@@ -260,8 +261,8 @@ All setup functions follow this pattern:
 2. **File Operations**:
 
    - Create directories
-   - Generate configuration files
-   - Copy templates
+   - Clone repositories
+   - Install dependencies
 
 3. **Configuration Updates**:
 
@@ -290,7 +291,6 @@ try {
 ## Related Documentation
 
 - Parent package: `../../CLAUDE.md`
-- Init generator (caller): `../init/CLAUDE.md`
 - MCP server documentation: External links per addon
 
 ## Auto-Update Instructions

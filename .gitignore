@@ -69,6 +69,7 @@ apps/slack-oauth-backend/.env.local
 # Plans
 
 .collab-plans
+.plan
 
 # Enterprise docs (generated)
 docs/enterprise/README.md
