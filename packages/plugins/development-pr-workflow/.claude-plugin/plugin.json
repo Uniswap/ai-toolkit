@@ -20,8 +20,7 @@
   ],
   "commands": [
     "./commands/address-pr-issues.md",
-    "./commands/create-linear-task-and-pr-from-changes.md",
-    "./commands/git-worktree-orchestrator.md",
+    "./commands/linear-task-and-pr-from-changes.md",
     "./commands/review-pr.md",
     "./commands/work-through-pr-comments.md",
     "./skills/commit-message-generator/commit-message-generator.md",
