@@ -27,7 +27,7 @@ Parse arguments from `$ARGUMENTS`:
 | `--label`         | string  | No       | Linear label to apply.                                                                       |
 | `--due-date`      | string  | No       | Due date for the Linear task (e.g., "2024-01-15", "next friday").                            |
 | `--trunk`         | string  | No       | Target branch for PR / Graphite parent (e.g., "main", "develop"). Prompted if not provided.  |
-| `--worktree_base` | string  | No       | Branch to create the worktree FROM (e.g., "next", "main"). Defaults to current branch.       |
+| `--worktree_base` | string  | No       | Branch to create the worktree FROM (e.g., "next", "main"). Prompted if not provided.         |
 | `--branch-prefix` | string  | No       | Custom branch prefix (e.g., "feature", "fix"). Prompted if not provided.                     |
 | `--setup`         | string  | No       | Setup script to run after creating the worktree.                                             |
 | `--skip-setup`    | boolean | No       | Skip running any setup script.                                                               |
