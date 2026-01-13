@@ -15,7 +15,8 @@ notes: |
     - PRIORITY: Priority level (optional, will prompt if not set)
     - LABEL: Linear label to apply (optional)
     - BRANCH_PREFIX: Custom branch prefix (optional, will prompt if not set)
-    - TRUNK_BRANCH: Base branch for PR (optional, will prompt if not set)
+    - TRUNK_BRANCH: Target branch for PR / Graphite parent (optional, will prompt if not set)
+    - WORKTREE_BASE: Branch to create worktree FROM (optional, defaults to current branch if not set)
     - USE_GRAPHITE: Whether to use Graphite CLI (optional, will prompt if not set)
     - TASK_TITLE: Title for the Linear task (optional, may be auto-generated or user-provided)
     - DUE_DATE: Due date for the task (optional)
@@ -64,7 +65,8 @@ For any fields not already set from command-line arguments, prompt the user:
 | --------------- | -------- | --------------------------------------------------------------------------------------- |
 | Team            | Yes      | Linear team identifier. Options from `mcp__linear__list_teams`.                         |
 | Priority        | Yes      | Options: urgent, high, normal, low, none                                                |
-| Trunk Branch    | Yes      | Target branch for PR (e.g., "main", "develop")                                          |
+| Trunk Branch    | Yes      | Target branch for PR / Graphite parent (e.g., "main", "develop")                        |
+| Worktree Base   | No       | Branch to create worktree FROM (defaults to current branch if not specified)            |
 | Branch Prefix   | Yes      | Options: username (from LINEAR_USERNAME), feature/, fix/, chore/, or custom             |
 | Use Graphite    | Yes      | true = `gt submit`, false = `gh pr create`                                              |
 | Create Worktree | Yes      | true = isolated worktree, false = branch in current repo (if applicable to the command) |
@@ -86,9 +88,12 @@ AskUserQuestion with questions:
 - Team: "Which Linear team?" (options from teams list + "Other")
 - Priority: "Priority level?" (urgent/high/normal/low/none)
 - Trunk Branch: "Target branch for PR?" (main/develop/Other)
+- Worktree Base: "Create worktree from which branch?" (current branch/main/develop/Other)
 - Branch Prefix: "Branch prefix?" ({LINEAR_USERNAME}/feature/fix/chore/Custom)
 - Use Graphite: "PR creation method?" (Graphite CLI/GitHub CLI)
 ```
+
+**Note:** For "Worktree Base", show the current branch name as the first/recommended option. This determines which commits the new branch will include.
 
 ---
 
@@ -135,19 +140,20 @@ When creating the Linear task, map priority strings to numbers:
 
 After executing these instructions, the following variables will be available:
 
-| Variable          | Description                                         |
-| ----------------- | --------------------------------------------------- |
-| `TEAM`            | Selected Linear team identifier                     |
-| `PROJECT`         | Selected Linear project (or null if "None")         |
-| `PRIORITY`        | Selected priority level (string)                    |
-| `PRIORITY_NUMBER` | Priority as number for API call                     |
-| `LABEL`           | Selected label(s) (if any)                          |
-| `BRANCH_PREFIX`   | Selected branch prefix (e.g., "johndoe", "feature") |
-| `TRUNK_BRANCH`    | Target branch for PR                                |
-| `USE_GRAPHITE`    | Boolean - whether to use Graphite CLI               |
-| `LINEAR_USER_ID`  | Current user's Linear ID                            |
-| `LINEAR_USERNAME` | Current user's username (derived from display name) |
-| `DUE_DATE`        | Due date in ISO format (if provided)                |
+| Variable          | Description                                                 |
+| ----------------- | ----------------------------------------------------------- |
+| `TEAM`            | Selected Linear team identifier                             |
+| `PROJECT`         | Selected Linear project (or null if "None")                 |
+| `PRIORITY`        | Selected priority level (string)                            |
+| `PRIORITY_NUMBER` | Priority as number for API call                             |
+| `LABEL`           | Selected label(s) (if any)                                  |
+| `BRANCH_PREFIX`   | Selected branch prefix (e.g., "johndoe", "feature")         |
+| `TRUNK_BRANCH`    | Target branch for PR / Graphite parent                      |
+| `WORKTREE_BASE`   | Branch to create worktree from (defaults to current branch) |
+| `USE_GRAPHITE`    | Boolean - whether to use Graphite CLI                       |
+| `LINEAR_USER_ID`  | Current user's Linear ID                                    |
+| `LINEAR_USERNAME` | Current user's username (derived from display name)         |
+| `DUE_DATE`        | Due date in ISO format (if provided)                        |
 
 ---
 

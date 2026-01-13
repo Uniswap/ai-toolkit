@@ -26,7 +26,8 @@ Parse arguments from `$ARGUMENTS`:
 | `--priority`      | string  | No       | Priority level (urgent, high, normal, low, none). Prompted if not provided.                  |
 | `--label`         | string  | No       | Linear label to apply.                                                                       |
 | `--due-date`      | string  | No       | Due date for the Linear task (e.g., "2024-01-15", "next friday").                            |
-| `--trunk`         | string  | No       | Base branch for the worktree (e.g., "main", "develop"). Prompted if not provided.            |
+| `--trunk`         | string  | No       | Target branch for PR / Graphite parent (e.g., "main", "develop"). Prompted if not provided.  |
+| `--worktree_base` | string  | No       | Branch to create the worktree FROM (e.g., "next", "main"). Defaults to current branch.       |
 | `--branch-prefix` | string  | No       | Custom branch prefix (e.g., "feature", "fix"). Prompted if not provided.                     |
 | `--setup`         | string  | No       | Setup script to run after creating the worktree.                                             |
 | `--skip-setup`    | boolean | No       | Skip running any setup script.                                                               |
@@ -114,6 +115,7 @@ Follow the shared configuration collection instructions in `@../shared/linear-ta
 - `LABEL` from `--label` (if provided)
 - `BRANCH_PREFIX` from `--branch-prefix` (if provided)
 - `TRUNK_BRANCH` from `--trunk` (if provided)
+- `WORKTREE_BASE` from `--worktree_base` (if provided)
 - `DUE_DATE` from `--due-date` (if provided)
 
 **IMPORTANT: When prompting for branch prefix, the first option MUST be the user's personal namespace:**
@@ -230,6 +232,7 @@ SETUP_SCRIPT="${setup:-}"
 SKIP_SETUP="${skip_setup:-}"
 SKIP_GRAPHITE_TRACK="${skip_graphite:-}"
 TRUNK_BRANCH="${TRUNK_BRANCH}"
+WORKTREE_BASE="${WORKTREE_BASE}"  # Branch to create worktree FROM (start point)
 SKIP_INDEX_RESET=""
 ```
 
@@ -256,7 +259,9 @@ Display a summary of what was created:
 
 📁 Worktree: {WORKTREE_PATH}
 
-🌿 Branch: {BRANCH_NAME} → {TRUNK_BRANCH}
+🌿 Branch: {BRANCH_NAME}
+   Created from: {WORKTREE_BASE}
+   PR target: {TRUNK_BRANCH}
 
 ⚙️  Configuration:
    ✓ Claude settings copied
