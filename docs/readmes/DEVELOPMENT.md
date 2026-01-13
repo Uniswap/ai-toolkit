@@ -77,11 +77,11 @@ graph TD
 
 ### Package Types
 
-| Type             | Purpose             | Publishing       | Examples                        |
-| ---------------- | ------------------- | ---------------- | ------------------------------- |
-| **Applications** | User-facing tools   | Published        | `@uniswap/ai-toolkit-nx-claude` |
-| **Libraries**    | Shared code         | May be published | `@ai-toolkit/utils`             |
-| **Plugins**      | Claude Code plugins | Private          | `packages/plugins/*`            |
+| Type             | Purpose             | Publishing       | Examples                                |
+| ---------------- | ------------------- | ---------------- | --------------------------------------- |
+| **Applications** | User-facing tools   | Published        | `@uniswap/ai-toolkit-nx-claude`         |
+| **Libraries**    | Shared code         | May be published | `@uniswap/ai-toolkit-linear-task-utils` |
+| **Plugins**      | Claude Code plugins | Private          | `packages/plugins/*`                    |
 
 ### Package Anatomy
 

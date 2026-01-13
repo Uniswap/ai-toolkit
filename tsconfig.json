@@ -7,9 +7,6 @@
       "path": "./packages/ai-toolkit-nx-claude"
     },
     {
-      "path": "./packages/utils"
-    },
-    {
       "path": "./apps/slack-oauth-backend"
     },
     {

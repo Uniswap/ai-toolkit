@@ -451,7 +451,7 @@ directory_facts:
            - path: '/packages/core/CLAUDE.md'
              type: 'package'
              priority: 'high'
-           - path: '/packages/utils/CLAUDE.md'
+           - path: '/packages/linear-task-utils/CLAUDE.md'
              type: 'package'
              priority: 'high'
          rationale: 'Core packages that other packages depend on'
