@@ -114,6 +114,23 @@ on:
         type: string
         default: "description,title-suggestion"
 
+      install_uniswap_plugins:
+        description: |
+          Whether to install the uniswap-ai-toolkit plugins automatically.
+
+          When true (default): All 5 uniswap-ai-toolkit plugins are installed:
+          - development-planning
+          - development-pr-workflow
+          - development-codebase-tools
+          - development-productivity
+          - uniswap-integrations
+
+          When false: No uniswap plugins are installed. Use this if you want to
+          use only your own plugins via plugin_marketplaces and plugins inputs.
+        required: false
+        type: boolean
+        default: true
+
     secrets:
       ANTHROPIC_API_KEY:
         description: "Anthropic API key for Claude access. Required unless CLAUDE_CODE_OAUTH_TOKEN is provided."
@@ -690,7 +707,7 @@ jobs:
 
       # Setup Uniswap AI Toolkit plugins
       - name: Setup Uniswap AI Toolkit plugins
-        if: steps.cache-check.outputs.cache-hit != 'true'
+        if: inputs.install_uniswap_plugins != false && steps.cache-check.outputs.cache-hit != 'true'
         id: setup-uniswap-plugins
         env:
           TOOLKIT_REF: ${{ inputs.toolkit_ref }}
@@ -734,20 +751,29 @@ jobs:
       - name: Build plugin configuration
         if: steps.cache-check.outputs.cache-hit != 'true'
         id: build-plugins
+        env:
+          INSTALL_UNISWAP_PLUGINS: ${{ inputs.install_uniswap_plugins }}
         run: |
+          MARKETPLACES=""
           PLUGINS=""
+
+          # Include uniswap-ai-toolkit marketplace (unless opt-out is set)
           MARKETPLACE_FILE=".claude-plugin/marketplace.json"
-          if [[ -f "$MARKETPLACE_FILE" ]]; then
+          if [[ "$INSTALL_UNISWAP_PLUGINS" != "false" ]] && [[ -f "$MARKETPLACE_FILE" ]]; then
+            MARKETPLACES="./.claude-plugin"
             MARKETPLACE_NAME=$(jq -r '.name' "$MARKETPLACE_FILE")
             PLUGIN_COUNT=$(jq '.plugins | length' "$MARKETPLACE_FILE")
             for i in $(seq 0 $((PLUGIN_COUNT - 1))); do
               PLUGIN_NAME=$(jq -r ".plugins[$i].name" "$MARKETPLACE_FILE")
               PLUGINS="${PLUGINS}${PLUGIN_NAME}@${MARKETPLACE_NAME}"$'\n'
             done
+            echo "✅ Configured $PLUGIN_COUNT plugins from $MARKETPLACE_NAME"
+          elif [[ "$INSTALL_UNISWAP_PLUGINS" == "false" ]]; then
+            echo "Skipping uniswap-ai-toolkit plugins (install_uniswap_plugins=false)"
           fi
           PLUGINS=$(echo -n "$PLUGINS" | sed '/^$/d')
 
-          echo "plugin_marketplaces=./.claude-plugin" >> $GITHUB_OUTPUT
+          echo "plugin_marketplaces=$MARKETPLACES" >> $GITHUB_OUTPUT
           {
             echo "plugins<<EOF"
             echo "$PLUGINS"

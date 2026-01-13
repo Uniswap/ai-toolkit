@@ -118,10 +118,11 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 | `anthropic_api_key_secret_name` | No       | `ANTHROPIC_API_KEY`        | Name of the secret containing the Anthropic API key                 |
 | `plugin_marketplaces`           | No       | `""`                       | Additional marketplace paths (newline-separated, local or Git URLs) |
 | `plugins`                       | No       | `""`                       | Additional plugins to install (newline-separated)                   |
+| `install_uniswap_plugins`       | No       | `true`                     | Auto-install uniswap-ai-toolkit plugins (false to opt out)          |
 
 **Plugin Configuration:**
 
-All Uniswap AI Toolkit plugins are **automatically installed** for every workflow invocation. This includes:
+All Uniswap AI Toolkit plugins are **automatically installed** by default for every workflow invocation. This includes:
 
 - `development-planning` - Implementation planning & execution workflows
 - `development-pr-workflow` - PR management, review, & Graphite integration
@@ -134,7 +135,9 @@ All Uniswap AI Toolkit plugins are **automatically installed** for every workflo
 - When running from the ai-toolkit repository: Local plugins are used directly
 - When running from external repositories: Plugins are downloaded from `Uniswap/ai-toolkit` and installed automatically
 
-You can use the `plugin_marketplaces` and `plugins` inputs to install **additional** plugins beyond the default set.
+**Opt-out:** Set `install_uniswap_plugins: false` to disable automatic plugin installation. Use this when you want to use only your own plugins.
+
+You can use the `plugin_marketplaces` and `plugins` inputs to install **additional** plugins beyond the default set (or as the only plugins when `install_uniswap_plugins: false`).
 
 > **Note:** Plugin support requires claude-code-action v1.0.29+.
 
@@ -309,6 +312,7 @@ You must enable GitHub Actions to create and approve pull requests:
 | `max_diff_lines`                      | No       | `5000`                       | Maximum diff lines before skipping Claude review (PR considered too large)                                                     |
 | `allowed_tools`                       | No       | `""`                         | Comma-separated list of allowed tools for Claude                                                                               |
 | `toolkit_ref`                         | No       | `main`                       | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
+| `install_uniswap_plugins`             | No       | `true`                       | Auto-install uniswap-ai-toolkit plugins. Set to false to opt out and use only custom plugins.                                  |
 
 **Section Overrides (Granular Prompt Customization):**
 
@@ -722,13 +726,14 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 
 **Configuration:**
 
-| Input             | Default                    | Description                                  |
-| ----------------- | -------------------------- | -------------------------------------------- |
-| `model`           | `claude-opus-4-5-20251101` | Claude model to use                          |
-| `max_turns`       | `150`                      | Maximum conversation turns                   |
-| `debug_mode`      | `true`                     | Show full Claude output                      |
-| `timeout_minutes` | `60`                       | Job timeout                                  |
-| `pr_type`         | `draft`                    | Type of PR to create: "draft" or "published" |
+| Input                     | Default                    | Description                                     |
+| ------------------------- | -------------------------- | ----------------------------------------------- |
+| `model`                   | `claude-opus-4-5-20251101` | Claude model to use                             |
+| `max_turns`               | `150`                      | Maximum conversation turns                      |
+| `debug_mode`              | `true`                     | Show full Claude output                         |
+| `timeout_minutes`         | `60`                       | Job timeout                                     |
+| `pr_type`                 | `draft`                    | Type of PR to create: "draft" or "published"    |
+| `install_uniswap_plugins` | `true`                     | Auto-install uniswap plugins (false to opt out) |
 
 **Validation Behavior:**
 
@@ -840,14 +845,15 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 
 **Configuration:**
 
-| Input             | Default                      | Description                    |
-| ----------------- | ---------------------------- | ------------------------------ |
-| `branch_name`     | required                     | Branch to work on              |
-| `target_branch`   | `main`                       | Base branch for PR             |
-| `dry_run`         | `false`                      | Analyze only, skip PR creation |
-| `model`           | `claude-sonnet-4-5-20250929` | Claude model to use            |
-| `timeout_minutes` | `30`                         | Maximum execution time         |
-| `debug_mode`      | `true`                       | Show full Claude output        |
+| Input                     | Default                      | Description                                     |
+| ------------------------- | ---------------------------- | ----------------------------------------------- |
+| `branch_name`             | required                     | Branch to work on                               |
+| `target_branch`           | `main`                       | Base branch for PR                              |
+| `dry_run`                 | `false`                      | Analyze only, skip PR creation                  |
+| `model`                   | `claude-sonnet-4-5-20250929` | Claude model to use                             |
+| `timeout_minutes`         | `30`                         | Maximum execution time                          |
+| `debug_mode`              | `true`                       | Show full Claude output                         |
+| `install_uniswap_plugins` | `true`                       | Auto-install uniswap plugins (false to opt out) |
 
 **Example Transformation:**
 

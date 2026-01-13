@@ -214,11 +214,8 @@ on:
 
       plugin_marketplaces:
         description: |
-          Additional plugin marketplace paths beyond the default uniswap-ai-toolkit.
+          Additional plugin marketplace paths beyond uniswap-ai-toolkit (if enabled).
           Newline-separated list of local paths or Git URLs.
-
-          Note: The uniswap-ai-toolkit marketplace is ALWAYS installed automatically.
-          Use this input to add additional marketplaces from your repository.
 
           Example:
           plugin_marketplaces: |
@@ -230,11 +227,8 @@ on:
 
       plugins:
         description: |
-          Additional plugins to install beyond the default uniswap-ai-toolkit plugins.
+          Additional plugins to install beyond the uniswap-ai-toolkit plugins.
           Newline-separated list in 'plugin-name@marketplace-name' format.
-
-          Note: All uniswap-ai-toolkit plugins are ALWAYS installed automatically.
-          Use this input to add plugins from additional marketplaces.
 
           Example:
           plugins: |
@@ -243,6 +237,23 @@ on:
         required: false
         type: string
         default: ""
+
+      install_uniswap_plugins:
+        description: |
+          Whether to install the uniswap-ai-toolkit plugins automatically.
+
+          When true (default): All 5 uniswap-ai-toolkit plugins are installed:
+          - development-planning
+          - development-pr-workflow
+          - development-codebase-tools
+          - development-productivity
+          - uniswap-integrations
+
+          When false: No uniswap plugins are installed. Use this if you want to
+          use only your own plugins via plugin_marketplaces and plugins inputs.
+        required: false
+        type: boolean
+        default: true
 
     secrets:
       ANTHROPIC_API_KEY:
@@ -386,6 +397,7 @@ jobs:
       # Downloads marketplace and plugins from ai-toolkit for external repositories
       # This ensures all Claude Code sessions have access to the full plugin suite
       - name: Setup Uniswap AI Toolkit plugins
+        if: inputs.install_uniswap_plugins != false
         id: setup-uniswap-plugins
         env:
           TOOLKIT_REF: ${{ inputs.toolkit_ref }}
@@ -461,19 +473,20 @@ jobs:
           rm -rf "$WORK_DIR"
 
       # Build plugin configuration
-      # Configures uniswap-ai-toolkit plugins plus any additional plugins from inputs
+      # Configures uniswap-ai-toolkit plugins (if enabled) plus any additional plugins from inputs
       - name: Build plugin configuration
         id: build-plugins
         env:
+          INSTALL_UNISWAP_PLUGINS: ${{ inputs.install_uniswap_plugins }}
           EXTRA_MARKETPLACES: ${{ inputs.plugin_marketplaces }}
           EXTRA_PLUGINS: ${{ inputs.plugins }}
         run: |
           MARKETPLACES=""
           PLUGINS=""
 
-          # Always include uniswap-ai-toolkit marketplace
+          # Include uniswap-ai-toolkit marketplace (unless opt-out is set)
           MARKETPLACE_FILE=".claude-plugin/marketplace.json"
-          if [[ -f "$MARKETPLACE_FILE" ]]; then
+          if [[ "$INSTALL_UNISWAP_PLUGINS" != "false" ]] && [[ -f "$MARKETPLACE_FILE" ]]; then
             echo "Found marketplace: $MARKETPLACE_FILE"
 
             # Add the marketplace directory as a local path
@@ -492,6 +505,8 @@ jobs:
               PLUGINS="${PLUGINS}${PLUGIN_NAME}@${MARKETPLACE_NAME}"$'\n'
               echo "  - $PLUGIN_NAME@$MARKETPLACE_NAME"
             done
+          elif [[ "$INSTALL_UNISWAP_PLUGINS" == "false" ]]; then
+            echo "Skipping uniswap-ai-toolkit plugins (install_uniswap_plugins=false)"
           else
             echo "::warning::No marketplace found at $MARKETPLACE_FILE"
           fi
