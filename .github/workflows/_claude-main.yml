@@ -212,6 +212,51 @@ on:
         type: string
         default: "main"
 
+      install_local_plugins:
+        description: |
+          Whether to automatically install plugins from the local marketplace
+          (.claude-plugin/marketplace.json) in the checked-out repository.
+
+          When enabled, Claude will have access to all plugins defined in
+          the marketplace, including their skills, agents, and commands.
+
+          Default: false (for backward compatibility with external consumers)
+        required: false
+        type: boolean
+        default: false
+
+      plugin_marketplaces:
+        description: |
+          Additional plugin marketplace paths to install from.
+          Newline-separated list of local paths or Git URLs.
+
+          Local paths are relative to the repository root.
+          Git URLs should point to repositories containing marketplace.json.
+
+          Example:
+          plugin_marketplaces: |
+            ./custom-plugins
+            https://github.com/org/marketplace.git
+        required: false
+        type: string
+        default: ""
+
+      plugins:
+        description: |
+          Specific plugins to install from registered marketplaces.
+          Newline-separated list in 'plugin-name@marketplace-name' format.
+
+          The marketplace must be registered via plugin_marketplaces or
+          install_local_plugins must be enabled.
+
+          Example:
+          plugins: |
+            code-review@my-marketplace
+            pr-helper@my-marketplace
+        required: false
+        type: string
+        default: ""
+
     secrets:
       ANTHROPIC_API_KEY:
         description: "Anthropic API key for Claude Code. Required unless CLAUDE_CODE_OAUTH_TOKEN is provided."
@@ -350,11 +395,96 @@ jobs:
           echo "$ARGS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      # Build plugin configuration
+      # Handles both local marketplace auto-discovery and explicit plugin configuration
+      - name: Build plugin configuration
+        id: build-plugins
+        env:
+          INSTALL_LOCAL: ${{ inputs.install_local_plugins }}
+          EXTRA_MARKETPLACES: ${{ inputs.plugin_marketplaces }}
+          EXTRA_PLUGINS: ${{ inputs.plugins }}
+        run: |
+          MARKETPLACES=""
+          PLUGINS=""
+
+          # Check for local marketplace if install_local_plugins is enabled
+          if [[ "$INSTALL_LOCAL" == "true" ]]; then
+            MARKETPLACE_FILE=".claude-plugin/marketplace.json"
+            if [[ -f "$MARKETPLACE_FILE" ]]; then
+              echo "Found local marketplace: $MARKETPLACE_FILE"
+
+              # Add the marketplace directory as a local path
+              MARKETPLACES="./.claude-plugin"$'\n'
+
+              # Get marketplace name for plugin references
+              MARKETPLACE_NAME=$(jq -r '.name' "$MARKETPLACE_FILE")
+              echo "Marketplace name: $MARKETPLACE_NAME"
+
+              # Build plugins list from marketplace
+              PLUGIN_COUNT=$(jq '.plugins | length' "$MARKETPLACE_FILE")
+              echo "Found $PLUGIN_COUNT plugins in marketplace"
+
+              for i in $(seq 0 $((PLUGIN_COUNT - 1))); do
+                PLUGIN_NAME=$(jq -r ".plugins[$i].name" "$MARKETPLACE_FILE")
+                PLUGINS="${PLUGINS}${PLUGIN_NAME}@${MARKETPLACE_NAME}"$'\n'
+                echo "  - $PLUGIN_NAME@$MARKETPLACE_NAME"
+              done
+            else
+              echo "::warning::install_local_plugins is true but no marketplace found at $MARKETPLACE_FILE"
+            fi
+          fi
+
+          # Add extra marketplaces
+          if [[ -n "$EXTRA_MARKETPLACES" ]]; then
+            MARKETPLACES="${MARKETPLACES}${EXTRA_MARKETPLACES}"$'\n'
+          fi
+
+          # Add extra plugins
+          if [[ -n "$EXTRA_PLUGINS" ]]; then
+            PLUGINS="${PLUGINS}${EXTRA_PLUGINS}"$'\n'
+          fi
+
+          # Trim trailing newlines
+          MARKETPLACES=$(echo -n "$MARKETPLACES" | sed '/^$/d')
+          PLUGINS=$(echo -n "$PLUGINS" | sed '/^$/d')
+
+          # Output results
+          {
+            echo "plugin_marketplaces<<EOF"
+            echo "$MARKETPLACES"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+          {
+            echo "plugins<<EOF"
+            echo "$PLUGINS"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+          # Log configuration
+          if [[ -n "$MARKETPLACES" ]]; then
+            echo "Plugin marketplaces configured:"
+            echo "$MARKETPLACES" | while read -r line; do
+              [[ -n "$line" ]] && echo "  - $line"
+            done
+          else
+            echo "No plugin marketplaces configured"
+          fi
+
+          if [[ -n "$PLUGINS" ]]; then
+            echo "Plugins to install:"
+            echo "$PLUGINS" | while read -r line; do
+              [[ -n "$line" ]] && echo "  - $line"
+            done
+          else
+            echo "No plugins configured"
+          fi
+
       # Run Claude Code
       # Supports both API key and OAuth token authentication (validated in earlier step)
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@a7e4c51380c42dd89b127f5e5f9be7b54020bc6b # v1.0.21
+        uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71 # v1.0.29
         with:
           # Authentication: provide either API key or OAuth token (validated in earlier step)
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -362,6 +492,9 @@ jobs:
           prompt: ${{ inputs.prompt }}
           claude_args: ${{ steps.build-args.outputs.claude_args }}
           settings: ${{ inputs.settings }}
+          # Plugin configuration (requires claude-code-action v1.0.28+)
+          plugin_marketplaces: ${{ steps.build-plugins.outputs.plugin_marketplaces }}
+          plugins: ${{ steps.build-plugins.outputs.plugins }}
           additional_permissions: |
             actions: read
 
