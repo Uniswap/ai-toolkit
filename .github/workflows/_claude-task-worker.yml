@@ -453,50 +453,8 @@ jobs:
             echo "::warning::Consider breaking into smaller, more focused tasks"
           fi
 
-      # Setup Uniswap AI Toolkit plugins
-      # Downloads marketplace and plugins from ai-toolkit for external repositories
-      - name: Setup Uniswap AI Toolkit plugins
-        if: inputs.install_uniswap_plugins != false
-        id: setup-uniswap-plugins
-        env:
-          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-
-          if [ "$GITHUB_REPOSITORY" = "Uniswap/ai-toolkit" ]; then
-            echo "ℹ️  Running from ai-toolkit - using local plugins"
-            exit 0
-          fi
-
-          echo "ℹ️  Downloading plugins from Uniswap/ai-toolkit@${TOOLKIT_REF}"
-          WORK_DIR=$(mktemp -d)
-          cd "$WORK_DIR"
-
-          curl -fSsL --max-time 60 \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -o ai-toolkit.tar.gz \
-            "https://api.github.com/repos/Uniswap/ai-toolkit/tarball/${TOOLKIT_REF}"
-
-          tar -xzf ai-toolkit.tar.gz
-          EXTRACTED_DIR=$(ls -d Uniswap-ai-toolkit-* | head -1)
-
-          mkdir -p "${GITHUB_WORKSPACE}/.claude-plugin"
-          cp "${EXTRACTED_DIR}/.claude-plugin/marketplace.json" "${GITHUB_WORKSPACE}/.claude-plugin/"
-
-          mkdir -p "${GITHUB_WORKSPACE}/packages/plugins"
-          for plugin_dir in "${EXTRACTED_DIR}"/packages/plugins/*/; do
-            cp -r "$plugin_dir" "${GITHUB_WORKSPACE}/packages/plugins/"
-          done
-
-          PLUGIN_COUNT=$(jq '.plugins | length' "${GITHUB_WORKSPACE}/.claude-plugin/marketplace.json")
-          echo "✅ Setup complete: $PLUGIN_COUNT plugins installed"
-
-          cd "${GITHUB_WORKSPACE}"
-          rm -rf "$WORK_DIR"
-
       # Build plugin configuration
+      # Uses Git URL for uniswap-ai-toolkit - the action handles cloning and installation
       - name: Build plugin configuration
         id: build-plugins
         env:
@@ -505,18 +463,17 @@ jobs:
           MARKETPLACES=""
           PLUGINS=""
 
-          # Include uniswap-ai-toolkit marketplace (unless opt-out is set)
-          MARKETPLACE_FILE=".claude-plugin/marketplace.json"
-          if [[ "$INSTALL_UNISWAP_PLUGINS" != "false" ]] && [[ -f "$MARKETPLACE_FILE" ]]; then
-            MARKETPLACES="./.claude-plugin"
-            MARKETPLACE_NAME=$(jq -r '.name' "$MARKETPLACE_FILE")
-            PLUGIN_COUNT=$(jq '.plugins | length' "$MARKETPLACE_FILE")
-            for i in $(seq 0 $((PLUGIN_COUNT - 1))); do
-              PLUGIN_NAME=$(jq -r ".plugins[$i].name" "$MARKETPLACE_FILE")
-              PLUGINS="${PLUGINS}${PLUGIN_NAME}@${MARKETPLACE_NAME}"$'\n'
-            done
-            echo "✅ Configured $PLUGIN_COUNT plugins from $MARKETPLACE_NAME"
-          elif [[ "$INSTALL_UNISWAP_PLUGINS" == "false" ]]; then
+          # Include uniswap-ai-toolkit marketplace via Git URL (unless opt-out is set)
+          if [[ "$INSTALL_UNISWAP_PLUGINS" != "false" ]]; then
+            echo "Including uniswap-ai-toolkit plugins from Git"
+            MARKETPLACES="https://github.com/Uniswap/ai-toolkit.git"
+            PLUGINS="development-planning@uniswap-ai-toolkit
+          development-pr-workflow@uniswap-ai-toolkit
+          development-codebase-tools@uniswap-ai-toolkit
+          development-productivity@uniswap-ai-toolkit
+          uniswap-integrations@uniswap-ai-toolkit"
+            echo "✅ Configured 5 plugins from uniswap-ai-toolkit"
+          else
             echo "Skipping uniswap-ai-toolkit plugins (install_uniswap_plugins=false)"
           fi
           PLUGINS=$(echo -n "$PLUGINS" | sed '/^$/d')

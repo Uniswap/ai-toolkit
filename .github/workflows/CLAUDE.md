@@ -132,8 +132,7 @@ All Uniswap AI Toolkit plugins are **automatically installed** by default for ev
 
 **How it works:**
 
-- When running from the ai-toolkit repository: Local plugins are used directly
-- When running from external repositories: Plugins are downloaded from `Uniswap/ai-toolkit` and installed automatically
+The workflows pass the Git URL `https://github.com/Uniswap/ai-toolkit.git` to the `plugin_marketplaces` input, and the claude-code-action handles cloning and installing the plugins automatically.
 
 **Opt-out:** Set `install_uniswap_plugins: false` to disable automatic plugin installation. Use this when you want to use only your own plugins.
 

@@ -393,87 +393,8 @@ jobs:
           echo "$ARGS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      # Setup Uniswap AI Toolkit plugins
-      # Downloads marketplace and plugins from ai-toolkit for external repositories
-      # This ensures all Claude Code sessions have access to the full plugin suite
-      - name: Setup Uniswap AI Toolkit plugins
-        if: inputs.install_uniswap_plugins != false
-        id: setup-uniswap-plugins
-        env:
-          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-
-          # Check if we're running from the ai-toolkit repository
-          if [ "$GITHUB_REPOSITORY" = "Uniswap/ai-toolkit" ]; then
-            echo "ℹ️  Running from ai-toolkit - using local plugins"
-            echo "use_local=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          echo "ℹ️  Running from external repository - downloading plugins from Uniswap/ai-toolkit@${TOOLKIT_REF}"
-          echo "use_local=false" >> $GITHUB_OUTPUT
-
-          # Create temporary directory for download
-          WORK_DIR=$(mktemp -d)
-          cd "$WORK_DIR"
-
-          # Download repository tarball
-          echo "📦 Downloading ai-toolkit tarball..."
-          TARBALL_URL="https://api.github.com/repos/Uniswap/ai-toolkit/tarball/${TOOLKIT_REF}"
-
-          if ! curl -fSsL --max-time 60 \
-                    -H "Accept: application/vnd.github+json" \
-                    -H "Authorization: Bearer $GITHUB_TOKEN" \
-                    -o ai-toolkit.tar.gz \
-                    "$TARBALL_URL" 2>&1; then
-            echo "::error::Failed to download ai-toolkit tarball from ${TOOLKIT_REF}"
-            exit 1
-          fi
-
-          # Extract tarball
-          echo "📂 Extracting tarball..."
-          tar -xzf ai-toolkit.tar.gz
-          EXTRACTED_DIR=$(ls -d Uniswap-ai-toolkit-* | head -1)
-
-          if [ -z "$EXTRACTED_DIR" ]; then
-            echo "::error::Failed to find extracted directory"
-            exit 1
-          fi
-
-          # Copy marketplace to workspace
-          DEST_MARKETPLACE="${GITHUB_WORKSPACE}/.claude-plugin"
-          mkdir -p "$DEST_MARKETPLACE"
-
-          if [ -f "${EXTRACTED_DIR}/.claude-plugin/marketplace.json" ]; then
-            cp "${EXTRACTED_DIR}/.claude-plugin/marketplace.json" "$DEST_MARKETPLACE/"
-            echo "✅ Copied marketplace.json"
-          else
-            echo "::error::marketplace.json not found in ai-toolkit"
-            exit 1
-          fi
-
-          # Copy plugin directories
-          DEST_PLUGINS="${GITHUB_WORKSPACE}/packages/plugins"
-          mkdir -p "$DEST_PLUGINS"
-
-          for plugin_dir in "${EXTRACTED_DIR}"/packages/plugins/*/; do
-            plugin_name=$(basename "$plugin_dir")
-            echo "📁 Copying plugin: $plugin_name"
-            cp -r "$plugin_dir" "$DEST_PLUGINS/"
-          done
-
-          # Verify plugin structure
-          PLUGIN_COUNT=$(jq '.plugins | length' "$DEST_MARKETPLACE/marketplace.json")
-          echo "✅ Setup complete: $PLUGIN_COUNT plugins installed"
-
-          # Cleanup
-          cd "${GITHUB_WORKSPACE}"
-          rm -rf "$WORK_DIR"
-
       # Build plugin configuration
-      # Configures uniswap-ai-toolkit plugins (if enabled) plus any additional plugins from inputs
+      # Configures uniswap-ai-toolkit plugins via Git URL (if enabled) plus any additional plugins from inputs
       - name: Build plugin configuration
         id: build-plugins
         env:
@@ -484,31 +405,17 @@ jobs:
           MARKETPLACES=""
           PLUGINS=""
 
-          # Include uniswap-ai-toolkit marketplace (unless opt-out is set)
-          MARKETPLACE_FILE=".claude-plugin/marketplace.json"
-          if [[ "$INSTALL_UNISWAP_PLUGINS" != "false" ]] && [[ -f "$MARKETPLACE_FILE" ]]; then
-            echo "Found marketplace: $MARKETPLACE_FILE"
-
-            # Add the marketplace directory as a local path
-            MARKETPLACES="./.claude-plugin"$'\n'
-
-            # Get marketplace name for plugin references
-            MARKETPLACE_NAME=$(jq -r '.name' "$MARKETPLACE_FILE")
-            echo "Marketplace name: $MARKETPLACE_NAME"
-
-            # Build plugins list from marketplace
-            PLUGIN_COUNT=$(jq '.plugins | length' "$MARKETPLACE_FILE")
-            echo "Found $PLUGIN_COUNT plugins in marketplace"
-
-            for i in $(seq 0 $((PLUGIN_COUNT - 1))); do
-              PLUGIN_NAME=$(jq -r ".plugins[$i].name" "$MARKETPLACE_FILE")
-              PLUGINS="${PLUGINS}${PLUGIN_NAME}@${MARKETPLACE_NAME}"$'\n'
-              echo "  - $PLUGIN_NAME@$MARKETPLACE_NAME"
-            done
-          elif [[ "$INSTALL_UNISWAP_PLUGINS" == "false" ]]; then
-            echo "Skipping uniswap-ai-toolkit plugins (install_uniswap_plugins=false)"
+          # Include uniswap-ai-toolkit marketplace via Git URL (unless opt-out is set)
+          if [[ "$INSTALL_UNISWAP_PLUGINS" != "false" ]]; then
+            echo "Including uniswap-ai-toolkit plugins from Git"
+            MARKETPLACES="https://github.com/Uniswap/ai-toolkit.git"$'\n'
+            PLUGINS="development-planning@uniswap-ai-toolkit
+          development-pr-workflow@uniswap-ai-toolkit
+          development-codebase-tools@uniswap-ai-toolkit
+          development-productivity@uniswap-ai-toolkit
+          uniswap-integrations@uniswap-ai-toolkit"$'\n'
           else
-            echo "::warning::No marketplace found at $MARKETPLACE_FILE"
+            echo "Skipping uniswap-ai-toolkit plugins (install_uniswap_plugins=false)"
           fi
 
           # Add extra marketplaces from inputs
@@ -521,7 +428,7 @@ jobs:
             PLUGINS="${PLUGINS}${EXTRA_PLUGINS}"$'\n'
           fi
 
-          # Trim trailing newlines
+          # Trim trailing newlines and empty lines
           MARKETPLACES=$(echo -n "$MARKETPLACES" | sed '/^$/d')
           PLUGINS=$(echo -n "$PLUGINS" | sed '/^$/d')
 
@@ -540,12 +447,10 @@ jobs:
 
           # Log configuration
           if [[ -n "$MARKETPLACES" ]]; then
-            echo "Plugin marketplaces configured:"
+            echo "Plugin marketplaces:"
             echo "$MARKETPLACES" | while read -r line; do
               [[ -n "$line" ]] && echo "  - $line"
             done
-          else
-            echo "No plugin marketplaces configured"
           fi
 
           if [[ -n "$PLUGINS" ]]; then
@@ -553,8 +458,6 @@ jobs:
             echo "$PLUGINS" | while read -r line; do
               [[ -n "$line" ]] && echo "  - $line"
             done
-          else
-            echo "No plugins configured"
           fi
 
       # Run Claude Code
