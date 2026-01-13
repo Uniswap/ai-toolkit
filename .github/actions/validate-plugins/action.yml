@@ -58,9 +58,6 @@ runs:
         TOTAL_WARNINGS=0
         RESULTS="[]"
 
-        # Get the directory containing marketplace.json
-        MARKETPLACE_DIR=$(dirname "$MARKETPLACE_PATH")
-
         # Iterate over each plugin
         for i in $(seq 0 $((PLUGINS_COUNT - 1))); do
           PLUGIN_NAME=$(jq -r ".plugins[$i].name" "$MARKETPLACE_PATH")

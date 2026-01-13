@@ -2,7 +2,6 @@
 import { MultiSelect } from 'enquirer';
 import {
   getAllServerStatuses,
-  getAvailableServers,
   getServersWithOrigins,
   hasMcpServers,
   type ServerInfo,
@@ -79,8 +78,10 @@ export async function interactiveCommand(): Promise<void> {
     return;
   }
 
-  const servers = getAvailableServers();
   const serversWithOrigins = getServersWithOrigins();
+  // Derive server names from serversWithOrigins instead of calling getAvailableServers()
+  // to avoid reading configuration files twice
+  const servers = serversWithOrigins.map((s) => s.name);
   const statuses = getAllServerStatuses();
   const groupedServers = groupServersByOrigin(serversWithOrigins);
 

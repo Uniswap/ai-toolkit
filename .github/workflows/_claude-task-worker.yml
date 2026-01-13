@@ -143,10 +143,9 @@ on:
 
       plugin_ref:
         description: |
-          Git ref (branch, tag, or SHA) of ai-toolkit to use for the
-          build-plugin-config composite action. Defaults to 'main'.
-
-          Use 'next' or a specific SHA to test unreleased changes.
+          Git ref of ai-toolkit to use for the build-plugin-config composite
+          action. Must be 'main' (stable) or 'next' (pre-release). Defaults to
+          'main'.
         required: false
         type: string
         default: "main"
@@ -464,9 +463,19 @@ jobs:
           fi
 
       # Build plugin configuration using shared composite action
-      - name: Build plugin configuration
-        id: build-plugins
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@${{ inputs.plugin_ref }}
+      # Note: GitHub Actions requires static refs in 'uses:', so we use conditional
+      # steps instead of dynamic interpolation for security and predictability.
+      - name: Build plugin configuration (main)
+        if: inputs.plugin_ref == 'main' || inputs.plugin_ref == ''
+        id: build-plugins-main
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main
+        with:
+          install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+
+      - name: Build plugin configuration (next)
+        if: inputs.plugin_ref == 'next'
+        id: build-plugins-next
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
 
@@ -485,8 +494,9 @@ jobs:
             --max-turns 150
             --dangerously-skip-permissions
             --mcp-config '{"mcpServers":{"linear":{"command":"npx","args":["-y","linear-mcp-server"],"env":{"LINEAR_API_KEY":"${{ secrets.LINEAR_API_KEY }}"}}}}'
-          plugin_marketplaces: ${{ steps.build-plugins.outputs.plugin_marketplaces }}
-          plugins: ${{ steps.build-plugins.outputs.plugins }}
+          # Coalesce outputs from conditional steps (only one will have run)
+          plugin_marketplaces: ${{ steps.build-plugins-main.outputs.plugin_marketplaces || steps.build-plugins-next.outputs.plugin_marketplaces }}
+          plugins: ${{ steps.build-plugins-main.outputs.plugins || steps.build-plugins-next.outputs.plugins }}
           additional_permissions: |
             actions: read
 
