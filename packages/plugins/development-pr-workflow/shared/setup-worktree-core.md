@@ -22,8 +22,8 @@ arguments:
     description: Target branch for PR / Graphite parent. Required when graphite tracking is enabled (no default).
   - name: worktree_base
     type: string
-    required: false
-    description: Branch to create the worktree FROM (start point). Defaults to current branch if not specified.
+    required: true
+    description: Branch to create the worktree FROM (start point). Required - always prompted if not specified.
   - name: skip_graphite
     type: boolean
     required: false
@@ -45,7 +45,7 @@ notes: |
     - SKIP_SETUP: Set to "true" to skip setup script entirely (optional)
     - SKIP_GRAPHITE_TRACK: Set to "true" to skip Graphite tracking (optional)
     - TRUNK_BRANCH: Target branch for PR / Graphite parent (required when graphite enabled, no default)
-    - WORKTREE_BASE: Branch to create worktree FROM (optional, defaults to current branch/HEAD)
+    - WORKTREE_BASE: Branch to create worktree FROM (required - always prompted if not provided)
     - SKIP_INDEX_RESET: Set to "true" to skip git index reset (optional)
 ---
 
@@ -121,16 +121,14 @@ fi
 Determine branch existence and create the worktree with the appropriate strategy:
 
 ```bash
-# Determine the start point for the new branch
-# If WORKTREE_BASE is set, use it; otherwise default to HEAD (current branch)
-if [[ -n "${WORKTREE_BASE:-}" ]]; then
-  START_POINT="$WORKTREE_BASE"
-  echo "Creating worktree from branch: $WORKTREE_BASE"
-else
-  START_POINT="HEAD"
-  CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-  echo "Creating worktree from current branch: $CURRENT_BRANCH"
+# Validate WORKTREE_BASE is provided (required - should always be prompted for)
+if [[ -z "${WORKTREE_BASE:-}" ]]; then
+  echo "Error: WORKTREE_BASE is required. Please specify which branch to create the worktree from."
+  exit 1
 fi
+
+START_POINT="$WORKTREE_BASE"
+echo "Creating worktree from branch: $WORKTREE_BASE"
 
 # Determine branch existence and create the worktree
 if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
@@ -318,17 +316,17 @@ fi
 
 After executing these instructions, the following variables will be available:
 
-| Variable              | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `REPO_ROOT`           | Path to the main repository root                             |
-| `WORKTREES_DIR`       | Path to the worktrees directory                              |
-| `NEW_DIR`             | Full path to the newly created worktree                      |
-| `BRANCH_NAME`         | The branch name (input variable)                             |
-| `WORKTREE_BASE`       | The branch the worktree was created from (input or default)  |
-| `START_POINT`         | The actual git ref used as start point (branch name or HEAD) |
-| `TRUNK_BRANCH`        | The target branch for PR / Graphite parent (if applicable)   |
-| `SETUP_SCRIPT`        | The setup script that was run (if any)                       |
-| `SETUP_AUTO_DETECTED` | "true" if setup script was auto-detected from lockfile       |
+| Variable              | Description                                                    |
+| --------------------- | -------------------------------------------------------------- |
+| `REPO_ROOT`           | Path to the main repository root                               |
+| `WORKTREES_DIR`       | Path to the worktrees directory                                |
+| `NEW_DIR`             | Full path to the newly created worktree                        |
+| `BRANCH_NAME`         | The branch name (input variable)                               |
+| `WORKTREE_BASE`       | The branch the worktree was created from (required input)      |
+| `START_POINT`         | The actual git ref used as start point (same as WORKTREE_BASE) |
+| `TRUNK_BRANCH`        | The target branch for PR / Graphite parent (if applicable)     |
+| `SETUP_SCRIPT`        | The setup script that was run (if any)                         |
+| `SETUP_AUTO_DETECTED` | "true" if setup script was auto-detected from lockfile         |
 
 ---
 
@@ -341,7 +339,7 @@ echo ""
 echo "Worktree Configuration Summary:"
 echo "  Location: $NEW_DIR"
 echo "  Branch: $BRANCH_NAME"
-echo "  Created from: ${WORKTREE_BASE:-$(git rev-parse --abbrev-ref HEAD)} ($START_POINT)"
+echo "  Created from: $WORKTREE_BASE"
 [[ -f "$NEW_DIR/.claude/settings.local.json" ]] && echo "  Claude settings: copied" || echo "  Claude settings: skipped"
 [[ "${SKIP_GRAPHITE_TRACK:-}" != "true" ]] && echo "  Graphite tracking: $BRANCH_NAME → $TRUNK_BRANCH (parent)" || echo "  Graphite tracking: skipped"
 if [[ "${SKIP_SETUP:-}" != "true" ]] && [[ -n "${SETUP_SCRIPT:-}" ]]; then
