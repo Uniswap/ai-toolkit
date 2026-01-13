@@ -16,11 +16,6 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "es2022",
-    "baseUrl": ".",
-    "paths": {
-      "@ai-toolkit/commands-agnostic": ["packages/commands/agnostic/src/index.ts"],
-      "@ai-toolkit/utils": ["packages/utils/src/index.ts"]
-    },
     "customConditions": ["@ai-toolkit/source"]
   }
 }
