@@ -93,6 +93,8 @@ jobs:
       max_issues: ${{ inputs.max_issues || '3' }}
       linear_task_utils_tag: ${{ inputs.linear_task_utils_tag || 'next' }}
       target_branch: ${{ inputs.target_branch || 'next' }}
+      # Use 'next' branch for plugin configuration (testing pre-release)
+      plugin_ref: 'next'
     secrets:
       LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
 
