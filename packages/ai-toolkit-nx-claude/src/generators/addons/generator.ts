@@ -56,8 +56,6 @@ export default async function generator(tree: Tree, schema: AddonsGeneratorSchem
       selectionMode: schema.selectionMode || 'all',
       force: schema.force || false,
       skipVerification: schema.skipVerification || false,
-      dashboardMode: schema.dashboardMode || 'always',
-      port: schema.port || 0,
       dry: schema.dry || false,
       installMode: 'default',
       installationType: schema.installationType || 'global',

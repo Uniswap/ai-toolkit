@@ -43,24 +43,6 @@
       "prompt-type": "multiselect",
       "prompt-message": "🔌 Select MCP servers to install"
     },
-    "dashboardMode": {
-      "type": "string",
-      "description": "Dashboard startup mode",
-      "enum": ["always", "manual"],
-      "default": "always",
-      "prompt-message": "📊 When should the spec-workflow dashboard start?",
-      "prompt-type": "select",
-      "prompt-items": [
-        { "value": "always", "label": "Always (auto-start on Claude launch)" },
-        { "value": "manual", "label": "Manual (start via command only)" }
-      ]
-    },
-    "port": {
-      "type": "number",
-      "description": "Dashboard port (default: auto)",
-      "default": 0,
-      "prompt-message": "🔌 Dashboard port (0 for auto)"
-    },
     "force": {
       "type": "boolean",
       "description": "Force installation even if already exists",
@@ -70,11 +52,6 @@
       "type": "boolean",
       "description": "Skip installation verification",
       "default": false
-    },
-    "projectPath": {
-      "type": "string",
-      "description": "Path to the project where spec-workflow should be installed",
-      "x-skip-prompt": true
     },
     "dry": {
       "type": "boolean",
