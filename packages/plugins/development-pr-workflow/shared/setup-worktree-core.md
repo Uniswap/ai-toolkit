@@ -19,7 +19,11 @@ arguments:
   - name: trunk
     type: string
     required: false
-    description: Base branch for Graphite tracking. Required when graphite tracking is enabled (no default).
+    description: Target branch for PR / Graphite parent. Required when graphite tracking is enabled (no default).
+  - name: worktree_base
+    type: string
+    required: true
+    description: Branch to create the worktree FROM (start point). Required - always prompted if not specified.
   - name: skip_graphite
     type: boolean
     required: false
@@ -40,7 +44,8 @@ notes: |
     - SETUP_SCRIPT: Script/command to run after worktree creation (optional, auto-detects package manager if not set)
     - SKIP_SETUP: Set to "true" to skip setup script entirely (optional)
     - SKIP_GRAPHITE_TRACK: Set to "true" to skip Graphite tracking (optional)
-    - TRUNK_BRANCH: Base branch for Graphite (required when graphite enabled, no default)
+    - TRUNK_BRANCH: Target branch for PR / Graphite parent (required when graphite enabled, no default)
+    - WORKTREE_BASE: Branch to create worktree FROM (required - always prompted if not provided)
     - SKIP_INDEX_RESET: Set to "true" to skip git index reset (optional)
 ---
 
@@ -116,16 +121,27 @@ fi
 Determine branch existence and create the worktree with the appropriate strategy:
 
 ```bash
+# Validate WORKTREE_BASE is provided (required - should always be prompted for)
+if [[ -z "${WORKTREE_BASE:-}" ]]; then
+  echo "Error: WORKTREE_BASE is required. Please specify which branch to create the worktree from."
+  exit 1
+fi
+
+START_POINT="$WORKTREE_BASE"
+echo "Creating worktree from branch: $WORKTREE_BASE"
+
 # Determine branch existence and create the worktree
 if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
   # Local branch exists - just add worktree pointing to it
+  echo "Note: Branch '$BRANCH_NAME' already exists locally. Using existing branch."
   git worktree add "$NEW_DIR" "$BRANCH_NAME"
 elif git ls-remote --exit-code --heads origin "$BRANCH_NAME" >/dev/null 2>&1; then
   # Remote branch exists - create local tracking branch from it
+  echo "Note: Branch '$BRANCH_NAME' exists on remote. Creating tracking branch."
   git worktree add -b "$BRANCH_NAME" "$NEW_DIR" "origin/$BRANCH_NAME"
 else
-  # Brand-new branch off current HEAD
-  git worktree add -b "$BRANCH_NAME" "$NEW_DIR"
+  # Brand-new branch from START_POINT (either WORKTREE_BASE or HEAD)
+  git worktree add -b "$BRANCH_NAME" "$NEW_DIR" "$START_POINT"
 fi
 
 echo "Worktree created at: $NEW_DIR"
@@ -300,15 +316,17 @@ fi
 
 After executing these instructions, the following variables will be available:
 
-| Variable              | Description                                            |
-| --------------------- | ------------------------------------------------------ |
-| `REPO_ROOT`           | Path to the main repository root                       |
-| `WORKTREES_DIR`       | Path to the worktrees directory                        |
-| `NEW_DIR`             | Full path to the newly created worktree                |
-| `BRANCH_NAME`         | The branch name (input variable)                       |
-| `TRUNK_BRANCH`        | The base branch used for Graphite (if applicable)      |
-| `SETUP_SCRIPT`        | The setup script that was run (if any)                 |
-| `SETUP_AUTO_DETECTED` | "true" if setup script was auto-detected from lockfile |
+| Variable              | Description                                                    |
+| --------------------- | -------------------------------------------------------------- |
+| `REPO_ROOT`           | Path to the main repository root                               |
+| `WORKTREES_DIR`       | Path to the worktrees directory                                |
+| `NEW_DIR`             | Full path to the newly created worktree                        |
+| `BRANCH_NAME`         | The branch name (input variable)                               |
+| `WORKTREE_BASE`       | The branch the worktree was created from (required input)      |
+| `START_POINT`         | The actual git ref used as start point (same as WORKTREE_BASE) |
+| `TRUNK_BRANCH`        | The target branch for PR / Graphite parent (if applicable)     |
+| `SETUP_SCRIPT`        | The setup script that was run (if any)                         |
+| `SETUP_AUTO_DETECTED` | "true" if setup script was auto-detected from lockfile         |
 
 ---
 
@@ -321,6 +339,7 @@ echo ""
 echo "Worktree Configuration Summary:"
 echo "  Location: $NEW_DIR"
 echo "  Branch: $BRANCH_NAME"
+echo "  Created from: $WORKTREE_BASE"
 [[ -f "$NEW_DIR/.claude/settings.local.json" ]] && echo "  Claude settings: copied" || echo "  Claude settings: skipped"
 [[ "${SKIP_GRAPHITE_TRACK:-}" != "true" ]] && echo "  Graphite tracking: $BRANCH_NAME → $TRUNK_BRANCH (parent)" || echo "  Graphite tracking: skipped"
 if [[ "${SKIP_SETUP:-}" != "true" ]] && [[ -n "${SETUP_SCRIPT:-}" ]]; then

@@ -1,6 +1,6 @@
 ---
 description: Start working on a new Linear task by creating a worktree environment. Either provide an existing Linear ticket ID or describe the work to create a new task.
-argument-hint: [<ticket-id> | --prompt "<description>"] [--team <id>] [--trunk <branch>]
+argument-hint: [<ticket-id> | --prompt "<description>"] [--team <id>] [--trunk <branch>] [--start-working] [--start-prompt "<prompt>"]
 allowed-tools: Bash(*), Read(*), Write(*), AskUserQuestion(*), mcp__graphite__run_gt_cmd(*), mcp__linear__create_issue(*), mcp__linear__get_issue(*), mcp__linear__get_user(*), mcp__linear__list_teams(*), mcp__linear__list_projects(*), mcp__linear__list_issue_labels(*)
 ---
 
@@ -26,11 +26,14 @@ Parse arguments from `$ARGUMENTS`:
 | `--priority`      | string  | No       | Priority level (urgent, high, normal, low, none). Prompted if not provided.                  |
 | `--label`         | string  | No       | Linear label to apply.                                                                       |
 | `--due-date`      | string  | No       | Due date for the Linear task (e.g., "2024-01-15", "next friday").                            |
-| `--trunk`         | string  | No       | Base branch for the worktree (e.g., "main", "develop"). Prompted if not provided.            |
+| `--trunk`         | string  | No       | Target branch for PR / Graphite parent (e.g., "main", "develop"). Prompted if not provided.  |
+| `--worktree_base` | string  | No       | Branch to create the worktree FROM (e.g., "next", "main"). Prompted if not provided.         |
 | `--branch-prefix` | string  | No       | Custom branch prefix (e.g., "feature", "fix"). Prompted if not provided.                     |
 | `--setup`         | string  | No       | Setup script to run after creating the worktree.                                             |
 | `--skip-setup`    | boolean | No       | Skip running any setup script.                                                               |
 | `--skip-graphite` | boolean | No       | Skip Graphite branch tracking.                                                               |
+| `--start-working` | boolean | No       | Automatically cd into worktree and start working (skips prompt).                             |
+| `--start-prompt`  | string  | No       | Custom prompt to use when starting work. Implies `--start-working`.                          |
 
 \*Either `<ticket-id>` OR `--prompt` is required. If neither is provided, the user will be prompted.
 
@@ -43,6 +46,7 @@ Parse arguments from `$ARGUMENTS`:
 3. **Get/Create Linear Task**: Fetch existing task OR create new task from prompt
 4. **Create Worktree**: Set up isolated git worktree for development
 5. **Output Summary**: Display worktree path and next steps
+6. **Start Working (Optional)**: Optionally cd into worktree and begin work with a prompt
 
 ---
 
@@ -84,7 +88,22 @@ AskUserQuestion:
   - "Describe new work to create a task" → Prompt for description
 ```
 
-### Phase 2: Collect Independent Fields
+### Phase 2: Fetch Linear User and Teams (REQUIRED)
+
+**CRITICAL: Before presenting ANY prompts, you MUST fetch the Linear user to get the username for branch prefix options.**
+
+```
+# Get current Linear user (for assignee and username prefix)
+linear_user = mcp__linear__get_user(query="me")
+LINEAR_USER_ID = linear_user.id
+LINEAR_USERNAME = linear_user.displayName.lower().replace(" ", "").replace("-", "")
+# Example: "Nick Koutrelakos" → "nickkoutrelakos"
+
+# Get available teams
+teams = mcp__linear__list_teams()
+```
+
+### Phase 3: Collect Independent Fields
 
 Follow the shared configuration collection instructions in `@../shared/linear-task-config.md`.
 
@@ -96,13 +115,25 @@ Follow the shared configuration collection instructions in `@../shared/linear-ta
 - `LABEL` from `--label` (if provided)
 - `BRANCH_PREFIX` from `--branch-prefix` (if provided)
 - `TRUNK_BRANCH` from `--trunk` (if provided)
+- `WORKTREE_BASE` from `--worktree_base` (if provided)
 - `DUE_DATE` from `--due-date` (if provided)
+
+**IMPORTANT: When prompting for branch prefix, the first option MUST be the user's personal namespace:**
+
+```
+Branch Prefix options:
+1. "{LINEAR_USERNAME}/" (Recommended) - e.g., "nickkoutrelakos/"
+2. "feature/" - Standard feature convention
+3. "fix/" - For bug fixes
+4. "chore/" - For maintenance tasks
+5. "Custom" - Enter a custom prefix
+```
 
 **Note:** For this command, `CREATE_WORKTREE` is always true (that's the purpose of this command). Do NOT prompt for it.
 
 **Note:** `USE_GRAPHITE` only affects Graphite tracking during worktree setup. The actual PR creation happens later via `linear-task-and-pr-from-changes` or manually.
 
-### Phase 3: Team-Dependent Fields
+### Phase 4: Team-Dependent Fields
 
 After team is selected, prompt for project (via shared config).
 
@@ -201,6 +232,7 @@ SETUP_SCRIPT="${setup:-}"
 SKIP_SETUP="${skip_setup:-}"
 SKIP_GRAPHITE_TRACK="${skip_graphite:-}"
 TRUNK_BRANCH="${TRUNK_BRANCH}"
+WORKTREE_BASE="${WORKTREE_BASE}"  # Branch to create worktree FROM (start point)
 SKIP_INDEX_RESET=""
 ```
 
@@ -227,7 +259,9 @@ Display a summary of what was created:
 
 📁 Worktree: {WORKTREE_PATH}
 
-🌿 Branch: {BRANCH_NAME} → {TRUNK_BRANCH}
+🌿 Branch: {BRANCH_NAME}
+   Created from: {WORKTREE_BASE}
+   PR target: {TRUNK_BRANCH}
 
 ⚙️  Configuration:
    ✓ Claude settings copied
@@ -235,6 +269,68 @@ Display a summary of what was created:
    ✓ Setup script completed (auto-detected: npm ci)
    ✓ Git index reset (corruption prevention)
 
+To start working:
+  cd "{WORKTREE_PATH}"
+
+When ready to create a PR:
+  /linear-task-and-pr-from-changes --trunk {TRUNK_BRANCH}
+```
+
+---
+
+## Step 7: Start Working (Optional)
+
+After displaying the summary, offer the user the option to continue working in the new worktree.
+
+### If `--start-working` flag was provided
+
+Skip the prompt and proceed directly to starting work.
+
+### If `--start-prompt` was provided
+
+Skip all prompts and use the provided prompt to start work immediately.
+
+### Otherwise, prompt the user
+
+```
+AskUserQuestion:
+- Start Work: "Would you like to cd into the worktree and start working?"
+  - "Yes" → Proceed to prompt selection
+  - "No" → End workflow (show manual instructions)
+```
+
+### If user selects "Yes"
+
+Prompt for the starting prompt:
+
+```
+AskUserQuestion:
+- Prompt: "What prompt would you like to start with?"
+  - "Use default prompt (Recommended)" → Use default prompt below
+  - "Enter custom prompt" → Allow user to provide free-form input
+```
+
+**Default Prompt:**
+
+```
+Plan, review the plan, and execute the plan to work on Linear task {TASK_ID}
+```
+
+### Execution
+
+1. **Change directory** to the worktree path:
+
+   ```bash
+   cd "{WORKTREE_PATH}"
+   ```
+
+2. **Begin work** by processing the selected prompt as if it were a new user message.
+
+### If user selects "No"
+
+Display the existing manual instructions:
+
+```
 To start working:
   cd "{WORKTREE_PATH}"
 
@@ -290,6 +386,22 @@ When ready to create a PR:
 ```
 
 This will prompt for mode selection (existing ticket vs. new task) and all configuration.
+
+### Auto-start working with default prompt
+
+```
+/start-linear-task DEV-123 --start-working
+```
+
+Creates worktree and immediately starts working with the default prompt.
+
+### Auto-start with custom prompt
+
+```
+/start-linear-task --prompt "Add caching layer" --start-prompt "Implement a Redis caching layer for the API endpoints"
+```
+
+Creates the task, worktree, and immediately starts working with the custom prompt.
 
 ---
 
