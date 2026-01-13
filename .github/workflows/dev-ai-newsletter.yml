@@ -376,10 +376,9 @@ jobs:
           echo "=== All checks passed ==="
 
       # Build plugin configuration using shared composite action
-      # Note: dev-ai-newsletter always uses 'main' ref since it's an internal workflow
       - name: Build plugin configuration
         id: build-plugins
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next
         with:
           install_uniswap_plugins: 'true'
 
