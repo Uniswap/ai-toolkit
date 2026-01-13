@@ -147,6 +147,8 @@ jobs:
       model: ${{ needs.prepare.outputs.model }}
       timeout_minutes: 30
       debug_mode: true
+      # Use 'next' branch for plugin configuration (testing pre-release)
+      plugin_ref: 'next'
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
