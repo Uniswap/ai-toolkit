@@ -199,7 +199,7 @@ I recommend running `/refactor src/utils/` to improve this code
 ## Related Packages
 
 - `@ai-toolkit/commands-typescript` - TypeScript-specific implementations
-- `@ai-toolkit/agents-agnostic` - Agents used by commands
+- `packages/plugins/*` - Plugin-based agents used by commands
 - `@uniswap/ai-toolkit-nx-claude` - Nx integration and CLI
 
 ## Auto-Update Instructions
