@@ -3,20 +3,7 @@ export interface AddonsGeneratorSchema {
   selectionMode?: 'all' | 'specific';
   /** The addons to install */
   addons?: Array<
-    | 'spec-workflow-mcp'
-    | 'graphite-mcp'
-    | 'nx-mcp'
-    | 'slack-mcp'
-    | 'universe-mcp'
-    | 'linear-mcp'
-    | 'notion-mcp'
-    | 'github-mcp'
-    | 'figma-mcp'
-    | 'chrome-devtools-mcp'
-    | 'vercel-mcp'
-    | 'supabase-mcp'
-    | 'aws-log-analyzer-mcp'
-    | 'pulumi-mcp'
+    'slack-mcp' | 'github-mcp' | 'figma-mcp' | 'vercel-mcp' | 'aws-log-analyzer-mcp' | 'pulumi-mcp'
   >;
   /** Dashboard startup mode */
   dashboardMode?: 'always' | 'manual';

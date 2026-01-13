@@ -16,7 +16,7 @@
         "items": [
           {
             "value": "all",
-            "label": "All recommended MCP servers (12 servers)"
+            "label": "All recommended MCP servers (6 servers)"
           },
           {
             "value": "specific",
@@ -31,18 +31,10 @@
       "items": {
         "type": "string",
         "enum": [
-          "spec-workflow-mcp",
-          "graphite-mcp",
-          "nx-mcp",
           "slack-mcp",
-          "universe-mcp",
-          "linear-mcp",
-          "notion-mcp",
           "github-mcp",
           "figma-mcp",
-          "chrome-devtools-mcp",
           "vercel-mcp",
-          "supabase-mcp",
           "aws-log-analyzer-mcp",
           "pulumi-mcp"
         ]
