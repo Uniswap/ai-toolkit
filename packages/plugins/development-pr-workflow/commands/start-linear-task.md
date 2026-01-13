@@ -84,7 +84,22 @@ AskUserQuestion:
   - "Describe new work to create a task" → Prompt for description
 ```
 
-### Phase 2: Collect Independent Fields
+### Phase 2: Fetch Linear User and Teams (REQUIRED)
+
+**CRITICAL: Before presenting ANY prompts, you MUST fetch the Linear user to get the username for branch prefix options.**
+
+```
+# Get current Linear user (for assignee and username prefix)
+linear_user = mcp__linear__get_user(query="me")
+LINEAR_USER_ID = linear_user.id
+LINEAR_USERNAME = linear_user.displayName.lower().replace(" ", "").replace("-", "")
+# Example: "Nick Koutrelakos" → "nickkoutrelakos"
+
+# Get available teams
+teams = mcp__linear__list_teams()
+```
+
+### Phase 3: Collect Independent Fields
 
 Follow the shared configuration collection instructions in `@../shared/linear-task-config.md`.
 
@@ -98,11 +113,22 @@ Follow the shared configuration collection instructions in `@../shared/linear-ta
 - `TRUNK_BRANCH` from `--trunk` (if provided)
 - `DUE_DATE` from `--due-date` (if provided)
 
+**IMPORTANT: When prompting for branch prefix, the first option MUST be the user's personal namespace:**
+
+```
+Branch Prefix options:
+1. "{LINEAR_USERNAME}/" (Recommended) - e.g., "nickkoutrelakos/"
+2. "feature/" - Standard feature convention
+3. "fix/" - For bug fixes
+4. "chore/" - For maintenance tasks
+5. "Custom" - Enter a custom prefix
+```
+
 **Note:** For this command, `CREATE_WORKTREE` is always true (that's the purpose of this command). Do NOT prompt for it.
 
 **Note:** `USE_GRAPHITE` only affects Graphite tracking during worktree setup. The actual PR creation happens later via `linear-task-and-pr-from-changes` or manually.
 
-### Phase 3: Team-Dependent Fields
+### Phase 4: Team-Dependent Fields
 
 After team is selected, prompt for project (via shared config).
 
