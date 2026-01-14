@@ -2,9 +2,9 @@
 
 ## Overview
 
-The `@uniswap/ai-toolkit-nx-claude` package provides Nx generators for installing Claude Code notification hooks and addon MCP servers. The package also includes the `claude-plus` script for enhanced Claude Code startup.
+The `@uniswap/ai-toolkit-nx-claude` package provides Nx generators for installing Claude Code addon MCP servers. The package also includes the `claude-plus` script for enhanced Claude Code startup.
 
-> **Note**: The init, add-command, and add-agent generators have been removed. For Claude Code setup, use the marketplace-based plugin architecture instead.
+> **Note**: The init, add-command, add-agent, and hooks generators have been removed. For Claude Code setup, use the marketplace-based plugin architecture instead.
 
 ### Standalone Package Usage
 
@@ -23,7 +23,6 @@ Authentication to private npmjs registry is required (see README for setup instr
 packages/ai-toolkit-nx-claude/
 ├── src/
 │   ├── generators/
-│   │   ├── hooks/      # Notification hooks installer
 │   │   └── addons/     # MCP server addon installer
 │   ├── scripts/
 │   │   └── claude-plus/ # Enhanced Claude launcher with MCP + Slack
@@ -34,29 +33,7 @@ packages/ai-toolkit-nx-claude/
 
 ## Available Generators
 
-### 1. hooks - Notification Hooks Installer
-
-**Purpose**: Installs audio/speech notifications for Claude Code
-
-**Usage**:
-
-```bash
-npx @uniswap/ai-toolkit-nx-claude@latest hooks
-# or
-npx nx generate @uniswap/ai-toolkit-nx-claude:hooks
-```
-
-**Key Features**:
-
-- Automated hook installation process
-- Sound or speech notifications
-- Automatic backup and rollback
-- Cross-platform support
-- Test mode for verification
-
-**Documentation**: [src/generators/hooks/CLAUDE.md](src/generators/hooks/CLAUDE.md)
-
-### 2. addons - MCP Server Addon Installer
+### addons - MCP Server Addon Installer
 
 **Purpose**: Install and configure Claude Code addons including MCP servers
 
@@ -118,7 +95,7 @@ alias claude-plus="npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus"
 
 **Critical Pattern for Preventing Duplicate Prompts**
 
-When generators are called programmatically from parent generators (e.g., init calling hooks), they need a way to know whether to prompt interactively or use defaults. The **installMode pattern** solves this:
+When generators are called programmatically from parent generators, they need a way to know whether to prompt interactively or use defaults. The **installMode pattern** solves this:
 
 **Problem**: When a parent generator calls a child generator programmatically, the child's `getExplicitlyProvidedOptions()` reads `process.argv` which contains the ORIGINAL CLI command, not the programmatic options. This causes the child to re-prompt for options that were already decided by the parent.
 
@@ -180,7 +157,7 @@ await childGenerator(tree, {
 - Hidden property doesn't clutter CLI help
 - Clear control flow between parent and child generators
 
-**Generators Using This Pattern**: hooks, addons
+**Generators Using This Pattern**: addons
 
 ### Schema-Driven Prompting
 
@@ -359,11 +336,6 @@ All generators are registered in `generators.json`:
 ```json
 {
   "generators": {
-    "hooks": {
-      "factory": "./dist/generators/hooks/generator",
-      "schema": "./dist/generators/hooks/schema.json",
-      "description": "Install Claude Code notification hooks"
-    },
     "addons": {
       "factory": "./dist/generators/addons/generator",
       "schema": "./dist/generators/addons/schema.json",
@@ -383,8 +355,7 @@ npx nx build ai-toolkit-nx-claude
 npx nx test ai-toolkit-nx-claude
 
 # Test generators locally
-npx nx generate @uniswap/ai-toolkit-nx-claude:init --dry
-npx nx generate @uniswap/ai-toolkit-nx-claude:hooks --dry
+npx nx generate @uniswap/ai-toolkit-nx-claude:addons --dry-run
 ```
 
 ### Nx Workspace Integration
@@ -461,7 +432,6 @@ Every generator MUST maintain:
 
 ### External Tools (via generators)
 
-- **hooks**: Requires Node.js, npm, Git
 - **addons**: Requires Claude CLI for MCP server configuration
 
 ## Maintenance Requirements
@@ -526,4 +496,5 @@ If the `next` branch version gets out of sync with `latest`:
 - **1.2.0**: Added automatic fallback mechanism for Claude CLI installation (curl → npm)
 - **1.3.0**: Added standalone package publishing and direct npx/npx execution
 - **0.6.0**: Removed init, add-command, and add-agent generators (replaced by marketplace plugins)
+- **0.6.x**: Removed hooks generator (use Claude Code hooks directly via settings)
 - Future versions will be documented here

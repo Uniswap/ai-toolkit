@@ -1,10 +1,5 @@
 {
   "generators": {
-    "hooks": {
-      "factory": "./dist/generators/hooks/generator",
-      "schema": "./dist/generators/hooks/schema.json",
-      "description": "Install Claude Code notification hooks"
-    },
     "addons": {
       "factory": "./dist/generators/addons/generator",
       "schema": "./dist/generators/addons/schema.json",

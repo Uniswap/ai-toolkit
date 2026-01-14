@@ -1,58 +1,59 @@
 # @uniswap/ai-toolkit-nx-claude
 
-This package provides Nx generators for setting up and managing Claude Code configurations, commands, agents, and notification hooks.
+This package provides Nx generators for installing Claude Code addon MCP servers. It also includes the `claude-plus` script for enhanced Claude Code startup.
+
+> **Note**: The `init`, `add-command`, `add-agent`, and `hooks` generators have been removed. For Claude Code setup, use the marketplace-based plugin architecture instead. See the [root README.md](../../README.md) for details on installing plugins.
 
 ## Installation
 
-This package is published to a private npmjs package registry and requires authentication to access. See the [root README.md file](../../README.md) for instructions on how to install it via NPM, or run it locally
+This package is published to a private npmjs package registry and requires authentication to access. See the [root README.md file](../../README.md) for instructions on how to install it via NPM, or run it locally.
 
 ## Usage
 
-### Run Default Generator
+### Interactive Menu
 
 ```bash
-npx nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec
+# Show interactive menu of available generators
+npx @uniswap/ai-toolkit-nx-claude@latest
 ```
 
 ### Run Specific Generators
 
-Each generator can be run directly via the desired generator's subcommand:
-
 ```bash
-# One-shot installer for Claude Code configs
-npx nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec init
-
-# Install notification hooks
-npx nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec hooks
-
-# Install and configure Claude Code addons
-npx nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec addons
-
-# Add a new command to packages
-npx nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec add-command
-
-# Add a new agent to packages
-npx nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec add-agent
+# Install and configure Claude Code addons (MCP servers)
+npx @uniswap/ai-toolkit-nx-claude@latest addons
 ```
 
 ### List Available Generators
 
 ```bash
-npx nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec --list
+npx @uniswap/ai-toolkit-nx-claude@latest --list
 ```
 
 ## Available Generators
 
-- **init** - One-shot installer for Claude Code configs
-- **hooks** - Install Claude Code notification hooks
 - **addons** - Install and configure Claude Code addons including MCP servers
-- **add-command** - Add a new Claude Code command to existing or new packages
-- **add-agent** - Add a new Claude Code agent to existing or new packages
+
+## Standalone Script: claude-plus
+
+Enhanced Claude Code launcher with MCP server selection and Slack token management:
+
+```bash
+# Run claude-plus
+npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus
+
+# Set up as shell alias
+alias claude-plus="npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus"
+```
 
 ## Building
 
-Run `npm nx build ai-toolkit-nx-claude` to build the library.
+```bash
+npx nx build ai-toolkit-nx-claude
+```
 
 ## Testing
 
-Run `npx nx test ai-toolkit-nx-claude` to test this library.
+```bash
+npx nx test ai-toolkit-nx-claude
+```
