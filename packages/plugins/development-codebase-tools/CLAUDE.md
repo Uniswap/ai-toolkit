@@ -10,8 +10,8 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 
 - **codebase-explorer**: Deep codebase exploration with architectural understanding
 - **code-refactorer**: Comprehensive refactoring with safety checks and pattern application
-- **tech-debt-analyzer**: Identify and prioritize technical debt with remediation plans
 - **code-analyzer**: Multi-agent code explanation for architecture, patterns, security, and performance
+- **tech-debt-analyzer**: Identify and prioritize technical debt with remediation plans
 
 ### Agents (./agents/)
 
@@ -35,6 +35,7 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 - Agents are auto-discovered from the `agents/` directory
 - Skills invoke agents via `Task(subagent_type:agent-name)`
 - The post-edit-lint hook runs automatically after file modifications
+- Cross-plugin delegation uses `Task(subagent_type:plugin-name:skill-name)`
 
 ## File Structure
 
@@ -45,8 +46,8 @@ development-codebase-tools/
 ├── skills/
 │   ├── codebase-explorer/
 │   ├── code-refactorer/
-│   ├── tech-debt-analyzer/
-│   └── code-analyzer/
+│   ├── code-analyzer/
+│   └── tech-debt-analyzer/
 ├── agents/
 │   ├── code-explainer.md
 │   ├── refactorer.md

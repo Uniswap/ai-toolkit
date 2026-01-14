@@ -16,7 +16,7 @@ claude /plugin install development-pr-workflow
 
 | Skill | Description |
 | ----- | ----------- |
-| **pr-reviewer** | Comprehensive PR review using specialized agents |
+| **code-reviewer** | Comprehensive code review using specialized agents |
 | **pr-creator** | Create Graphite PRs with auto-generated commit messages |
 | **pr-issue-resolver** | Address PR review comments and fix CI failures |
 | **graphite-stack-updater** | Update Graphite PR stacks by resolving comments and syncing |
@@ -36,7 +36,7 @@ claude /plugin install development-pr-workflow
 
 | Agent | Description |
 | ----- | ----------- |
-| **pr-reviewer** | Reviews PRs for quality, security, and performance |
+| **review-executor** | Executes code review tasks and implements feedback |
 | **pr-creator** | Creates PRs with proper formatting and descriptions |
 | **commit-message-generator** | Generates structured git commit messages |
 | **stack-splitter** | Splits monolithic branches into logical PR stacks |

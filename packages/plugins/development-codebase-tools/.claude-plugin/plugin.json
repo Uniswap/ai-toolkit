@@ -12,14 +12,12 @@
   "skills": [
     "./skills/code-analyzer",
     "./skills/code-refactorer",
-    "./skills/code-reviewer",
     "./skills/codebase-explorer",
     "./skills/tech-debt-analyzer"
   ],
   "commands": [
     "./skills/code-analyzer/code-analyzer.md",
     "./skills/code-refactorer/code-refactorer.md",
-    "./skills/code-reviewer/code-reviewer.md",
     "./skills/codebase-explorer/codebase-explorer.md",
     "./skills/tech-debt-analyzer/tech-debt-analyzer.md"
   ]

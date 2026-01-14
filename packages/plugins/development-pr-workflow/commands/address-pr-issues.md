@@ -67,7 +67,7 @@ Review the specified pull request, address all review comments, and fix any CI/C
    - Identify dependencies between fixes
 
 4. **Delegate to Agent**:
-   Invoke **pr-reviewer** agent with parameters:
+   Invoke **review-executor** agent with parameters:
 
    ```json
    {
@@ -81,7 +81,7 @@ Review the specified pull request, address all review comments, and fix any CI/C
    ```
 
 5. **Execute Fixes**:
-   The pr-reviewer agent will:
+   The review-executor agent will:
    - Fix CI/CD issues first (compilation, tests, linting)
    - Address simple review comments directly
    - Create plans for complex changes
