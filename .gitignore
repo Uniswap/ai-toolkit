@@ -76,3 +76,6 @@ docs/enterprise/README.md
 
 # Proposals for LLM implementation
 docs/proposals/
+
+vite.config.*.timestamp*
+vitest.config.*.timestamp*
