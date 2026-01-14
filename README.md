@@ -4,18 +4,19 @@
 
 ## Overview
 
-The **AI Toolkit** is a standardized collection of AI agents and commands designed for Claude Code workflows. Its goal is to allow anyone at Uniswap to install and configure Claude Code to be maximally useful, all in a single command (`npm run start`)
+The **AI Toolkit** is a standardized collection of AI agents, skills, and commands designed for Claude Code workflows. Its goal is to allow anyone at Uniswap to enhance Claude Code with powerful plugins via the **Claude Code Marketplace**.
 
 **What it provides:**
 
-- **One-shot Installation**: Automated setup of Claude Code configurations
+- **Plugin Marketplace**: Install curated plugins that bundle agents, skills, commands, and MCP servers
 - **Pre-built AI Agents**: Specialized subagents for code explanation, refactoring, testing, research, and more. Claude Code will use these automatically without any need for manual direction by the user
-- **Ready-to-use Commands**: Quick access patterns (called "[Slash commands](https://docs.anthropic.com/en/docs/claude-code/slash-commands)") for common development workflows like understanding codebases (`/explore`), generating tests (`/gen-tests`), and planning features (`/plan`)
+- **Ready-to-use Skills & Commands**: Quick access patterns (called "[Slash commands](https://docs.anthropic.com/en/docs/claude-code/slash-commands)") for common development workflows like reviewing PRs (`/review-pr`), generating tests (`/test-generator`), and planning features (`/implementation-planner`)
+- **MCP Server Integrations**: Pre-configured MCP servers for Linear, Notion, Graphite, and more
 - **Standardized Patterns**: Create a common toolset of Claude Code commands and agents shared by everyone at Uniswap
 
 **Why it exists:**
 
-Instead of each person at Uniswap manually configuring AI assistant behaviors for each project, the AI Toolkit provides curated, tested configurations that can be installed instantly. This makes AI-assisted development more consistent, efficient, and accessible to Uni teams.
+Instead of each person at Uniswap manually configuring AI assistant behaviors for each project, the AI Toolkit provides curated, tested plugins that can be installed via the Claude Code Marketplace. This makes AI-assisted development more consistent, efficient, and accessible to Uni teams.
 
 ## Getting Started
 
@@ -36,42 +37,54 @@ npm install
 
 ### Setup Claude Code Integration
 
-### Option A: Install Everything (Recommended)
+### Option A: Install Plugins via Marketplace (Recommended)
+
+The AI Toolkit provides plugins through the Claude Code Marketplace. To install:
 
 ```bash
-# Run the CLI to show you everything you can install. Start with the 'init' and then 'hooks' to get started
-npm run start
+# Install plugins from the marketplace
+claude /install-plugin @uniswap/development-planning
+claude /install-plugin @uniswap/development-pr-workflow
+claude /install-plugin @uniswap/development-codebase-tools
+claude /install-plugin @uniswap/development-productivity
+claude /install-plugin @uniswap/uniswap-integrations
 ```
 
-and you should see the CLI options below:
-
-![ai toolkit's CLI](ai-toolkit-nx-claude.png)
-
-### Option B: Selective Installation
+### Option B: Install MCP Server Addons
 
 ```bash
-# Install just the notification hooks
-npx nx generate @uniswap/ai-toolkit-nx-claude:hooks
+# Run the CLI to see available options
+npm run start
 
-# Or preview what would be installed (dry-run mode)
-npx nx generate @uniswap/ai-toolkit-nx-claude:init --dry-run
+# Install MCP server addons
+npx nx generate @uniswap/ai-toolkit-nx-claude:addons
 ```
 
 ### Verify Installation
 
 ```bash
-# Make sure you have Claude Code installed, and that the agents + commands are available when you run `claude`
-
+# Make sure you have Claude Code installed
 claude # this should open up the Claude Code REPL
 
-# executing the "/agents" slash command should show that multiple agents have been installed
-> /agents
+# View installed plugins and their capabilities
+> /plugins
 
-# you should see custom /slash commands, such as "/plan", are now available to you in your Claude Code REPL.
-> /plan
+# Execute custom slash commands from installed plugins
+> /review-pr
+> /implementation-planner
 ```
 
-Once installed, you'll have access to powerful Claude Code agents and commands that make development workflows more efficient and consistent.
+Once installed, you'll have access to powerful Claude Code agents, skills, and commands that make development workflows more efficient and consistent.
+
+### Available Plugins
+
+| Plugin                         | Description                                          |
+| ------------------------------ | ---------------------------------------------------- |
+| **development-planning**       | Implementation planning & execution workflows        |
+| **development-pr-workflow**    | PR management, review, & Graphite integration        |
+| **development-codebase-tools** | Code exploration, refactoring & analysis             |
+| **development-productivity**   | Documentation, research, & prompt optimization       |
+| **uniswap-integrations**       | External service integrations (Linear, Notion, etc.) |
 
 ## Contributing
 

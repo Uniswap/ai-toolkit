@@ -100,7 +100,7 @@ After making any code changes, Claude Code MUST:
 
 ## Project Context
 
-This is the AI Toolkit monorepo that provides standardized, one-shot setup for Claude Code AI workflows. The project uses:
+This is the AI Toolkit monorepo that provides standardized Claude Code plugins via the Claude Code Marketplace. The project uses:
 
 - Nx for monorepo management
 - TypeScript with strict settings
