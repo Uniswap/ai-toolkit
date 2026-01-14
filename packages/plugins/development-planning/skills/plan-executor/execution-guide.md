@@ -157,6 +157,24 @@ Invoke doc-writer agent with:
 - User-facing feature changes
 ```
 
+### PR Creation
+
+When user requests PR creation:
+
+```
+Invoke pr-creator agent with:
+- Current branch changes (git diff)
+- Commit message (conventional format via commit-message-generator)
+- PR description summarizing the plan executed
+```
+
+The pr-creator agent will:
+
+1. Generate conventional commit message using commit-message-generator
+2. Ask user for commit confirmation
+3. Create PR with comprehensive description
+4. Return PR URL for review
+
 ## Integration Checklist
 
 After all steps complete:
@@ -166,4 +184,5 @@ After all steps complete:
 3. TypeScript compiles
 4. Changes committed (if requested)
 5. Documentation updated (if requested)
-6. Summary provided to user
+6. PR created (if requested)
+7. Summary provided to user

@@ -80,53 +80,6 @@ export interface AddonMetadata {
  */
 const ADDON_REGISTRY: AddonMetadata[] = [
   {
-    id: 'spec-workflow-mcp',
-    name: 'Spec Workflow MCP',
-    description: 'MCP server for spec-driven development workflow with dashboard support',
-    type: 'mcp-server',
-    packageName: '@uniswap/spec-workflow-mcp',
-    mcp: {
-      serverName: 'spec-workflow',
-      command: 'npx',
-      args: ['@uniswap/spec-workflow-mcp@latest'],
-      supportsDashboard: true,
-      defaultPort: 50014,
-    },
-    projectSetup: {
-      repositoryUrl: 'https://github.com/Uniswap/spec-workflow-mcp.git',
-      configSourcePath: 'configs',
-      targetDirectory: '.spec-workflow',
-    },
-    requirements: {
-      node: '>=22.0.0',
-      commands: ['git', 'npm'],
-    },
-  },
-  {
-    id: 'graphite-mcp',
-    name: 'Graphite MCP',
-    description: 'MCP server for Graphite stacked pull request workflows',
-    type: 'mcp-server',
-    packageName: 'gt',
-    mcp: {
-      serverName: 'graphite',
-      command: 'gt',
-      args: ['mcp'],
-    },
-  },
-  {
-    id: 'nx-mcp',
-    name: 'Nx MCP',
-    description: 'MCP server for Nx monorepo workspace management',
-    type: 'mcp-server',
-    packageName: 'nx-mcp',
-    mcp: {
-      serverName: 'nx-mcp',
-      command: 'npx',
-      args: ['-y', 'nx-mcp@latest'],
-    },
-  },
-  {
     id: 'slack-mcp',
     name: 'Slack MCP',
     description: 'MCP server for Slack workspace integration',
@@ -140,30 +93,6 @@ const ADDON_REGISTRY: AddonMetadata[] = [
         SLACK_BOT_TOKEN: 'PROMPT_TO_INSERT_SLACK_BOT_TOKEN',
         SLACK_TEAM_ID: 'TKZBCKUJJ',
       },
-    },
-  },
-  {
-    id: 'notion-mcp',
-    name: 'Notion MCP',
-    description: 'MCP server for Notion workspace management (HTTP)',
-    type: 'mcp-server',
-    packageName: 'notion',
-    mcp: {
-      serverName: 'notion',
-      transport: 'http',
-      url: 'https://mcp.notion.com/mcp',
-    },
-  },
-  {
-    id: 'linear-mcp',
-    name: 'Linear MCP',
-    description: 'MCP server for Linear issue tracking (HTTP)',
-    type: 'mcp-server',
-    packageName: 'linear',
-    mcp: {
-      serverName: 'linear',
-      transport: 'http',
-      url: 'https://mcp.linear.app/mcp',
     },
   },
   {
@@ -191,19 +120,6 @@ const ADDON_REGISTRY: AddonMetadata[] = [
       serverName: 'figma',
       transport: 'http',
       url: 'https://mcp.figma.com/mcp',
-    },
-  },
-  {
-    id: 'chrome-devtools-mcp',
-    name: 'Chrome DevTools MCP',
-    description: 'MCP server for Chrome DevTools Protocol',
-    type: 'mcp-server',
-    packageName: 'chrome-devtools-mcp',
-    mcp: {
-      serverName: 'chrome-devtools',
-      command: 'npx',
-      args: ['chrome-devtools-mcp@latest'],
-      env: {},
     },
   },
   {

@@ -66,16 +66,16 @@ The orchestrator will:
 For each task, coordinate:
 
 1. **Code Implementation Tasks**: code-generator, test-writer, doc-writer
-2. **Refactoring Tasks**: refactorer, style-enforcer, test-runner
+2. **Refactoring Tasks**: refactorer, style-enforcer, agent-tester
 3. **Infrastructure Tasks**: infrastructure-agent, cicd-agent
-4. **Migration Tasks**: migration-assistant, test-runner
+4. **Migration Tasks**: migration-assistant, agent-tester
 
 ### Phase 4: Quality Gates
 
 Between task groups, apply quality checks:
 
 - **Code Quality**: style-enforcer, security-analyzer, performance-analyzer
-- **Test Coverage**: test-runner, test-writer
+- **Test Coverage**: agent-tester, test-writer
 - **Documentation**: doc-writer, review-plan
 
 ## Output Format

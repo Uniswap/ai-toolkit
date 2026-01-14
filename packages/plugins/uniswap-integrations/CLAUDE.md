@@ -17,9 +17,6 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 - **cicd-agent**: CI/CD pipeline specialist for deployments and workflows
 - **infrastructure-agent**: Cloud resource provisioning and infrastructure setup
 - **migration-assistant**: Guides version upgrades and migrations
-- **slack-analyzer**: Analyzes Slack conversations and activity
-- **slack-fetcher**: Fetches Slack data for analysis
-- **dev-ai-pod-weekly-newsletter**: Generates weekly newsletters from activity
 
 ### MCP Servers (./.mcp.json)
 
@@ -50,8 +47,6 @@ uniswap-integrations/
 │   ├── cicd-agent.md
 │   ├── infrastructure-agent.md
 │   ├── migration-assistant.md
-│   ├── slack-analyzer.md
-│   ├── slack-fetcher.md
 ├── .mcp.json
 ├── project.json
 ├── package.json

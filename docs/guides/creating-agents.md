@@ -61,15 +61,15 @@ Before writing any code, clearly define:
 
 ### Step 2: Create Agent File
 
-Create a new file in the appropriate package directory:
+Create a new file in the appropriate plugin directory:
 
 ```bash
-# For language-agnostic agents
-packages/agents/agnostic/src/your-agent.md
-
-# For language-specific agents (future)
-packages/agents/javascript/src/your-agent.md
-packages/agents/python/src/your-agent.md
+# Agents are organized by plugin functionality
+packages/plugins/development-codebase-tools/agents/your-agent.md
+packages/plugins/development-planning/agents/your-agent.md
+packages/plugins/development-pr-workflow/agents/your-agent.md
+packages/plugins/development-productivity/agents/your-agent.md
+packages/plugins/uniswap-integrations/agents/your-agent.md
 ```
 
 ### Step 3: Agent Structure
@@ -150,13 +150,12 @@ Always prioritize:
 - Safety over features
 ```
 
-### Step 4: Add to Index
+### Step 4: Register in Plugin
 
-After creating your agent, regenerate the index:
+After creating your agent, add it to the plugin's configuration:
 
-```bash
-npx nx run @ai-toolkit/agents-agnostic:generate-index
-```
+1. Add the agent to the `agents` array in the plugin's `.claude-plugin/plugin.json`
+2. Ensure the agent is accessible via the plugin's directory structure
 
 ## Prompt Engineering Best Practices
 
@@ -387,28 +386,19 @@ describe('Agent Performance', () => {
 
 **Make Agents Command-Ready:**
 
-```typescript
-// In command file
-import { YourAgent } from '@ai-toolkit/agents';
+Agents are invoked via the Task tool from commands and skills:
 
-export const yourCommand = {
-  name: 'your-command',
-  description: 'Uses your agent to perform tasks',
+```markdown
+<!-- In command or skill file -->
 
-  async execute(input) {
-    // Prepare input for agent
-    const agentInput = {
-      task: input.task,
-      context: await loadContext(input.path),
-    };
+## Delegation
 
-    // Invoke agent
-    const result = await YourAgent.process(agentInput);
+Invoke **your-agent** with:
 
-    // Format output for user
-    return formatForUser(result);
-  },
-};
+- task: The task description
+- context: Relevant codebase context
+
+The agent will process the input and return structured results.
 ```
 
 ### 3. Workflow Integration
@@ -595,10 +585,7 @@ class OptimizedAgent {
 
   private async executeOptimized(input: Input) {
     // Use parallel processing where possible
-    const [analysis, validation] = await Promise.all([
-      this.analyze(input),
-      this.validate(input),
-    ]);
+    const [analysis, validation] = await Promise.all([this.analyze(input), this.validate(input)]);
 
     // Early return on validation failure
     if (!validation.isValid) {

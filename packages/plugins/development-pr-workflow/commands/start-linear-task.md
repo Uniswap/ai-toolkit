@@ -278,13 +278,13 @@ When ready to create a PR:
 
 ---
 
-## Step 7: Start Working (Optional)
+## Step 7: Autonomous Task Completion (Optional)
 
-After displaying the summary, offer the user the option to continue working in the new worktree.
+After displaying the summary, offer the user the option to begin autonomous task implementation in the new worktree.
 
 ### If `--start-working` flag was provided
 
-Skip the prompt and proceed directly to starting work.
+Skip the prompt and proceed directly to autonomous task completion.
 
 ### If `--start-prompt` was provided
 
@@ -294,9 +294,9 @@ Skip all prompts and use the provided prompt to start work immediately.
 
 ```
 AskUserQuestion:
-- Start Work: "Would you like to cd into the worktree and start working?"
-  - "Yes" → Proceed to prompt selection
-  - "No" → End workflow (show manual instructions)
+- Start Work: "Would you like to cd into the worktree and start working autonomously?"
+  - "Yes, start autonomous implementation (Recommended)" → Proceed to autonomous completion
+  - "No, I'll work manually" → End workflow (show manual instructions)
 ```
 
 ### If user selects "Yes"
@@ -306,17 +306,25 @@ Prompt for the starting prompt:
 ```
 AskUserQuestion:
 - Prompt: "What prompt would you like to start with?"
-  - "Use default prompt (Recommended)" → Use default prompt below
+  - "Use default autonomous prompt (Recommended)" → Use default prompt below
   - "Enter custom prompt" → Allow user to provide free-form input
 ```
 
 **Default Prompt:**
 
 ```
-Plan, review the plan, and execute the plan to work on Linear task {TASK_ID}
+Work on Linear task {TASK_ID}. Follow this autonomous workflow:
+
+1. Read the Linear task details to understand requirements
+2. Create an implementation plan
+3. Implement the task following existing codebase patterns
+4. Run tests and linting, fixing any issues
+5. Commit changes with a conventional commit message
+
+When complete, summarize what was implemented and any remaining work.
 ```
 
-### Execution
+### Autonomous Execution Steps
 
 1. **Change directory** to the worktree path:
 
@@ -324,7 +332,20 @@ Plan, review the plan, and execute the plan to work on Linear task {TASK_ID}
    cd "{WORKTREE_PATH}"
    ```
 
-2. **Begin work** by processing the selected prompt as if it were a new user message.
+2. **Begin autonomous work** by processing the selected prompt. Claude will:
+
+   - **Read Linear task details** via `mcp__linear__get_issue` to understand requirements
+   - **Analyze the codebase** to understand existing patterns and conventions
+   - **Plan the implementation** using the planning workflow
+   - **Implement the task** following codebase patterns
+   - **Run tests and linting** to ensure quality (`nx affected -t lint test`)
+   - **Commit changes** with a conventional commit message
+
+3. **Report completion** with a summary of:
+   - What was implemented
+   - Files created/modified
+   - Tests passing/failing
+   - Any remaining work or follow-ups
 
 ### If user selects "No"
 

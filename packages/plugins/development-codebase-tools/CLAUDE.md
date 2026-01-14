@@ -10,9 +10,9 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 
 - **codebase-explorer**: Deep codebase exploration with architectural understanding
 - **code-refactorer**: Comprehensive refactoring with safety checks and pattern application
-- **tech-debt-analyzer**: Identify and prioritize technical debt with remediation plans
 - **code-analyzer**: Multi-agent code explanation for architecture, patterns, security, and performance
 - **excalidraw-diagrammer**: Generate Excalidraw architecture diagrams from codebase analysis
+- **tech-debt-analyzer**: Identify and prioritize technical debt with remediation plans
 
 ### Agents (./agents/)
 
@@ -23,7 +23,7 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 - **debug-assistant**: Advanced debugging with root cause analysis
 - **style-enforcer**: Enforces code style and conventions
 - **deduplicator**: Identifies and eliminates code duplication
-- **code-generator**: Generates production-ready code following patterns
+- **code-generator**: Generates production-ready code following patterns (delegates to test-writer for tests)
 - **pattern-learner**: Learns and applies codebase patterns
 
 ### Hooks (./hooks/)
@@ -36,6 +36,7 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 - Agents are auto-discovered from the `agents/` directory
 - Skills invoke agents via `Task(subagent_type:agent-name)`
 - The post-edit-lint hook runs automatically after file modifications
+- Cross-plugin delegation uses `Task(subagent_type:plugin-name:skill-name)`
 
 ## File Structure
 
@@ -46,9 +47,9 @@ development-codebase-tools/
 ├── skills/
 │   ├── codebase-explorer/
 │   ├── code-refactorer/
-│   ├── tech-debt-analyzer/
 │   ├── code-analyzer/
-│   └── excalidraw-diagrammer/
+│   ├── excalidraw-diagrammer/
+│   └── tech-debt-analyzer/
 ├── agents/
 │   ├── code-explainer.md
 │   ├── refactorer.md

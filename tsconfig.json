@@ -7,18 +7,6 @@
       "path": "./packages/ai-toolkit-nx-claude"
     },
     {
-      "path": "./packages/commands/agnostic"
-    },
-    {
-      "path": "./packages/agents/agnostic"
-    },
-    {
-      "path": "./packages/commands/typescript"
-    },
-    {
-      "path": "./packages/utils"
-    },
-    {
       "path": "./apps/slack-oauth-backend"
     },
     {

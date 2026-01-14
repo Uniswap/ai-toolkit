@@ -25,17 +25,17 @@ claude /plugin install development-codebase-tools
 
 ## Agents
 
-| Agent                    | Description                                                     |
-| ------------------------ | --------------------------------------------------------------- |
-| **code-explainer**       | Explains code architecture, patterns, and dependencies          |
-| **code-generator**       | Generates production-ready code following patterns              |
-| **debug-assistant**      | Advanced debugging with root cause analysis                     |
-| **deduplicator**         | Identifies and eliminates code duplication                      |
-| **pattern-learner**      | Learns and applies codebase patterns                            |
-| **performance-analyzer** | Analyzes performance bottlenecks and optimization opportunities |
-| **refactorer**           | Performs safe, incremental refactoring operations               |
-| **security-analyzer**    | Identifies security vulnerabilities and recommends fixes        |
-| **style-enforcer**       | Enforces code style and conventions                             |
+| Agent                    | Description                                                          |
+| ------------------------ | -------------------------------------------------------------------- |
+| **code-explainer**       | Explains code architecture, patterns, and dependencies               |
+| **code-generator**       | Generates production-ready code (delegates to test-writer for tests) |
+| **debug-assistant**      | Advanced debugging with root cause analysis                          |
+| **deduplicator**         | Identifies and eliminates code duplication                           |
+| **pattern-learner**      | Learns and applies codebase patterns                                 |
+| **performance-analyzer** | Analyzes performance bottlenecks and optimization opportunities      |
+| **refactorer**           | Performs safe, incremental refactoring operations                    |
+| **security-analyzer**    | Identifies security vulnerabilities and recommends fixes             |
+| **style-enforcer**       | Enforces code style and conventions                                  |
 
 ## Hooks
 

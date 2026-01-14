@@ -3,7 +3,69 @@ import { existsSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import type { AddonsGeneratorSchema } from './schema';
-import { cloneRepository } from './spec-workflow-setup';
+
+/**
+ * Result of cloning a repository
+ */
+interface CloneResult {
+  success: boolean;
+  message: string;
+  clonePath?: string;
+  error?: string;
+}
+
+/**
+ * Clone a git repository to a specified directory
+ */
+async function cloneRepository(repositoryUrl: string, targetDir: string): Promise<CloneResult> {
+  try {
+    // Create target directory if it doesn't exist
+    if (!existsSync(targetDir)) {
+      mkdirSync(targetDir, { recursive: true });
+    }
+
+    // Execute git clone command
+    execSync(`git clone --depth 1 "${repositoryUrl}" "${targetDir}"`, {
+      stdio: 'pipe',
+      encoding: 'utf8',
+    });
+
+    return {
+      success: true,
+      message: 'Repository cloned successfully',
+      clonePath: targetDir,
+    };
+  } catch (error: any) {
+    console.error('❌ Git clone failed:', error.message);
+
+    // Check for common errors
+    if (error.message.includes('not found')) {
+      return {
+        success: false,
+        message: 'Repository not found',
+        error: 'The repository URL may be incorrect or you may not have access',
+      };
+    } else if (error.message.includes('Authentication')) {
+      return {
+        success: false,
+        message: 'Authentication failed',
+        error: 'Please check your git credentials',
+      };
+    } else if (error.message.includes('network')) {
+      return {
+        success: false,
+        message: 'Network error',
+        error: 'Please check your internet connection',
+      };
+    }
+
+    return {
+      success: false,
+      message: 'Git clone failed',
+      error: error.message,
+    };
+  }
+}
 
 /**
  * Result of the setup operation

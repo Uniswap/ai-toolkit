@@ -1,6 +1,6 @@
 ---
 description: Update Graphite PR stacks by addressing review comments and syncing PRs. Use when user says "update my graphite stack", "address the review comments on my stack", "sync my PR stack after these changes", "submit my entire stack to Graphite", or "I need to update all the PRs in my stack".
-allowed-tools: Bash(gt:*), Bash(gh:*), Bash(git:*), Read, Write, Edit, Task(subagent_type:pr-reviewer)
+allowed-tools: Bash(gt:*), Bash(gh:*), Bash(git:*), Read, Write, Edit, Task(subagent_type:review-executor)
 model: opus
 ---
 
@@ -60,7 +60,7 @@ Progress summary with:
 
 ## Optional Follow-up
 
-After updates, can invoke **pr-reviewer** to verify changes maintain quality.
+After updates, can invoke **code-reviewer** to verify changes maintain quality.
 
 ## Examples
 

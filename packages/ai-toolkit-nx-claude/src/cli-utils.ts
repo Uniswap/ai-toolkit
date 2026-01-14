@@ -107,12 +107,10 @@ function shouldRunStandalone(): boolean {
 async function runGeneratorDirectly(generatorName: string, args: string[]) {
   try {
     // Map generator names to their actual function names
+    // Note: init, add-command, add-agent, and hooks generators have been removed
+    // in favor of the marketplace-based plugin architecture
     const generatorFunctionMap: Record<string, string> = {
-      init: 'initGenerator',
-      hooks: 'hooksGenerator',
       addons: 'addonsGenerator',
-      'add-command': 'addCommandGenerator',
-      'add-agent': 'addAgentGenerator',
     };
 
     const generatorFnName = generatorFunctionMap[generatorName];

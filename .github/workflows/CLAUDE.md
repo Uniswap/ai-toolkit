@@ -1164,7 +1164,7 @@ gh workflow run publish-packages.yml \
 
 # Publish multiple packages
 gh workflow run publish-packages.yml \
-  -f packages="@uniswap/ai-toolkit-nx-claude,@ai-toolkit/utils"
+  -f packages="@uniswap/ai-toolkit-nx-claude,@uniswap/ai-toolkit-notion-publisher"
 
 # Publish all release-configured packages
 gh workflow run publish-packages.yml \
