@@ -2,17 +2,17 @@
 
 ## Overview
 
-This plugin provides pull request management workflows for Claude Code, including PR creation, review, issue resolution, and Graphite stack management.
+This plugin provides pull request review and management workflows for Claude Code, including PR review, issue resolution, and Graphite stack management.
+
+> **Note**: PR creation and commit message generation have been moved to the `development-planning` plugin to enable a seamless workflow: plan → execute → create PR.
 
 ## Plugin Components
 
 ### Skills (./skills/)
 
 - **code-reviewer**: Comprehensive code review for architecture, security, performance, and style
-- **pr-creator**: Create Graphite PRs with auto-generated conventional commit messages
 - **pr-issue-resolver**: Address PR review comments and fix CI failures
 - **graphite-stack-updater**: Update Graphite PR stacks by resolving comments and syncing
-- **commit-message-generator**: Generate well-structured git commit messages
 - **stack-splitter**: Split monolithic branches into logical PR stacks
 
 ### Commands (./commands/)
@@ -30,10 +30,8 @@ This plugin provides pull request management workflows for Claude Code, includin
 
 ### Agents (./agents/)
 
-- **pr-creator**: Creates well-formatted PRs with comprehensive descriptions
 - **review-executor**: Executes code review tasks and implements feedback
 - **stack-splitter**: Splits monolithic branches into logical PR stacks
-- **commit-message-generator**: Generates structured git commit messages
 
 ### MCP Integration (./.mcp.json)
 
@@ -42,6 +40,14 @@ This plugin bundles the Graphite MCP server for:
 - Stacked PR creation and management
 - PR submission with `gt submit`
 - Stack synchronization with `gt sync`
+
+## Canonical Workflow
+
+This plugin handles **steps 6-7** of the canonical development workflow:
+
+1. **Explore** → 2. **Plan** → 3. **Review Plan** → 4. **Execute** → 5. **PR Creation** → 6. **PR Review** (this plugin) → 7. **Merge** (this plugin)
+
+For steps 1-5, use the `development-planning` plugin.
 
 ## Architecture Notes
 
@@ -82,10 +88,8 @@ development-pr-workflow/
 │   └── plugin.json
 ├── skills/
 │   ├── code-reviewer/
-│   ├── pr-creator/
 │   ├── pr-issue-resolver/
 │   ├── graphite-stack-updater/
-│   ├── commit-message-generator/
 │   └── stack-splitter/
 ├── commands/
 │   ├── review-pr.md
@@ -97,10 +101,8 @@ development-pr-workflow/
 │   ├── setup-worktree-core.md
 │   └── linear-task-config.md
 ├── agents/
-│   ├── pr-creator.md
 │   ├── review-executor.md
-│   ├── stack-splitter.md
-│   └── commit-message-generator.md
+│   └── stack-splitter.md
 ├── .mcp.json
 ├── project.json
 ├── package.json
