@@ -129,12 +129,23 @@ For CLAUDE.md updates:
 3. Update multiple levels when appropriate
 4. Skip levels where changes have no relevance
 
-**Significance scoring (0-10):**
+### Change Significance Scale
 
-- API breaking changes: 8-10 → Update at THIS level and possibly parent
-- New public API/exports: 6-8 → Update at THIS level
-- Internal refactoring: 2-4 → Update only if affects usage patterns
-- Bug fixes: 0-2 → Skip unless changes usage
+Use this scale to determine update scope and priority:
+
+| Score | Change Type                                             | Action                                 |
+| ----- | ------------------------------------------------------- | -------------------------------------- |
+| 8-10  | Breaking changes, new public APIs, architectural shifts | Update at THIS level AND parent levels |
+| 5-7   | New features, significant refactors, dependency updates | Update at THIS level                   |
+| 2-4   | Internal refactoring, minor API additions               | Update only if affects usage patterns  |
+| 0-1   | Bug fixes, typos, formatting changes                    | Skip unless changes usage              |
+
+**Examples:**
+
+- Renamed exported function → Score 8 (breaking change)
+- Added new optional parameter → Score 5 (new feature)
+- Refactored internal helper → Score 2 (internal)
+- Fixed typo in error message → Score 0 (skip)
 
 ### Content Verification (Internal Phase)
 
@@ -166,6 +177,51 @@ Before generating or updating documentation:
 5. **Gate on accuracy**:
    - If accuracy < 70% or critical issues found, flag for review
    - Include inaccuracies in output for transparency
+
+### Verification Priority Matrix
+
+Not all claims require the same verification rigor. Prioritize verification effort:
+
+**CRITICAL (must be 100% accurate):**
+
+- Import/export paths referenced in documentation
+- File/directory existence claims
+- Command syntax (npm scripts, nx commands)
+- API signatures and function names
+
+**HIGH (verify when time permits):**
+
+- Version numbers and compatibility claims
+- Technology stack claims (frameworks, libraries)
+- Configuration values and environment variables
+
+**LOW (verify by sampling):**
+
+- Prose descriptions and explanations
+- Architectural pattern descriptions
+- Best practice recommendations
+
+**Verification fails if:** Any CRITICAL claim is inaccurate, OR accuracy score < 70%.
+
+### Documentation Creation Criteria
+
+**CREATE a new CLAUDE.md when:**
+
+- **Package boundary**: Directory contains `package.json` or `project.json`
+- **Major module**: Directory has 10+ source files with shared purpose
+- **API boundary**: Directory exports public API (index.ts with multiple exports)
+- **Domain boundary**: Directory represents distinct business domain (auth, payments, analytics)
+- **Framework convention**: Framework-specific important directories (Next.js `app`, `pages`)
+
+**SKIP CLAUDE.md for:**
+
+- Test directories (`__tests__`, `*.spec.ts` collections)
+- Config directories (`.config`, `settings`)
+- Generated/build output (`dist`, `build`, `.next`)
+- Asset directories (images, fonts, static files)
+- Single-file modules or directories with < 3 source files
+- Utility directories with only helper functions
+- `node_modules`, `.git`, `.cache`, temp directories
 
 ### Content Generation Guidelines
 
