@@ -53,24 +53,27 @@ graph TD
     end
 
     subgraph "Plugin Layer"
-        PLUGINS[plugins/*<br/>Agents & Skills]
-    end
-
-    subgraph "Content Layer"
-        COMMANDS[commands-agnostic]
-        COMMANDS_TS[commands-typescript]
+        DEV_PLAN[development-planning<br/>Planning & Execution]
+        DEV_PR[development-pr-workflow<br/>PR & Graphite]
+        DEV_CODE[development-codebase-tools<br/>Code Analysis]
+        DEV_PROD[development-productivity<br/>Docs & Research]
+        UNI_INT[uniswap-integrations<br/>External Services]
     end
 
     subgraph "Utility Layer"
-        UTILS[utils]
+        NOTION[notion-publisher]
+        LINEAR[linear-task-utils]
+        MCP[claude-mcp-helper]
     end
 
-    CLI --> PLUGINS
-    CLI --> COMMANDS
-    CLI --> COMMANDS_TS
-    CLI --> UTILS
-
-    COMMANDS_TS --> COMMANDS
+    CLI --> DEV_PLAN
+    CLI --> DEV_PR
+    CLI --> DEV_CODE
+    CLI --> DEV_PROD
+    CLI --> UNI_INT
+    UNI_INT --> NOTION
+    UNI_INT --> LINEAR
+    CLI --> MCP
 ```
 
 ## Package Structure
@@ -384,11 +387,8 @@ npx nx serve package-name --watch
 # Build the generator package
 npx nx build ai-toolkit-nx-claude
 
-# Test generator with dry-run
-npx nx generate @uniswap/ai-toolkit-nx-claude:init --dry-run
-
-# Test with local changes
-node ./dist/packages/ai-toolkit-nx-claude/src/generators/init/generator.js
+# Test addons generator with dry-run
+npx nx generate @uniswap/ai-toolkit-nx-claude:addons --dry-run
 ```
 
 #### Test Packages Before Publishing

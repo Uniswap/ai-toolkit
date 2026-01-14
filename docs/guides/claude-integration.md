@@ -275,20 +275,20 @@ The AI Toolkit provides several custom slash commands:
 
 ### Using Nx Generators
 
-Claude Code can use the Nx generators to scaffold code:
+Claude Code can use the Nx generators for MCP server addons:
 
 ```bash
-# Add a new agent
-nx generate @ai-toolkit/ai-toolkit-nx-claude:add-agent
-
-# Add a custom command
-nx generate @ai-toolkit/ai-toolkit-nx-claude:add-command
-
-# Add hooks or MCP servers
-nx generate @ai-toolkit/ai-toolkit-nx-claude:addons
+# Install MCP server addons
+nx generate @uniswap/ai-toolkit-nx-claude:addons
 ```
 
-Claude understands these generators and can suggest/use them when appropriate.
+**Note**: Agents, skills, and commands are now distributed through plugins. Create them directly in the appropriate plugin directory:
+
+- `packages/plugins/<plugin-name>/agents/` - For agents
+- `packages/plugins/<plugin-name>/skills/` - For skills
+- `packages/plugins/<plugin-name>/commands/` - For commands
+
+Claude understands these generators and the plugin architecture.
 
 ## Claude in GitHub Actions
 
