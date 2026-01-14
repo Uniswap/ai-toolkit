@@ -39,9 +39,6 @@ This plugin bundles the following MCP (Model Context Protocol) servers:
 | **cicd-agent** | CI/CD pipeline specialist for deployments and workflows |
 | **infrastructure-agent** | Cloud resource provisioning and infrastructure setup |
 | **migration-assistant** | Guides version upgrades and migrations |
-| **slack-analyzer** | Analyzes Slack conversations and activity |
-| **slack-fetcher** | Fetches Slack data for analysis |
-| **dev-ai-pod-weekly-newsletter** | Generates weekly newsletters from activity |
 
 ## Usage Examples
 
