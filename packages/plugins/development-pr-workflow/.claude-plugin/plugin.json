@@ -14,7 +14,7 @@
     "./skills/graphite-stack-updater",
     "./skills/pr-creator",
     "./skills/pr-issue-resolver",
-    "./skills/pr-reviewer",
+    "./skills/code-reviewer",
     "./skills/stack-splitter"
   ],
   "commands": [
@@ -27,7 +27,7 @@
     "./skills/graphite-stack-updater/graphite-stack-updater.md",
     "./skills/pr-creator/pr-creator.md",
     "./skills/pr-issue-resolver/pr-issue-resolver.md",
-    "./skills/pr-reviewer/pr-reviewer.md",
+    "./skills/code-reviewer/code-reviewer.md",
     "./skills/stack-splitter/stack-splitter.md"
   ]
 }

@@ -8,7 +8,7 @@ This plugin provides pull request management workflows for Claude Code, includin
 
 ### Skills (./skills/)
 
-- **pr-reviewer**: Comprehensive PR review using multiple specialized agents
+- **code-reviewer**: Comprehensive code review for architecture, security, performance, and style
 - **pr-creator**: Create Graphite PRs with auto-generated conventional commit messages
 - **pr-issue-resolver**: Address PR review comments and fix CI failures
 - **graphite-stack-updater**: Update Graphite PR stacks by resolving comments and syncing
@@ -31,7 +31,7 @@ This plugin provides pull request management workflows for Claude Code, includin
 ### Agents (./agents/)
 
 - **pr-creator**: Creates well-formatted PRs with comprehensive descriptions
-- **pr-reviewer**: Reviews PRs for code quality, security, performance
+- **review-executor**: Executes code review tasks and implements feedback
 - **stack-splitter**: Splits monolithic branches into logical PR stacks
 - **commit-message-generator**: Generates structured git commit messages
 
@@ -42,6 +42,17 @@ This plugin bundles the Graphite MCP server for:
 - Stacked PR creation and management
 - PR submission with `gt submit`
 - Stack synchronization with `gt sync`
+
+## Architecture Notes
+
+### Code Review Engine
+
+The `code-reviewer` skill provides comprehensive code review capabilities:
+
+- Multi-agent coordination (architecture, security, performance, style)
+- Standard and comprehensive review depths
+- Focused review modes (architecture, security, performance)
+- Structured output with prioritized findings and patches
 
 ## Development Guidelines
 
@@ -70,7 +81,7 @@ development-pr-workflow/
 ├── .claude-plugin/
 │   └── plugin.json
 ├── skills/
-│   ├── pr-reviewer/
+│   ├── code-reviewer/
 │   ├── pr-creator/
 │   ├── pr-issue-resolver/
 │   ├── graphite-stack-updater/
@@ -87,7 +98,7 @@ development-pr-workflow/
 │   └── linear-task-config.md
 ├── agents/
 │   ├── pr-creator.md
-│   ├── pr-reviewer.md
+│   ├── review-executor.md
 │   ├── stack-splitter.md
 │   └── commit-message-generator.md
 ├── .mcp.json

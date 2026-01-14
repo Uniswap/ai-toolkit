@@ -1,10 +1,10 @@
 ---
-name: pr-reviewer
-description: Reviews PRs, addresses comments with plans or code changes, and fixes CI pipeline issues
+name: review-executor
+description: Executes code review tasks - addresses PR comments, fixes CI issues, and implements review feedback
 model: claude-sonnet-4-5-20250929
 ---
 
-# pr-reviewer Agent
+# review-executor Agent
 
 ## Description
 
@@ -131,7 +131,7 @@ Return a structured response with:
 ## Example Usage
 
 ```
-/agent pr-reviewer
+/agent review-executor
 ```
 
 ## Implementation Notes
