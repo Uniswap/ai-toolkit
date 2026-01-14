@@ -114,7 +114,7 @@ Deep multi-agent analysis:
       name: "Test & Documentation",
       parallel: [
         { agent: "test-writer", focus: "coverage-gaps" },
-        { agent: "test-runner", focus: "regression-testing" },
+        { agent: "agent-tester", focus: "regression-testing" },
         { agent: "doc-writer", focus: "documentation-updates" }
       ]
     },
