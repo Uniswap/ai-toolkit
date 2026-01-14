@@ -13,7 +13,6 @@ This plugin provides pull request management workflows for Claude Code, includin
 - **pr-issue-resolver**: Address PR review comments and fix CI failures
 - **graphite-stack-updater**: Update Graphite PR stacks by resolving comments and syncing
 - **commit-message-generator**: Generate well-structured git commit messages
-- **git-worktree-orchestrator**: Create and manage git worktrees for parallel development
 - **stack-splitter**: Split monolithic branches into logical PR stacks
 
 ### Commands (./commands/)
@@ -22,7 +21,7 @@ This plugin provides pull request management workflows for Claude Code, includin
 - **work-through-pr-comments**: Methodically work through PR comments in a conversational workflow
 - **address-pr-issues**: Review and fix PR comments and CI failures to make PRs merge-ready
 - **linear-task-and-pr-from-changes**: Take local changes, create a Linear task, create a branch (optionally in a worktree), commit, and publish a PR
-- **start-linear-task**: Start working on a new Linear task by creating a worktree environment (for when you have no local changes yet)
+- **start-linear-task**: Start working on a new Linear task by creating a worktree environment with optional autonomous task completion
 
 ### Shared (./shared/)
 
@@ -76,7 +75,6 @@ development-pr-workflow/
 │   ├── pr-issue-resolver/
 │   ├── graphite-stack-updater/
 │   ├── commit-message-generator/
-│   ├── git-worktree-orchestrator/
 │   └── stack-splitter/
 ├── commands/
 │   ├── review-pr.md
