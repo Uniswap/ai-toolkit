@@ -14,13 +14,14 @@ claude /plugin install development-codebase-tools
 
 ## Skills
 
-| Skill                  | Description                                                                        |
-| ---------------------- | ---------------------------------------------------------------------------------- |
-| **codebase-explorer**  | Deep codebase exploration and understanding                                        |
-| **code-analyzer**      | Multi-agent code explanation for architecture, patterns, security, and performance |
-| **code-refactorer**    | Comprehensive refactoring with safety checks and pattern application               |
-| **code-reviewer**      | Code review for bugs, logic errors, security, and quality issues                   |
-| **tech-debt-analyzer** | Identify and prioritize technical debt with remediation plans                      |
+| Skill                     | Description                                                                        |
+| ------------------------- | ---------------------------------------------------------------------------------- |
+| **codebase-explorer**     | Deep codebase exploration and understanding                                        |
+| **code-analyzer**         | Multi-agent code explanation for architecture, patterns, security, and performance |
+| **code-refactorer**       | Comprehensive refactoring with safety checks and pattern application               |
+| **code-reviewer**         | Code review for bugs, logic errors, security, and quality issues                   |
+| **excalidraw-diagrammer** | Generate Excalidraw architecture diagrams from codebase analysis                   |
+| **tech-debt-analyzer**    | Identify and prioritize technical debt with remediation plans                      |
 
 ## Agents
 
@@ -50,6 +51,7 @@ claude /plugin install development-codebase-tools
 "Explain this file to me"                      # triggers code-analyzer
 "Refactor this code to use the strategy pattern" # triggers code-refactorer
 "Review this code for any issues"              # triggers code-reviewer
+"Create an architecture diagram of this system" # triggers excalidraw-diagrammer
 "What technical debt exists in this module?"   # triggers tech-debt-analyzer
 ```
 
