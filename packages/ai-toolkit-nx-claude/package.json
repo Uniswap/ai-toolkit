@@ -47,8 +47,7 @@
           "additionalEntryPoints": [
             "packages/ai-toolkit-nx-claude/src/index.ts",
             "packages/ai-toolkit-nx-claude/src/scripts/claude-plus/index.ts",
-            "packages/ai-toolkit-nx-claude/src/generators/addons/generator.ts",
-            "packages/ai-toolkit-nx-claude/src/generators/hooks/generator.ts"
+            "packages/ai-toolkit-nx-claude/src/generators/addons/generator.ts"
           ],
           "tsConfig": "packages/ai-toolkit-nx-claude/tsconfig.lib.json",
           "bundle": true,

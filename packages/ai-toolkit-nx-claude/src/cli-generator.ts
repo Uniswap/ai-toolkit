@@ -4,14 +4,13 @@
  * Unified CLI wrapper for ai-toolkit-nx-claude generators.
  *
  * Available generators:
- * - hooks: Install Claude Code notification hooks
  * - addons: Install and configure Claude Code addons including MCP servers
  *
  * Usage:
  * - No arguments -> shows interactive menu of generators
  * - Specific generator name -> runs that generator
  *
- * Note: The init, add-command, and add-agent generators have been removed.
+ * Note: The init, add-command, add-agent, and hooks generators have been removed.
  * For Claude Code setup, use the marketplace-based plugin architecture instead.
  */
 
@@ -20,7 +19,6 @@ import { prompt } from 'enquirer';
 
 // Available generators
 const GENERATORS: Record<string, string> = {
-  hooks: 'Install Claude Code notification hooks',
   addons: 'Install and configure Claude Code addons including MCP servers',
 };
 
@@ -40,7 +38,7 @@ function getGeneratorName(args: string[]): string | null {
       console.error(`  • ${name}: ${description}`);
     });
     console.error(
-      '\nNote: The init generator has been removed. Use the marketplace-based plugin architecture instead.'
+      '\nNote: The init, hooks, and other generators have been removed. Use the marketplace-based plugin architecture instead.'
     );
     process.exit(1);
   }
@@ -86,10 +84,9 @@ async function main() {
     console.log('\nUsage:');
     console.log('  npx @uniswap/ai-toolkit-nx-claude@latest [generator]');
     console.log('\nExamples:');
-    console.log('  npx @uniswap/ai-toolkit-nx-claude@latest hooks');
     console.log('  npx @uniswap/ai-toolkit-nx-claude@latest addons');
     console.log(
-      '\nNote: The init generator has been removed. Use the marketplace-based plugin architecture instead.'
+      '\nNote: The init, hooks, and other generators have been removed. Use the marketplace-based plugin architecture instead.'
     );
     process.exit(0);
   }
@@ -108,7 +105,7 @@ async function main() {
     console.log('  npx @uniswap/ai-toolkit-nx-claude@latest [generator]');
     console.log('\nOptions are handled interactively during execution.');
     console.log(
-      '\nNote: The init generator has been removed. Use the marketplace-based plugin architecture instead.'
+      '\nNote: The init, hooks, and other generators have been removed. Use the marketplace-based plugin architecture instead.'
     );
     process.exit(0);
   }
