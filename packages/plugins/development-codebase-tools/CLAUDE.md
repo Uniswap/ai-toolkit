@@ -12,6 +12,7 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 - **code-refactorer**: Comprehensive refactoring with safety checks and pattern application
 - **tech-debt-analyzer**: Identify and prioritize technical debt with remediation plans
 - **code-analyzer**: Multi-agent code explanation for architecture, patterns, security, and performance
+- **excalidraw-diagrammer**: Generate Excalidraw architecture diagrams from codebase analysis
 
 ### Agents (./agents/)
 
@@ -46,7 +47,8 @@ development-codebase-tools/
 │   ├── codebase-explorer/
 │   ├── code-refactorer/
 │   ├── tech-debt-analyzer/
-│   └── code-analyzer/
+│   ├── code-analyzer/
+│   └── excalidraw-diagrammer/
 ├── agents/
 │   ├── code-explainer.md
 │   ├── refactorer.md
