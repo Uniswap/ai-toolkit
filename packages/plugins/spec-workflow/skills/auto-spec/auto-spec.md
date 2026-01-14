@@ -58,6 +58,7 @@ Execute autonomous spec-driven development workflow with multi-agent collaborati
 ### Phase 1: Context Preparation
 
 1. **Load Project Context**
+
    - Use `mcp__spec-workflow__get-steering-context` if steering documents exist
    - Use `mcp__spec-workflow__get-template-context` to understand document formats
    - Analyze existing codebase patterns and architecture
@@ -69,6 +70,7 @@ Execute autonomous spec-driven development workflow with multi-agent collaborati
 ### Phase 2: Requirements Document Creation
 
 1. **Initial Requirements Generation**
+
    - Use `mcp__spec-workflow__spec-workflow-guide` to understand workflow
    - Create initial requirements using `mcp__spec-workflow__create-spec-doc`
 
@@ -81,6 +83,7 @@ Execute autonomous spec-driven development workflow with multi-agent collaborati
 ### Phase 3: Design Document Creation
 
 1. **Initial Design Generation**
+
    - Create design document based on finalized requirements
    - Include architectural decisions, data models, and interfaces
 
@@ -92,6 +95,7 @@ Execute autonomous spec-driven development workflow with multi-agent collaborati
 ### Phase 4: Task Planning
 
 1. **Task Decomposition**
+
    - Use `mcp__spec-workflow__create-spec-doc` to create tasks document
    - Break down implementation into granular, testable tasks
 
@@ -104,10 +108,12 @@ Execute autonomous spec-driven development workflow with multi-agent collaborati
 For each task in the implementation plan:
 
 1. **Task Implementation**
+
    - Mark task as in-progress using `mcp__spec-workflow__manage-tasks`
    - Spawn appropriate specialized agent(s) for implementation
 
 2. **Quality Validation Loop (INSTEAD of user review)**
+
    - Spawn **code-reviewer** to review implementation
    - Spawn **test-writer** to verify test coverage
    - Iterate until quality threshold met
@@ -139,19 +145,23 @@ Create comprehensive summary including:
 # Autonomous Spec Implementation: [Feature Name]
 
 ## Implementation Summary
+
 - Spec Name: [spec-name]
 - Total Tasks: [X completed / Y total]
 - Execution Time: [duration]
 - Quality Score: [X/10]
 
 ## Key Decisions and Rationale
+
 [List major architectural choices with reasoning]
 
 ## Testing Guide
+
 - Unit Tests: [X% coverage]
 - Integration Tests: [Y scenarios]
 
 ## Next Steps
+
 [Recommended follow-up actions]
 ```
 

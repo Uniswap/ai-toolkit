@@ -12,7 +12,6 @@ This plugin provides implementation planning and execution workflows for Claude 
 - **plan-executor**: Executes plans step-by-step with progress tracking
 - **plan-reviewer**: Reviews plans for completeness, feasibility, and alignment with codebase patterns
 - **plan-swarm**: Multi-agent collaborative plan refinement through expert discussion
-- **implement-spec**: Orchestrates the full spec-to-implementation workflow
 
 ### Agents (./agents/)
 
@@ -34,6 +33,13 @@ This plugin provides implementation planning and execution workflows for Claude 
 - Skills invoke agents via `Task(subagent_type:agent-name)`
 - Context flows automatically between exploration and planning phases
 
+## Related Plugins
+
+For spec-driven development workflows (requirements, design, and tasks documents), see the **spec-workflow** plugin which provides:
+
+- `/auto-spec` - Autonomous spec creation and implementation
+- `/implement-spec` - Execute spec-workflow tasks
+
 ## File Structure
 
 ```text
@@ -44,14 +50,11 @@ development-planning/
 │   ├── implementation-planner/
 │   ├── plan-executor/
 │   ├── plan-reviewer/
-│   ├── plan-swarm/
-│   └── implement-spec/
+│   └── plan-swarm/
 ├── agents/
 │   ├── planner.md
 │   ├── plan-reviewer.md
 │   └── context-loader.md
-├── commands/
-│   └── auto-spec.md
 ├── project.json
 ├── package.json
 ├── CLAUDE.md

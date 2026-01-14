@@ -2,7 +2,7 @@
 
 ## Overview
 
-This plugin provides external service integrations for Claude Code, bundling MCP servers for Linear, Notion, Nx, Chrome DevTools, and spec-workflow, plus deployment and CI/CD capabilities.
+This plugin provides external service integrations for Claude Code, bundling MCP servers for Linear, Notion, Nx, and Chrome DevTools, plus deployment and CI/CD capabilities.
 
 ## Plugin Components
 
@@ -20,7 +20,6 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 
 ### MCP Servers (./.mcp.json)
 
-- **spec-workflow**: Spec workflow dashboard and task management
 - **nx-mcp**: Nx workspace integration for monorepo management
 - **notion**: Notion API integration for documentation
 - **linear**: Linear issue tracking integration
@@ -32,6 +31,10 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 - Agents are auto-discovered from the `agents/` directory
 - Skills invoke agents via `Task(subagent_type:agent-name)`
 - MCP servers provide external service connectivity
+
+## Related Plugins
+
+For spec-driven development workflows, see the **spec-workflow** plugin which provides the spec-workflow MCP server and related skills.
 
 ## File Structure
 

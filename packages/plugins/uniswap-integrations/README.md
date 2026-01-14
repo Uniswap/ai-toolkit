@@ -16,29 +16,28 @@ claude /plugin install uniswap-integrations
 
 This plugin bundles the following MCP (Model Context Protocol) servers:
 
-| Server | Description |
-| ------ | ----------- |
-| **spec-workflow** | Spec workflow dashboard and task management |
-| **nx-mcp** | Nx workspace integration for monorepo management |
-| **notion** | Notion API integration for documentation |
-| **linear** | Linear issue tracking integration |
-| **chrome-devtools** | Chrome DevTools debugging integration |
+| Server              | Description                                      |
+| ------------------- | ------------------------------------------------ |
+| **nx-mcp**          | Nx workspace integration for monorepo management |
+| **notion**          | Notion API integration for documentation         |
+| **linear**          | Linear issue tracking integration                |
+| **chrome-devtools** | Chrome DevTools debugging integration            |
 
 ## Skills
 
-| Skill | Description |
-| ----- | ----------- |
-| **daily-standup** | Generate daily standup reports from GitHub and Linear activity |
-| **deployment-orchestrator** | Orchestrate deployment pipelines with CI/CD configuration |
-| **linear-task-refiner** | Refine and enhance Linear task descriptions |
+| Skill                       | Description                                                    |
+| --------------------------- | -------------------------------------------------------------- |
+| **daily-standup**           | Generate daily standup reports from GitHub and Linear activity |
+| **deployment-orchestrator** | Orchestrate deployment pipelines with CI/CD configuration      |
+| **linear-task-refiner**     | Refine and enhance Linear task descriptions                    |
 
 ## Agents
 
-| Agent | Description |
-| ----- | ----------- |
-| **cicd-agent** | CI/CD pipeline specialist for deployments and workflows |
-| **infrastructure-agent** | Cloud resource provisioning and infrastructure setup |
-| **migration-assistant** | Guides version upgrades and migrations |
+| Agent                    | Description                                             |
+| ------------------------ | ------------------------------------------------------- |
+| **cicd-agent**           | CI/CD pipeline specialist for deployments and workflows |
+| **infrastructure-agent** | Cloud resource provisioning and infrastructure setup    |
+| **migration-assistant**  | Guides version upgrades and migrations                  |
 
 ## Usage Examples
 
@@ -55,6 +54,14 @@ Some MCP servers require authentication:
 
 - **notion**: OAuth via <https://mcp.notion.com>
 - **linear**: OAuth via <https://mcp.linear.app>
+
+## Spec-Driven Development
+
+For spec-driven development workflows with the spec-workflow MCP server, install the **spec-workflow** plugin:
+
+```bash
+claude /plugin install spec-workflow
+```
 
 ## License
 

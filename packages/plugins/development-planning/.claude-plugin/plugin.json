@@ -1,6 +1,6 @@
 {
   "name": "development-planning",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Implementation planning and execution workflows with multi-agent collaboration",
   "author": {
     "name": "Uniswap Labs",
@@ -10,15 +10,12 @@
   "keywords": ["planning", "implementation", "workflow", "multi-agent"],
   "license": "MIT",
   "skills": [
-    "./skills/implement-spec",
     "./skills/implementation-planner",
     "./skills/plan-executor",
     "./skills/plan-reviewer",
     "./skills/plan-swarm"
   ],
   "commands": [
-    "./commands/auto-spec.md",
-    "./skills/implement-spec/implement-spec.md",
     "./skills/implementation-planner/implementation-planner.md",
     "./skills/plan-executor/plan-executor.md",
     "./skills/plan-reviewer/plan-reviewer.md",
