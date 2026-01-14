@@ -1,6 +1,6 @@
 ---
 description: Comprehensive multi-agent code review. Use when user says "review my code", "check this for issues", "analyze code quality", "security review", "performance review", or needs architecture, security, performance, and style analysis of code changes.
-allowed-tools: Read(*), Grep(*), Glob(*), Task(subagent_type:agent-orchestrator), Task(subagent_type:context-loader), Task(subagent_type:style-enforcer), Task(subagent_type:security-analyzer), Task(subagent_type:performance-analyzer), Task(subagent_type:code-explainer), Task(subagent_type:refactorer), Task(subagent_type:test-writer), Task(subagent_type:test-runner)
+allowed-tools: Read(*), Grep(*), Glob(*), Task(subagent_type:agent-orchestrator), Task(subagent_type:context-loader), Task(subagent_type:style-enforcer), Task(subagent_type:security-analyzer), Task(subagent_type:performance-analyzer), Task(subagent_type:code-explainer), Task(subagent_type:refactorer), Task(subagent_type:test-writer), Task(subagent_type:agent-tester)
 ---
 
 # Code Reviewer
@@ -55,7 +55,7 @@ Invoke **agent-orchestrator** to coordinate parallel analysis:
 - **Code Quality**: style-enforcer, refactorer, code-explainer
 - **Architecture & Design**: pattern consistency, design validation
 - **Security & Performance**: security-analyzer, performance-analyzer
-- **Testing**: test-writer (coverage gaps), test-runner (validation)
+- **Testing**: test-writer (coverage gaps), agent-tester (validation)
 
 ### Phase 3: Deep Analysis (if --depth deep)
 

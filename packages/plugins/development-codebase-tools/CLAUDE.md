@@ -22,7 +22,7 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 - **debug-assistant**: Advanced debugging with root cause analysis
 - **style-enforcer**: Enforces code style and conventions
 - **deduplicator**: Identifies and eliminates code duplication
-- **code-generator**: Generates production-ready code following patterns
+- **code-generator**: Generates production-ready code following patterns (delegates to test-writer for tests)
 - **pattern-learner**: Learns and applies codebase patterns
 
 ### Hooks (./hooks/)

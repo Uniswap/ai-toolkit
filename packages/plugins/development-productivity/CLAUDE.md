@@ -25,7 +25,7 @@ This plugin provides documentation, research, test generation, and prompt optimi
 - **researcher**: Conducts thorough research on topics
 - **prompt-engineer**: Optimizes prompts for AI models
 - **test-writer**: Generates comprehensive tests with edge case identification
-- **test-runner**: Validates agent behaviors and runs automated tests
+- **agent-tester**: Validates agent behaviors and runs automated agent tests (tests agents, not code)
 
 ## Integration Notes
 
@@ -55,7 +55,7 @@ development-productivity/
 │   ├── researcher.md
 │   ├── prompt-engineer.md
 │   ├── test-writer.md
-│   └── test-runner.md
+│   └── agent-tester.md
 ├── project.json
 ├── package.json
 ├── CLAUDE.md

@@ -36,7 +36,7 @@ claude /plugin install development-productivity
 | **researcher**               | Conducts thorough research on topics                                      |
 | **prompt-engineer**          | Optimizes prompts for AI models                                           |
 | **test-writer**              | Generates comprehensive tests with edge case identification               |
-| **test-runner**              | Validates agent behaviors and runs automated tests                        |
+| **agent-tester**             | Validates agent behaviors and runs automated agent tests                  |
 | **claude-docs-manager**      | Manages CLAUDE.md documentation updates                                   |
 | **claude-docs-initializer**  | Initializes CLAUDE.md files for new projects                              |
 | **claude-docs-fact-checker** | Verifies CLAUDE.md accuracy against codebase                              |
