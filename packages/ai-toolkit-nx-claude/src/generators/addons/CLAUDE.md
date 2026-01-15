@@ -24,7 +24,7 @@ npx nx generate @uniswap/ai-toolkit-nx-claude:addons \
 ### Installation Control
 
 - `selectionMode` - Selection mode for which addons to install:
-  - `all` - Install all available addons (6 MCP servers)
+  - `all` - Install all available addons (3 MCP servers)
   - `specific` - Choose specific addons to install
 - `addons` - Specific addons to install (when `selectionMode=specific`)
 - `installationType` - Installation location for MCP servers:
@@ -39,7 +39,7 @@ npx nx generate @uniswap/ai-toolkit-nx-claude:addons \
 
 ## Available Addons
 
-Registered in `addon-registry.ts`. These 6 MCP servers are available for manual installation:
+Registered in `addon-registry.ts`. These 3 MCP servers are available for manual installation:
 
 ### 1. slack-mcp
 
@@ -65,27 +65,7 @@ Registered in `addon-registry.ts`. These 6 MCP servers are available for manual 
 
 **Requires**: GitHub Personal Access Token (can be obtained via `gh auth token`)
 
-### 3. figma-mcp
-
-**Purpose**: Figma design platform integration
-
-**Features**:
-
-- Access design files
-- Extract design components
-- Translate designs to code
-
-### 4. vercel-mcp
-
-**Purpose**: Vercel deployment platform integration
-
-**Features**:
-
-- Deployment management
-- Environment configuration
-- Project monitoring
-
-### 5. aws-log-analyzer-mcp
+### 3. aws-log-analyzer-mcp
 
 **Purpose**: MCP server for AWS CloudWatch log analysis
 
@@ -106,28 +86,20 @@ Registered in `addon-registry.ts`. These 6 MCP servers are available for manual 
 
 **Requires**: AWS credentials with CloudWatchLogsReadOnlyAccess
 
-### 6. pulumi-mcp
-
-**Purpose**: Pulumi infrastructure as code integration
-
-**Features**:
-
-- Infrastructure management
-- Resource state inspection
-- Deployment automation
-
-**Requires**: Pulumi Personal Access Token (PAT)
-
 ## Note on Plugin-Bundled MCP Servers
 
 The following MCP servers are **NOT** available via this addons generator because they are bundled via plugins:
 
-- **spec-workflow-mcp** - Available via development-planning plugin
+- **spec-workflow-mcp** - Available via spec-workflow plugin
 - **graphite-mcp** - Available via development-pr-workflow plugin
 - **nx-mcp** - Available via uniswap-integrations plugin
 - **notion-mcp** - Available via uniswap-integrations plugin
 - **linear-mcp** - Available via uniswap-integrations plugin
-- **chrome-devtools-mcp** - Available via development-productivity plugin
+- **chrome-devtools-mcp** - Available via uniswap-integrations plugin
+- **github-mcp** - Available via uniswap-integrations plugin
+- **pulumi-mcp** - Available via uniswap-integrations plugin
+- **figma-mcp** - Available via uniswap-integrations plugin
+- **vercel-mcp** - Available via uniswap-integrations plugin
 
 To access these, install the corresponding plugin from the Claude Code Plugin Marketplace.
 
