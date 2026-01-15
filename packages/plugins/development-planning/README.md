@@ -19,9 +19,9 @@ This plugin provides the following skills:
 | Skill                       | Description                                          |
 | --------------------------- | ---------------------------------------------------- |
 | **create-pr**               | Create Graphite PRs with conventional commits        |
+| **execute-plan**            | Execute implementation plans step-by-step            |
 | **generate-commit-message** | Generate well-structured git commit messages         |
-| **implementation-planner**  | Create implementation plans for features and changes |
-| **plan-executor**           | Execute implementation plans step-by-step            |
+| **plan-implementation**     | Create implementation plans for features and changes |
 | **plan-swarm**              | Refine plans through multi-agent expert discussion   |
 | **review-plan**             | Review plans for completeness and feasibility        |
 
@@ -41,8 +41,8 @@ This plugin provides the following skills:
 # Use skills contextually for individual workflow steps
 "Create a PR for my changes"                                    # triggers create-pr
 "Generate a commit message for these changes"                   # triggers generate-commit-message
-"Help me plan out the implementation for user authentication"   # triggers implementation-planner
-"Execute the plan in auth-plan.md"                              # triggers plan-executor
+"Help me plan out the implementation for user authentication"   # triggers plan-implementation
+"Execute the plan in auth-plan.md"                              # triggers execute-plan
 "Review this plan for completeness"                             # triggers review-plan
 ```
 
@@ -58,11 +58,11 @@ This plugin handles **steps 1-5** of the canonical development workflow:
 
 ### Recommended Workflow
 
-1. **Explore** (optional): Use codebase-explorer skill to understand the area
-2. **Plan**: Use implementation-planner skill to create a plan
+1. **Explore** (optional): Use explore-codebase skill to understand the area
+2. **Plan**: Use plan-implementation skill to create a plan
 3. **Review**: Use review-plan skill to validate the plan
-4. **Execute**: Use plan-executor skill to implement the plan
-5. **Create PR**: plan-executor offers PR creation at completion, or use create-pr skill directly
+4. **Execute**: Use execute-plan skill to implement the plan
+5. **Create PR**: execute-plan offers PR creation at completion, or use create-pr skill directly
 
 For complex features, use the `plan-swarm` skill to get multi-agent perspectives on your approach.
 

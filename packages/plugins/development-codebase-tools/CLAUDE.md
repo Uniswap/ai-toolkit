@@ -8,11 +8,11 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 
 ### Skills (./skills/)
 
-- **codebase-explorer**: Deep codebase exploration with architectural understanding
-- **code-refactorer**: Comprehensive refactoring with safety checks and pattern application
-- **code-analyzer**: Multi-agent code explanation for architecture, patterns, security, and performance
-- **excalidraw-diagrammer**: Generate Excalidraw architecture diagrams from codebase analysis
-- **tech-debt-analyzer**: Identify and prioritize technical debt with remediation plans
+- **analyze-code**: Multi-agent code explanation for architecture, patterns, security, and performance
+- **analyze-tech-debt**: Identify and prioritize technical debt with remediation plans
+- **diagram-excalidraw**: Generate Excalidraw architecture diagrams from codebase analysis
+- **explore-codebase**: Deep codebase exploration with architectural understanding
+- **refactor-code**: Comprehensive refactoring with safety checks and pattern application
 
 ### Agents (./agents/)
 
@@ -44,11 +44,11 @@ development-codebase-tools/
 ├── .claude-plugin/
 │   └── plugin.json
 ├── skills/
-│   ├── codebase-explorer/
-│   ├── code-refactorer/
-│   ├── code-analyzer/
-│   ├── excalidraw-diagrammer/
-│   └── tech-debt-analyzer/
+│   ├── analyze-code/
+│   ├── analyze-tech-debt/
+│   ├── diagram-excalidraw/
+│   ├── explore-codebase/
+│   └── refactor-code/
 ├── agents/
 │   ├── code-explainer.md
 │   ├── code-generator.md

@@ -9,9 +9,9 @@ This plugin provides the complete implementation lifecycle for Claude Code: plan
 ### Skills (./skills/)
 
 - **create-pr**: Creates Graphite PRs with auto-generated conventional commit messages
+- **execute-plan**: Executes plans step-by-step with progress tracking
 - **generate-commit-message**: Generates well-structured git commit messages
-- **implementation-planner**: Creates comprehensive implementation plans with step-by-step breakdowns
-- **plan-executor**: Executes plans step-by-step with progress tracking
+- **plan-implementation**: Creates comprehensive implementation plans with step-by-step breakdowns
 - **plan-swarm**: Multi-agent collaborative plan refinement through expert discussion
 - **review-plan**: Reviews plans for completeness, feasibility, and alignment with codebase patterns
 
@@ -33,11 +33,11 @@ After PR creation, use `development-pr-workflow` for: 6. **PR Review** → 7. **
 
 ### Recommended Workflow
 
-1. **Explore** (optional): Use codebase-explorer skill to understand the area
-2. **Plan**: Use implementation-planner skill to create a plan
+1. **Explore** (optional): Use explore-codebase skill to understand the area
+2. **Plan**: Use plan-implementation skill to create a plan
 3. **Review**: Use review-plan skill to validate the plan
-4. **Execute**: Use plan-executor skill to implement the plan
-5. **Create PR**: plan-executor offers PR creation at completion, or use create-pr skill directly
+4. **Execute**: Use execute-plan skill to implement the plan
+5. **Create PR**: execute-plan offers PR creation at completion, or use create-pr skill directly
 
 ## Integration Notes
 
@@ -45,7 +45,7 @@ After PR creation, use `development-pr-workflow` for: 6. **PR Review** → 7. **
 - Agents are auto-discovered from the `agents/` directory
 - Skills invoke agents via `Task(subagent_type:agent-name)`
 - Context flows automatically between exploration and planning phases
-- plan-executor can seamlessly invoke pr-creator after implementation completes
+- execute-plan can seamlessly invoke pr-creator after implementation completes
 
 ## Related Plugins
 
@@ -62,9 +62,9 @@ development-planning/
 │   └── plugin.json
 ├── skills/
 │   ├── create-pr/
+│   ├── execute-plan/
 │   ├── generate-commit-message/
-│   ├── implementation-planner/
-│   ├── plan-executor/
+│   ├── plan-implementation/
 │   ├── plan-swarm/
 │   └── review-plan/
 ├── agents/

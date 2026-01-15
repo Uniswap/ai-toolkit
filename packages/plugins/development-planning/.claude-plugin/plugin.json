@@ -11,17 +11,17 @@
   "license": "MIT",
   "skills": [
     "./skills/create-pr",
+    "./skills/execute-plan",
     "./skills/generate-commit-message",
-    "./skills/implementation-planner",
-    "./skills/plan-executor",
+    "./skills/plan-implementation",
     "./skills/plan-swarm",
     "./skills/review-plan"
   ],
   "commands": [
     "./skills/create-pr/create-pr.md",
+    "./skills/execute-plan/execute-plan.md",
     "./skills/generate-commit-message/generate-commit-message.md",
-    "./skills/implementation-planner/implementation-planner.md",
-    "./skills/plan-executor/plan-executor.md",
+    "./skills/plan-implementation/plan-implementation.md",
     "./skills/plan-swarm/plan-swarm.md",
     "./skills/review-plan/review-plan.md"
   ]

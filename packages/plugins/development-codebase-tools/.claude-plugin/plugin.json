@@ -10,17 +10,17 @@
   "keywords": ["codebase", "exploration", "refactoring", "tech-debt"],
   "license": "MIT",
   "skills": [
-    "./skills/code-analyzer",
-    "./skills/code-refactorer",
-    "./skills/codebase-explorer",
-    "./skills/excalidraw-diagrammer",
-    "./skills/tech-debt-analyzer"
+    "./skills/analyze-code",
+    "./skills/analyze-tech-debt",
+    "./skills/diagram-excalidraw",
+    "./skills/explore-codebase",
+    "./skills/refactor-code"
   ],
   "commands": [
-    "./skills/code-analyzer/code-analyzer.md",
-    "./skills/code-refactorer/code-refactorer.md",
-    "./skills/codebase-explorer/codebase-explorer.md",
-    "./skills/excalidraw-diagrammer/excalidraw-diagrammer.md",
-    "./skills/tech-debt-analyzer/tech-debt-analyzer.md"
+    "./skills/analyze-code/analyze-code.md",
+    "./skills/analyze-tech-debt/analyze-tech-debt.md",
+    "./skills/diagram-excalidraw/diagram-excalidraw.md",
+    "./skills/explore-codebase/explore-codebase.md",
+    "./skills/refactor-code/refactor-code.md"
   ]
 }

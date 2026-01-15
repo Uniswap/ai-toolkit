@@ -8,10 +8,10 @@ This plugin provides documentation, research, test generation, and prompt optimi
 
 ### Skills (./skills/)
 
-- **claude-docs-updater**: Update CLAUDE.md documentation files after code changes
-- **topic-researcher**: Research topics combining web search with codebase analysis
-- **prompt-optimizer**: Optimize AI prompts for better model performance
-- **test-generator**: Generate comprehensive tests with advanced testing strategies
+- **generate-tests**: Generate comprehensive tests with advanced testing strategies
+- **optimize-prompt**: Optimize AI prompts for better model performance
+- **research-topic**: Research topics combining web search with codebase analysis
+- **update-claude-docs**: Update CLAUDE.md documentation files after code changes
 
 ### Commands (./commands/)
 
@@ -42,10 +42,10 @@ development-productivity/
 ├── .claude-plugin/
 │   └── plugin.json
 ├── skills/
-│   ├── claude-docs-updater/
-│   ├── topic-researcher/
-│   ├── prompt-optimizer/
-│   └── test-generator/
+│   ├── generate-tests/
+│   ├── optimize-prompt/
+│   ├── research-topic/
+│   └── update-claude-docs/
 ├── commands/
 │   ├── claude-init-plus.md
 │   └── update-claude-md.md

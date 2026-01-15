@@ -9,9 +9,9 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 ### Skills (./skills/)
 
 - **daily-standup**: Generate daily standup reports from GitHub and Linear activity
-- **deployment-orchestrator**: Orchestrate deployment pipelines with CI/CD configuration
-- **linear-task-refiner**: Refine and enhance Linear task descriptions
 - **github-setup**: Configure GitHub Personal Access Token for the GitHub MCP server
+- **orchestrate-deployment**: Orchestrate deployment pipelines with CI/CD configuration
+- **refine-linear-task**: Refine and enhance Linear task descriptions
 
 ### Agents (./agents/)
 
@@ -73,9 +73,9 @@ uniswap-integrations/
 │   └── plugin.json
 ├── skills/
 │   ├── daily-standup/
-│   ├── deployment-orchestrator/
-│   ├── linear-task-refiner/
-│   └── github-setup/
+│   ├── github-setup/
+│   ├── orchestrate-deployment/
+│   └── refine-linear-task/
 ├── agents/
 │   ├── cicd-agent.md
 │   ├── infrastructure-agent.md

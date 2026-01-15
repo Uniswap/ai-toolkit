@@ -33,10 +33,10 @@ This plugin supports two PR creation workflows:
 
 ### Skills (./skills/)
 
-- **code-reviewer**: Comprehensive code review for architecture, security, performance, and style
-- **graphite-stack-updater**: Update Graphite PR stacks by resolving comments and syncing
-- **pr-issue-resolver**: Address PR review comments and fix CI failures
+- **resolve-pr-issues**: Address PR review comments and fix CI failures
+- **review-code**: Comprehensive code review for architecture, security, performance, and style
 - **split-graphite-stack**: Split monolithic branches into logical PR stacks
+- **update-graphite-stack**: Update Graphite PR stacks by resolving comments and syncing
 
 ### Commands (./commands/)
 
@@ -78,7 +78,7 @@ For steps 1-5, use the `development-planning` plugin.
 
 ### Code Review Engine
 
-The `code-reviewer` skill provides comprehensive code review capabilities:
+The `review-code` skill provides comprehensive code review capabilities:
 
 - Multi-agent coordination (architecture, security, performance, style)
 - Standard and comprehensive review depths
@@ -112,10 +112,10 @@ development-pr-workflow/
 ├── .claude-plugin/
 │   └── plugin.json
 ├── skills/
-│   ├── code-reviewer/
-│   ├── graphite-stack-updater/
-│   ├── pr-issue-resolver/
-│   └── split-graphite-stack/
+│   ├── resolve-pr-issues/
+│   ├── review-code/
+│   ├── split-graphite-stack/
+│   └── update-graphite-stack/
 ├── commands/
 │   ├── address-pr-issues.md
 │   ├── linear-task-and-pr-from-changes.md

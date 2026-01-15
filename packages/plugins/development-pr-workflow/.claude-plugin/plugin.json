@@ -10,10 +10,10 @@
   "keywords": ["pull-request", "pr-review", "graphite", "git"],
   "license": "MIT",
   "skills": [
-    "./skills/code-reviewer",
-    "./skills/graphite-stack-updater",
-    "./skills/pr-issue-resolver",
-    "./skills/split-graphite-stack"
+    "./skills/resolve-pr-issues",
+    "./skills/review-code",
+    "./skills/split-graphite-stack",
+    "./skills/update-graphite-stack"
   ],
   "commands": [
     "./commands/address-pr-issues.md",
@@ -21,9 +21,9 @@
     "./commands/review-pr.md",
     "./commands/start-linear-task.md",
     "./commands/work-through-pr-comments.md",
-    "./skills/code-reviewer/code-reviewer.md",
-    "./skills/graphite-stack-updater/graphite-stack-updater.md",
-    "./skills/pr-issue-resolver/pr-issue-resolver.md",
-    "./skills/split-graphite-stack/split-graphite-stack.md"
+    "./skills/resolve-pr-issues/resolve-pr-issues.md",
+    "./skills/review-code/review-code.md",
+    "./skills/split-graphite-stack/split-graphite-stack.md",
+    "./skills/update-graphite-stack/update-graphite-stack.md"
   ]
 }
