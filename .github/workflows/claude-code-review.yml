@@ -64,6 +64,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Pre-check job for automatic reviews to detect automated PRs
+  # Only runs for pull_request events (not manual/comment triggers)
+  check-automated:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      is_automated: ${{ steps.check.outputs.is_automated }}
+      category: ${{ steps.check.outputs.category }}
+      skip_reason: ${{ steps.check.outputs.skip_reason }}
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Checkout repository (for composite action)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          sparse-checkout: .github/actions
+          sparse-checkout-cone-mode: false
+
+      - name: Check for automated PR
+        id: check
+        uses: ./.github/actions/check-automated-pr
+        with:
+          branch_name: ${{ github.head_ref }}
+          pr_title: ${{ github.event.pull_request.title }}
+
   # Fetch PR details for manual triggers (workflow_dispatch) and comment triggers
   # This job retrieves base_ref which isn't available in these event contexts
   get-pr-info:
@@ -152,11 +179,17 @@ jobs:
           echo "✅ PR #$PR_NUMBER: base=$BASE_REF, head=$HEAD_REF"
 
   # Automatic review triggered by pull_request events (opened, synchronize, ready_for_review)
+  # Skips certain automated PRs but reviews dependency updates (for auto-merge support)
+  # Skip categories: release, sync, action-update, merge-queue
+  # Review categories: deps (dependabot/renovate), and all non-automated PRs
   claude-review-auto:
+    needs: check-automated
     if: |
       github.event_name == 'pull_request' &&
-      !contains(github.head_ref, 'gh-readonly-queue/') &&
-      !startsWith(github.head_ref, 'release/next-to-main-') &&
+      (
+        needs.check-automated.outputs.is_automated != 'true' ||
+        needs.check-automated.outputs.category == 'deps'
+      ) &&
       (
         github.event.pull_request.draft == false ||
         github.event.action == 'ready_for_review' ||
@@ -194,15 +227,32 @@ jobs:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
 
+  # Summary job for skipped automatic reviews
+  review-skipped:
+    needs: check-automated
+    if: |
+      github.event_name == 'pull_request' &&
+      needs.check-automated.outputs.is_automated == 'true' &&
+      needs.check-automated.outputs.category != 'deps'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Report skipped review
+        env:
+          SKIP_REASON: ${{ needs.check-automated.outputs.skip_reason }}
+        run: |
+          echo "::notice::Code review skipped for automated PR: $SKIP_REASON"
+          echo "✅ Automated PR detected - code review is not required for this PR type."
+
   # Manual review triggered by workflow_dispatch
   # This runs after get-pr-info to have access to PR metadata
+  # Note: Manual triggers bypass automated PR checks - if you explicitly request a review, you get one
   claude-review-manual:
     needs: get-pr-info
     if: |
       github.event_name == 'workflow_dispatch' &&
-      needs.get-pr-info.outputs.should_run == 'true' &&
-      !contains(needs.get-pr-info.outputs.head_ref, 'gh-readonly-queue/') &&
-      !startsWith(needs.get-pr-info.outputs.head_ref, 'release/next-to-main-')
+      needs.get-pr-info.outputs.should_run == 'true'
 
     uses: ./.github/workflows/_claude-code-review.yml
     with:
@@ -227,13 +277,12 @@ jobs:
 
   # Comment-triggered review: Add "@request-claude-review" to any PR comment
   # This forces a fresh review, bypassing the cache
+  # Note: Comment triggers bypass automated PR checks - if you explicitly request a review, you get one
   claude-review-comment:
     needs: get-pr-info
     if: |
       (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
-      needs.get-pr-info.outputs.should_run == 'true' &&
-      !contains(needs.get-pr-info.outputs.head_ref, 'gh-readonly-queue/') &&
-      !startsWith(needs.get-pr-info.outputs.head_ref, 'release/next-to-main-')
+      needs.get-pr-info.outputs.should_run == 'true'
 
     uses: ./.github/workflows/_claude-code-review.yml
     with:
