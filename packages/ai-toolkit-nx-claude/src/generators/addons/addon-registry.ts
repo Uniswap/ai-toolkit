@@ -96,21 +96,6 @@ const ADDON_REGISTRY: AddonMetadata[] = [
     },
   },
   {
-    id: 'github-mcp',
-    name: 'GitHub MCP',
-    description: 'MCP server for GitHub repository access',
-    type: 'mcp-server',
-    packageName: '@modelcontextprotocol/server-github',
-    mcp: {
-      serverName: 'github',
-      command: 'npx',
-      args: ['-y', '@modelcontextprotocol/server-github'],
-      env: {
-        GITHUB_PERSONAL_ACCESS_TOKEN: 'PROMPT_TO_INSERT_GITHUB_PERSONAL_ACCESS_TOKEN',
-      },
-    },
-  },
-  {
     id: 'aws-log-analyzer-mcp',
     name: 'AWS Log Analyzer MCP',
     description: 'MCP server for AWS CloudWatch Logs analysis, searching, and correlation',

@@ -24,7 +24,7 @@ npx nx generate @uniswap/ai-toolkit-nx-claude:addons \
 ### Installation Control
 
 - `selectionMode` - Selection mode for which addons to install:
-  - `all` - Install all available addons (3 MCP servers)
+  - `all` - Install all available addons (2 MCP servers)
   - `specific` - Choose specific addons to install
 - `addons` - Specific addons to install (when `selectionMode=specific`)
 - `installationType` - Installation location for MCP servers:
@@ -39,7 +39,7 @@ npx nx generate @uniswap/ai-toolkit-nx-claude:addons \
 
 ## Available Addons
 
-Registered in `addon-registry.ts`. These 3 MCP servers are available for manual installation:
+Registered in `addon-registry.ts`. These 2 MCP servers are available for manual installation:
 
 ### 1. slack-mcp
 
@@ -53,19 +53,7 @@ Registered in `addon-registry.ts`. These 3 MCP servers are available for manual 
 
 **Requires**: Slack Bot Token authentication
 
-### 2. github-mcp
-
-**Purpose**: GitHub repository integration
-
-**Features**:
-
-- Repository management
-- Issue and PR interactions
-- Code review capabilities
-
-**Requires**: GitHub Personal Access Token (can be obtained via `gh auth token`)
-
-### 3. aws-log-analyzer-mcp
+### 2. aws-log-analyzer-mcp
 
 **Purpose**: MCP server for AWS CloudWatch log analysis
 
