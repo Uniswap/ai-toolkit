@@ -17,6 +17,7 @@ Generate a structured git commit message based on current changes and repository
 ## Quick Process
 
 1. **Gather Git Information**:
+
    - Run `git status` to see staged and unstaged changes
    - Run `git diff --cached` to get detailed staged changes
    - Run `git diff` to get unstaged changes (if any)
