@@ -94,14 +94,81 @@ This guide documents the canonical development workflows across the Uniswap AI T
 
 → Use **development-pr-workflow**
 
-| Scenario                            | Skill/Command            |
-| ----------------------------------- | ------------------------ |
-| "Review this PR"                    | review-code              |
-| "Address PR comments"               | work-through-pr-comments |
-| "Fix CI failures"                   | resolve-pr-issues        |
-| "Split into smaller PRs" (Graphite) | split-graphite-stack     |
-| "Update my PR stack" (Graphite)     | update-graphite-stack    |
-| "Start working on a Linear task"    | start-linear-task        |
+| Scenario                            | Skill/Command                   |
+| ----------------------------------- | ------------------------------- |
+| "Review this PR"                    | review-code                     |
+| "Address PR comments"               | work-through-pr-comments        |
+| "Fix CI failures"                   | resolve-pr-issues               |
+| "Split into smaller PRs" (Graphite) | split-graphite-stack            |
+| "Update my PR stack" (Graphite)     | update-graphite-stack           |
+| "Start working on a Linear task"    | start-linear-task               |
+| "Create task + PR from changes"     | linear-task-and-pr-from-changes |
+
+#### Quick Commands for Linear + PR Workflow
+
+These are frequently used commands for rapid task and PR creation:
+
+##### `/development-pr-workflow:start-linear-task`
+
+**Use when:** You're starting fresh work on a new task or feature.
+
+**What it does:**
+
+1. Prompts you to provide a Linear task ID (e.g., `LIN-123`) or describe new work
+2. Creates a new Linear task if one doesn't exist
+3. Creates an isolated [git worktree](https://git-scm.com/docs/git-worktree) for the task
+4. Checks out a properly named branch (e.g., `feature/lin-123-add-oauth`)
+5. Sets up the environment so you can start coding immediately
+
+**Example:**
+
+```bash
+/development-pr-workflow:start-linear-task
+
+# Claude will ask: "What task are you working on?"
+# You can respond with:
+#   - An existing task: "LIN-123"
+#   - New work: "Add OAuth2 authentication to the API"
+```
+
+**Why worktrees?** Worktrees let you work on multiple tasks in parallel without stashing or switching branches. Each task gets its own isolated directory.
+
+---
+
+##### `/development-pr-workflow:linear-task-and-pr-from-changes`
+
+**Use when:** You've already made local changes and want to formalize them into a tracked task with a PR.
+
+**What it does:**
+
+1. Analyzes your current uncommitted/staged changes
+2. Creates a new Linear task with a description based on your changes
+3. Creates a new branch (optionally in a worktree)
+4. Commits your changes with a conventional commit message
+5. Pushes and creates a PR linked to the Linear task
+
+**Example:**
+
+```bash
+# You've made some changes locally...
+git status  # Shows modified files
+
+/development-pr-workflow:linear-task-and-pr-from-changes
+
+# Claude will:
+#   1. Analyze your changes
+#   2. Ask for task details or infer from the changes
+#   3. Create Linear task → branch → commit → PR
+```
+
+**When to use which:**
+
+| Scenario                                     | Command                           |
+| -------------------------------------------- | --------------------------------- |
+| Starting new work from scratch               | `start-linear-task`               |
+| Already have local changes to formalize      | `linear-task-and-pr-from-changes` |
+| Quick spike that turned into real work       | `linear-task-and-pr-from-changes` |
+| Assigned a Linear task, ready to start       | `start-linear-task`               |
 
 ### "I need documentation or tests..."
 
