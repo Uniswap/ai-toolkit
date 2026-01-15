@@ -34,6 +34,11 @@
       "name": "uniswap-integrations",
       "source": "./packages/plugins/uniswap-integrations",
       "description": "External service integrations (Linear, Notion, Nx, Chrome DevTools) and deployment orchestration"
+    },
+    {
+      "name": "uniswap-builder",
+      "source": "./packages/plugins/uniswap-builder",
+      "description": "Skills for building on top of and integrating the Uniswap protocol"
     }
   ]
 }

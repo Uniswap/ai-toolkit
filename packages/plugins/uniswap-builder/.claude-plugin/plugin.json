@@ -1,0 +1,14 @@
+{
+  "name": "uniswap-builder",
+  "version": "0.0.1",
+  "description": "Skills for building on top of and integrating the Uniswap protocol",
+  "author": {
+    "name": "Uniswap Labs",
+    "email": "ai-services@uniswap.org"
+  },
+  "homepage": "https://github.com/Uniswap/ai-toolkit",
+  "keywords": ["uniswap", "swap", "defi", "integration", "universal-router"],
+  "license": "MIT",
+  "skills": ["./skills/swap-integration"],
+  "commands": ["./skills/swap-integration/swap-integration.md"]
+}
