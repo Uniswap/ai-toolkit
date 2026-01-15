@@ -8,6 +8,20 @@
 import { spawn } from 'child_process';
 import { displaySuccess, displayWarning, displayDebug } from './display';
 
+// Import version from package.json to determine which npm tag to use
+const packageVersion: string = require('../../../package.json').version;
+
+/**
+ * Determines the npm tag to use for claude-mcp-helper based on this package's version.
+ * If this package is a prerelease (contains -next, -alpha, -beta, etc.), use @next tag.
+ * Otherwise, use @latest tag.
+ */
+function getMcpHelperTag(): string {
+  // Check for common prerelease patterns: -next, -alpha, -beta, -rc, etc.
+  const isPrerelease = /-/.test(packageVersion);
+  return isPrerelease ? 'next' : 'latest';
+}
+
 /**
  * Creates a clean environment for spawning child npx processes.
  *
@@ -32,18 +46,18 @@ function getCleanEnvForNpx(): NodeJS.ProcessEnv {
  */
 export async function runMcpSelector(verbose?: boolean): Promise<void> {
   return new Promise((resolve) => {
-    displayDebug('Running claude-mcp-helper interactive mode...', verbose);
+    const tag = getMcpHelperTag();
+    const mcpHelperPackage = `@uniswap/ai-toolkit-claude-mcp-helper@${tag}`;
+
+    displayDebug(`Running claude-mcp-helper interactive mode (${mcpHelperPackage})...`, verbose);
 
     // Try to run claude-mcp-helper via npx
     // Use clean environment to avoid npm_config_package interference
-    const child = spawn(
-      'npx',
-      ['-y', '@uniswap/ai-toolkit-claude-mcp-helper@latest', 'interactive'],
-      {
-        stdio: 'inherit',
-        env: getCleanEnvForNpx(),
-      }
-    );
+    // Tag selection: prerelease versions of this package use @next, stable uses @latest
+    const child = spawn('npx', ['-y', mcpHelperPackage, 'interactive'], {
+      stdio: 'inherit',
+      env: getCleanEnvForNpx(),
+    });
 
     child.on('error', (error) => {
       // If npx fails, try running directly (in case it's installed globally)
