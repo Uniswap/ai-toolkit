@@ -12,7 +12,7 @@ This plugin provides the complete implementation lifecycle for Claude Code: plan
 - **plan-executor**: Executes plans step-by-step with progress tracking
 - **plan-reviewer**: Reviews plans for completeness, feasibility, and alignment with codebase patterns
 - **plan-swarm**: Multi-agent collaborative plan refinement through expert discussion
-- **pr-creator**: Creates Graphite PRs with auto-generated conventional commit messages
+- **pr-creator**: Creates PRs with auto-generated conventional commit messages (supports standard Git + GitHub CLI or Graphite)
 - **commit-message-generator**: Generates well-structured git commit messages
 
 ### Agents (./agents/)
@@ -20,7 +20,7 @@ This plugin provides the complete implementation lifecycle for Claude Code: plan
 - **planner**: Core planning agent that creates actionable implementation plans
 - **plan-reviewer**: Validates plans for completeness and feasibility
 - **context-loader**: Loads and understands codebase context for informed planning
-- **pr-creator**: Creates well-formatted PRs with comprehensive descriptions
+- **pr-creator**: Creates well-formatted PRs with comprehensive descriptions (supports standard Git + GitHub CLI or Graphite)
 - **commit-message-generator**: Generates structured git commit messages
 
 ## Canonical Development Workflow

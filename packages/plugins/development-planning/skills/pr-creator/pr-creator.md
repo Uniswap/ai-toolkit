@@ -6,7 +6,7 @@ model: opus
 
 # PR Creator
 
-Create or update Graphite PRs with auto-generated conventional commits and descriptions.
+Create or update pull requests with auto-generated conventional commits and descriptions. Supports both standard Git + GitHub CLI (default) and Graphite workflows.
 
 ## When to Activate
 
@@ -14,7 +14,7 @@ Create or update Graphite PRs with auto-generated conventional commits and descr
 - Changes ready for review
 - User says "submit" or "push for review"
 - PR update needed
-- User mentions Graphite or PR creation
+- User mentions PR creation, GitHub, or Graphite
 
 ## What It Does
 
@@ -56,7 +56,8 @@ Create or update Graphite PRs with auto-generated conventional commits and descr
 - Custom target branch (default: main)
 - Breaking change detection
 - Issue linking
-- Stack-aware creation with Graphite
+- PR creation method: standard git + GitHub CLI (default) or Graphite (`--use-graphite`)
+- Stack-aware creation (only with Graphite)
 - Update existing vs create new
 
 ## Examples

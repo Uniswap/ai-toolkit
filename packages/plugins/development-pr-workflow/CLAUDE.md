@@ -2,9 +2,32 @@
 
 ## Overview
 
-This plugin provides pull request review and management workflows for Claude Code, including PR review, issue resolution, and Graphite stack management.
+This plugin provides pull request review and management workflows for Claude Code, including PR review, issue resolution, and Graphite stack management. It supports both **standard Git + GitHub CLI** (default) and **Graphite** workflows.
 
 > **Note**: PR creation and commit message generation have been moved to the `development-planning` plugin to enable a seamless workflow: plan → execute → create PR.
+
+## Git Workflow Support
+
+This plugin supports two PR creation workflows:
+
+### Standard Git + GitHub CLI (Default)
+
+- Uses `git push` and `gh pr create`
+- Works with any Git repository
+- No additional tooling required beyond standard Git and GitHub CLI
+- Enabled by default in all commands
+
+### Graphite (Opt-in)
+
+- Uses `gt submit` for branch tracking and PR creation
+- Supports PR stacking and stack management
+- Requires Graphite CLI to be installed
+- Enable with `--use-graphite` flag
+
+**Graphite-only features:**
+
+- `stack-splitter` - Requires Graphite for PR stacking
+- `graphite-stack-updater` - Requires Graphite for stack management
 
 ## Plugin Components
 
@@ -35,11 +58,13 @@ This plugin provides pull request review and management workflows for Claude Cod
 
 ### MCP Integration (./.mcp.json)
 
-This plugin bundles the Graphite MCP server for:
+This plugin bundles the Graphite MCP server for optional Graphite workflows:
 
-- Stacked PR creation and management
+- Stacked PR creation and management (when `--use-graphite` is set)
 - PR submission with `gt submit`
 - Stack synchronization with `gt sync`
+
+The GitHub MCP is also used for standard Git workflows with `gh pr create`.
 
 ## Canonical Workflow
 
