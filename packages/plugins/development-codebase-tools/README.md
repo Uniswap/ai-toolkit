@@ -16,10 +16,9 @@ claude /plugin install development-codebase-tools
 
 | Skill                     | Description                                                                        |
 | ------------------------- | ---------------------------------------------------------------------------------- |
-| **codebase-explorer**     | Deep codebase exploration and understanding                                        |
 | **code-analyzer**         | Multi-agent code explanation for architecture, patterns, security, and performance |
 | **code-refactorer**       | Comprehensive refactoring with safety checks and pattern application               |
-| **code-reviewer**         | Code review for bugs, logic errors, security, and quality issues                   |
+| **codebase-explorer**     | Deep codebase exploration and understanding                                        |
 | **excalidraw-diagrammer** | Generate Excalidraw architecture diagrams from codebase analysis                   |
 | **tech-debt-analyzer**    | Identify and prioritize technical debt with remediation plans                      |
 
@@ -30,7 +29,6 @@ claude /plugin install development-codebase-tools
 | **code-explainer**       | Explains code architecture, patterns, and dependencies               |
 | **code-generator**       | Generates production-ready code (delegates to test-writer for tests) |
 | **debug-assistant**      | Advanced debugging with root cause analysis                          |
-| **deduplicator**         | Identifies and eliminates code duplication                           |
 | **pattern-learner**      | Learns and applies codebase patterns                                 |
 | **performance-analyzer** | Analyzes performance bottlenecks and optimization opportunities      |
 | **refactorer**           | Performs safe, incremental refactoring operations                    |
@@ -47,12 +45,11 @@ claude /plugin install development-codebase-tools
 
 ```bash
 # Use skills contextually
-"How does the authentication system work?"     # triggers codebase-explorer
-"Explain this file to me"                      # triggers code-analyzer
+"Explain this file to me"                        # triggers code-analyzer
 "Refactor this code to use the strategy pattern" # triggers code-refactorer
-"Review this code for any issues"              # triggers code-reviewer
-"Create an architecture diagram of this system" # triggers excalidraw-diagrammer
-"What technical debt exists in this module?"   # triggers tech-debt-analyzer
+"How does the authentication system work?"       # triggers codebase-explorer
+"Create an architecture diagram of this system"  # triggers excalidraw-diagrammer
+"What technical debt exists in this module?"     # triggers tech-debt-analyzer
 ```
 
 ## License

@@ -16,14 +16,14 @@ claude /plugin install development-planning
 
 This plugin provides the following skills:
 
-| Skill                        | Description                                          |
-| ---------------------------- | ---------------------------------------------------- |
-| **implementation-planner**   | Create implementation plans for features and changes |
-| **plan-executor**            | Execute implementation plans step-by-step            |
-| **plan-reviewer**            | Review plans for completeness and feasibility        |
-| **plan-swarm**               | Refine plans through multi-agent expert discussion   |
-| **pr-creator**               | Create Graphite PRs with conventional commits        |
-| **commit-message-generator** | Generate well-structured git commit messages         |
+| Skill                       | Description                                          |
+| --------------------------- | ---------------------------------------------------- |
+| **create-pr**               | Create Graphite PRs with conventional commits        |
+| **generate-commit-message** | Generate well-structured git commit messages         |
+| **implementation-planner**  | Create implementation plans for features and changes |
+| **plan-executor**           | Execute implementation plans step-by-step            |
+| **plan-swarm**              | Refine plans through multi-agent expert discussion   |
+| **review-plan**             | Review plans for completeness and feasibility        |
 
 ## Agents
 
@@ -39,11 +39,11 @@ This plugin provides the following skills:
 
 ```bash
 # Use skills contextually for individual workflow steps
-"Help me plan out the implementation for user authentication"  # triggers implementation-planner
-"Review this plan for completeness"                             # triggers plan-reviewer
+"Create a PR for my changes"                                    # triggers create-pr
+"Generate a commit message for these changes"                   # triggers generate-commit-message
+"Help me plan out the implementation for user authentication"   # triggers implementation-planner
 "Execute the plan in auth-plan.md"                              # triggers plan-executor
-"Create a PR for my changes"                                    # triggers pr-creator
-"Generate a commit message for these changes"                   # triggers commit-message-generator
+"Review this plan for completeness"                             # triggers review-plan
 ```
 
 ## Canonical Development Workflow
@@ -60,9 +60,9 @@ This plugin handles **steps 1-5** of the canonical development workflow:
 
 1. **Explore** (optional): Use codebase-explorer skill to understand the area
 2. **Plan**: Use implementation-planner skill to create a plan
-3. **Review**: Use plan-reviewer skill to validate the plan
+3. **Review**: Use review-plan skill to validate the plan
 4. **Execute**: Use plan-executor skill to implement the plan
-5. **Create PR**: plan-executor offers PR creation at completion, or use pr-creator skill directly
+5. **Create PR**: plan-executor offers PR creation at completion, or use create-pr skill directly
 
 For complex features, use the `plan-swarm` skill to get multi-agent perspectives on your approach.
 

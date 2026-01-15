@@ -17,14 +17,13 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 ### Agents (./agents/)
 
 - **code-explainer**: Explains code architecture, patterns, and dependencies
+- **code-generator**: Generates production-ready code following patterns (delegates to test-writer for tests)
+- **debug-assistant**: Advanced debugging with root cause analysis
+- **pattern-learner**: Learns and applies codebase patterns
+- **performance-analyzer**: Analyzes performance bottlenecks and optimization opportunities
 - **refactorer**: Performs safe, incremental refactoring operations
 - **security-analyzer**: Identifies security vulnerabilities and recommends fixes
-- **performance-analyzer**: Analyzes performance bottlenecks and optimization opportunities
-- **debug-assistant**: Advanced debugging with root cause analysis
 - **style-enforcer**: Enforces code style and conventions
-- **deduplicator**: Identifies and eliminates code duplication
-- **code-generator**: Generates production-ready code following patterns (delegates to test-writer for tests)
-- **pattern-learner**: Learns and applies codebase patterns
 
 ### Hooks (./hooks/)
 
@@ -52,14 +51,13 @@ development-codebase-tools/
 │   └── tech-debt-analyzer/
 ├── agents/
 │   ├── code-explainer.md
+│   ├── code-generator.md
+│   ├── debug-assistant.md
+│   ├── pattern-learner.md
+│   ├── performance-analyzer.md
 │   ├── refactorer.md
 │   ├── security-analyzer.md
-│   ├── performance-analyzer.md
-│   ├── debug-assistant.md
-│   ├── style-enforcer.md
-│   ├── deduplicator.md
-│   ├── code-generator.md
-│   └── pattern-learner.md
+│   └── style-enforcer.md
 ├── hooks/
 │   └── post-edit-lint.sh
 ├── project.json

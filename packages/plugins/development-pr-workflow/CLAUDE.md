@@ -34,9 +34,9 @@ This plugin supports two PR creation workflows:
 ### Skills (./skills/)
 
 - **code-reviewer**: Comprehensive code review for architecture, security, performance, and style
-- **pr-issue-resolver**: Address PR review comments and fix CI failures
 - **graphite-stack-updater**: Update Graphite PR stacks by resolving comments and syncing
-- **stack-splitter**: Split monolithic branches into logical PR stacks
+- **pr-issue-resolver**: Address PR review comments and fix CI failures
+- **split-stack**: Split monolithic branches into logical PR stacks
 
 ### Commands (./commands/)
 
@@ -113,18 +113,18 @@ development-pr-workflow/
 │   └── plugin.json
 ├── skills/
 │   ├── code-reviewer/
-│   ├── pr-issue-resolver/
 │   ├── graphite-stack-updater/
-│   └── stack-splitter/
+│   ├── pr-issue-resolver/
+│   └── split-stack/
 ├── commands/
-│   ├── review-pr.md
-│   ├── work-through-pr-comments.md
 │   ├── address-pr-issues.md
 │   ├── linear-task-and-pr-from-changes.md
-│   └── start-linear-task.md
+│   ├── review-pr.md
+│   ├── start-linear-task.md
+│   └── work-through-pr-comments.md
 ├── shared/
-│   ├── setup-worktree-core.md
-│   └── linear-task-config.md
+│   ├── linear-task-config.md
+│   └── setup-worktree-core.md
 ├── agents/
 │   ├── review-executor.md
 │   └── stack-splitter.md
