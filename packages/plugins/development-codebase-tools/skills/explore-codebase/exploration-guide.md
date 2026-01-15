@@ -130,4 +130,4 @@ After exploration, the following context should be preserved for planning:
 - Testing approach to use
 - Gotchas to avoid
 
-This context automatically flows to the `implementation-planner` skill when invoked in the same session.
+This context automatically flows to the `plan-implementation` skill when invoked in the same session.

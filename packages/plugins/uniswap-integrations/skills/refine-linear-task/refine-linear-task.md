@@ -143,7 +143,7 @@ Return structured summary:
 
 Works well with implementation workflow:
 
-1. **Refine**: `/linear-task-refiner DEV-123` - Clarify what needs to be done
+1. **Refine**: `/refine-linear-task DEV-123` - Clarify what needs to be done
 2. **Explore**: Understand the codebase
 3. **Plan**: Create implementation plan
 4. **Execute**: Implement the solution

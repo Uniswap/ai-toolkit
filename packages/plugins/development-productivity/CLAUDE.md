@@ -32,7 +32,7 @@ This plugin provides documentation, research, test generation, and prompt optimi
 - Skills are the primary interface for all workflows
 - Agents are auto-discovered from the `agents/` directory
 - Skills invoke agents via `Task(subagent_type:agent-name)`
-- test-generator supports multiple frameworks (jest, vitest, pytest, cypress, playwright)
+- generate-tests skill supports multiple frameworks (jest, vitest, pytest, cypress, playwright)
 - The `documentation` agent consolidates previous doc-writer, claude-docs-manager, and claude-docs-fact-checker agents
 
 ## File Structure

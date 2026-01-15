@@ -183,7 +183,7 @@ Good collaborative planning shows:
 
 ## Integration with Execution
 
-The plan file format is designed for the `plan-executor` skill:
+The plan file format is designed for the `execute-plan` skill:
 
 - Clear step ordering for sequential execution
 - File lists for each step

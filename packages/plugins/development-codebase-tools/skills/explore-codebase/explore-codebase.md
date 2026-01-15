@@ -55,7 +55,7 @@ This is **Step 1** of the implementation workflow:
 
 1. **Explore** (this) → 2. Plan → 3. Review → 4. Execute
 
-After exploring, context is automatically available for `/plan` or the `implementation-planner` skill.
+After exploring, context is automatically available for `/plan` or the `plan-implementation` skill.
 
 ## Detailed Reference
 

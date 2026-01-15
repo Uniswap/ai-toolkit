@@ -55,7 +55,7 @@ This is **Step 2** of the implementation workflow:
 
 - Automatically uses context from prior exploration
 - Output plan can be reviewed with `/review-plan`
-- Approved plans execute with `plan-executor` skill
+- Approved plans execute with `execute-plan` skill
 
 ## Detailed Reference
 
