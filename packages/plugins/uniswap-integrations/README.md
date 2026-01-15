@@ -1,6 +1,6 @@
 # @uniswap/uniswap-integrations
 
-External service integrations for Claude Code - Linear, Notion, Nx, Chrome DevTools, and more.
+External service integrations for Claude Code - Linear, Notion, Nx, Chrome DevTools, GitHub, and more.
 
 ## Installation
 
@@ -16,29 +16,31 @@ claude /plugin install uniswap-integrations
 
 This plugin bundles the following MCP (Model Context Protocol) servers:
 
-| Server | Description |
-| ------ | ----------- |
-| **spec-workflow** | Spec workflow dashboard and task management |
-| **nx-mcp** | Nx workspace integration for monorepo management |
-| **notion** | Notion API integration for documentation |
-| **linear** | Linear issue tracking integration |
-| **chrome-devtools** | Chrome DevTools debugging integration |
+| Server              | Description                                      | Auth  |
+| ------------------- | ------------------------------------------------ | ----- |
+| **spec-workflow**   | Spec workflow dashboard and task management      | None  |
+| **nx-mcp**          | Nx workspace integration for monorepo management | None  |
+| **notion**          | Notion API integration for documentation         | OAuth |
+| **linear**          | Linear issue tracking integration                | OAuth |
+| **chrome-devtools** | Chrome DevTools debugging integration            | None  |
+| **github**          | GitHub repository, issue, and PR management      | PAT   |
 
 ## Skills
 
-| Skill | Description |
-| ----- | ----------- |
-| **daily-standup** | Generate daily standup reports from GitHub and Linear activity |
-| **deployment-orchestrator** | Orchestrate deployment pipelines with CI/CD configuration |
-| **linear-task-refiner** | Refine and enhance Linear task descriptions |
+| Skill                       | Description                                                    |
+| --------------------------- | -------------------------------------------------------------- |
+| **daily-standup**           | Generate daily standup reports from GitHub and Linear activity |
+| **deployment-orchestrator** | Orchestrate deployment pipelines with CI/CD configuration      |
+| **linear-task-refiner**     | Refine and enhance Linear task descriptions                    |
+| **github-setup**            | Configure GitHub Personal Access Token for MCP server          |
 
 ## Agents
 
-| Agent | Description |
-| ----- | ----------- |
-| **cicd-agent** | CI/CD pipeline specialist for deployments and workflows |
-| **infrastructure-agent** | Cloud resource provisioning and infrastructure setup |
-| **migration-assistant** | Guides version upgrades and migrations |
+| Agent                    | Description                                             |
+| ------------------------ | ------------------------------------------------------- |
+| **cicd-agent**           | CI/CD pipeline specialist for deployments and workflows |
+| **infrastructure-agent** | Cloud resource provisioning and infrastructure setup    |
+| **migration-assistant**  | Guides version upgrades and migrations                  |
 
 ## Usage Examples
 
@@ -53,8 +55,40 @@ This plugin bundles the following MCP (Model Context Protocol) servers:
 
 Some MCP servers require authentication:
 
-- **notion**: OAuth via <https://mcp.notion.com>
-- **linear**: OAuth via <https://mcp.linear.app>
+### OAuth-Based (Automatic)
+
+- **notion**: OAuth via <https://mcp.notion.com> - Run `/mcp` and follow browser flow
+- **linear**: OAuth via <https://mcp.linear.app> - Run `/mcp` and follow browser flow
+
+### Token-Based (Manual Setup)
+
+- **github**: Requires `GITHUB_PERSONAL_ACCESS_TOKEN` environment variable
+
+#### GitHub Setup
+
+1. **Create a Personal Access Token**:
+
+   - Go to <https://github.com/settings/tokens?type=beta>
+   - Click "Generate new token" (Fine-grained recommended)
+   - Set permissions: Contents (R/W), Issues (R/W), Pull requests (R/W)
+
+2. **Add to your shell profile**:
+
+   ```bash
+   # Add to ~/.zshrc or ~/.bashrc
+   export GITHUB_PERSONAL_ACCESS_TOKEN="github_pat_your_token_here"
+   ```
+
+3. **Reload and restart Claude Code**:
+
+   ```bash
+   source ~/.zshrc  # or ~/.bashrc
+   claude
+   ```
+
+4. **Verify setup**: Run `/mcp` to see the GitHub server listed
+
+For detailed setup instructions, run `/uniswap-integrations:github-setup`.
 
 ## License
 
