@@ -7,8 +7,21 @@
     "email": "ai-services@uniswap.org"
   },
   "homepage": "https://github.com/Uniswap/ai-toolkit",
-  "keywords": ["uniswap", "swap", "defi", "integration", "universal-router"],
+  "keywords": [
+    "uniswap",
+    "swap",
+    "defi",
+    "integration",
+    "universal-router",
+    "viem",
+    "wagmi",
+    "evm"
+  ],
   "license": "MIT",
-  "skills": ["./skills/swap-integration"],
-  "commands": ["./skills/swap-integration/swap-integration.md"]
+  "skills": ["./skills/viem-integration", "./skills/swap-integration"],
+  "commands": [
+    "./skills/viem-integration/viem-integration.md",
+    "./skills/swap-integration/swap-integration.md"
+  ],
+  "agents": ["./agents/viem-integration-expert.md", "./agents/swap-integration-expert.md"]
 }

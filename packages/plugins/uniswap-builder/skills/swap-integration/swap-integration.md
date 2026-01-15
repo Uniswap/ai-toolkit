@@ -8,6 +8,15 @@ model: opus
 
 Integrate Uniswap swaps into frontends, backends, and smart contracts.
 
+## Prerequisites
+
+This skill assumes familiarity with viem basics. If you're new to viem, see the [viem Integration Skill](../viem-integration/viem-integration.md) for:
+
+- Setting up PublicClient and WalletClient
+- Account and key management
+- Basic contract interactions
+- Transaction signing and sending
+
 ## Quick Decision Guide
 
 | Building...                    | Use This Method               |

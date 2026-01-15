@@ -37,7 +37,10 @@
     // MD046: Code block style - consistent (fenced)
     "MD046": {
       "style": "fenced"
-    }
+    },
+
+    // MD060: Table column style - disabled (too strict about separator line formatting)
+    "MD060": false
   },
 
   // Glob patterns for files to lint
