@@ -57,7 +57,7 @@ This guide documents the canonical development workflows across the Uniswap AI T
 │         ▼                                                                   │
 │  ┌─────────────┐                                                            │
 │  │  7. MERGE   │  development-pr-workflow                                   │
-│  │             │  Command: address-pr-issues                                │
+│  │             │  Skill: resolve-pr-issues                                  │
 │  └─────────────┘                                                            │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -98,7 +98,7 @@ This guide documents the canonical development workflows across the Uniswap AI T
 | ----------------------------------- | ------------------------ |
 | "Review this PR"                    | review-code              |
 | "Address PR comments"               | work-through-pr-comments |
-| "Fix CI failures"                   | address-pr-issues        |
+| "Fix CI failures"                   | resolve-pr-issues        |
 | "Split into smaller PRs" (Graphite) | split-graphite-stack     |
 | "Update my PR stack" (Graphite)     | update-graphite-stack    |
 | "Start working on a Linear task"    | start-linear-task        |
@@ -184,7 +184,7 @@ This guide documents the canonical development workflows across the Uniswap AI T
    → development-pr-workflow: work-through-pr-comments
 
 3. Fix CI: "Fix the failing CI"
-   → development-pr-workflow: address-pr-issues
+   → development-pr-workflow: resolve-pr-issues
 ```
 
 ## Cross-Plugin Context Sharing

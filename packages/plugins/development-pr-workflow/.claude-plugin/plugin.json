@@ -16,7 +16,6 @@
     "./skills/update-graphite-stack"
   ],
   "commands": [
-    "./commands/address-pr-issues.md",
     "./commands/linear-task-and-pr-from-changes.md",
     "./commands/review-pr.md",
     "./commands/start-linear-task.md",

@@ -42,7 +42,6 @@ This plugin supports two PR creation workflows:
 
 - **review-pr**: Comprehensive multi-agent PR review for architecture, security, performance
 - **work-through-pr-comments**: Methodically work through PR comments in a conversational workflow
-- **address-pr-issues**: Review and fix PR comments and CI failures to make PRs merge-ready
 - **linear-task-and-pr-from-changes**: Take local changes, create a Linear task, create a branch (optionally in a worktree), commit, and publish a PR
 - **start-linear-task**: Start working on a new Linear task by creating a worktree environment with optional autonomous task completion
 
@@ -117,7 +116,6 @@ development-pr-workflow/
 │   ├── split-graphite-stack/
 │   └── update-graphite-stack/
 ├── commands/
-│   ├── address-pr-issues.md
 │   ├── linear-task-and-pr-from-changes.md
 │   ├── review-pr.md
 │   ├── start-linear-task.md
