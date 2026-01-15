@@ -16,7 +16,7 @@ This plugin provides a structured approach to implementing features through spec
 ## Installation
 
 ```bash
-claude /plugin install @uniswap/spec-workflow
+claude /plugin install spec-workflow
 ```
 
 ## Components
