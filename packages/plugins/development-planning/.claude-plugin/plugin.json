@@ -11,7 +11,6 @@
   "license": "MIT",
   "skills": [
     "./skills/commit-message-generator",
-    "./skills/implement-spec",
     "./skills/implementation-planner",
     "./skills/plan-executor",
     "./skills/plan-reviewer",
@@ -19,9 +18,7 @@
     "./skills/pr-creator"
   ],
   "commands": [
-    "./commands/auto-spec.md",
     "./skills/commit-message-generator/commit-message-generator.md",
-    "./skills/implement-spec/implement-spec.md",
     "./skills/implementation-planner/implementation-planner.md",
     "./skills/plan-executor/plan-executor.md",
     "./skills/plan-reviewer/plan-reviewer.md",

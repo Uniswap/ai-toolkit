@@ -12,7 +12,6 @@ This plugin provides the complete implementation lifecycle for Claude Code: plan
 - **plan-executor**: Executes plans step-by-step with progress tracking
 - **plan-reviewer**: Reviews plans for completeness, feasibility, and alignment with codebase patterns
 - **plan-swarm**: Multi-agent collaborative plan refinement through expert discussion
-- **implement-spec**: Orchestrates the full spec-to-implementation workflow
 - **pr-creator**: Creates Graphite PRs with auto-generated conventional commit messages
 - **commit-message-generator**: Generates well-structured git commit messages
 
@@ -48,6 +47,13 @@ After PR creation, use `development-pr-workflow` for: 6. **PR Review** → 7. **
 - Context flows automatically between exploration and planning phases
 - plan-executor can seamlessly invoke pr-creator after implementation completes
 
+## Related Plugins
+
+For spec-driven development workflows (requirements, design, and tasks documents), see the **spec-workflow** plugin which provides:
+
+- `/auto-spec` - Autonomous spec creation and implementation
+- `/implement-spec` - Execute spec-workflow tasks
+
 ## File Structure
 
 ```text
@@ -59,7 +65,6 @@ development-planning/
 │   ├── plan-executor/
 │   ├── plan-reviewer/
 │   ├── plan-swarm/
-│   ├── implement-spec/
 │   ├── pr-creator/
 │   └── commit-message-generator/
 ├── agents/
@@ -68,8 +73,6 @@ development-planning/
 │   ├── context-loader.md
 │   ├── pr-creator.md
 │   └── commit-message-generator.md
-├── commands/
-│   └── auto-spec.md
 ├── project.json
 ├── package.json
 ├── CLAUDE.md

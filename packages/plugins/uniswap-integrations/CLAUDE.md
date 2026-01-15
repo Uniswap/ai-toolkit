@@ -2,7 +2,7 @@
 
 ## Overview
 
-This plugin provides external service integrations for Claude Code, bundling MCP servers for Linear, Notion, Nx, Chrome DevTools, GitHub, and spec-workflow, plus deployment and CI/CD capabilities.
+This plugin provides external service integrations for Claude Code, bundling MCP servers for Linear, Notion, Nx, Chrome DevTools, and GitHub, plus deployment and CI/CD capabilities.
 
 ## Plugin Components
 
@@ -23,7 +23,6 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 
 | Server              | Description                                      | Auth  |
 | ------------------- | ------------------------------------------------ | ----- |
-| **spec-workflow**   | Spec workflow dashboard and task management      | None  |
 | **nx-mcp**          | Nx workspace integration for monorepo management | None  |
 | **notion**          | Notion API integration for documentation         | OAuth |
 | **linear**          | Linear issue tracking integration                | OAuth |
@@ -58,6 +57,10 @@ export GITHUB_PERSONAL_ACCESS_TOKEN="github_pat_your_token_here"
 ```
 
 Run `/uniswap-integrations:github-setup` for detailed setup instructions.
+
+## Related Plugins
+
+For spec-driven development workflows, see the **spec-workflow** plugin which provides the spec-workflow MCP server and related skills.
 
 ## File Structure
 

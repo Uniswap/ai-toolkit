@@ -18,7 +18,6 @@ This plugin bundles the following MCP (Model Context Protocol) servers:
 
 | Server              | Description                                      | Auth  |
 | ------------------- | ------------------------------------------------ | ----- |
-| **spec-workflow**   | Spec workflow dashboard and task management      | None  |
 | **nx-mcp**          | Nx workspace integration for monorepo management | None  |
 | **notion**          | Notion API integration for documentation         | OAuth |
 | **linear**          | Linear issue tracking integration                | OAuth |
@@ -89,6 +88,14 @@ Some MCP servers require authentication:
 4. **Verify setup**: Run `/mcp` to see the GitHub server listed
 
 For detailed setup instructions, run `/uniswap-integrations:github-setup`.
+
+## Spec-Driven Development
+
+For spec-driven development workflows with the spec-workflow MCP server, install the **spec-workflow** plugin:
+
+```bash
+claude /plugin install spec-workflow
+```
 
 ## License
 

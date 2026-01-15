@@ -37,6 +37,7 @@ Parse from request:
 ### Phase 1: Context & Planning
 
 1. **Spec Loading**:
+
    - Use `mcp__spec-workflow__get-spec-context` to load spec documents
    - Use `mcp__spec-workflow__manage-tasks` to get task status
    - Identify pending tasks and dependencies
