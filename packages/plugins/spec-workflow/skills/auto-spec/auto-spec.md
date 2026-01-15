@@ -1,7 +1,7 @@
 ---
 description: Autonomously create and implement a complete spec workflow with multi-agent collaboration, bypassing manual review steps through intelligent consensus-building
 argument-hint: <feature/task description> [--skip-final-review]
-allowed-tools: Read(*), Write(*), MultiEdit(*), Edit(*), Glob(*), Grep(*), LS(*), Bash(*), WebSearch(*), WebFetch(*), TodoWrite(*), mcp__spec-workflow__*, Task(*), agent-orchestrator, planner, code-reviewer, test-writer, documentation-agent, architect-reviewer, performance-analyzer, security-auditor, code-generator, refactorer, debugger
+allowed-tools: Read(*), Write(*), MultiEdit(*), Edit(*), Glob(*), Grep(*), LS(*), Bash(*), WebSearch(*), WebFetch(*), TodoWrite(*), mcp__spec-workflow__*, Task(*), planner, refactorer, test-writer, documentation, plan-reviewer, performance-analyzer, security-analyzer, code-generator, code-explainer, debug-assistant
 ---
 
 # Auto-Spec Command
@@ -75,8 +75,8 @@ Execute autonomous spec-driven development workflow with multi-agent collaborati
    - Create initial requirements using `mcp__spec-workflow__create-spec-doc`
 
 2. **Multi-Agent Requirements Review (INSTEAD of user review)**
-   - Spawn **architect-reviewer** to validate architectural alignment
-   - Spawn **security-auditor** to identify security requirements
+   - Spawn **plan-reviewer** to validate architectural alignment
+   - Spawn **security-analyzer** to identify security requirements
    - Spawn **performance-analyzer** to define performance criteria
    - Iterate until consensus reached
 
@@ -88,8 +88,8 @@ Execute autonomous spec-driven development workflow with multi-agent collaborati
    - Include architectural decisions, data models, and interfaces
 
 2. **Multi-Agent Design Review (INSTEAD of user review)**
-   - Spawn **architect-reviewer** for architectural patterns validation
-   - Spawn **code-reviewer** for implementation feasibility
+   - Spawn **plan-reviewer** for architectural patterns validation
+   - Spawn **refactorer** for implementation feasibility
    - Spawn **test-writer** for testability assessment
 
 ### Phase 4: Task Planning
@@ -101,7 +101,7 @@ Execute autonomous spec-driven development workflow with multi-agent collaborati
 
 2. **Task Validation (INSTEAD of user review)**
    - Spawn **planner** to validate task completeness
-   - Spawn **code-reviewer** to assess task dependencies
+   - Spawn **code-explainer** to assess task dependencies
 
 ### Phase 5: Implementation Execution
 
@@ -114,7 +114,7 @@ For each task in the implementation plan:
 
 2. **Quality Validation Loop (INSTEAD of user review)**
 
-   - Spawn **code-reviewer** to review implementation
+   - Spawn **refactorer** to review implementation
    - Spawn **test-writer** to verify test coverage
    - Iterate until quality threshold met
 
@@ -126,7 +126,7 @@ For each task in the implementation plan:
 
 1. **Integration Testing** - Spawn **test-writer** to create integration tests
 2. **Performance Validation** - Spawn **performance-analyzer** to assess performance
-3. **Security Audit** - Spawn **security-auditor** for final security review
+3. **Security Audit** - Spawn **security-analyzer** for final security review
 
 ### Phase 7: Deliverable Generation
 

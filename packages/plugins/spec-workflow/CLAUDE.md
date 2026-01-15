@@ -106,8 +106,11 @@ However, it requires the `@uniswap/spec-workflow-mcp` package to be running for 
 The skills in this plugin can invoke agents from other plugins:
 
 - `planner` (from development-planning)
-- `code-reviewer` (from development-codebase-tools)
+- `plan-reviewer` (from development-planning)
+- `refactorer` (from development-codebase-tools)
+- `code-explainer` (from development-codebase-tools)
 - `test-writer` (from development-productivity)
+- `documentation` (from development-productivity)
 - `security-analyzer` (from development-codebase-tools)
 - `performance-analyzer` (from development-codebase-tools)
 

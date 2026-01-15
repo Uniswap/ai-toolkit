@@ -70,7 +70,7 @@ Progress summary with:
 
 ## Optional Follow-up
 
-After updates, can invoke **code-reviewer** to verify changes maintain quality.
+After updates, can invoke **refactorer** to verify changes maintain quality.
 
 ## Examples
 

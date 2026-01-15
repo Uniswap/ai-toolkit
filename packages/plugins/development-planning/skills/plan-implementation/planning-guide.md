@@ -9,7 +9,7 @@ Select agents based on technical domains in the task:
 - **Frontend**: frontend-developer, react-specialist, css-expert
 - **Backend**: backend-architect, api-documenter, graphql-architect
 - **Database**: database-optimizer, sql-pro, database-admin
-- **Security**: security-auditor, security-analyzer
+- **Security**: security-analyzer, security-analyzer
 - **Performance**: performance-engineer, performance-analyzer
 - **Testing**: test-writer, test-automator
 - **DevOps**: deployment-engineer, cloud-architect, cicd-agent
@@ -24,7 +24,7 @@ Select agents based on technical domains in the task:
 
 **"Add user authentication with JWT"**
 
-- security-auditor (auth expertise)
+- security-analyzer (auth expertise)
 - backend-architect (API design)
 - database-optimizer (user storage)
 - frontend-developer (login UI)
@@ -37,7 +37,7 @@ Select agents based on technical domains in the task:
 - database-optimizer (data partitioning)
 - performance-engineer (scalability)
 - devops-troubleshooter (deployment)
-- security-auditor (service communication)
+- security-analyzer (service communication)
 
 ## Multi-Round Discussion Protocol
 

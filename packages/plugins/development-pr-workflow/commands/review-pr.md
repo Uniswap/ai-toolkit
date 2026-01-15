@@ -104,7 +104,7 @@ Deep multi-agent analysis:
     {
       name: "Quality Assessment",
       parallel: [
-        { agent: "architect-reviewer", focus: "design-consistency" },
+        { agent: "plan-reviewer", focus: "design-consistency" },
         { agent: "security-analyzer", focus: "vulnerability-assessment" },
         { agent: "performance-analyzer", focus: "performance-impact" },
         { agent: "style-enforcer", focus: "code-standards" }
@@ -115,7 +115,7 @@ Deep multi-agent analysis:
       parallel: [
         { agent: "test-writer", focus: "coverage-gaps" },
         { agent: "agent-tester", focus: "regression-testing" },
-        { agent: "doc-writer", focus: "documentation-updates" }
+        { agent: "documentation", focus: "documentation-updates" }
       ]
     },
     {
