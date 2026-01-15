@@ -8,23 +8,22 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 
 ### Skills (./skills/)
 
-- **codebase-explorer**: Deep codebase exploration with architectural understanding
-- **code-refactorer**: Comprehensive refactoring with safety checks and pattern application
-- **code-analyzer**: Multi-agent code explanation for architecture, patterns, security, and performance
-- **excalidraw-diagrammer**: Generate Excalidraw architecture diagrams from codebase analysis
-- **tech-debt-analyzer**: Identify and prioritize technical debt with remediation plans
+- **analyze-code**: Multi-agent code explanation for architecture, patterns, security, and performance
+- **analyze-tech-debt**: Identify and prioritize technical debt with remediation plans
+- **diagram-excalidraw**: Generate Excalidraw architecture diagrams from codebase analysis
+- **explore-codebase**: Deep codebase exploration with architectural understanding
+- **refactor-code**: Comprehensive refactoring with safety checks and pattern application
 
 ### Agents (./agents/)
 
 - **code-explainer**: Explains code architecture, patterns, and dependencies
+- **code-generator**: Generates production-ready code following patterns (delegates to test-writer for tests)
+- **debug-assistant**: Advanced debugging with root cause analysis
+- **pattern-learner**: Learns and applies codebase patterns
+- **performance-analyzer**: Analyzes performance bottlenecks and optimization opportunities
 - **refactorer**: Performs safe, incremental refactoring operations
 - **security-analyzer**: Identifies security vulnerabilities and recommends fixes
-- **performance-analyzer**: Analyzes performance bottlenecks and optimization opportunities
-- **debug-assistant**: Advanced debugging with root cause analysis
 - **style-enforcer**: Enforces code style and conventions
-- **deduplicator**: Identifies and eliminates code duplication
-- **code-generator**: Generates production-ready code following patterns (delegates to test-writer for tests)
-- **pattern-learner**: Learns and applies codebase patterns
 
 ### Hooks (./hooks/)
 
@@ -45,21 +44,20 @@ development-codebase-tools/
 ├── .claude-plugin/
 │   └── plugin.json
 ├── skills/
-│   ├── codebase-explorer/
-│   ├── code-refactorer/
-│   ├── code-analyzer/
-│   ├── excalidraw-diagrammer/
-│   └── tech-debt-analyzer/
+│   ├── analyze-code/
+│   ├── analyze-tech-debt/
+│   ├── diagram-excalidraw/
+│   ├── explore-codebase/
+│   └── refactor-code/
 ├── agents/
 │   ├── code-explainer.md
+│   ├── code-generator.md
+│   ├── debug-assistant.md
+│   ├── pattern-learner.md
+│   ├── performance-analyzer.md
 │   ├── refactorer.md
 │   ├── security-analyzer.md
-│   ├── performance-analyzer.md
-│   ├── debug-assistant.md
-│   ├── style-enforcer.md
-│   ├── deduplicator.md
-│   ├── code-generator.md
-│   └── pattern-learner.md
+│   └── style-enforcer.md
 ├── hooks/
 │   └── post-edit-lint.sh
 ├── project.json

@@ -16,7 +16,7 @@ You are **code-generator**, a specialized agent for generating high-quality, pro
 - Create appropriate documentation and comments
 - Ensure performance and security considerations
 
-> **Note**: For test generation, use the `test-writer` agent (development-productivity plugin) or invoke the `test-generator` skill. This agent focuses on implementation code, not tests.
+> **Note**: For test generation, use the `test-writer` agent (development-productivity plugin) or invoke the `generate-tests` skill. This agent focuses on implementation code, not tests.
 
 ## Input Structure
 
@@ -514,7 +514,7 @@ export function createUserRouter(dependencies: Dependencies): Router {
 - **Documentation Coverage**: 100% for public APIs
 - **Type Coverage**: 100% for TypeScript projects
 
-> **Testing**: For generating tests for the code produced by this agent, use the `test-writer` agent or `test-generator` skill from the development-productivity plugin.
+> **Testing**: For generating tests for the code produced by this agent, use the `test-writer` agent or `generate-tests` skill from the development-productivity plugin.
 
 ### Security Considerations
 
@@ -661,7 +661,7 @@ const createConfigManager = (): Config => {
 - [ ] Includes security considerations
 - [ ] Optimized for performance
 - [ ] Maintains backward compatibility
-- [ ] Code is testable (use `test-generator` skill for test coverage)
+- [ ] Code is testable (use `generate-tests` skill for test coverage)
 
 ### Refactoring Triggers
 

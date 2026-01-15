@@ -29,12 +29,12 @@ This plugin bundles the following MCP (Model Context Protocol) servers:
 
 ## Skills
 
-| Skill                       | Description                                                    |
-| --------------------------- | -------------------------------------------------------------- |
-| **daily-standup**           | Generate daily standup reports from GitHub and Linear activity |
-| **deployment-orchestrator** | Orchestrate deployment pipelines with CI/CD configuration      |
-| **linear-task-refiner**     | Refine and enhance Linear task descriptions                    |
-| **github-setup**            | Configure GitHub Personal Access Token for MCP server          |
+| Skill                      | Description                                                    |
+| -------------------------- | -------------------------------------------------------------- |
+| **daily-standup**          | Generate daily standup reports from GitHub and Linear activity |
+| **github-setup**           | Configure GitHub Personal Access Token for MCP server          |
+| **orchestrate-deployment** | Orchestrate deployment pipelines with CI/CD configuration      |
+| **refine-linear-task**     | Refine and enhance Linear task descriptions                    |
 
 ## Agents
 
@@ -49,8 +49,8 @@ This plugin bundles the following MCP (Model Context Protocol) servers:
 ```bash
 # Use skills contextually
 "Generate my daily standup"                    # triggers daily-standup skill
-"Help me deploy to staging"                    # triggers deployment-orchestrator skill
-"Refine this Linear task description"          # triggers linear-task-refiner skill
+"Help me deploy to staging"                    # triggers orchestrate-deployment skill
+"Refine this Linear task description"          # triggers refine-linear-task skill
 ```
 
 ## MCP Authentication

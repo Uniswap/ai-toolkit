@@ -10,17 +10,17 @@
   "keywords": ["documentation", "research", "testing", "prompt-engineering"],
   "license": "MIT",
   "skills": [
-    "./skills/claude-docs-updater",
-    "./skills/prompt-optimizer",
-    "./skills/test-generator",
-    "./skills/topic-researcher"
+    "./skills/generate-tests",
+    "./skills/optimize-prompt",
+    "./skills/research-topic",
+    "./skills/update-claude-docs"
   ],
   "commands": [
     "./commands/claude-init-plus.md",
     "./commands/update-claude-md.md",
-    "./skills/claude-docs-updater/claude-docs-updater.md",
-    "./skills/prompt-optimizer/prompt-optimizer.md",
-    "./skills/test-generator/test-generator.md",
-    "./skills/topic-researcher/topic-researcher.md"
+    "./skills/generate-tests/generate-tests.md",
+    "./skills/optimize-prompt/optimize-prompt.md",
+    "./skills/research-topic/research-topic.md",
+    "./skills/update-claude-docs/update-claude-docs.md"
   ]
 }

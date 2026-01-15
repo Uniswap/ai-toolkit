@@ -11,14 +11,14 @@
   "license": "MIT",
   "skills": [
     "./skills/daily-standup",
-    "./skills/deployment-orchestrator",
-    "./skills/linear-task-refiner",
-    "./skills/github-setup"
+    "./skills/github-setup",
+    "./skills/orchestrate-deployment",
+    "./skills/refine-linear-task"
   ],
   "commands": [
     "./skills/daily-standup/daily-standup.md",
-    "./skills/deployment-orchestrator/deployment-orchestrator.md",
-    "./skills/linear-task-refiner/linear-task-refiner.md",
-    "./skills/github-setup/github-setup.md"
+    "./skills/github-setup/github-setup.md",
+    "./skills/orchestrate-deployment/orchestrate-deployment.md",
+    "./skills/refine-linear-task/refine-linear-task.md"
   ]
 }

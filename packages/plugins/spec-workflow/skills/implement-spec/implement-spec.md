@@ -49,7 +49,9 @@ Parse from request:
 
 ### Phase 2: Agent Orchestration
 
-Invoke **agent-orchestrator** with comprehensive context including:
+**If agent-orchestrator is available** (from development-codebase-tools plugin):
+
+Invoke it with comprehensive context including:
 
 - Loaded specs and pending tasks
 - Task dependencies
@@ -62,11 +64,20 @@ The orchestrator will:
 - Coordinate specialized agents for each task
 - Handle parallel execution groups
 
+**Fallback (if agent-orchestrator is not available)**:
+
+Execute tasks sequentially without orchestration:
+
+1. Process tasks in dependency order from tasks.md
+2. For each task, directly invoke the most appropriate available agent
+3. Pass task context and previous results to each agent
+4. Continue until all tasks are complete or a blocker is encountered
+
 ### Phase 3: Task Execution
 
 For each task, coordinate:
 
-1. **Code Implementation Tasks**: code-generator, test-writer, doc-writer
+1. **Code Implementation Tasks**: code-generator, test-writer, documentation
 2. **Refactoring Tasks**: refactorer, style-enforcer, agent-tester
 3. **Infrastructure Tasks**: infrastructure-agent, cicd-agent
 4. **Migration Tasks**: migration-assistant, agent-tester
@@ -77,7 +88,7 @@ Between task groups, apply quality checks:
 
 - **Code Quality**: style-enforcer, security-analyzer, performance-analyzer
 - **Test Coverage**: agent-tester, test-writer
-- **Documentation**: doc-writer, review-plan
+- **Documentation**: documentation, review-plan
 
 ## Output Format
 
@@ -99,4 +110,6 @@ Return structured results:
 
 ## Delegation
 
-Invokes the **agent-orchestrator** with spec context, task dependencies, and execution configuration.
+**Primary**: Invokes **agent-orchestrator** (from development-codebase-tools plugin) with spec context, task dependencies, and execution configuration.
+
+**Fallback**: If agent-orchestrator is unavailable, executes tasks sequentially using direct agent invocations based on task type.

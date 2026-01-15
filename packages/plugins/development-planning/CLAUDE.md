@@ -8,19 +8,19 @@ This plugin provides the complete implementation lifecycle for Claude Code: plan
 
 ### Skills (./skills/)
 
-- **implementation-planner**: Creates comprehensive implementation plans with step-by-step breakdowns
-- **plan-executor**: Executes plans step-by-step with progress tracking
-- **plan-reviewer**: Reviews plans for completeness, feasibility, and alignment with codebase patterns
+- **create-pr**: Creates Graphite PRs with auto-generated conventional commit messages
+- **execute-plan**: Executes plans step-by-step with progress tracking
+- **generate-commit-message**: Generates well-structured git commit messages
+- **plan-implementation**: Creates comprehensive implementation plans with step-by-step breakdowns
 - **plan-swarm**: Multi-agent collaborative plan refinement through expert discussion
-- **pr-creator**: Creates PRs with auto-generated conventional commit messages (supports standard Git + GitHub CLI or Graphite)
-- **commit-message-generator**: Generates well-structured git commit messages
+- **review-plan**: Reviews plans for completeness, feasibility, and alignment with codebase patterns
 
 ### Agents (./agents/)
 
 - **planner**: Core planning agent that creates actionable implementation plans
 - **plan-reviewer**: Validates plans for completeness and feasibility
 - **context-loader**: Loads and understands codebase context for informed planning
-- **pr-creator**: Creates well-formatted PRs with comprehensive descriptions (supports standard Git + GitHub CLI or Graphite)
+- **pr-creator**: Creates well-formatted PRs with comprehensive descriptions
 - **commit-message-generator**: Generates structured git commit messages
 
 ## Canonical Development Workflow
@@ -33,11 +33,11 @@ After PR creation, use `development-pr-workflow` for: 6. **PR Review** → 7. **
 
 ### Recommended Workflow
 
-1. **Explore** (optional): Use codebase-explorer skill to understand the area
-2. **Plan**: Use implementation-planner skill to create a plan
-3. **Review**: Use plan-reviewer skill to validate the plan
-4. **Execute**: Use plan-executor skill to implement the plan
-5. **Create PR**: plan-executor offers PR creation at completion, or use pr-creator skill directly
+1. **Explore** (optional): Use explore-codebase skill to understand the area
+2. **Plan**: Use plan-implementation skill to create a plan
+3. **Review**: Use review-plan skill to validate the plan
+4. **Execute**: Use execute-plan skill to implement the plan
+5. **Create PR**: execute-plan offers PR creation at completion, or use create-pr skill directly
 
 ## Integration Notes
 
@@ -45,7 +45,7 @@ After PR creation, use `development-pr-workflow` for: 6. **PR Review** → 7. **
 - Agents are auto-discovered from the `agents/` directory
 - Skills invoke agents via `Task(subagent_type:agent-name)`
 - Context flows automatically between exploration and planning phases
-- plan-executor can seamlessly invoke pr-creator after implementation completes
+- execute-plan can seamlessly invoke pr-creator after implementation completes
 
 ## Related Plugins
 
@@ -61,18 +61,18 @@ development-planning/
 ├── .claude-plugin/
 │   └── plugin.json
 ├── skills/
-│   ├── implementation-planner/
-│   ├── plan-executor/
-│   ├── plan-reviewer/
+│   ├── create-pr/
+│   ├── execute-plan/
+│   ├── generate-commit-message/
+│   ├── plan-implementation/
 │   ├── plan-swarm/
-│   ├── pr-creator/
-│   └── commit-message-generator/
+│   └── review-plan/
 ├── agents/
-│   ├── planner.md
-│   ├── plan-reviewer.md
+│   ├── commit-message-generator.md
 │   ├── context-loader.md
-│   ├── pr-creator.md
-│   └── commit-message-generator.md
+│   ├── plan-reviewer.md
+│   ├── planner.md
+│   └── pr-creator.md
 ├── project.json
 ├── package.json
 ├── CLAUDE.md
