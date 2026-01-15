@@ -2,7 +2,7 @@
 
 ## Overview
 
-This plugin provides external service integrations for Claude Code, bundling MCP servers for Linear, Notion, Nx, and Chrome DevTools, plus deployment and CI/CD capabilities.
+This plugin provides external service integrations for Claude Code, bundling MCP servers for Linear, Notion, Nx, Chrome DevTools, and GitHub, plus deployment and CI/CD capabilities.
 
 ## Plugin Components
 
@@ -11,6 +11,7 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 - **daily-standup**: Generate daily standup reports from GitHub and Linear activity
 - **deployment-orchestrator**: Orchestrate deployment pipelines with CI/CD configuration
 - **linear-task-refiner**: Refine and enhance Linear task descriptions
+- **github-setup**: Configure GitHub Personal Access Token for the GitHub MCP server
 
 ### Agents (./agents/)
 
@@ -20,10 +21,17 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 
 ### MCP Servers (./.mcp.json)
 
-- **nx-mcp**: Nx workspace integration for monorepo management
-- **notion**: Notion API integration for documentation
-- **linear**: Linear issue tracking integration
-- **chrome-devtools**: Chrome DevTools debugging integration
+| Server              | Description                                      | Auth  |
+| ------------------- | ------------------------------------------------ | ----- |
+| **nx-mcp**          | Nx workspace integration for monorepo management | None  |
+| **notion**          | Notion API integration for documentation         | OAuth |
+| **linear**          | Linear issue tracking integration                | OAuth |
+| **chrome-devtools** | Chrome DevTools debugging integration            | None  |
+| **github**          | GitHub repository, issue, and PR management      | PAT   |
+
+### Hooks (./hooks/)
+
+- **SessionStart**: Validates `GITHUB_PERSONAL_ACCESS_TOKEN` environment variable and provides setup guidance if missing
 
 ## Integration Notes
 
@@ -31,6 +39,24 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 - Agents are auto-discovered from the `agents/` directory
 - Skills invoke agents via `Task(subagent_type:agent-name)`
 - MCP servers provide external service connectivity
+- OAuth-based servers (Notion, Linear) authenticate via `/mcp` command
+- PAT-based servers (GitHub) require environment variable configuration
+
+## MCP Authentication
+
+### OAuth Servers
+
+Notion and Linear use OAuth authentication. Users authenticate via the `/mcp` command which opens a browser flow.
+
+### PAT Servers
+
+GitHub requires a Personal Access Token set as `GITHUB_PERSONAL_ACCESS_TOKEN` environment variable:
+
+```bash
+export GITHUB_PERSONAL_ACCESS_TOKEN="github_pat_your_token_here"
+```
+
+Run `/uniswap-integrations:github-setup` for detailed setup instructions.
 
 ## Related Plugins
 
@@ -45,11 +71,16 @@ uniswap-integrations/
 ├── skills/
 │   ├── daily-standup/
 │   ├── deployment-orchestrator/
-│   └── linear-task-refiner/
+│   ├── linear-task-refiner/
+│   └── github-setup/
 ├── agents/
 │   ├── cicd-agent.md
 │   ├── infrastructure-agent.md
-│   ├── migration-assistant.md
+│   └── migration-assistant.md
+├── hooks/
+│   └── hooks.json
+├── scripts/
+│   └── check-github-token.sh           # SessionStart hook for token validation
 ├── .mcp.json
 ├── project.json
 ├── package.json

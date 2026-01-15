@@ -1,0 +1,15 @@
+{
+  "description": "Uniswap integrations plugin hooks for environment validation",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/check-github-token.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
