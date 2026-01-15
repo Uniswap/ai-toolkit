@@ -1,5 +1,5 @@
 ---
-description: Integrate EVM blockchains using viem. Use when user says "read blockchain data", "send transaction", "interact with smart contract", "connect to Ethereum", "use viem", "wallet integration", "viem setup", or mentions blockchain/EVM development with TypeScript.
+description: Integrate EVM blockchains using viem. Use when user says "read blockchain data", "send transaction", "interact with smart contract", "connect to Ethereum", "use viem", "use wagmi", "wallet integration", "viem setup", or mentions blockchain/EVM development with TypeScript.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(npm:*), Bash(npx:*), WebFetch, Task(subagent_type:viem-integration-expert)
 model: opus
 ---
@@ -10,12 +10,12 @@ Integrate EVM blockchains using viem for TypeScript/JavaScript applications.
 
 ## Quick Decision Guide
 
-| Building...                     | Use This                           |
-| ------------------------------- | ---------------------------------- |
-| Node.js script/backend          | viem with http transport           |
-| React/Next.js frontend          | wagmi hooks (built on viem)        |
-| Real-time event monitoring      | viem with webSocket transport      |
-| Browser wallet integration      | wagmi or viem custom transport     |
+| Building...                | Use This                       |
+| -------------------------- | ------------------------------ |
+| Node.js script/backend     | viem with http transport       |
+| React/Next.js frontend     | wagmi hooks (built on viem)    |
+| Real-time event monitoring | viem with webSocket transport  |
+| Browser wallet integration | wagmi or viem custom transport |
 
 ## Installation
 
@@ -33,25 +33,25 @@ npm install wagmi viem @tanstack/react-query
 
 viem uses two client types:
 
-| Client | Purpose | Example Use |
-|--------|---------|-------------|
+| Client           | Purpose              | Example Use                              |
+| ---------------- | -------------------- | ---------------------------------------- |
 | **PublicClient** | Read-only operations | Get balances, read contracts, fetch logs |
-| **WalletClient** | Write operations | Send transactions, sign messages |
+| **WalletClient** | Write operations     | Send transactions, sign messages         |
 
 ### Transports
 
-| Transport | Use Case |
-|-----------|----------|
-| `http()` | Standard RPC calls (most common) |
-| `webSocket()` | Real-time event subscriptions |
-| `custom()` | Browser wallets (window.ethereum) |
+| Transport     | Use Case                          |
+| ------------- | --------------------------------- |
+| `http()`      | Standard RPC calls (most common)  |
+| `webSocket()` | Real-time event subscriptions     |
+| `custom()`    | Browser wallets (window.ethereum) |
 
 ### Chains
 
 viem includes 50+ chain definitions. Import from `viem/chains`:
 
 ```typescript
-import { mainnet, arbitrum, optimism, base, polygon } from 'viem/chains'
+import { mainnet, arbitrum, optimism, base, polygon } from 'viem/chains';
 ```
 
 ---
@@ -61,91 +61,89 @@ import { mainnet, arbitrum, optimism, base, polygon } from 'viem/chains'
 ### Read Balance
 
 ```typescript
-import { createPublicClient, http, formatEther } from 'viem'
-import { mainnet } from 'viem/chains'
+import { createPublicClient, http, formatEther } from 'viem';
+import { mainnet } from 'viem/chains';
 
 const client = createPublicClient({
   chain: mainnet,
-  transport: http()
-})
+  transport: http(),
+});
 
 const balance = await client.getBalance({
-  address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045'
-})
+  address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+});
 
-console.log(`Balance: ${formatEther(balance)} ETH`)
+console.log(`Balance: ${formatEther(balance)} ETH`);
 ```
 
 ### Read Contract
 
 ```typescript
-import { createPublicClient, http, parseAbi } from 'viem'
-import { mainnet } from 'viem/chains'
+import { createPublicClient, http, parseAbi } from 'viem';
+import { mainnet } from 'viem/chains';
 
 const client = createPublicClient({
   chain: mainnet,
-  transport: http()
-})
+  transport: http(),
+});
 
 const abi = parseAbi([
   'function balanceOf(address) view returns (uint256)',
-  'function decimals() view returns (uint8)'
-])
+  'function decimals() view returns (uint8)',
+]);
 
 const balance = await client.readContract({
   address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC
   abi,
   functionName: 'balanceOf',
-  args: ['0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045']
-})
+  args: ['0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045'],
+});
 ```
 
 ### Send Transaction
 
 ```typescript
-import { createWalletClient, http, parseEther } from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
-import { mainnet } from 'viem/chains'
+import { createWalletClient, http, parseEther } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { mainnet } from 'viem/chains';
 
-const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`)
+const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
 
 const client = createWalletClient({
   account,
   chain: mainnet,
-  transport: http()
-})
+  transport: http(),
+});
 
 const hash = await client.sendTransaction({
   to: '0x...',
-  value: parseEther('0.1')
-})
+  value: parseEther('0.1'),
+});
 
-console.log(`Transaction hash: ${hash}`)
+console.log(`Transaction hash: ${hash}`);
 ```
 
 ### Write to Contract
 
 ```typescript
-import { createWalletClient, createPublicClient, http, parseAbi, parseUnits } from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
-import { mainnet } from 'viem/chains'
+import { createWalletClient, createPublicClient, http, parseAbi, parseUnits } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { mainnet } from 'viem/chains';
 
-const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`)
+const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
 
 const walletClient = createWalletClient({
   account,
   chain: mainnet,
-  transport: http()
-})
+  transport: http(),
+});
 
 const publicClient = createPublicClient({
   chain: mainnet,
-  transport: http()
-})
+  transport: http(),
+});
 
-const abi = parseAbi([
-  'function transfer(address to, uint256 amount) returns (bool)'
-])
+const abi = parseAbi(['function transfer(address to, uint256 amount) returns (bool)']);
 
 // Simulate first to catch errors
 const { request } = await publicClient.simulateContract({
@@ -153,15 +151,15 @@ const { request } = await publicClient.simulateContract({
   abi,
   functionName: 'transfer',
   args: ['0x...', parseUnits('100', 6)],
-  account
-})
+  account,
+});
 
 // Execute the transaction
-const hash = await walletClient.writeContract(request)
+const hash = await walletClient.writeContract(request);
 
 // Wait for confirmation
-const receipt = await publicClient.waitForTransactionReceipt({ hash })
-console.log(`Confirmed in block ${receipt.blockNumber}`)
+const receipt = await publicClient.waitForTransactionReceipt({ hash });
+console.log(`Confirmed in block ${receipt.blockNumber}`);
 ```
 
 ---
@@ -170,14 +168,14 @@ console.log(`Confirmed in block ${receipt.blockNumber}`)
 
 For deeper coverage of specific topics:
 
-| Topic | Reference File |
-|-------|----------------|
+| Topic                            | Reference File                                      |
+| -------------------------------- | --------------------------------------------------- |
 | Client setup, transports, chains | [Clients & Transports](./clients-and-transports.md) |
-| Reading blockchain data | [Reading Data](./reading-data.md) |
-| Sending transactions | [Writing Transactions](./writing-transactions.md) |
-| Private keys, HD wallets | [Accounts & Keys](./accounts-and-keys.md) |
-| ABI handling, multicall | [Contract Patterns](./contract-patterns.md) |
-| React/wagmi hooks | [Wagmi React](./wagmi-react.md) |
+| Reading blockchain data          | [Reading Data](./reading-data.md)                   |
+| Sending transactions             | [Writing Transactions](./writing-transactions.md)   |
+| Private keys, HD wallets         | [Accounts & Keys](./accounts-and-keys.md)           |
+| ABI handling, multicall          | [Contract Patterns](./contract-patterns.md)         |
+| React/wagmi hooks                | [Wagmi React](./wagmi-react.md)                     |
 
 ---
 
@@ -196,32 +194,32 @@ Once you're comfortable with viem basics, see the [Swap Integration Skill](../sw
 ### Unit Conversion
 
 ```typescript
-import { parseEther, formatEther, parseUnits, formatUnits } from 'viem'
+import { parseEther, formatEther, parseUnits, formatUnits } from 'viem';
 
 // ETH
-parseEther('1.5')        // 1500000000000000000n (wei)
-formatEther(1500000000000000000n)  // "1.5"
+parseEther('1.5'); // 1500000000000000000n (wei)
+formatEther(1500000000000000000n); // "1.5"
 
 // Tokens (e.g., USDC with 6 decimals)
-parseUnits('100', 6)     // 100000000n
-formatUnits(100000000n, 6)  // "100"
+parseUnits('100', 6); // 100000000n
+formatUnits(100000000n, 6); // "100"
 ```
 
 ### Address Utilities
 
 ```typescript
-import { getAddress, isAddress } from 'viem'
+import { getAddress, isAddress } from 'viem';
 
-isAddress('0x...')       // true/false
-getAddress('0x...')      // checksummed address
+isAddress('0x...'); // true/false
+getAddress('0x...'); // checksummed address
 ```
 
 ### Hashing
 
 ```typescript
-import { keccak256, toHex } from 'viem'
+import { keccak256, toHex } from 'viem';
 
-keccak256(toHex('hello'))  // 0x1c8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8
+keccak256(toHex('hello')); // 0x1c8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8
 ```
 
 ---
