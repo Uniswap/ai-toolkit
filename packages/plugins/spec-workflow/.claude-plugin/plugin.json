@@ -9,6 +9,7 @@
   "homepage": "https://github.com/Uniswap/ai-toolkit",
   "keywords": ["spec-workflow", "specification", "implementation", "multi-agent", "orchestration"],
   "license": "MIT",
+  "agents": ["./agents/agent-orchestrator.md"],
   "skills": ["./skills/auto-spec", "./skills/implement-spec"],
   "commands": ["./skills/auto-spec/auto-spec.md", "./skills/implement-spec/implement-spec.md"]
 }
