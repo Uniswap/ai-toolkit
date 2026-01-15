@@ -1,6 +1,6 @@
 {
   "name": "development-planning",
-  "version": "0.0.3",
+  "version": "1.0.0",
   "description": "Implementation planning, execution, and PR creation workflows with multi-agent collaboration",
   "author": {
     "name": "Uniswap Labs",

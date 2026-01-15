@@ -1,6 +1,6 @@
 {
   "name": "development-codebase-tools",
-  "version": "0.0.2",
+  "version": "1.0.0",
   "description": "Codebase exploration, refactoring, and quality analysis",
   "author": {
     "name": "Uniswap Labs",
@@ -13,6 +13,7 @@
     "./agents/agent-orchestrator.md",
     "./agents/code-explainer.md",
     "./agents/code-generator.md",
+    "./agents/context-loader.md",
     "./agents/debug-assistant.md",
     "./agents/pattern-learner.md",
     "./agents/performance-analyzer.md",

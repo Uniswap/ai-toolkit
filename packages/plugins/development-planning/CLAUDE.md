@@ -19,9 +19,10 @@ This plugin provides the complete implementation lifecycle for Claude Code: plan
 
 - **planner**: Core planning agent that creates actionable implementation plans
 - **plan-reviewer**: Validates plans for completeness and feasibility
-- **context-loader**: Loads and understands codebase context for informed planning
 - **pr-creator**: Creates well-formatted PRs with comprehensive descriptions
 - **commit-message-generator**: Generates structured git commit messages
+
+> **Note**: The `context-loader` agent has been moved to `development-codebase-tools` for centralized context management. Planning agents can still delegate to it via `Task(subagent_type:context-loader)`.
 
 ## Canonical Development Workflow
 
@@ -69,7 +70,6 @@ development-planning/
 │   └── review-plan/
 ├── agents/
 │   ├── commit-message-generator.md
-│   ├── context-loader.md
 │   ├── plan-reviewer.md
 │   ├── planner.md
 │   └── pr-creator.md

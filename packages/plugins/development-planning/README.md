@@ -31,9 +31,10 @@ This plugin provides the following skills:
 | ---------------------------- | ---------------------------------------------------------- |
 | **planner**                  | Creates clear, actionable implementation plans             |
 | **plan-reviewer**            | Validates plans for completeness and feasibility           |
-| **context-loader**           | Loads and understands codebase context for planning        |
 | **pr-creator**               | Creates well-formatted PRs with comprehensive descriptions |
 | **commit-message-generator** | Generates structured git commit messages                   |
+
+> **Note**: The `context-loader` agent has been moved to `development-codebase-tools` for centralized context management. Planning agents can still use it via `Task(subagent_type:context-loader)`.
 
 ## Usage Examples
 
