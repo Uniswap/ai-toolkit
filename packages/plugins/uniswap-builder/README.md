@@ -12,6 +12,7 @@ claude-code plugin add uniswap-builder
 
 | Skill              | Description                                                        |
 | ------------------ | ------------------------------------------------------------------ |
+| `viem-integration` | EVM blockchain integration using viem and wagmi                    |
 | `swap-integration` | Integrate Uniswap swaps via Trading API, Universal Router, or SDKs |
 
 ## Use Cases

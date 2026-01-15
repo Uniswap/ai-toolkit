@@ -36,10 +36,7 @@ uniswap-builder/
 │   │   └── wagmi-react.md            # React hooks reference
 │   └── swap-integration/
 │       ├── swap-integration.md       # Main skill file
-│       ├── SKILL.md -> swap-integration.md
-│       ├── trading-api.md            # Trading API reference
-│       ├── universal-router.md       # Universal Router reference
-│       └── sdk-reference.md          # SDK usage patterns
+│       └── SKILL.md -> swap-integration.md
 ├── agents/
 │   ├── viem-integration-expert.md
 │   └── swap-integration-expert.md
