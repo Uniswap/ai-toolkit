@@ -7,6 +7,8 @@ allowed-tools: Bash(git rev-parse:*), Bash(git log:*), Bash(git diff:*), Bash(gi
 
 Automatically split a monolithic branch with many changes into a logical, reviewable stack of PRs using semantic analysis and Graphite.
 
+> **Note:** This skill requires Graphite CLI (`gt`) as PR stacking is a Graphite-specific concept. For standard Git workflows without stacking, consider creating separate branches and PRs manually or using the standard PR creator.
+
 ## When to Activate
 
 - User has a large branch with many commits
@@ -17,10 +19,12 @@ Automatically split a monolithic branch with many changes into a logical, review
 
 ## Prerequisites
 
-- **Graphite CLI** installed: `npm install -g @withgraphite/graphite-cli@latest`
+- **Graphite CLI** installed: `npm install -g @withgraphite/graphite-cli@latest` (required - this is a Graphite-only feature)
 - **Repository initialized** with Graphite: `gt repo init`
 - **Clean working directory**: No uncommitted changes
 - **Feature branch** with 3+ commits to split
+
+> **Why Graphite-only?** PR stacking (having multiple dependent PRs that automatically rebase when lower PRs are merged) is a core Graphite feature. Standard Git doesn't support this workflow natively.
 
 ## Quick Process
 
@@ -69,12 +73,14 @@ Each PR should:
 ### Stack Structure (bottom to top)
 
 #### PR #1: `feat: add authentication types`
+
 **Commits:** 3 commits
 **Files:** 5 files (+123 -12)
 **Rationale:** Foundational types that other changes depend on
 **Reviewability Score:** 9/10
 
 #### PR #2: `feat: implement JWT service`
+
 **Commits:** 5 commits
 **Files:** 12 files (+456 -89)
 **Dependencies:** PR #1
