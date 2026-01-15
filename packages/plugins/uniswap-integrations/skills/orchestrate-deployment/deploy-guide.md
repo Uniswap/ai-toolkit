@@ -2,6 +2,7 @@
 description: Orchestrate deployment pipelines, infrastructure setup, and CI/CD configuration using specialized deployment agents.
 argument-hint: <target> [--strategy blue-green|canary|rolling] [--environment dev|staging|prod] [--dry-run]
 allowed-tools: Read(*), Write(*), Task(subagent_type:cicd-agent), Task(subagent_type:infrastructure-agent), Task(subagent_type:agent-orchestrator)
+# Note: agent-orchestrator is from development-codebase-tools plugin (optional - see fallback below)
 ---
 
 ## Inputs
@@ -34,6 +35,8 @@ Orchestrate complete deployment workflow through specialized agents:
 5. **Validation & Rollback**: Health checks and rollback procedures
 
 ## Orchestration Strategy
+
+> **Note**: This skill uses **agent-orchestrator** from the development-codebase-tools plugin when available. If not installed, the skill will execute infrastructure-agent and cicd-agent sequentially instead of in parallel coordination.
 
 ### Phase 1: Pre-Deployment Analysis
 

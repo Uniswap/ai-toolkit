@@ -71,12 +71,23 @@ Invoke **test-writer** with:
 
 ### Complex Case (multiple files or integration/e2e)
 
-Invoke **agent-orchestrator** to coordinate:
+**If agent-orchestrator is available** (from development-codebase-tools plugin):
+
+Invoke it to coordinate:
 
 - **context-loader**: Build comprehensive understanding
 - **test-writer**: Generate test scenarios and implementations
 - **security-analyzer**: Add security test cases (for APIs)
 - **performance-analyzer**: Add performance benchmarks (for critical paths)
+
+**Fallback (if agent-orchestrator is not available)**:
+
+Execute agents sequentially:
+
+1. First invoke **context-loader** to gather context
+2. Then invoke **test-writer** with the gathered context
+3. Optionally invoke **security-analyzer** for API endpoints
+4. Aggregate results manually
 
 ## Output Format
 

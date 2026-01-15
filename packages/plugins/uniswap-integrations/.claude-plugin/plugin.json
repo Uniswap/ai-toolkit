@@ -9,7 +9,6 @@
   "homepage": "https://github.com/Uniswap/ai-toolkit",
   "keywords": ["integrations", "linear", "notion", "nx", "deployment", "mcp", "github"],
   "license": "MIT",
-  "agents": ["./agents/agent-orchestrator.md"],
   "skills": [
     "./skills/daily-standup",
     "./skills/github-setup",

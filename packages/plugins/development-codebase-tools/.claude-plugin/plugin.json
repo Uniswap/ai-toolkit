@@ -9,7 +9,17 @@
   "homepage": "https://github.com/Uniswap/ai-toolkit",
   "keywords": ["codebase", "exploration", "refactoring", "tech-debt"],
   "license": "MIT",
-  "agents": ["./agents/agent-orchestrator.md"],
+  "agents": [
+    "./agents/agent-orchestrator.md",
+    "./agents/code-explainer.md",
+    "./agents/code-generator.md",
+    "./agents/debug-assistant.md",
+    "./agents/pattern-learner.md",
+    "./agents/performance-analyzer.md",
+    "./agents/refactorer.md",
+    "./agents/security-analyzer.md",
+    "./agents/style-enforcer.md"
+  ],
   "skills": [
     "./skills/analyze-code",
     "./skills/analyze-tech-debt",

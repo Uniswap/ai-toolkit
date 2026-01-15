@@ -9,7 +9,6 @@
   "homepage": "https://github.com/Uniswap/ai-toolkit",
   "keywords": ["pull-request", "pr-review", "graphite", "git"],
   "license": "MIT",
-  "agents": ["./agents/agent-orchestrator.md"],
   "skills": [
     "./skills/resolve-pr-issues",
     "./skills/review-code",

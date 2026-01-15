@@ -9,7 +9,6 @@
   "homepage": "https://github.com/Uniswap/ai-toolkit",
   "keywords": ["documentation", "research", "testing", "prompt-engineering"],
   "license": "MIT",
-  "agents": ["./agents/agent-orchestrator.md"],
   "skills": [
     "./skills/generate-tests",
     "./skills/optimize-prompt",
