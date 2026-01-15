@@ -14,7 +14,6 @@ import {
   // updateMcpServer,
   // removeMcpServer,
 } from './claude-mcp-installer';
-import { setupSpecWorkflow } from './spec-workflow-setup';
 import { setupAwsLogAnalyzer, getAwsLogAnalyzerServerPath } from './aws-log-analyzer-setup';
 
 /**
@@ -57,8 +56,6 @@ export default async function generator(tree: Tree, schema: AddonsGeneratorSchem
       selectionMode: schema.selectionMode || 'all',
       force: schema.force || false,
       skipVerification: schema.skipVerification || false,
-      dashboardMode: schema.dashboardMode || 'always',
-      port: schema.port || 0,
       dry: schema.dry || false,
       installMode: 'default',
       installationType: schema.installationType || 'global',
@@ -153,43 +150,6 @@ async function installSelectedAddons(
 
       // Install the MCP server
       await installMcpAddon(addon, options);
-
-      // If this is spec-workflow and it's the only/last addon, prompt for project setup
-      if (
-        addon.id === 'spec-workflow-mcp' &&
-        addon.projectSetup &&
-        i === selectedAddons.length - 1
-      ) {
-        // Ask user if they want to set up project configuration
-        const { setupProject } = await require('enquirer').prompt({
-          type: 'confirm',
-          name: 'setupProject',
-          message:
-            '📁 Would you like to set up spec-workflow configuration for a particular project?',
-          initial: true,
-        });
-
-        if (setupProject) {
-          // Prompt for project path
-          const { projectPath } = await require('enquirer').prompt({
-            type: 'input',
-            name: 'projectPath',
-            message: '📁 Enter the project path where spec-workflow config should be added:',
-            initial: process.cwd(),
-            result: (value: string) => value || process.cwd(),
-          });
-
-          options.projectPath = projectPath;
-
-          if (options.dryRun) {
-            console.log(`\n📁 [DRY-RUN] Would set up project configuration at: ${projectPath}`);
-          }
-
-          await installProjectSetup(addon, options);
-        } else if (options.dryRun) {
-          console.log('\n📁 [DRY-RUN] Skipping project configuration (user chose not to set up)');
-        }
-      }
 
       results.push({ addon, success: true });
     } catch (error) {
@@ -347,21 +307,7 @@ async function installMcpAddon(
   // Build additional arguments based on the addon and options
   const additionalArgs: string[] = [];
 
-  // Add spec-workflow specific arguments
-  if (addon.id === 'spec-workflow-mcp') {
-    // Dashboard mode flags
-    if (options.dashboardMode === 'always') {
-      additionalArgs.push('--AutoStartDashboard');
-    }
-    // manual mode doesn't need a flag
-
-    // Port configuration
-    if (options.port && options.port > 0) {
-      additionalArgs.push(`--Port=${options.port}`);
-    }
-  }
-
-  // For other MCP servers, different args could be added based on their needs
+  // For MCP servers that need custom args, add them here based on addon.id
 
   const installResult = await installMcpServer({
     addon,
@@ -375,28 +321,6 @@ async function installMcpAddon(
   }
 
   console.log(`✅ ${installResult.message}`);
-}
-
-/**
- * Install project setup configuration for an addon
- */
-async function installProjectSetup(
-  addon: any,
-  options: AddonsGeneratorSchema & { dryRun?: boolean }
-): Promise<void> {
-  console.log('\n🔧 Setting up project configuration...');
-
-  // Use the project path from options or current directory
-  const projectPath = options.projectPath || process.cwd();
-  console.log(`📍 Using project directory: ${projectPath}`);
-
-  const result = await setupSpecWorkflow(projectPath, options);
-
-  if (!result.success) {
-    throw new Error(result.message);
-  }
-
-  console.log(`✅ ${result.message}`);
 }
 
 /**
@@ -423,9 +347,6 @@ function showGeneralMcpInstructions(installedAddons: any[]): void {
       addon.id === 'slack-mcp' ||
       addon.id === 'github-mcp' ||
       addon.id === 'aws-log-analyzer-mcp' ||
-      addon.id === 'linear-mcp' ||
-      addon.id === 'notion-mcp' ||
-      addon.id === 'supabase-mcp' ||
       addon.id === 'pulumi-mcp'
   );
 

@@ -305,21 +305,22 @@ npx nx g @nx/js:lib packages/ai-toolkit-my-package \
 ### New Agent
 
 ```bash
-# Use the generator
-npx nx generate @uniswap/ai-toolkit-nx-claude:add-agent
+# Agents are distributed through plugins
+# Create in the appropriate plugin's agents/ directory:
+# packages/plugins/<plugin-name>/agents/your-agent.md
 
-# Or manually create in packages/agents/agnostic/
-# Follow the agent template format
+# Follow the agent template format with YAML frontmatter
 ```
 
-### New Command
+### New Skill or Command
 
 ```bash
-# Use the generator
-npx nx generate @uniswap/ai-toolkit-nx-claude:add-command
+# Skills and commands are distributed through plugins
+# Create in the appropriate plugin's skills/ or commands/ directory:
+# packages/plugins/<plugin-name>/skills/your-skill/SKILL.md
+# packages/plugins/<plugin-name>/commands/your-command.md
 
-# Or manually create in packages/commands/agnostic/
-# Follow the command template format
+# Follow the skill/command template format with YAML frontmatter
 ```
 
 ### New Nx Generator

@@ -1,7 +1,7 @@
 ---
 description: Start working on a new Linear task by creating a worktree environment. Either provide an existing Linear ticket ID or describe the work to create a new task.
-argument-hint: [<ticket-id> | --prompt "<description>"] [--team <id>] [--trunk <branch>] [--start-working] [--start-prompt "<prompt>"]
-allowed-tools: Bash(*), Read(*), Write(*), AskUserQuestion(*), mcp__graphite__run_gt_cmd(*), mcp__linear__create_issue(*), mcp__linear__get_issue(*), mcp__linear__get_user(*), mcp__linear__list_teams(*), mcp__linear__list_projects(*), mcp__linear__list_issue_labels(*)
+argument-hint: [<ticket-id> | --prompt "<description>"] [--team <id>] [--trunk <branch>] [--use-graphite true/false] [--start-working] [--start-prompt "<prompt>"]
+allowed-tools: Bash(*), Read(*), Write(*), AskUserQuestion(*), mcp__graphite__run_gt_cmd(*), mcp__github__create_pull_request(*), mcp__linear__create_issue(*), mcp__linear__get_issue(*), mcp__linear__get_user(*), mcp__linear__list_teams(*), mcp__linear__list_projects(*), mcp__linear__list_issue_labels(*)
 ---
 
 # Start Linear Task Workflow
@@ -26,12 +26,12 @@ Parse arguments from `$ARGUMENTS`:
 | `--priority`      | string  | No       | Priority level (urgent, high, normal, low, none). Prompted if not provided.                  |
 | `--label`         | string  | No       | Linear label to apply.                                                                       |
 | `--due-date`      | string  | No       | Due date for the Linear task (e.g., "2024-01-15", "next friday").                            |
-| `--trunk`         | string  | No       | Target branch for PR / Graphite parent (e.g., "main", "develop"). Prompted if not provided.  |
+| `--trunk`         | string  | No       | Target branch for PR (e.g., "main", "develop"). Prompted if not provided.                    |
 | `--worktree_base` | string  | No       | Branch to create the worktree FROM (e.g., "next", "main"). Prompted if not provided.         |
 | `--branch-prefix` | string  | No       | Custom branch prefix (e.g., "feature", "fix"). Prompted if not provided.                     |
 | `--setup`         | string  | No       | Setup script to run after creating the worktree.                                             |
 | `--skip-setup`    | boolean | No       | Skip running any setup script.                                                               |
-| `--skip-graphite` | boolean | No       | Skip Graphite branch tracking.                                                               |
+| `--use-graphite`  | boolean | No       | Use Graphite (true) or standard git (false). Prompted if not set.                            |
 | `--start-working` | boolean | No       | Automatically cd into worktree and start working (skips prompt).                             |
 | `--start-prompt`  | string  | No       | Custom prompt to use when starting work. Implies `--start-working`.                          |
 
@@ -131,7 +131,7 @@ Branch Prefix options:
 
 **Note:** For this command, `CREATE_WORKTREE` is always true (that's the purpose of this command). Do NOT prompt for it.
 
-**Note:** `USE_GRAPHITE` only affects Graphite tracking during worktree setup. The actual PR creation happens later via `linear-task-and-pr-from-changes` or manually.
+**Note:** `USE_GRAPHITE` determines whether to use Graphite or standard git for branch tracking and PR workflows. **Users are always prompted to choose unless they explicitly pass `--use-graphite true` or `--use-graphite false`.**
 
 ### Phase 4: Team-Dependent Fields
 
@@ -230,7 +230,7 @@ Set configuration variables and follow the shared worktree setup instructions in
 BRANCH_NAME="${BRANCH_NAME}"
 SETUP_SCRIPT="${setup:-}"
 SKIP_SETUP="${skip_setup:-}"
-SKIP_GRAPHITE_TRACK="${skip_graphite:-}"
+USE_GRAPHITE="${use_graphite:-false}"  # Default to standard git
 TRUNK_BRANCH="${TRUNK_BRANCH}"
 WORKTREE_BASE="${WORKTREE_BASE}"  # Branch to create worktree FROM (start point)
 SKIP_INDEX_RESET=""
@@ -241,7 +241,7 @@ Follow the complete worktree setup workflow defined in `@../shared/setup-worktre
 - Worktrees directory detection and creation
 - Git worktree creation with proper branch setup
 - Claude settings copying (`.claude/` directory)
-- Graphite branch tracking configuration
+- Branch tracking configuration (Graphite if `USE_GRAPHITE=true`, otherwise standard git)
 - Auto-detection and execution of setup scripts (npm, yarn, pnpm, bun)
 - Git index reset for corruption prevention
 
@@ -265,26 +265,29 @@ Display a summary of what was created:
 
 ⚙️  Configuration:
    ✓ Claude settings copied
-   ✓ Graphite tracking: {BRANCH_NAME} → {TRUNK_BRANCH} (parent)
+   ✓ Branch tracking: {USE_GRAPHITE ? "Graphite" : "Standard git"} ({BRANCH_NAME} → {TRUNK_BRANCH})
    ✓ Setup script completed (auto-detected: npm ci)
    ✓ Git index reset (corruption prevention)
 
 To start working:
   cd "{WORKTREE_PATH}"
 
-When ready to create a PR:
+When ready to create a PR (standard git):
   /linear-task-and-pr-from-changes --trunk {TRUNK_BRANCH}
+
+Or with Graphite (if USE_GRAPHITE was enabled):
+  /linear-task-and-pr-from-changes --trunk {TRUNK_BRANCH} --use-graphite
 ```
 
 ---
 
-## Step 7: Start Working (Optional)
+## Step 7: Autonomous Task Completion (Optional)
 
-After displaying the summary, offer the user the option to continue working in the new worktree.
+After displaying the summary, offer the user the option to begin autonomous task implementation in the new worktree.
 
 ### If `--start-working` flag was provided
 
-Skip the prompt and proceed directly to starting work.
+Skip the prompt and proceed directly to autonomous task completion.
 
 ### If `--start-prompt` was provided
 
@@ -294,9 +297,9 @@ Skip all prompts and use the provided prompt to start work immediately.
 
 ```
 AskUserQuestion:
-- Start Work: "Would you like to cd into the worktree and start working?"
-  - "Yes" → Proceed to prompt selection
-  - "No" → End workflow (show manual instructions)
+- Start Work: "Would you like to cd into the worktree and start working autonomously?"
+  - "Yes, start autonomous implementation (Recommended)" → Proceed to autonomous completion
+  - "No, I'll work manually" → End workflow (show manual instructions)
 ```
 
 ### If user selects "Yes"
@@ -306,17 +309,25 @@ Prompt for the starting prompt:
 ```
 AskUserQuestion:
 - Prompt: "What prompt would you like to start with?"
-  - "Use default prompt (Recommended)" → Use default prompt below
+  - "Use default autonomous prompt (Recommended)" → Use default prompt below
   - "Enter custom prompt" → Allow user to provide free-form input
 ```
 
 **Default Prompt:**
 
 ```
-Plan, review the plan, and execute the plan to work on Linear task {TASK_ID}
+Work on Linear task {TASK_ID}. Follow this autonomous workflow:
+
+1. Read the Linear task details to understand requirements
+2. Create an implementation plan
+3. Implement the task following existing codebase patterns
+4. Run tests and linting, fixing any issues
+5. Commit changes with a conventional commit message
+
+When complete, summarize what was implemented and any remaining work.
 ```
 
-### Execution
+### Autonomous Execution Steps
 
 1. **Change directory** to the worktree path:
 
@@ -324,7 +335,20 @@ Plan, review the plan, and execute the plan to work on Linear task {TASK_ID}
    cd "{WORKTREE_PATH}"
    ```
 
-2. **Begin work** by processing the selected prompt as if it were a new user message.
+2. **Begin autonomous work** by processing the selected prompt. Claude will:
+
+   - **Read Linear task details** via `mcp__linear__get_issue` to understand requirements
+   - **Analyze the codebase** to understand existing patterns and conventions
+   - **Plan the implementation** using the planning workflow
+   - **Implement the task** following codebase patterns
+   - **Run tests and linting** to ensure quality (`nx affected -t lint test`)
+   - **Commit changes** with a conventional commit message
+
+3. **Report completion** with a summary of:
+   - What was implemented
+   - Files created/modified
+   - Tests passing/failing
+   - Any remaining work or follow-ups
 
 ### If user selects "No"
 
@@ -334,8 +358,11 @@ Display the existing manual instructions:
 To start working:
   cd "{WORKTREE_PATH}"
 
-When ready to create a PR:
+When ready to create a PR (standard git):
   /linear-task-and-pr-from-changes --trunk {TRUNK_BRANCH}
+
+Or with Graphite (if USE_GRAPHITE was enabled):
+  /linear-task-and-pr-from-changes --trunk {TRUNK_BRANCH} --use-graphite
 ```
 
 ---
@@ -408,7 +435,8 @@ Creates the task, worktree, and immediately starts working with the custom promp
 ## Prerequisites
 
 - **git** (2.5+ for worktree support)
-- **gt** (Graphite CLI) - optional, for branch tracking
+- **gh** (GitHub CLI) - required for standard git workflow (default)
+- **gt** (Graphite CLI) - optional, only required if using `--use-graphite true`
 - **Linear MCP** (configured for Linear API access)
 
 Arguments: $ARGUMENTS

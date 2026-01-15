@@ -2,27 +2,48 @@
 
 ## Overview
 
-This plugin provides pull request management workflows for Claude Code, including PR creation, review, issue resolution, and Graphite stack management.
+This plugin provides pull request review and management workflows for Claude Code, including PR review, issue resolution, and Graphite stack management. It supports both **standard Git + GitHub CLI** (default) and **Graphite** workflows.
+
+> **Note**: PR creation and commit message generation have been moved to the `development-planning` plugin to enable a seamless workflow: plan → execute → create PR.
+
+## Git Workflow Support
+
+This plugin supports two PR creation workflows:
+
+### Standard Git + GitHub CLI (Default)
+
+- Uses `git push` and `gh pr create`
+- Works with any Git repository
+- No additional tooling required beyond standard Git and GitHub CLI
+- Enabled by default in all commands
+
+### Graphite (Opt-in)
+
+- Uses `gt submit` for branch tracking and PR creation
+- Supports PR stacking and stack management
+- Requires Graphite CLI to be installed
+- Enable with `--use-graphite` flag
+
+**Graphite-only features:**
+
+- `stack-splitter` - Requires Graphite for PR stacking
+- `graphite-stack-updater` - Requires Graphite for stack management
 
 ## Plugin Components
 
 ### Skills (./skills/)
 
-- **pr-reviewer**: Comprehensive PR review using multiple specialized agents
-- **pr-creator**: Create Graphite PRs with auto-generated conventional commit messages
-- **pr-issue-resolver**: Address PR review comments and fix CI failures
-- **graphite-stack-updater**: Update Graphite PR stacks by resolving comments and syncing
-- **commit-message-generator**: Generate well-structured git commit messages
-- **git-worktree-orchestrator**: Create and manage git worktrees for parallel development
-- **stack-splitter**: Split monolithic branches into logical PR stacks
+- **resolve-pr-issues**: Address PR review comments and fix CI failures
+- **review-code**: Comprehensive code review for architecture, security, performance, and style
+- **split-graphite-stack**: Split monolithic branches into logical PR stacks
+- **update-graphite-stack**: Update Graphite PR stacks by resolving comments and syncing
 
 ### Commands (./commands/)
 
 - **review-pr**: Comprehensive multi-agent PR review for architecture, security, performance
 - **work-through-pr-comments**: Methodically work through PR comments in a conversational workflow
-- **address-pr-issues**: Review and fix PR comments and CI failures to make PRs merge-ready
 - **linear-task-and-pr-from-changes**: Take local changes, create a Linear task, create a branch (optionally in a worktree), commit, and publish a PR
-- **start-linear-task**: Start working on a new Linear task by creating a worktree environment (for when you have no local changes yet)
+- **start-linear-task**: Start working on a new Linear task by creating a worktree environment with optional autonomous task completion
 
 ### Shared (./shared/)
 
@@ -31,18 +52,37 @@ This plugin provides pull request management workflows for Claude Code, includin
 
 ### Agents (./agents/)
 
-- **pr-creator**: Creates well-formatted PRs with comprehensive descriptions
-- **pr-reviewer**: Reviews PRs for code quality, security, performance
+- **review-executor**: Executes code review tasks and implements feedback
 - **stack-splitter**: Splits monolithic branches into logical PR stacks
-- **commit-message-generator**: Generates structured git commit messages
 
 ### MCP Integration (./.mcp.json)
 
-This plugin bundles the Graphite MCP server for:
+This plugin bundles the Graphite MCP server for optional Graphite workflows:
 
-- Stacked PR creation and management
+- Stacked PR creation and management (when `--use-graphite` is set)
 - PR submission with `gt submit`
 - Stack synchronization with `gt sync`
+
+The GitHub MCP is also used for standard Git workflows with `gh pr create`.
+
+## Canonical Workflow
+
+This plugin handles **steps 6-7** of the canonical development workflow:
+
+1. **Explore** → 2. **Plan** → 3. **Review Plan** → 4. **Execute** → 5. **PR Creation** → 6. **PR Review** (this plugin) → 7. **Merge** (this plugin)
+
+For steps 1-5, use the `development-planning` plugin.
+
+## Architecture Notes
+
+### Code Review Engine
+
+The `review-code` skill provides comprehensive code review capabilities:
+
+- Multi-agent coordination (architecture, security, performance, style)
+- Standard and comprehensive review depths
+- Focused review modes (architecture, security, performance)
+- Structured output with prioritized findings and patches
 
 ## Development Guidelines
 
@@ -71,27 +111,21 @@ development-pr-workflow/
 ├── .claude-plugin/
 │   └── plugin.json
 ├── skills/
-│   ├── pr-reviewer/
-│   ├── pr-creator/
-│   ├── pr-issue-resolver/
-│   ├── graphite-stack-updater/
-│   ├── commit-message-generator/
-│   ├── git-worktree-orchestrator/
-│   └── stack-splitter/
+│   ├── resolve-pr-issues/
+│   ├── review-code/
+│   ├── split-graphite-stack/
+│   └── update-graphite-stack/
 ├── commands/
-│   ├── review-pr.md
-│   ├── work-through-pr-comments.md
-│   ├── address-pr-issues.md
 │   ├── linear-task-and-pr-from-changes.md
-│   └── start-linear-task.md
+│   ├── review-pr.md
+│   ├── start-linear-task.md
+│   └── work-through-pr-comments.md
 ├── shared/
-│   ├── setup-worktree-core.md
-│   └── linear-task-config.md
+│   ├── linear-task-config.md
+│   └── setup-worktree-core.md
 ├── agents/
-│   ├── pr-creator.md
-│   ├── pr-reviewer.md
-│   ├── stack-splitter.md
-│   └── commit-message-generator.md
+│   ├── review-executor.md
+│   └── stack-splitter.md
 ├── .mcp.json
 ├── project.json
 ├── package.json

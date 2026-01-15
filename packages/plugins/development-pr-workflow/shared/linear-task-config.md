@@ -61,15 +61,15 @@ For any fields not already set from command-line arguments, prompt the user:
 
 ### Configuration Fields (Phase 2)
 
-| Field           | Required    | Notes                                                                                   |
-| --------------- | ----------- | --------------------------------------------------------------------------------------- |
-| Team            | Yes         | Linear team identifier. Options from `mcp__linear__list_teams`.                         |
-| Priority        | Yes         | Options: urgent, high, normal, low, none                                                |
-| Trunk Branch    | Yes         | Target branch for PR / Graphite parent (e.g., "main", "develop")                        |
-| Create Worktree | Yes         | true = isolated worktree, false = branch in current repo (if applicable to the command) |
-| Worktree Base   | Conditional | **Only prompt if CREATE_WORKTREE is true.** Branch to create worktree FROM.             |
-| Branch Prefix   | Yes         | Options: username (from LINEAR_USERNAME), feature/, fix/, chore/, or custom             |
-| Use Graphite    | Yes         | true = `gt submit`, false = `gh pr create`                                              |
+| Field           | Required    | Notes                                                                       |
+| --------------- | ----------- | --------------------------------------------------------------------------- |
+| Team            | Yes         | Linear team identifier. Options from `mcp__linear__list_teams`.             |
+| Priority        | Yes         | Options: urgent, high, normal, low, none                                    |
+| Trunk Branch    | Yes         | Target branch for PR (e.g., "main", "develop")                              |
+| Create Worktree | Yes         | true = isolated worktree, false = branch in current repo (if applicable)    |
+| Worktree Base   | Conditional | **Only prompt if CREATE_WORKTREE is true.** Branch to create worktree FROM. |
+| Branch Prefix   | Yes         | Options: username (from LINEAR_USERNAME), feature/, fix/, chore/, or custom |
+| Use Graphite    | Yes         | **Always prompt** unless `--use-graphite true/false` is explicitly set      |
 
 ### Branch Prefix Options
 
@@ -90,7 +90,7 @@ AskUserQuestion with questions:
 - Trunk Branch: "Target branch for PR?" (main/develop/Other)
 - Create Worktree: "Create isolated worktree?" (Yes/No)
 - Branch Prefix: "Branch prefix?" ({LINEAR_USERNAME}/feature/fix/chore/Custom)
-- Use Graphite: "PR creation method?" (Graphite CLI/GitHub CLI)
+- Use Graphite: "PR creation method?" (Standard git + GitHub CLI (Recommended)/Graphite CLI)
 ```
 
 ### Phase 2.5: Conditional Worktree Base Prompt

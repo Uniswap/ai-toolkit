@@ -1,0 +1,113 @@
+name: 'Check Automated PR'
+description: 'Detects if a PR was created by CI automation and should skip certain checks'
+
+inputs:
+  branch_name:
+    description: 'The head branch name (github.head_ref)'
+    required: true
+  pr_title:
+    description: 'The PR title (github.event.pull_request.title)'
+    required: false
+    default: ''
+
+outputs:
+  is_automated:
+    description: 'Whether this PR is automated (true/false)'
+    value: ${{ steps.check.outputs.is_automated }}
+  skip_reason:
+    description: 'Human-readable reason for skipping (empty if not automated)'
+    value: ${{ steps.check.outputs.skip_reason }}
+  category:
+    description: 'Category of automation (release, sync, deps, merge-queue, action-update, or empty)'
+    value: ${{ steps.check.outputs.category }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Check for automated PR patterns
+      id: check
+      shell: bash
+      env:
+        BRANCH_NAME: ${{ inputs.branch_name }}
+        PR_TITLE: ${{ inputs.pr_title }}
+      run: |
+        IS_AUTOMATED="false"
+        SKIP_REASON=""
+        CATEGORY=""
+
+        # ===========================================
+        # Branch prefix checks (CI-created branches)
+        # ===========================================
+
+        # Graphite merge queue branches
+        if [[ "$BRANCH_NAME" == gtmq* ]]; then
+          IS_AUTOMATED="true"
+          SKIP_REASON="Graphite merge queue branch (gtmq* prefix)"
+          CATEGORY="merge-queue"
+
+        # GitHub merge queue branches
+        elif [[ "$BRANCH_NAME" == gh-readonly-queue/* ]]; then
+          IS_AUTOMATED="true"
+          SKIP_REASON="GitHub merge queue branch (gh-readonly-queue/* prefix)"
+          CATEGORY="merge-queue"
+
+        # Release automation branches (e.g., release/next-to-main-20260113-184501)
+        elif [[ "$BRANCH_NAME" == release/* ]]; then
+          IS_AUTOMATED="true"
+          SKIP_REASON="Release automation branch (release/* prefix)"
+          CATEGORY="release"
+
+        # Action version update branches (e.g., chore/update-action-versions-2026-01-12)
+        elif [[ "$BRANCH_NAME" == chore/update-action-versions-* ]]; then
+          IS_AUTOMATED="true"
+          SKIP_REASON="Action version update branch (chore/update-action-versions-* prefix)"
+          CATEGORY="action-update"
+
+        # Dependabot branches
+        elif [[ "$BRANCH_NAME" == dependabot/* ]]; then
+          IS_AUTOMATED="true"
+          SKIP_REASON="Dependabot dependency update branch (dependabot/* prefix)"
+          CATEGORY="deps"
+
+        # Renovate branches
+        elif [[ "$BRANCH_NAME" == renovate/* ]]; then
+          IS_AUTOMATED="true"
+          SKIP_REASON="Renovate dependency update branch (renovate/* prefix)"
+          CATEGORY="deps"
+        fi
+
+        # ===========================================
+        # PR title checks (CI-created PR titles)
+        # Only check if not already identified by branch
+        # ===========================================
+
+        if [[ "$IS_AUTOMATED" == "false" && -n "$PR_TITLE" ]]; then
+          # Release commits (e.g., "chore(release): @uniswap/ai-toolkit-nx-claude@0.5.30")
+          if [[ "$PR_TITLE" == "chore(release):"* ]]; then
+            IS_AUTOMATED="true"
+            SKIP_REASON="Release commit (chore(release): prefix)"
+            CATEGORY="release"
+
+          # Branch sync commits (e.g., "chore(sync): [skip ci] sync next with main")
+          elif [[ "$PR_TITLE" == "chore(sync):"* ]]; then
+            IS_AUTOMATED="true"
+            SKIP_REASON="Branch sync commit (chore(sync): prefix)"
+            CATEGORY="sync"
+
+          # Dependency update commits (e.g., "chore(deps): bump js-yaml...")
+          elif [[ "$PR_TITLE" == "chore(deps):"* ]]; then
+            IS_AUTOMATED="true"
+            SKIP_REASON="Dependency update commit (chore(deps): prefix)"
+            CATEGORY="deps"
+          fi
+        fi
+
+        # Output results
+        echo "is_automated=$IS_AUTOMATED" >> $GITHUB_OUTPUT
+        echo "skip_reason=$SKIP_REASON" >> $GITHUB_OUTPUT
+        echo "category=$CATEGORY" >> $GITHUB_OUTPUT
+
+        # Log for visibility
+        if [[ "$IS_AUTOMATED" == "true" ]]; then
+          echo "::notice::Automated PR detected: $SKIP_REASON"
+        fi

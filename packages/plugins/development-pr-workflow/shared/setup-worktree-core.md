@@ -19,15 +19,15 @@ arguments:
   - name: trunk
     type: string
     required: false
-    description: Target branch for PR / Graphite parent. Required when graphite tracking is enabled (no default).
+    description: Target branch for PR (e.g., "main", "develop"). Required when branch tracking is enabled (no default).
   - name: worktree_base
     type: string
     required: true
     description: Branch to create the worktree FROM (start point). Required - always prompted if not specified.
-  - name: skip_graphite
+  - name: use_graphite
     type: boolean
     required: false
-    description: Skip Graphite branch tracking.
+    description: Use Graphite for branch tracking. If false or not set, uses standard git. Defaults to false.
   - name: skip_setup
     type: boolean
     required: false
@@ -43,8 +43,8 @@ notes: |
     - BRANCH_NAME: The branch name for the worktree (required)
     - SETUP_SCRIPT: Script/command to run after worktree creation (optional, auto-detects package manager if not set)
     - SKIP_SETUP: Set to "true" to skip setup script entirely (optional)
-    - SKIP_GRAPHITE_TRACK: Set to "true" to skip Graphite tracking (optional)
-    - TRUNK_BRANCH: Target branch for PR / Graphite parent (required when graphite enabled, no default)
+    - USE_GRAPHITE: Set to "true" to use Graphite for branch tracking, "false" for standard git (optional, defaults to false)
+    - TRUNK_BRANCH: Target branch for PR (required when tracking enabled, no default)
     - WORKTREE_BASE: Branch to create worktree FROM (required - always prompted if not provided)
     - SKIP_INDEX_RESET: Set to "true" to skip git index reset (optional)
 ---
@@ -171,33 +171,39 @@ fi
 
 ---
 
-## Step 5: Configure Worktree - Graphite Integration (Optional)
+## Step 5: Configure Worktree - Branch Tracking (Optional)
 
-Track the branch with Graphite.
-**Skip this step if `SKIP_GRAPHITE_TRACK` is set to "true".**
-**TRUNK_BRANCH is required when graphite tracking is enabled (no default).**
+Track the branch with your preferred tool (Graphite or standard git).
+**USE_GRAPHITE determines which tracking method to use (defaults to false/standard git).**
+**TRUNK_BRANCH is required when any tracking is enabled (no default).**
 
 ```bash
-if [[ "${SKIP_GRAPHITE_TRACK:-}" != "true" ]]; then
-  # Validate trunk branch is provided
-  if [[ -z "${TRUNK_BRANCH:-}" ]]; then
-    echo "Error: TRUNK_BRANCH is required when Graphite tracking is enabled."
-    echo "Either provide a trunk branch or set SKIP_GRAPHITE_TRACK=true"
-    exit 1
-  fi
-
-  if command -v gt >/dev/null 2>&1; then
-    echo "Tracking branch '$BRANCH_NAME' on top of parent '$TRUNK_BRANCH'..."
-    if ! gt -C "$NEW_DIR" track --parent "$TRUNK_BRANCH"; then
-      echo "Warning: Failed to track branch with Graphite. You can run this manually:"
-      echo "  cd \"$NEW_DIR\" && gt track --parent \"$TRUNK_BRANCH\""
+# Only track if TRUNK_BRANCH is provided
+if [[ -n "${TRUNK_BRANCH:-}" ]]; then
+  if [[ "${USE_GRAPHITE:-}" == "true" ]]; then
+    # Use Graphite for branch tracking
+    if command -v gt >/dev/null 2>&1; then
+      echo "Tracking branch '$BRANCH_NAME' with Graphite (parent: '$TRUNK_BRANCH')..."
+      if ! gt -C "$NEW_DIR" track --parent "$TRUNK_BRANCH"; then
+        echo "Warning: Failed to track branch with Graphite. You can run this manually:"
+        echo "  cd \"$NEW_DIR\" && gt track --parent \"$TRUNK_BRANCH\""
+      else
+        echo "Successfully tracked branch with Graphite."
+      fi
     else
-      echo "Successfully tracked branch with Graphite."
+      echo "Warning: 'gt' (Graphite CLI) not found. Skipping Graphite setup."
+      echo "Install it from: https://graphite.dev/docs/installing-the-cli"
+      echo "Or use standard git workflow without Graphite."
     fi
   else
-    echo "Warning: 'gt' (Graphite CLI) not found. Skipping Graphite setup."
-    echo "Install it from: https://graphite.dev/docs/installing-the-cli"
+    # Standard git - just configure upstream tracking
+    echo "Branch '$BRANCH_NAME' created from '$WORKTREE_BASE'."
+    echo "PR target branch: '$TRUNK_BRANCH'"
+    # No additional tracking needed for standard git - branch is ready for PR creation
   fi
+else
+  echo "Note: No trunk branch specified. Branch tracking skipped."
+  echo "You can set the PR target branch later when creating a PR."
 fi
 ```
 
@@ -341,7 +347,15 @@ echo "  Location: $NEW_DIR"
 echo "  Branch: $BRANCH_NAME"
 echo "  Created from: $WORKTREE_BASE"
 [[ -f "$NEW_DIR/.claude/settings.local.json" ]] && echo "  Claude settings: copied" || echo "  Claude settings: skipped"
-[[ "${SKIP_GRAPHITE_TRACK:-}" != "true" ]] && echo "  Graphite tracking: $BRANCH_NAME → $TRUNK_BRANCH (parent)" || echo "  Graphite tracking: skipped"
+if [[ -n "${TRUNK_BRANCH:-}" ]]; then
+  if [[ "${USE_GRAPHITE:-}" == "true" ]]; then
+    echo "  Branch tracking: Graphite ($BRANCH_NAME → $TRUNK_BRANCH)"
+  else
+    echo "  Branch tracking: Standard git (PR target: $TRUNK_BRANCH)"
+  fi
+else
+  echo "  Branch tracking: not configured"
+fi
 if [[ "${SKIP_SETUP:-}" != "true" ]] && [[ -n "${SETUP_SCRIPT:-}" ]]; then
   if [[ "${SETUP_AUTO_DETECTED:-}" == "true" ]]; then
     echo "  Setup script: executed (auto-detected: $SETUP_SCRIPT)"
