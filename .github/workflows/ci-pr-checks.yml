@@ -21,6 +21,8 @@ jobs:
       # Skip CI for release/sync/action-update PRs, but NOT for dependency updates (which need testing)
       should_skip_ci: ${{ steps.check.outputs.is_automated == 'true' && steps.check.outputs.category != 'deps' }}
     steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
       - name: Checkout repository (for composite action)
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
