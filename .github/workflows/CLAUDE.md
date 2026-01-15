@@ -1346,6 +1346,54 @@ Always pin external actions to **specific commit hashes** with version comments:
 
 Never use tags or branch names directly.
 
+### Bullfrog Security Scanning (CRITICAL)
+
+**Every job running on non-macOS runners MUST have `bullfrogsec/bullfrog` as the FIRST step** - no exceptions.
+
+This applies to ALL jobs, including:
+
+- Main workflow jobs (build, test, deploy)
+- Pre-check jobs (validation, detection)
+- Summary jobs (status reporting, skip notifications)
+- Any job that runs on `ubuntu-latest` or similar Linux runners
+
+**✅ CORRECT - Bullfrog as first step:**
+
+```yaml
+jobs:
+  my-job:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Do something
+        run: echo "This step comes after Bullfrog"
+```
+
+**❌ WRONG - Missing Bullfrog or not first:**
+
+```yaml
+jobs:
+  my-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Do something  # ❌ Bullfrog must be first!
+        run: echo "Missing security scanning"
+```
+
+**Why this matters:**
+
+- Bullfrog provides egress security scanning for all workflow jobs
+- Semgrep code review automatically flags missing Bullfrog steps
+- Even "trivial" jobs that only echo status messages need security scanning
+- This is enforced by automated code review and will block PR approval
+
+**Checklist for new workflow jobs:**
+
+- [ ] Is the job on a non-macOS runner?
+- [ ] Is `bullfrogsec/bullfrog` the FIRST step?
+- [ ] Is it pinned to the correct SHA with version comment?
+
 ### Static Refs in `uses:` Field (CRITICAL)
 
 **The `uses:` field in GitHub Actions requires STATIC strings at workflow parse time.**

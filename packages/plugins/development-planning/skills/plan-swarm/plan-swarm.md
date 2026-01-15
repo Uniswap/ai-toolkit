@@ -8,6 +8,8 @@ model: opus
 
 Refine plans through collaborative multi-agent expert discussion.
 
+> ⚠️ **Cost Warning**: This skill uses the Opus model and spawns 3-10 agents for multi-round discussions. A typical plan-swarm session consumes **5-20x more tokens** than a standard skill invocation. Consider using `review-plan` for simpler validation needs.
+
 ## When to Activate
 
 - User wants multiple expert perspectives

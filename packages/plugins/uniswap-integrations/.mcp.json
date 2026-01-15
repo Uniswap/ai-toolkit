@@ -1,15 +1,9 @@
 {
   "mcpServers": {
-    "spec-workflow": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["@uniswap/spec-workflow-mcp@latest", "--AutoStartDashboard"],
-      "env": {}
-    },
     "nx-mcp": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "nx-mcp@latest"],
+      "args": ["-y", "-p", "nx-mcp@latest", "nx-mcp"],
       "env": {}
     },
     "notion": {
@@ -23,8 +17,27 @@
     "chrome-devtools": {
       "type": "stdio",
       "command": "npx",
-      "args": ["chrome-devtools-mcp@latest"],
+      "args": ["-y", "-p", "chrome-devtools-mcp@latest", "chrome-devtools-mcp"],
       "env": {}
+    },
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      }
+    },
+    "pulumi": {
+      "type": "http",
+      "url": "https://mcp.ai.pulumi.com/mcp"
+    },
+    "figma": {
+      "type": "http",
+      "url": "https://mcp.figma.com/mcp"
+    },
+    "vercel": {
+      "type": "http",
+      "url": "https://mcp.vercel.com"
     }
   }
 }

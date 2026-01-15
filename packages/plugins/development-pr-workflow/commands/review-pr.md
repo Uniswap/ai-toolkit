@@ -88,10 +88,12 @@ Quick, focused review of key concerns:
 
 ### Comprehensive Review (--depth comprehensive)
 
-Deep multi-agent analysis:
+Deep multi-agent analysis using **agent-orchestrator** (from development-codebase-tools plugin):
 
 ```typescript
 {
+  // agent-orchestrator is provided by development-codebase-tools plugin
+  // Fallback: If unavailable, execute phases sequentially without orchestration
   orchestrator: "agent-orchestrator",
   phases: [
     {
@@ -104,7 +106,7 @@ Deep multi-agent analysis:
     {
       name: "Quality Assessment",
       parallel: [
-        { agent: "architect-reviewer", focus: "design-consistency" },
+        { agent: "plan-reviewer", focus: "design-consistency" },
         { agent: "security-analyzer", focus: "vulnerability-assessment" },
         { agent: "performance-analyzer", focus: "performance-impact" },
         { agent: "style-enforcer", focus: "code-standards" }
@@ -115,7 +117,7 @@ Deep multi-agent analysis:
       parallel: [
         { agent: "test-writer", focus: "coverage-gaps" },
         { agent: "agent-tester", focus: "regression-testing" },
-        { agent: "doc-writer", focus: "documentation-updates" }
+        { agent: "documentation", focus: "documentation-updates" }
       ]
     },
     {
@@ -128,6 +130,8 @@ Deep multi-agent analysis:
   ]
 }
 ```
+
+**Fallback (if agent-orchestrator is not available)**: Execute each phase sequentially, invoking agents directly without parallel coordination. The review will still cover all aspects but may take longer.
 
 ## Output Format
 

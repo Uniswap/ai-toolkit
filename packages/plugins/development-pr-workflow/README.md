@@ -16,12 +16,12 @@ claude /plugin install development-pr-workflow
 
 ## Skills
 
-| Skill                      | Description                                                 |
-| -------------------------- | ----------------------------------------------------------- |
-| **code-reviewer**          | Comprehensive code review using specialized agents          |
-| **pr-issue-resolver**      | Address PR review comments and fix CI failures              |
-| **graphite-stack-updater** | Update Graphite PR stacks by resolving comments and syncing |
-| **stack-splitter**         | Split monolithic branches into logical PR stacks            |
+| Skill                     | Description                                                 |
+| ------------------------- | ----------------------------------------------------------- |
+| **resolve-pr-issues**     | Address PR review comments and fix CI failures              |
+| **review-code**           | Comprehensive code review using specialized agents          |
+| **split-graphite-stack**  | Split monolithic branches into logical PR stacks            |
+| **update-graphite-stack** | Update Graphite PR stacks by resolving comments and syncing |
 
 ## Commands
 
@@ -29,7 +29,6 @@ claude /plugin install development-pr-workflow
 | ---------------------------------- | -------------------------------------------- |
 | `/review-pr`                       | Review a pull request comprehensively        |
 | `/work-through-pr-comments`        | Methodically address PR comments             |
-| `/address-pr-issues`               | Review and fix PR comments and CI failures   |
 | `/start-linear-task`               | Start working on a Linear task in a worktree |
 | `/linear-task-and-pr-from-changes` | Create Linear task and PR from local changes |
 
@@ -68,14 +67,14 @@ This plugin handles **steps 6-7** of the canonical development workflow:
 /work-through-pr-comments
 
 # Address PR issues and CI failures
-/address-pr-issues
+/resolve-pr-issues
 
 # Start working on a Linear task
 /start-linear-task DEV-123
 
 # Use skills contextually
-"Review my PR for any issues"                       # triggers code-reviewer skill
-"Help me split this large branch into smaller PRs"  # triggers stack-splitter skill
+"Review my PR for any issues"                       # triggers review-code skill
+"Help me split this large branch into smaller PRs"  # triggers split-graphite-stack skill
 ```
 
 ## License

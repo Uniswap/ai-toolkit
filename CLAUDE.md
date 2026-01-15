@@ -174,6 +174,64 @@ Use the validation script to check plugin structure:
 node scripts/validate-plugin.cjs packages/plugins/<plugin-name>
 ```
 
+### Plugin Versioning
+
+All plugins follow semantic versioning (semver). Key versioning rules:
+
+- **All plugins MUST be versioned at 1.0.0 or higher** for production releases
+- Version is specified in each plugin's `.claude-plugin/plugin.json` file
+- When making changes to plugins, update the version appropriately:
+  - **Patch (1.0.X)**: Bug fixes, minor documentation updates, typo fixes
+  - **Minor (1.X.0)**: New skills, agents, or commands (backward compatible)
+  - **Major (X.0.0)**: Breaking changes, significant restructuring, removed components
+
+#### Mandatory Version Bumping
+
+**CRITICAL: After making any changes to files in `packages/plugins/`, Claude Code MUST bump the plugin version.**
+
+1. **Identify the affected plugin(s)**: Determine which plugin(s) were modified based on the file paths changed.
+
+2. **Determine the appropriate version bump** using semver:
+
+   - **Patch bump** (e.g., 1.0.0 → 1.0.1): Bug fixes, documentation updates, typo corrections, internal refactoring with no user-facing changes
+   - **Minor bump** (e.g., 1.0.1 → 1.1.0): New skills, agents, commands, or MCP servers added; new features; backward-compatible enhancements
+   - **Major bump** (e.g., 1.1.0 → 2.0.0): Breaking changes, removed components, renamed skills/agents/commands, significant restructuring
+
+3. **Update the version** in the plugin's `.claude-plugin/plugin.json` file:
+
+   ```json
+   {
+     "name": "plugin-name",
+     "version": "1.0.1",  // ← Update this field
+     ...
+   }
+   ```
+
+4. **Include the version bump in the same commit** as the plugin changes - do not create a separate commit for version updates.
+
+**Example workflow:**
+
+```text
+1. Make changes to packages/plugins/development-pr-workflow/skills/review-code/
+2. Determine change type: Added new prompt template → Minor change
+3. Update packages/plugins/development-pr-workflow/.claude-plugin/plugin.json
+   - Change "version": "1.0.0" to "version": "1.1.0"
+4. Commit all changes together
+```
+
+**Current plugins:**
+
+| Plugin                     | Version |
+| -------------------------- | ------- |
+| development-codebase-tools | 1.0.0   |
+| development-planning       | 1.0.0   |
+| development-pr-workflow    | 1.0.0   |
+| development-productivity   | 1.0.0   |
+| uniswap-integrations       | 1.0.0   |
+| spec-workflow              | 1.0.0   |
+
+**Note:** Keep this table updated when versions change.
+
 ### Adding New Skills and Commands to Plugins
 
 When making changes to `packages/plugins/`, follow these guidelines:
@@ -213,6 +271,48 @@ When adding new slash commands:
 
 1. **Do NOT add a `name` field** in the YAML frontmatter (let it use the filename)
 2. **Add the path** of the new slash command to the plugin's `plugin.json` commands array
+
+#### C. Plugin Component Naming Conventions
+
+All plugin components (skills, agents, commands) must follow these naming conventions:
+
+**General Rules:**
+
+- All names use **lowercase-hyphenated** format (e.g., `code-reviewer`, not `CodeReviewer` or `code_reviewer`)
+- Names should be descriptive and indicate the component's purpose
+- Avoid abbreviations unless they are widely understood (e.g., `pr` for pull request)
+
+**Skills vs Agents Naming:**
+
+To differentiate skills from agents and avoid naming conflicts:
+
+| Component  | Format    | Pattern                        | Examples                                                                      |
+| ---------- | --------- | ------------------------------ | ----------------------------------------------------------------------------- |
+| **Skills** | verb-noun | Action-oriented (what it does) | `review-plan`, `create-pr`, `generate-commit-message`, `split-graphite-stack` |
+| **Agents** | noun-role | Entity-oriented (what it is)   | `code-reviewer`, `plan-reviewer`, `stack-splitter`, `context-loader`          |
+
+**Why this matters:**
+
+- Skills represent **actions** users invoke (slash commands like `/create-pr`)
+- Agents represent **entities** that perform work (spawned via `Task(subagent_type:...)`)
+- Distinct naming patterns prevent confusion when a skill and agent serve similar purposes
+- Users can immediately identify component type from the name
+
+**Examples:**
+
+```text
+✅ GOOD - Clear differentiation:
+   Skill: review-plan      (verb-noun: action to review a plan)
+   Agent: plan-reviewer    (noun-role: entity that reviews plans)
+
+❌ BAD - Identical names cause confusion:
+   Skill: plan-reviewer
+   Agent: plan-reviewer
+```
+
+**Commands:**
+
+Commands (standalone `.md` files in `./commands/`) follow the same verb-noun pattern as skills since they are also user-invocable actions.
 
 ## Documentation Management
 

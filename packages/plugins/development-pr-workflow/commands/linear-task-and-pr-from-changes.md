@@ -1,7 +1,7 @@
 ---
 description: Take local changes, create a Linear task, create a branch (optionally in a worktree), commit, and publish a PR
-argument-hint: [--team <id>] [--trunk <branch>] [--create-worktree] [--use-graphite]
-allowed-tools: Bash(*), Read(*), Write(*), AskUserQuestion(*), mcp__graphite__run_gt_cmd(*), mcp__linear__create_issue(*), mcp__linear__get_user(*), mcp__linear__list_teams(*), mcp__linear__list_projects(*), mcp__linear__list_issue_labels(*)
+argument-hint: [--team <id>] [--trunk <branch>] [--create-worktree] [--use-graphite true/false]
+allowed-tools: Bash(*), Read(*), Write(*), AskUserQuestion(*), mcp__graphite__run_gt_cmd(*), mcp__github__create_pull_request(*), mcp__linear__create_issue(*), mcp__linear__get_user(*), mcp__linear__list_teams(*), mcp__linear__list_projects(*), mcp__linear__list_issue_labels(*)
 ---
 
 # Changes to PR Workflow
@@ -12,22 +12,21 @@ This command automates the full workflow of taking local changes and turning the
 
 Parse arguments from `$ARGUMENTS`:
 
-| Argument                | Type    | Required | Description                                                                     |
-| ----------------------- | ------- | -------- | ------------------------------------------------------------------------------- |
-| `--team`                | string  | No       | Linear team identifier (e.g., "DEV", "ENG"). Prompted if not provided.          |
-| `--label`               | string  | No       | Linear label to apply. Prompted if not provided.                                |
-| `--due-date`            | string  | No       | Due date for the Linear task (e.g., "2024-01-15", "next friday").               |
-| `--project`             | string  | No       | Linear project name. Prompted if not provided.                                  |
-| `--priority`            | string  | No       | Priority level (urgent, high, normal, low, none). Prompted if not provided.     |
-| `--title`               | string  | No       | Title for the Linear task. Auto-generated from change analysis if not provided. |
-| `--trunk`               | string  | No       | Base branch for the PR (e.g., "main", "develop"). Prompted if not provided.     |
-| `--create-worktree`     | boolean | No       | Create an isolated git worktree for the changes. Prompted if not provided.      |
-| `--setup`               | string  | No       | (Worktree mode only) Setup script to run after creating the worktree.           |
-| `--skip-setup`          | boolean | No       | (Worktree mode only) Skip running any setup script.                             |
-| `--skip-graphite-track` | boolean | No       | Skip Graphite branch tracking.                                                  |
-| `--branch-prefix`       | string  | No       | Custom branch prefix (e.g., "feature", "fix"). Prompted if not provided.        |
-| `--include-signature`   | boolean | No       | Include Claude Code signature in commit message. Default: false.                |
-| `--use-graphite`        | boolean | No       | Use Graphite CLI for PR creation. Prompted if not provided.                     |
+| Argument              | Type    | Required | Description                                                                     |
+| --------------------- | ------- | -------- | ------------------------------------------------------------------------------- |
+| `--team`              | string  | No       | Linear team identifier (e.g., "DEV", "ENG"). Prompted if not provided.          |
+| `--label`             | string  | No       | Linear label to apply. Prompted if not provided.                                |
+| `--due-date`          | string  | No       | Due date for the Linear task (e.g., "2024-01-15", "next friday").               |
+| `--project`           | string  | No       | Linear project name. Prompted if not provided.                                  |
+| `--priority`          | string  | No       | Priority level (urgent, high, normal, low, none). Prompted if not provided.     |
+| `--title`             | string  | No       | Title for the Linear task. Auto-generated from change analysis if not provided. |
+| `--trunk`             | string  | No       | Base branch for the PR (e.g., "main", "develop"). Prompted if not provided.     |
+| `--create-worktree`   | boolean | No       | Create an isolated git worktree for the changes. Prompted if not provided.      |
+| `--setup`             | string  | No       | (Worktree mode only) Setup script to run after creating the worktree.           |
+| `--skip-setup`        | boolean | No       | (Worktree mode only) Skip running any setup script.                             |
+| `--branch-prefix`     | string  | No       | Custom branch prefix (e.g., "feature", "fix"). Prompted if not provided.        |
+| `--include-signature` | boolean | No       | Include Claude Code signature in commit message. Default: false.                |
+| `--use-graphite`      | boolean | No       | Use Graphite (true) or standard git (false). Prompted if not set.               |
 
 ## Workflow Overview
 
@@ -40,7 +39,7 @@ Parse arguments from `$ARGUMENTS`:
 3. **Create Linear Task**: Creates a Linear issue to track the work (with optional project)
 4. **Create Branch**: Creates a new branch (method depends on mode)
 5. **Generate Commit**: Creates a conventional commit message and commits changes
-6. **Publish PR**: Uses Graphite or GitHub CLI to create and publish the PR
+6. **Publish PR**: Uses GitHub CLI (default) or Graphite to create and publish the PR
 
 **Worktree Mode** (`--create-worktree`):
 
@@ -223,8 +222,9 @@ Set configuration variables and follow the shared worktree setup instructions in
 BRANCH_NAME="${BRANCH_NAME}"
 SETUP_SCRIPT="${setup:-}"
 SKIP_SETUP="${skip_setup:-}"
-SKIP_GRAPHITE_TRACK="${skip_graphite_track:-}"
+USE_GRAPHITE="${use_graphite:-false}"  # Default to standard git
 TRUNK_BRANCH="${trunk}"
+WORKTREE_BASE="${trunk}"  # For worktree mode, base from trunk
 SKIP_INDEX_RESET=""
 ```
 
@@ -233,7 +233,7 @@ Follow the complete worktree setup workflow defined in `@../shared/setup-worktre
 - Worktrees directory detection and creation
 - Git worktree creation with proper branch setup
 - Claude settings copying (`.claude/` directory)
-- Graphite branch tracking configuration
+- Branch tracking configuration (Graphite if `USE_GRAPHITE=true`, otherwise standard git)
 - Auto-detection and execution of setup scripts (npm, yarn, pnpm, bun)
 - Git index reset for corruption prevention
 
@@ -261,9 +261,17 @@ WORKING_DIR=$(pwd)
 git fetch origin "$TRUNK_BRANCH"
 git checkout -b "$BRANCH_NAME" "origin/$TRUNK_BRANCH"
 
-# Track with Graphite (unless skip_graphite_track is true)
-if [ -z "$SKIP_GRAPHITE_TRACK" ]; then
-  gt track --branch "$BRANCH_NAME" --parent "$TRUNK_BRANCH"
+# Track with Graphite if enabled
+if [[ "${USE_GRAPHITE:-}" == "true" ]]; then
+  if command -v gt >/dev/null 2>&1; then
+    echo "Tracking branch '$BRANCH_NAME' with Graphite (parent: '$TRUNK_BRANCH')..."
+    gt track --branch "$BRANCH_NAME" --parent "$TRUNK_BRANCH"
+  else
+    echo "Warning: 'gt' (Graphite CLI) not found. Skipping Graphite setup."
+  fi
+else
+  # Standard git - no additional tracking needed
+  echo "Branch '$BRANCH_NAME' created. PR target: '$TRUNK_BRANCH'"
 fi
 ```
 
@@ -305,6 +313,14 @@ SKIP_CLAUDE=1 git commit -m "<generated commit message>"
 
 ## Step 7: Create and Publish PR
 
+**If using standard Git + GitHub CLI (default):**
+
+```bash
+cd "$WORKING_DIR"
+git push -u origin "$BRANCH_NAME"
+gh pr create --base "$TRUNK_BRANCH" --title "<PR title>" --body "<PR description>"
+```
+
 **If using Graphite (`--use-graphite`):**
 
 ```bash
@@ -313,14 +329,6 @@ gt submit --publish --no-edit --no-interactive
 
 PR_URL=$(gt pr --show-url 2>/dev/null || gh pr view --json url -q '.url')
 gh pr edit "$PR_URL" --title "<PR title>" --body "<PR description>"
-```
-
-**If using GitHub CLI (default):**
-
-```bash
-cd "$WORKING_DIR"
-git push -u origin "$BRANCH_NAME"
-gh pr create --base "$TRUNK_BRANCH" --title "<PR title>" --body "<PR description>"
 ```
 
 ---
@@ -341,7 +349,7 @@ gh pr create --base "$TRUNK_BRANCH" --title "<PR title>" --body "<PR description
 
 ⚙️  Worktree Configuration:
    ✓ Claude settings copied
-   ✓ Graphite tracking: johndoe/DEV-123-task-slug → main
+   ✓ Branch tracking: Standard git (PR target: main)
    ✓ Setup script completed (auto-detected: npm ci)
    ✓ Git index reset (corruption prevention)
 
@@ -360,7 +368,7 @@ To continue working:
    https://linear.app/team/issue/DEV-123
 
 🌿 Branch: johndoe/DEV-123-task-slug → main
-   ✓ Graphite tracking enabled
+   ✓ Standard git (PR target: main)
 
 🔗 PR: https://github.com/org/repo/pull/456
 
@@ -375,8 +383,8 @@ You are now on branch: johndoe/DEV-123-task-slug
 
 - **No changes detected**: Inform user there are no changes to process
 - **Linear MCP not available**: Provide instructions for setting up Linear MCP
-- **Graphite not installed**: Use GitHub CLI instead, or install Graphite
-- **Graphite tracking fails**: Log warning and provide manual command
+- **Graphite not installed**: Use GitHub CLI instead (default), or install Graphite if `--use-graphite` is desired
+- **Graphite tracking fails**: Log warning and provide manual command (only applies when `--use-graphite` is set)
 - **Commit fails**: Report the error and suggest resolution
 
 **Worktree Mode Only:**
@@ -419,10 +427,10 @@ You are now on branch: johndoe/DEV-123-task-slug
 /linear-task-and-pr-from-changes --team DEV --priority high
 ```
 
-### Using GitHub CLI Instead of Graphite
+### Using Graphite Instead of Standard Git
 
 ```
-/linear-task-and-pr-from-changes --team DEV --use-graphite false --trunk main
+/linear-task-and-pr-from-changes --team DEV --use-graphite --trunk main
 ```
 
 ---
@@ -430,8 +438,8 @@ You are now on branch: johndoe/DEV-123-task-slug
 ## Prerequisites
 
 - **git** (2.5+ for worktree support)
-- **gt** (Graphite CLI) - optional if using `--use-graphite false`
-- **gh** (GitHub CLI) - optional if using Graphite
+- **gh** (GitHub CLI) - required for standard git workflow (default)
+- **gt** (Graphite CLI) - optional, only required if using `--use-graphite true`
 - **Linear MCP** (configured for Linear API access)
 
 Arguments: $ARGUMENTS

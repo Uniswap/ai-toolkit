@@ -8,10 +8,10 @@ This plugin provides documentation, research, test generation, and prompt optimi
 
 ### Skills (./skills/)
 
-- **claude-docs-updater**: Update CLAUDE.md documentation files after code changes
-- **topic-researcher**: Research topics combining web search with codebase analysis
-- **prompt-optimizer**: Optimize AI prompts for better model performance
-- **test-generator**: Generate comprehensive tests with advanced testing strategies
+- **generate-tests**: Generate comprehensive tests with advanced testing strategies
+- **optimize-prompt**: Optimize AI prompts for better model performance
+- **research-topic**: Research topics combining web search with codebase analysis
+- **update-claude-docs**: Update CLAUDE.md documentation files after code changes
 
 ### Commands (./commands/)
 
@@ -32,7 +32,7 @@ This plugin provides documentation, research, test generation, and prompt optimi
 - Skills are the primary interface for all workflows
 - Agents are auto-discovered from the `agents/` directory
 - Skills invoke agents via `Task(subagent_type:agent-name)`
-- test-generator supports multiple frameworks (jest, vitest, pytest, cypress, playwright)
+- generate-tests skill supports multiple frameworks (jest, vitest, pytest, cypress, playwright)
 - The `documentation` agent consolidates previous doc-writer, claude-docs-manager, and claude-docs-fact-checker agents
 
 ## File Structure
@@ -42,10 +42,10 @@ development-productivity/
 ├── .claude-plugin/
 │   └── plugin.json
 ├── skills/
-│   ├── claude-docs-updater/
-│   ├── topic-researcher/
-│   ├── prompt-optimizer/
-│   └── test-generator/
+│   ├── generate-tests/
+│   ├── optimize-prompt/
+│   ├── research-topic/
+│   └── update-claude-docs/
 ├── commands/
 │   ├── claude-init-plus.md
 │   └── update-claude-md.md

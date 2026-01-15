@@ -1,6 +1,6 @@
 {
   "name": "development-planning",
-  "version": "0.0.3",
+  "version": "1.0.0",
   "description": "Implementation planning, execution, and PR creation workflows with multi-agent collaboration",
   "author": {
     "name": "Uniswap Labs",
@@ -10,22 +10,19 @@
   "keywords": ["planning", "implementation", "workflow", "multi-agent"],
   "license": "MIT",
   "skills": [
-    "./skills/commit-message-generator",
-    "./skills/implement-spec",
-    "./skills/implementation-planner",
-    "./skills/plan-executor",
-    "./skills/plan-reviewer",
+    "./skills/create-pr",
+    "./skills/execute-plan",
+    "./skills/generate-commit-message",
+    "./skills/plan-implementation",
     "./skills/plan-swarm",
-    "./skills/pr-creator"
+    "./skills/review-plan"
   ],
   "commands": [
-    "./commands/auto-spec.md",
-    "./skills/commit-message-generator/commit-message-generator.md",
-    "./skills/implement-spec/implement-spec.md",
-    "./skills/implementation-planner/implementation-planner.md",
-    "./skills/plan-executor/plan-executor.md",
-    "./skills/plan-reviewer/plan-reviewer.md",
+    "./skills/create-pr/create-pr.md",
+    "./skills/execute-plan/execute-plan.md",
+    "./skills/generate-commit-message/generate-commit-message.md",
+    "./skills/plan-implementation/plan-implementation.md",
     "./skills/plan-swarm/plan-swarm.md",
-    "./skills/pr-creator/pr-creator.md"
+    "./skills/review-plan/review-plan.md"
   ]
 }

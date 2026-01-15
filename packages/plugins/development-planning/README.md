@@ -16,21 +16,14 @@ claude /plugin install development-planning
 
 This plugin provides the following skills:
 
-| Skill                        | Description                                          |
-| ---------------------------- | ---------------------------------------------------- |
-| **implementation-planner**   | Create implementation plans for features and changes |
-| **plan-executor**            | Execute implementation plans step-by-step            |
-| **plan-reviewer**            | Review plans for completeness and feasibility        |
-| **plan-swarm**               | Refine plans through multi-agent expert discussion   |
-| **implement-spec**           | Orchestrate spec-to-implementation workflow          |
-| **pr-creator**               | Create Graphite PRs with conventional commits        |
-| **commit-message-generator** | Generate well-structured git commit messages         |
-
-## Commands
-
-| Command      | Description                                            |
-| ------------ | ------------------------------------------------------ |
-| `/auto-spec` | Generate and execute implementation from specification |
+| Skill                       | Description                                          |
+| --------------------------- | ---------------------------------------------------- |
+| **create-pr**               | Create Graphite PRs with conventional commits        |
+| **execute-plan**            | Execute implementation plans step-by-step            |
+| **generate-commit-message** | Generate well-structured git commit messages         |
+| **plan-implementation**     | Create implementation plans for features and changes |
+| **plan-swarm**              | Refine plans through multi-agent expert discussion   |
+| **review-plan**             | Review plans for completeness and feasibility        |
 
 ## Agents
 
@@ -38,22 +31,20 @@ This plugin provides the following skills:
 | ---------------------------- | ---------------------------------------------------------- |
 | **planner**                  | Creates clear, actionable implementation plans             |
 | **plan-reviewer**            | Validates plans for completeness and feasibility           |
-| **context-loader**           | Loads and understands codebase context for planning        |
 | **pr-creator**               | Creates well-formatted PRs with comprehensive descriptions |
 | **commit-message-generator** | Generates structured git commit messages                   |
+
+> **Note**: The `context-loader` agent has been moved to `development-codebase-tools` for centralized context management. Planning agents can still use it via `Task(subagent_type:context-loader)`.
 
 ## Usage Examples
 
 ```bash
-# Auto-generate and execute implementation from a specification
-/auto-spec
-
 # Use skills contextually for individual workflow steps
-"Help me plan out the implementation for user authentication"  # triggers implementation-planner
-"Review this plan for completeness"                             # triggers plan-reviewer
-"Execute the plan in auth-plan.md"                              # triggers plan-executor
-"Create a PR for my changes"                                    # triggers pr-creator
-"Generate a commit message for these changes"                   # triggers commit-message-generator
+"Create a PR for my changes"                                    # triggers create-pr
+"Generate a commit message for these changes"                   # triggers generate-commit-message
+"Help me plan out the implementation for user authentication"   # triggers plan-implementation
+"Execute the plan in auth-plan.md"                              # triggers execute-plan
+"Review this plan for completeness"                             # triggers review-plan
 ```
 
 ## Canonical Development Workflow
@@ -68,13 +59,26 @@ This plugin handles **steps 1-5** of the canonical development workflow:
 
 ### Recommended Workflow
 
-1. **Explore** (optional): Use codebase-explorer skill to understand the area
-2. **Plan**: Use implementation-planner skill to create a plan
-3. **Review**: Use plan-reviewer skill to validate the plan
-4. **Execute**: Use plan-executor skill to implement the plan
-5. **Create PR**: plan-executor offers PR creation at completion, or use pr-creator skill directly
+1. **Explore** (optional): Use explore-codebase skill to understand the area
+2. **Plan**: Use plan-implementation skill to create a plan
+3. **Review**: Use review-plan skill to validate the plan
+4. **Execute**: Use execute-plan skill to implement the plan
+5. **Create PR**: execute-plan offers PR creation at completion, or use create-pr skill directly
 
 For complex features, use the `plan-swarm` skill to get multi-agent perspectives on your approach.
+
+## Spec-Driven Development
+
+For structured spec-driven development with requirements, design, and tasks documents, see the **spec-workflow** plugin:
+
+```bash
+claude /plugin install spec-workflow
+```
+
+The spec-workflow plugin provides:
+
+- `/auto-spec` - Autonomous spec creation and implementation
+- `/implement-spec` - Execute spec-workflow tasks
 
 ## License
 
