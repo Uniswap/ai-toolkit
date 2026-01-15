@@ -236,6 +236,8 @@ jobs:
       needs.check-automated.outputs.category != 'deps'
     runs-on: ubuntu-latest
     steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
       - name: Report skipped review
         env:
           SKIP_REASON: ${{ needs.check-automated.outputs.skip_reason }}

@@ -140,6 +140,8 @@ jobs:
     if: ${{ needs.check-automated.outputs.should_skip_ci == 'true' }}
     runs-on: ubuntu-latest
     steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
       - name: Report skipped status
         env:
           SKIP_REASON: ${{ needs.check-automated.outputs.skip_reason }}
