@@ -214,6 +214,48 @@ When adding new slash commands:
 1. **Do NOT add a `name` field** in the YAML frontmatter (let it use the filename)
 2. **Add the path** of the new slash command to the plugin's `plugin.json` commands array
 
+#### C. Plugin Component Naming Conventions
+
+All plugin components (skills, agents, commands) must follow these naming conventions:
+
+**General Rules:**
+
+- All names use **lowercase-hyphenated** format (e.g., `code-reviewer`, not `CodeReviewer` or `code_reviewer`)
+- Names should be descriptive and indicate the component's purpose
+- Avoid abbreviations unless they are widely understood (e.g., `pr` for pull request)
+
+**Skills vs Agents Naming:**
+
+To differentiate skills from agents and avoid naming conflicts:
+
+| Component  | Format    | Pattern                        | Examples                                                                      |
+| ---------- | --------- | ------------------------------ | ----------------------------------------------------------------------------- |
+| **Skills** | verb-noun | Action-oriented (what it does) | `review-plan`, `create-pr`, `generate-commit-message`, `split-graphite-stack` |
+| **Agents** | noun-role | Entity-oriented (what it is)   | `code-reviewer`, `plan-reviewer`, `stack-splitter`, `context-loader`          |
+
+**Why this matters:**
+
+- Skills represent **actions** users invoke (slash commands like `/create-pr`)
+- Agents represent **entities** that perform work (spawned via `Task(subagent_type:...)`)
+- Distinct naming patterns prevent confusion when a skill and agent serve similar purposes
+- Users can immediately identify component type from the name
+
+**Examples:**
+
+```text
+✅ GOOD - Clear differentiation:
+   Skill: review-plan      (verb-noun: action to review a plan)
+   Agent: plan-reviewer    (noun-role: entity that reviews plans)
+
+❌ BAD - Identical names cause confusion:
+   Skill: plan-reviewer
+   Agent: plan-reviewer
+```
+
+**Commands:**
+
+Commands (standalone `.md` files in `./commands/`) follow the same verb-noun pattern as skills since they are also user-invocable actions.
+
 ## Documentation Management
 
 ### CLAUDE.md File Management
