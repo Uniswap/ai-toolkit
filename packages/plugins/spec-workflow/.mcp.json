@@ -3,7 +3,13 @@
     "spec-workflow": {
       "type": "stdio",
       "command": "npx",
-      "args": ["@uniswap/spec-workflow-mcp@latest", "--AutoStartDashboard"],
+      "args": [
+        "-y",
+        "-p",
+        "@uniswap/spec-workflow-mcp@latest",
+        "spec-workflow-mcp",
+        "--AutoStartDashboard"
+      ],
       "env": {}
     }
   }
