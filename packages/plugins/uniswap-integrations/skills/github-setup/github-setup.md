@@ -164,7 +164,7 @@ Once configured, you'll have access to:
 | Environment Variable | `GITHUB_PERSONAL_ACCESS_TOKEN`        |
 | Token Settings URL   | <https://github.com/settings/tokens>  |
 | Token Type           | Fine-grained (recommended) or Classic |
-| MCP Server Package   | `@modelcontextprotocol/server-github` |
+| MCP Server           | Hosted at `api.githubcopilot.com/mcp` |
 
 ## Next Steps
 
