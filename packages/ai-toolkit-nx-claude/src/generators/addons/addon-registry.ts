@@ -96,45 +96,6 @@ const ADDON_REGISTRY: AddonMetadata[] = [
     },
   },
   {
-    id: 'github-mcp',
-    name: 'GitHub MCP',
-    description: 'MCP server for GitHub repository access',
-    type: 'mcp-server',
-    packageName: '@modelcontextprotocol/server-github',
-    mcp: {
-      serverName: 'github',
-      command: 'npx',
-      args: ['-y', '@modelcontextprotocol/server-github'],
-      env: {
-        GITHUB_PERSONAL_ACCESS_TOKEN: 'PROMPT_TO_INSERT_GITHUB_PERSONAL_ACCESS_TOKEN',
-      },
-    },
-  },
-  {
-    id: 'figma-mcp',
-    name: 'Figma MCP',
-    description: 'MCP server for Figma design file access',
-    type: 'mcp-server',
-    packageName: 'figma',
-    mcp: {
-      serverName: 'figma',
-      transport: 'http',
-      url: 'https://mcp.figma.com/mcp',
-    },
-  },
-  {
-    id: 'vercel-mcp',
-    name: 'Vercel MCP',
-    description: 'MCP server for Vercel deployment management (HTTP)',
-    type: 'mcp-server',
-    packageName: 'vercel',
-    mcp: {
-      serverName: 'vercel',
-      transport: 'http',
-      url: 'https://mcp.vercel.com',
-    },
-  },
-  {
     id: 'aws-log-analyzer-mcp',
     name: 'AWS Log Analyzer MCP',
     description: 'MCP server for AWS CloudWatch Logs analysis, searching, and correlation',
@@ -153,18 +114,6 @@ const ADDON_REGISTRY: AddonMetadata[] = [
     },
     requirements: {
       commands: ['git', 'uv', 'python3'],
-    },
-  },
-  {
-    id: 'pulumi-mcp',
-    name: 'Pulumi MCP',
-    description: 'MCP server for Pulumi infrastructure as code management (HTTP)',
-    type: 'mcp-server',
-    packageName: 'pulumi',
-    mcp: {
-      serverName: 'pulumi',
-      transport: 'http',
-      url: 'https://mcp.ai.pulumi.com/mcp',
     },
   },
 ];

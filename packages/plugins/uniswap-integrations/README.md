@@ -1,6 +1,6 @@
 # @uniswap/uniswap-integrations
 
-External service integrations for Claude Code - Linear, Notion, Nx, Chrome DevTools, GitHub, and more.
+External service integrations for Claude Code - Linear, Notion, Nx, Chrome DevTools, GitHub, Pulumi, Figma, Vercel, and more.
 
 ## Installation
 
@@ -23,6 +23,9 @@ This plugin bundles the following MCP (Model Context Protocol) servers:
 | **linear**          | Linear issue tracking integration                | OAuth |
 | **chrome-devtools** | Chrome DevTools debugging integration            | None  |
 | **github**          | GitHub repository, issue, and PR management      | PAT   |
+| **pulumi**          | Pulumi infrastructure as code management         | OAuth |
+| **figma**           | Figma design file access and collaboration       | OAuth |
+| **vercel**          | Vercel deployment management and hosting         | OAuth |
 
 ## Skills
 
@@ -58,6 +61,9 @@ Some MCP servers require authentication:
 
 - **notion**: OAuth via <https://mcp.notion.com> - Run `/mcp` and follow browser flow
 - **linear**: OAuth via <https://mcp.linear.app> - Run `/mcp` and follow browser flow
+- **pulumi**: OAuth via <https://mcp.ai.pulumi.com> - Run `/mcp` and follow browser flow
+- **figma**: OAuth via <https://mcp.figma.com> - Run `/mcp` and follow browser flow
+- **vercel**: OAuth via <https://mcp.vercel.com> - Run `/mcp` and follow browser flow
 
 ### Token-Based (Manual Setup)
 

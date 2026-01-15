@@ -28,6 +28,9 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 | **linear**          | Linear issue tracking integration                | OAuth |
 | **chrome-devtools** | Chrome DevTools debugging integration            | None  |
 | **github**          | GitHub repository, issue, and PR management      | PAT   |
+| **pulumi**          | Pulumi infrastructure as code management         | OAuth |
+| **figma**           | Figma design file access and collaboration       | OAuth |
+| **vercel**          | Vercel deployment management and hosting         | OAuth |
 
 ### Hooks (./hooks/)
 
@@ -39,7 +42,7 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 - Agents are auto-discovered from the `agents/` directory
 - Skills invoke agents via `Task(subagent_type:agent-name)`
 - MCP servers provide external service connectivity
-- OAuth-based servers (Notion, Linear) authenticate via `/mcp` command
+- OAuth-based servers (Notion, Linear, Pulumi, Figma, Vercel) authenticate via `/mcp` command
 - PAT-based servers (GitHub) require environment variable configuration
 
 ## MCP Authentication
