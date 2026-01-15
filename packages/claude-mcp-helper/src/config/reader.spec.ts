@@ -327,8 +327,8 @@ describe('Configuration Reader', () => {
 
       const servers = getPluginMcpServers();
       expect(servers.size).toBe(2);
-      expect(servers.get('plugin-server-1')).toBe('my-plugin');
-      expect(servers.get('plugin-server-2')).toBe('my-plugin');
+      expect(servers.get('plugin:my-plugin:plugin-server-1')).toBe('my-plugin');
+      expect(servers.get('plugin:my-plugin:plugin-server-2')).toBe('my-plugin');
     });
 
     it('should return servers from multiple plugins', () => {
@@ -385,8 +385,8 @@ describe('Configuration Reader', () => {
 
       const servers = getPluginMcpServers();
       expect(servers.size).toBe(2);
-      expect(servers.get('server-from-a')).toBe('plugin-a');
-      expect(servers.get('server-from-b')).toBe('plugin-b');
+      expect(servers.get('plugin:plugin-a:server-from-a')).toBe('plugin-a');
+      expect(servers.get('plugin:plugin-b:server-from-b')).toBe('plugin-b');
     });
 
     it('should skip plugins without .mcp.json file', () => {
@@ -435,7 +435,7 @@ describe('Configuration Reader', () => {
 
       const servers = getPluginMcpServers();
       expect(servers.size).toBe(1);
-      expect(servers.get('mcp-server')).toBe('plugin-with-mcp');
+      expect(servers.get('plugin:plugin-with-mcp:mcp-server')).toBe('plugin-with-mcp');
     });
 
     it('should handle invalid .mcp.json in plugins gracefully', () => {
@@ -468,7 +468,7 @@ describe('Configuration Reader', () => {
       expect(servers.size).toBe(0);
     });
 
-    it('should not overwrite existing server if registered by another plugin', () => {
+    it('should register servers from different plugins with unique full qualified names', () => {
       // Setup installed plugins
       const installedPlugins = {
         version: 2,
@@ -498,7 +498,7 @@ describe('Configuration Reader', () => {
       vol.mkdirSync(join(mockHomedir, '.claude', 'plugins'), { recursive: true });
       vol.writeFileSync(pluginsPath, JSON.stringify(installedPlugins));
 
-      // Both plugins define same server name
+      // Both plugins define same short server name, but they get unique full qualified names
       vol.mkdirSync('/path/to/plugin-first', { recursive: true });
       vol.writeFileSync(
         join('/path/to/plugin-first', '.mcp.json'),
@@ -520,9 +520,10 @@ describe('Configuration Reader', () => {
       );
 
       const servers = getPluginMcpServers();
-      expect(servers.size).toBe(1);
-      // First one should win
-      expect(servers.get('shared-server')).toBe('plugin-first');
+      // Both servers should be registered with their unique full qualified names
+      expect(servers.size).toBe(2);
+      expect(servers.get('plugin:plugin-first:shared-server')).toBe('plugin-first');
+      expect(servers.get('plugin:plugin-second:shared-server')).toBe('plugin-second');
     });
 
     it('should extract plugin name from key format "pluginName@marketplace"', () => {
@@ -556,8 +557,8 @@ describe('Configuration Reader', () => {
       );
 
       const servers = getPluginMcpServers();
-      // Plugin name should be extracted (without @marketplace suffix)
-      expect(servers.get('test-server')).toBe('my-awesome-plugin');
+      // Plugin name should be extracted (without @marketplace suffix) and used in full qualified name
+      expect(servers.get('plugin:my-awesome-plugin:test-server')).toBe('my-awesome-plugin');
     });
 
     it('should skip plugins with empty installations array', () => {
@@ -666,7 +667,7 @@ describe('Configuration Reader', () => {
       const servers = getServersWithOrigins();
       expect(servers).toHaveLength(1);
       expect(servers[0]).toEqual({
-        name: 'plugin-server',
+        name: 'plugin:test-plugin:plugin-server',
         origin: { type: 'plugin', pluginName: 'test-plugin' },
       });
     });
@@ -787,13 +788,13 @@ describe('Configuration Reader', () => {
       expect(servers).toContainEqual({ name: 'global-server', origin: { type: 'global' } });
       expect(servers).toContainEqual({ name: 'local-server', origin: { type: 'local' } });
       expect(servers).toContainEqual({
-        name: 'plugin-server',
+        name: 'plugin:my-plugin:plugin-server',
         origin: { type: 'plugin', pluginName: 'my-plugin' },
       });
     });
 
-    it('should prefer non-plugin origins when server exists in both user config and plugin', () => {
-      // Global config with server that also exists in plugin
+    it('should list both global and plugin servers with same short name as separate entries', () => {
+      // Global config with server name that matches plugin's short server name
       const globalConfig = {
         mcpServers: {
           'overlapping-server': { command: 'npx', args: ['global-version'] },
@@ -802,7 +803,7 @@ describe('Configuration Reader', () => {
 
       vol.writeFileSync(join(mockHomedir, '.claude.json'), JSON.stringify(globalConfig));
 
-      // Plugin with same server name
+      // Plugin with same short server name (but full qualified name is different)
       const installedPlugins = {
         version: 2,
         plugins: {
@@ -834,9 +835,13 @@ describe('Configuration Reader', () => {
 
       const servers = getServersWithOrigins();
 
-      // Should only have one entry for 'overlapping-server' with global origin
-      expect(servers).toHaveLength(1);
-      expect(servers[0]).toEqual({ name: 'overlapping-server', origin: { type: 'global' } });
+      // Should have two entries: one for global 'overlapping-server' and one for plugin's full qualified name
+      expect(servers).toHaveLength(2);
+      expect(servers).toContainEqual({ name: 'overlapping-server', origin: { type: 'global' } });
+      expect(servers).toContainEqual({
+        name: 'plugin:my-plugin:overlapping-server',
+        origin: { type: 'plugin', pluginName: 'my-plugin' },
+      });
     });
   });
 

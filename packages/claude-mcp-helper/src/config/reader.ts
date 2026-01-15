@@ -151,8 +151,40 @@ function extractPluginName(pluginKey: string): string {
 }
 
 /**
+ * Build the full qualified name for a plugin MCP server
+ * Format: "plugin:pluginName:serverName"
+ */
+export function buildPluginServerName(pluginName: string, serverName: string): string {
+  return `plugin:${pluginName}:${serverName}`;
+}
+
+/**
+ * Parse a full qualified plugin server name back into components
+ * Returns null if the name is not a plugin server name
+ */
+export function parsePluginServerName(
+  fullName: string
+): { pluginName: string; serverName: string } | null {
+  if (!fullName.startsWith('plugin:')) {
+    return null;
+  }
+  const parts = fullName.split(':');
+  if (parts.length !== 3) {
+    return null;
+  }
+  return { pluginName: parts[1], serverName: parts[2] };
+}
+
+/**
+ * Check if a server name is a plugin server (starts with "plugin:")
+ */
+export function isPluginServerName(name: string): boolean {
+  return name.startsWith('plugin:');
+}
+
+/**
  * Get all MCP servers from installed plugins
- * Returns a map of server name to plugin name
+ * Returns a map of full qualified server name (plugin:pluginName:serverName) to plugin name
  */
 export function getPluginMcpServers(): Map<string, string> {
   const serverToPlugin = new Map<string, string>();
@@ -168,9 +200,11 @@ export function getPluginMcpServers(): Map<string, string> {
 
     if (mcpConfig.mcpServers) {
       for (const serverName of Object.keys(mcpConfig.mcpServers)) {
+        // Build full qualified name: plugin:pluginName:serverName
+        const fullName = buildPluginServerName(pluginName, serverName);
         // Don't overwrite if already registered by another plugin
-        if (!serverToPlugin.has(serverName)) {
-          serverToPlugin.set(serverName, pluginName);
+        if (!serverToPlugin.has(fullName)) {
+          serverToPlugin.set(fullName, pluginName);
         }
       }
     }
