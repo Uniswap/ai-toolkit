@@ -21,7 +21,7 @@ claude /plugin install development-pr-workflow
 | **code-reviewer**          | Comprehensive code review using specialized agents          |
 | **pr-issue-resolver**      | Address PR review comments and fix CI failures              |
 | **graphite-stack-updater** | Update Graphite PR stacks by resolving comments and syncing |
-| **split-stack**            | Split monolithic branches into logical PR stacks            |
+| **split-graphite-stack**   | Split monolithic branches into logical PR stacks            |
 
 ## Commands
 
@@ -75,7 +75,7 @@ This plugin handles **steps 6-7** of the canonical development workflow:
 
 # Use skills contextually
 "Review my PR for any issues"                       # triggers code-reviewer skill
-"Help me split this large branch into smaller PRs"  # triggers split-stack skill
+"Help me split this large branch into smaller PRs"  # triggers split-graphite-stack skill
 ```
 
 ## License

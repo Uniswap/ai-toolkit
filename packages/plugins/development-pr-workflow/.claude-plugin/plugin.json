@@ -13,7 +13,7 @@
     "./skills/code-reviewer",
     "./skills/graphite-stack-updater",
     "./skills/pr-issue-resolver",
-    "./skills/split-stack"
+    "./skills/split-graphite-stack"
   ],
   "commands": [
     "./commands/address-pr-issues.md",
@@ -24,6 +24,6 @@
     "./skills/code-reviewer/code-reviewer.md",
     "./skills/graphite-stack-updater/graphite-stack-updater.md",
     "./skills/pr-issue-resolver/pr-issue-resolver.md",
-    "./skills/split-stack/split-stack.md"
+    "./skills/split-graphite-stack/split-graphite-stack.md"
   ]
 }
