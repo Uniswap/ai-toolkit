@@ -66,10 +66,24 @@ export async function runMcpSelector(verbose?: boolean): Promise<void>;
 
 **Behavior**:
 
-1. Attempts to run `npx -y @uniswap/ai-toolkit-claude-mcp-helper@latest interactive`
-2. Falls back to direct `claude-mcp-helper` command if npx fails
-3. Gracefully handles missing tool (warns and continues)
-4. Non-zero exit codes are treated as user cancellation (not failure)
+1. Determines npm tag based on this package's version:
+   - Prerelease versions (containing `-next`, `-alpha`, `-beta`, `-rc`) use `@next` tag
+   - Stable versions use `@latest` tag
+2. Attempts to run `npx -y @uniswap/ai-toolkit-claude-mcp-helper@{tag} interactive`
+3. Falls back to direct `claude-mcp-helper` command if npx fails
+4. Gracefully handles missing tool (warns and continues)
+5. Non-zero exit codes are treated as user cancellation (not failure)
+
+**Tag Selection Logic**:
+
+```typescript
+function getMcpHelperTag(): string {
+  const isPrerelease = /-/.test(packageVersion);
+  return isPrerelease ? 'next' : 'latest';
+}
+```
+
+This ensures that `@next` releases of `ai-toolkit-nx-claude` use the matching `@next` release of `claude-mcp-helper`.
 
 **Key Pattern**: Uses `spawn` with `stdio: 'inherit'` to allow interactive terminal control.
 
