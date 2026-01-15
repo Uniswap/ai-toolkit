@@ -16,8 +16,10 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 
 ### Agents (./agents/)
 
+- **agent-orchestrator**: Centralized agent orchestration and capability matching
 - **code-explainer**: Explains code architecture, patterns, and dependencies
 - **code-generator**: Generates production-ready code following patterns (delegates to test-writer for tests)
+- **context-loader**: Advanced context management with summarization, checkpointing, and cross-agent sharing
 - **debug-assistant**: Advanced debugging with root cause analysis
 - **pattern-learner**: Learns and applies codebase patterns
 - **performance-analyzer**: Analyzes performance bottlenecks and optimization opportunities
@@ -50,8 +52,10 @@ development-codebase-tools/
 │   ├── explore-codebase/
 │   └── refactor-code/
 ├── agents/
+│   ├── agent-orchestrator.md
 │   ├── code-explainer.md
 │   ├── code-generator.md
+│   ├── context-loader.md
 │   ├── debug-assistant.md
 │   ├── pattern-learner.md
 │   ├── performance-analyzer.md

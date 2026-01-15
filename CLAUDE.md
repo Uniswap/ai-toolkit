@@ -174,6 +174,64 @@ Use the validation script to check plugin structure:
 node scripts/validate-plugin.cjs packages/plugins/<plugin-name>
 ```
 
+### Plugin Versioning
+
+All plugins follow semantic versioning (semver). Key versioning rules:
+
+- **All plugins MUST be versioned at 1.0.0 or higher** for production releases
+- Version is specified in each plugin's `.claude-plugin/plugin.json` file
+- When making changes to plugins, update the version appropriately:
+  - **Patch (1.0.X)**: Bug fixes, minor documentation updates, typo fixes
+  - **Minor (1.X.0)**: New skills, agents, or commands (backward compatible)
+  - **Major (X.0.0)**: Breaking changes, significant restructuring, removed components
+
+#### Mandatory Version Bumping
+
+**CRITICAL: After making any changes to files in `packages/plugins/`, Claude Code MUST bump the plugin version.**
+
+1. **Identify the affected plugin(s)**: Determine which plugin(s) were modified based on the file paths changed.
+
+2. **Determine the appropriate version bump** using semver:
+
+   - **Patch bump** (e.g., 1.0.0 → 1.0.1): Bug fixes, documentation updates, typo corrections, internal refactoring with no user-facing changes
+   - **Minor bump** (e.g., 1.0.1 → 1.1.0): New skills, agents, commands, or MCP servers added; new features; backward-compatible enhancements
+   - **Major bump** (e.g., 1.1.0 → 2.0.0): Breaking changes, removed components, renamed skills/agents/commands, significant restructuring
+
+3. **Update the version** in the plugin's `.claude-plugin/plugin.json` file:
+
+   ```json
+   {
+     "name": "plugin-name",
+     "version": "1.0.1",  // ← Update this field
+     ...
+   }
+   ```
+
+4. **Include the version bump in the same commit** as the plugin changes - do not create a separate commit for version updates.
+
+**Example workflow:**
+
+```text
+1. Make changes to packages/plugins/development-pr-workflow/skills/review-code/
+2. Determine change type: Added new prompt template → Minor change
+3. Update packages/plugins/development-pr-workflow/.claude-plugin/plugin.json
+   - Change "version": "1.0.0" to "version": "1.1.0"
+4. Commit all changes together
+```
+
+**Current plugins:**
+
+| Plugin                     | Version |
+| -------------------------- | ------- |
+| development-codebase-tools | 1.0.0   |
+| development-planning       | 1.0.0   |
+| development-pr-workflow    | 1.0.0   |
+| development-productivity   | 1.0.0   |
+| uniswap-integrations       | 1.0.0   |
+| spec-workflow              | 1.0.0   |
+
+**Note:** Keep this table updated when versions change.
+
 ### Adding New Skills and Commands to Plugins
 
 When making changes to `packages/plugins/`, follow these guidelines:

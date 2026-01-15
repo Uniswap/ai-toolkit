@@ -1,6 +1,6 @@
 {
   "name": "development-pr-workflow",
-  "version": "0.0.3",
+  "version": "1.0.0",
   "description": "Pull request review, issue resolution, and Graphite stack management",
   "author": {
     "name": "Uniswap Labs",
@@ -16,7 +16,6 @@
     "./skills/update-graphite-stack"
   ],
   "commands": [
-    "./commands/address-pr-issues.md",
     "./commands/linear-task-and-pr-from-changes.md",
     "./commands/review-pr.md",
     "./commands/start-linear-task.md",

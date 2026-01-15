@@ -3,7 +3,7 @@
     "nx-mcp": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "nx-mcp@latest"],
+      "args": ["-y", "-p", "nx-mcp@latest", "nx-mcp"],
       "env": {}
     },
     "notion": {
@@ -17,7 +17,7 @@
     "chrome-devtools": {
       "type": "stdio",
       "command": "npx",
-      "args": ["chrome-devtools-mcp@latest"],
+      "args": ["-y", "-p", "chrome-devtools-mcp@latest", "chrome-devtools-mcp"],
       "env": {}
     },
     "github": {

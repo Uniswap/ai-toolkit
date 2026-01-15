@@ -24,16 +24,18 @@ claude /plugin install development-codebase-tools
 
 ## Agents
 
-| Agent                    | Description                                                          |
-| ------------------------ | -------------------------------------------------------------------- |
-| **code-explainer**       | Explains code architecture, patterns, and dependencies               |
-| **code-generator**       | Generates production-ready code (delegates to test-writer for tests) |
-| **debug-assistant**      | Advanced debugging with root cause analysis                          |
-| **pattern-learner**      | Learns and applies codebase patterns                                 |
-| **performance-analyzer** | Analyzes performance bottlenecks and optimization opportunities      |
-| **refactorer**           | Performs safe, incremental refactoring operations                    |
-| **security-analyzer**    | Identifies security vulnerabilities and recommends fixes             |
-| **style-enforcer**       | Enforces code style and conventions                                  |
+| Agent                    | Description                                                            |
+| ------------------------ | ---------------------------------------------------------------------- |
+| **agent-orchestrator**   | Centralized agent orchestration and capability matching                |
+| **code-explainer**       | Explains code architecture, patterns, and dependencies                 |
+| **code-generator**       | Generates production-ready code (delegates to test-writer for tests)   |
+| **context-loader**       | Advanced context management with summarization and cross-agent sharing |
+| **debug-assistant**      | Advanced debugging with root cause analysis                            |
+| **pattern-learner**      | Learns and applies codebase patterns                                   |
+| **performance-analyzer** | Analyzes performance bottlenecks and optimization opportunities        |
+| **refactorer**           | Performs safe, incremental refactoring operations                      |
+| **security-analyzer**    | Identifies security vulnerabilities and recommends fixes               |
+| **style-enforcer**       | Enforces code style and conventions                                    |
 
 ## Hooks
 
