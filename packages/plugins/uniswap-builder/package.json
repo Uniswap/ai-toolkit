@@ -1,0 +1,29 @@
+{
+  "name": "@uniswap/uniswap-builder",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Skills for building on top of and integrating the Uniswap protocol - swaps, liquidity, hooks, and more",
+  "author": "Uniswap Labs <ai-services@uniswap.org>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Uniswap/ai-toolkit.git",
+    "directory": "packages/plugins/uniswap-builder"
+  },
+  "keywords": [
+    "claude-code",
+    "plugin",
+    "uniswap",
+    "swap",
+    "defi",
+    "integration",
+    "universal-router",
+    "ai-toolkit"
+  ],
+  "files": [
+    ".claude-plugin",
+    "skills",
+    "agents",
+    "README.md"
+  ]
+}
