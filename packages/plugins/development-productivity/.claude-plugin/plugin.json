@@ -1,0 +1,26 @@
+{
+  "name": "development-productivity",
+  "version": "1.0.0",
+  "description": "Documentation, research, test generation, and prompt optimization tools",
+  "author": {
+    "name": "Uniswap Labs",
+    "email": "ai-services@uniswap.org"
+  },
+  "homepage": "https://github.com/Uniswap/ai-toolkit",
+  "keywords": ["documentation", "research", "testing", "prompt-engineering"],
+  "license": "MIT",
+  "skills": [
+    "./skills/generate-tests",
+    "./skills/optimize-prompt",
+    "./skills/research-topic",
+    "./skills/update-claude-docs"
+  ],
+  "commands": [
+    "./commands/claude-init-plus.md",
+    "./commands/update-claude-md.md",
+    "./skills/generate-tests/generate-tests.md",
+    "./skills/optimize-prompt/optimize-prompt.md",
+    "./skills/research-topic/research-topic.md",
+    "./skills/update-claude-docs/update-claude-docs.md"
+  ]
+}

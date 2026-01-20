@@ -1,0 +1,29 @@
+{
+  "name": "@uniswap/spec-workflow",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Autonomous spec-driven development workflow with multi-agent collaboration, specification management, and task orchestration for Claude Code",
+  "author": "Uniswap Labs <ai-services@uniswap.org>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Uniswap/ai-toolkit.git",
+    "directory": "packages/plugins/spec-workflow"
+  },
+  "keywords": [
+    "claude-code",
+    "plugin",
+    "spec-workflow",
+    "specification",
+    "implementation",
+    "multi-agent",
+    "orchestration",
+    "ai-toolkit"
+  ],
+  "files": [
+    ".claude-plugin",
+    "skills",
+    ".mcp.json",
+    "README.md"
+  ]
+}

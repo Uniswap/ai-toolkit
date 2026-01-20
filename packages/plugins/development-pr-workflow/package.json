@@ -1,0 +1,30 @@
+{
+  "name": "@uniswap/development-pr-workflow",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Pull request management workflows for Claude Code - includes PR creation, review, issue resolution, and Graphite stack management",
+  "author": "Uniswap Labs <ai-services@uniswap.org>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Uniswap/ai-toolkit.git",
+    "directory": "packages/plugins/development-pr-workflow"
+  },
+  "keywords": [
+    "claude-code",
+    "plugin",
+    "pull-request",
+    "pr-review",
+    "graphite",
+    "git",
+    "ai-toolkit"
+  ],
+  "files": [
+    ".claude-plugin",
+    "skills",
+    "agents",
+    "commands",
+    ".mcp.json",
+    "README.md"
+  ]
+}

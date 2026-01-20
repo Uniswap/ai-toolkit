@@ -100,7 +100,7 @@ After making any code changes, Claude Code MUST:
 
 ## Project Context
 
-This is the AI Toolkit monorepo that provides standardized, one-shot setup for Claude Code AI workflows. The project uses:
+This is the AI Toolkit monorepo that provides standardized Claude Code plugins via the Claude Code Marketplace. The project uses:
 
 - Nx for monorepo management
 - TypeScript with strict settings
@@ -109,9 +109,9 @@ This is the AI Toolkit monorepo that provides standardized, one-shot setup for C
 
 ### npm Version Requirement
 
-**CRITICAL: This project requires npm 11.6.2**
+**CRITICAL: This project requires npm 11.7.0**
 
-**Why npm 11.6.2?**
+**Why npm 11.7.0?**
 
 1. **OIDC Trusted Publishing**: npm OIDC trusted publishing requires npm >= 11.5.1
 2. **Lockfile Consistency**: Using the same npm version in CI and local development prevents lockfile format changes
@@ -119,13 +119,13 @@ This is the AI Toolkit monorepo that provides standardized, one-shot setup for C
 **Installation:**
 
 ```bash
-npm install -g npm@11.6.2
+npm install -g npm@11.7.0
 ```
 
 **Verification:**
 
 ```bash
-npm --version  # Should output: 11.6.2
+npm --version  # Should output: 11.7.0
 ```
 
 The project enforces this version through:
@@ -137,6 +137,182 @@ The project enforces this version through:
 ## Package Scope
 
 All packages use the `@ai-toolkit` scope.
+
+## Repository Structure
+
+### Plugin Architecture
+
+The repository uses a plugin-based architecture where Claude Code capabilities are organized into dedicated plugin packages:
+
+```text
+/
+├── .claude-plugin/
+│   └── marketplace.json              # Plugin marketplace configuration
+├── packages/
+│   └── plugins/
+│       ├── development-planning/     # Implementation planning & execution workflows
+│       ├── development-pr-workflow/  # PR management, review, & Graphite integration
+│       ├── development-codebase-tools/  # Code exploration & refactoring
+│       ├── development-productivity/ # Documentation, research, & prompt optimization
+│       └── uniswap-integrations/     # External service integrations (Linear, Notion, Nx)
+└── scripts/
+    └── validate-plugin.cjs           # Plugin structure validation script
+```
+
+**Key Points:**
+
+- Plugins are stored in `./packages/plugins/<plugin-name>/`
+- Each plugin is a self-contained Nx package with its own `package.json`, `project.json`, and `.claude-plugin/plugin.json`
+- The `.claude-plugin/marketplace.json` file references plugins via relative paths: `"./packages/plugins/<plugin-name>"`
+- There are 5 plugins: development-planning, development-pr-workflow, development-codebase-tools, development-productivity, uniswap-integrations
+
+**Plugin Validation:**
+
+Use the validation script to check plugin structure:
+
+```bash
+node scripts/validate-plugin.cjs packages/plugins/<plugin-name>
+```
+
+### Plugin Versioning
+
+All plugins follow semantic versioning (semver). Key versioning rules:
+
+- **All plugins MUST be versioned at 1.0.0 or higher** for production releases
+- Version is specified in each plugin's `.claude-plugin/plugin.json` file
+- When making changes to plugins, update the version appropriately:
+  - **Patch (1.0.X)**: Bug fixes, minor documentation updates, typo fixes
+  - **Minor (1.X.0)**: New skills, agents, or commands (backward compatible)
+  - **Major (X.0.0)**: Breaking changes, significant restructuring, removed components
+
+#### Mandatory Version Bumping
+
+**CRITICAL: After making any changes to files in `packages/plugins/`, Claude Code MUST bump the plugin version.**
+
+1. **Identify the affected plugin(s)**: Determine which plugin(s) were modified based on the file paths changed.
+
+2. **Determine the appropriate version bump** using semver:
+
+   - **Patch bump** (e.g., 1.0.0 → 1.0.1): Bug fixes, documentation updates, typo corrections, internal refactoring with no user-facing changes
+   - **Minor bump** (e.g., 1.0.1 → 1.1.0): New skills, agents, commands, or MCP servers added; new features; backward-compatible enhancements
+   - **Major bump** (e.g., 1.1.0 → 2.0.0): Breaking changes, removed components, renamed skills/agents/commands, significant restructuring
+
+3. **Update the version** in the plugin's `.claude-plugin/plugin.json` file:
+
+   ```json
+   {
+     "name": "plugin-name",
+     "version": "1.0.1",  // ← Update this field
+     ...
+   }
+   ```
+
+4. **Include the version bump in the same commit** as the plugin changes - do not create a separate commit for version updates.
+
+**Example workflow:**
+
+```text
+1. Make changes to packages/plugins/development-pr-workflow/skills/review-code/
+2. Determine change type: Added new prompt template → Minor change
+3. Update packages/plugins/development-pr-workflow/.claude-plugin/plugin.json
+   - Change "version": "1.0.0" to "version": "1.1.0"
+4. Commit all changes together
+```
+
+**Current plugins:**
+
+| Plugin                     | Version |
+| -------------------------- | ------- |
+| development-codebase-tools | 1.0.0   |
+| development-planning       | 1.0.0   |
+| development-pr-workflow    | 1.0.0   |
+| development-productivity   | 1.0.0   |
+| uniswap-integrations       | 1.0.0   |
+| spec-workflow              | 1.0.0   |
+
+**Note:** Keep this table updated when versions change.
+
+### Adding New Skills and Commands to Plugins
+
+When making changes to `packages/plugins/`, follow these guidelines:
+
+#### A. Adding User-Invocable Skills
+
+For new skills that do NOT have `user-invocable: false` in their frontmatter, use this workaround to make them invocable via Claude Code's slash command syntax:
+
+**Steps:**
+
+1. **Remove `name` field** from skill frontmatter (this causes the command to use the filename instead)
+2. **Rename SKILL.md** to `<skillname>.md` (e.g., `sre.md`)
+3. **Create symlink**: `ln -s <skillname>.md SKILL.md` (so the skills array still finds it for auto-activation)
+4. **Add to commands array** in `plugin.json`: `./skills/<name>/<name>.md`
+5. **Keep in skills array** for auto-activation: `./skills/<name>`
+
+**Example structure:**
+
+```text
+skills/sre/
+├── sre.md           # actual content, no "name" field in frontmatter
+└── SKILL.md -> sre.md   # symlink for auto-activation
+```
+
+**plugin.json configuration:**
+
+```json
+{
+  "skills": ["./skills/sre"], // for auto-activation
+  "commands": ["./skills/sre/sre.md"] // for slash menu
+}
+```
+
+#### B. Adding New Slash Commands
+
+When adding new slash commands:
+
+1. **Do NOT add a `name` field** in the YAML frontmatter (let it use the filename)
+2. **Add the path** of the new slash command to the plugin's `plugin.json` commands array
+
+#### C. Plugin Component Naming Conventions
+
+All plugin components (skills, agents, commands) must follow these naming conventions:
+
+**General Rules:**
+
+- All names use **lowercase-hyphenated** format (e.g., `code-reviewer`, not `CodeReviewer` or `code_reviewer`)
+- Names should be descriptive and indicate the component's purpose
+- Avoid abbreviations unless they are widely understood (e.g., `pr` for pull request)
+
+**Skills vs Agents Naming:**
+
+To differentiate skills from agents and avoid naming conflicts:
+
+| Component  | Format    | Pattern                        | Examples                                                                      |
+| ---------- | --------- | ------------------------------ | ----------------------------------------------------------------------------- |
+| **Skills** | verb-noun | Action-oriented (what it does) | `review-plan`, `create-pr`, `generate-commit-message`, `split-graphite-stack` |
+| **Agents** | noun-role | Entity-oriented (what it is)   | `code-reviewer`, `plan-reviewer`, `stack-splitter`, `context-loader`          |
+
+**Why this matters:**
+
+- Skills represent **actions** users invoke (slash commands like `/create-pr`)
+- Agents represent **entities** that perform work (spawned via `Task(subagent_type:...)`)
+- Distinct naming patterns prevent confusion when a skill and agent serve similar purposes
+- Users can immediately identify component type from the name
+
+**Examples:**
+
+```text
+✅ GOOD - Clear differentiation:
+   Skill: review-plan      (verb-noun: action to review a plan)
+   Agent: plan-reviewer    (noun-role: entity that reviews plans)
+
+❌ BAD - Identical names cause confusion:
+   Skill: plan-reviewer
+   Agent: plan-reviewer
+```
+
+**Commands:**
+
+Commands (standalone `.md` files in `./commands/`) follow the same verb-noun pattern as skills since they are also user-invocable actions.
 
 ## Documentation Management
 
@@ -173,6 +349,25 @@ After making any changes to files in this repository, Claude Code MUST:
 After making any changes to files in this repository, Claude Code MUST:
 
 1. check all `README.md` files in directories with changes and, if appropriate, UPDATE the `README.md` file(s) so they're accurate, reliable, valid, and indicative of the state of the repository with the added changes
+
+### Plugin Marketplace Documentation
+
+**IMPORTANT**: After making any changes to files in `packages/plugins/`, Claude Code MUST:
+
+1. **Check the Notion Plugin Marketplace doc**: Review the [Uniswap Claude Code Plugin Marketplace](https://www.notion.so/uniswaplabs/Uniswap-Claude-Code-Plugin-Marketplace-2e4c52b2548b815795a5f88c58894eac) documentation
+
+2. **Update if necessary**: If changes affect the plugin inventory (skills, agents, commands, MCP servers), update the Notion doc to reflect:
+
+   - New skills/agents/commands added
+   - Removed or renamed components
+   - Updated descriptions or capabilities
+   - Changes to plugin structure
+
+3. **Keep stats accurate**: The overview section contains counts of total Skills, Agents, and Commands - ensure these numbers stay accurate
+
+4. **Maintain per-plugin sections**: Each of the 5 plugins has its own section listing components - update the relevant section(s) when plugins change
+
+This ensures the external documentation stays synchronized with the actual plugin codebase.
 
 ## Git Hooks Configuration
 
@@ -252,6 +447,49 @@ When using GitHub expressions in workflow bash scripts, always use environment v
 - Environment variables are properly quoted and sanitized by the shell
 - This prevents command injection where special characters (`;`, `|`, `$()`) could execute arbitrary commands
 - Apply this pattern to ALL untrusted inputs: `github.event.inputs.*`, `github.event.pull_request.title`, `github.event.issue.body`, etc.
+
+### Type Conversion for Workflow Inputs
+
+**CRITICAL: Repository variables (`vars.*`) are always strings, even when they contain numbers.**
+
+When passing repository variables to reusable workflows that expect numeric inputs, use `fromJSON()` to convert strings to numbers:
+
+**❌ BAD - String passed to number input:**
+
+```yaml
+with:
+  max_diff_lines: ${{ vars.MAX_DIFF_LINES }}
+  # ❌ "5000" (string) passed to type: number input → type mismatch
+```
+
+**✅ GOOD - Convert to number with fromJSON():**
+
+```yaml
+with:
+  max_diff_lines: ${{ fromJSON(vars.MAX_DIFF_LINES || '5000') }}
+  # ✅ 5000 (number) passed to type: number input → correct type
+```
+
+**Why this matters:**
+
+- GitHub Actions repository variables are **always stored as strings**, regardless of content
+- Reusable workflow inputs typed as `type: number` expect actual numbers, not string representations
+- Without conversion, you'll get type mismatches and unexpected behavior
+- The `|| '5000'` fallback provides a safe default if the variable is empty or undefined
+- This pattern applies to any variable value that needs to be a non-string type (numbers, booleans, arrays, objects)
+
+**Other type conversions:**
+
+```yaml
+# Boolean conversion
+enable_feature: ${{ fromJSON(vars.ENABLE_FEATURE || 'false') }}
+
+# Array conversion (JSON string variable)
+allowed_users: ${{ fromJSON(vars.ALLOWED_USERS || '[]') }}
+
+# Object conversion (JSON string variable)
+config: ${{ fromJSON(vars.CONFIG || '{}') }}
+```
 
 ### Script Separation Policy
 
@@ -397,7 +635,8 @@ The hook is configured in `.claude/settings.json`:
         "hooks": [
           {
             "type": "command",
-            "command": "npx tsx .github/scripts/lint-and-typecheck-hook.ts"
+            "command": "npx tsx .github/scripts/lint-and-typecheck-hook.ts",
+            "timeout": 60000
           }
         ]
       }
@@ -426,3 +665,17 @@ If the hook is causing issues:
    echo '{"tool_name":"Write","tool_input":{"file_path":"path/to/file.ts"}}' | \
      npx tsx .github/scripts/lint-and-typecheck-hook.ts
    ```
+
+<!-- nx configuration start-->
+<!-- Leave the start & end comments to automatically receive updates. -->
+
+# General Guidelines for working with Nx
+
+- When running tasks (for example build, lint, test, e2e, etc.), always prefer running the task through `nx` (i.e. `nx run`, `nx run-many`, `nx affected`) instead of using the underlying tooling directly
+- You have access to the Nx MCP server and its tools, use them to help the user
+- When answering questions about the repository, use the `nx_workspace` tool first to gain an understanding of the workspace architecture where applicable.
+- When working in individual projects, use the `nx_project_details` mcp tool to analyze and understand the specific project structure and dependencies
+- For questions around nx configuration, best practices or if you're unsure, use the `nx_docs` tool to get relevant, up-to-date docs. Always use this instead of assuming things about nx configuration
+- If the user needs help with an Nx configuration or project graph error, use the `nx_workspace` tool to get any errors
+
+<!-- nx configuration end-->

@@ -8,14 +8,10 @@ import * as fs from 'fs';
  * Handles the execution of an Nx generator with proper error handling
  */
 export async function handleNxExecution(generatorName: string, args: string[]) {
-  // Show help message if requested
+  // Show help message if requested via flag
   if (args.includes('--help') || args.includes('-h')) {
-    console.log(
-      `Usage: npx @uniswap/ai-toolkit-nx-claude@latest ${generatorName}`
-    );
-    console.log(
-      `\nThis command runs the nx-claude ${generatorName} generator.`
-    );
+    console.log(`Usage: npx @uniswap/ai-toolkit-nx-claude@latest ${generatorName}`);
+    console.log(`\nThis command runs the nx-claude ${generatorName} generator.`);
     console.log('\nOptions are handled interactively during execution.');
     console.log('\nFor more information, see the package documentation.');
     process.exit(0);
@@ -30,12 +26,7 @@ export async function handleNxExecution(generatorName: string, args: string[]) {
   } else {
     // Execute through nx command (when in ai-toolkit workspace)
     try {
-      const nxArgs = [
-        'nx',
-        'generate',
-        `@uniswap/ai-toolkit-nx-claude:${generatorName}`,
-        ...args,
-      ];
+      const nxArgs = ['nx', 'generate', `@uniswap/ai-toolkit-nx-claude:${generatorName}`, ...args];
 
       execSync(nxArgs.join(' '), {
         stdio: 'inherit',
@@ -55,49 +46,33 @@ function handleExecutionError(error: any, generatorName: string) {
     error.message?.includes('unauthorized')
   ) {
     console.error('\n❌ Authentication Error');
-    console.error(
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
-    );
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.error('You do not have permission to access this package.');
     console.error(
       '\nThis package requires a read-only npm token to access the private npmjs registry.'
     );
     console.error('\nTo gain access:');
     console.error('1. See the top-level README for setup instructions.');
-    console.error(
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
-    );
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   } else if (error.code === '404' || error.message?.includes('Not Found')) {
     console.error('\n❌ Package Not Found');
-    console.error(
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
-    );
-    console.error(
-      'The package @uniswap/ai-toolkit-nx-claude could not be found.'
-    );
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.error('The package @uniswap/ai-toolkit-nx-claude could not be found.');
     console.error('\nThis may be because:');
     console.error('1. The package has not been published yet');
     console.error(
       '2. You are not authenticated properly (check the top-level README for NPM authenticationsetup instructions)'
     );
-    console.error(
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
-    );
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   } else if (error.code === 'ENOENT') {
     console.error('\n❌ Nx CLI Not Found');
-    console.error(
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
-    );
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.error('The Nx CLI is required but not installed.');
     console.error('\nPlease install Nx globally:');
     console.error('  npm install -g nx');
     console.error('\nOr use npx to run without installing:');
-    console.error(
-      `  npx nx generate @uniswap/ai-toolkit-nx-claude@latest ${generatorName}`
-    );
-    console.error(
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
-    );
+    console.error(`  npx nx generate @uniswap/ai-toolkit-nx-claude@latest ${generatorName}`);
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   } else {
     // For other errors, just exit with the error code
     process.exit(error.status || 1);
@@ -111,9 +86,7 @@ function handleExecutionError(error: any, generatorName: string) {
 function shouldRunStandalone(): boolean {
   // Check if we're running from within the ai-toolkit workspace itself
   const scriptPath = process.argv[1];
-  const isInAiToolkitWorkspace = scriptPath.includes(
-    '/ai-toolkit/packages/ai-toolkit-nx-claude/'
-  );
+  const isInAiToolkitWorkspace = scriptPath.includes('/ai-toolkit/packages/ai-toolkit-nx-claude/');
 
   // If we're not in the ai-toolkit workspace, run standalone
   if (!isInAiToolkitWorkspace) {
@@ -134,38 +107,24 @@ function shouldRunStandalone(): boolean {
 async function runGeneratorDirectly(generatorName: string, args: string[]) {
   try {
     // Map generator names to their actual function names
+    // Note: init, add-command, add-agent, and hooks generators have been removed
+    // in favor of the marketplace-based plugin architecture
     const generatorFunctionMap: Record<string, string> = {
-      init: 'initGenerator',
-      hooks: 'hooksGenerator',
       addons: 'addonsGenerator',
-      'add-command': 'addCommandGenerator',
-      'add-agent': 'addAgentGenerator',
     };
 
     const generatorFnName = generatorFunctionMap[generatorName];
     if (!generatorFnName) {
       // This error format matches what users are seeing
       console.error(`\n❌ Generator '${generatorName}' not found`);
-      console.error(
-        `Available generators: ${Object.keys(generatorFunctionMap).join(', ')}`
-      );
+      console.error(`Available generators: ${Object.keys(generatorFunctionMap).join(', ')}`);
       process.exit(1);
     }
 
     // Use require for CommonJS modules
     // Support both .js and .cjs outputs
-    const jsPath = path.join(
-      __dirname,
-      'generators',
-      generatorName,
-      'generator.js'
-    );
-    const cjsPath = path.join(
-      __dirname,
-      'generators',
-      generatorName,
-      'generator.cjs'
-    );
+    const jsPath = path.join(__dirname, 'generators', generatorName, 'generator.js');
+    const cjsPath = path.join(__dirname, 'generators', generatorName, 'generator.cjs');
     const generatorPath = fs.existsSync(jsPath) ? jsPath : cjsPath;
 
     // Debug logging to understand the path resolution
@@ -186,9 +145,7 @@ async function runGeneratorDirectly(generatorName: string, args: string[]) {
             const genFile = path.join(genPath, 'generator.js');
             console.error(
               `  ${dir}: ${
-                fs.existsSync(genFile)
-                  ? '✓ generator.js exists'
-                  : '✗ generator.js missing'
+                fs.existsSync(genFile) ? '✓ generator.js exists' : '✗ generator.js missing'
               }`
             );
           }
@@ -261,12 +218,8 @@ async function runGeneratorDirectly(generatorName: string, args: string[]) {
         console.error(`Error details: ${error.message}`);
       }
 
-      console.error(
-        '\nThis may indicate a packaging or installation issue with the npm package.'
-      );
-      console.error(
-        'Please report this issue at: https://github.com/uniswap/ai-toolkit/issues'
-      );
+      console.error('\nThis may indicate a packaging or installation issue with the npm package.');
+      console.error('Please report this issue at: https://github.com/uniswap/ai-toolkit/issues');
       process.exit(1);
     }
     console.error(`Error running generator '${generatorName}':`, error.message);
@@ -305,9 +258,7 @@ function parseCliArgs(args: string[]): Record<string, any> {
       }
 
       // Convert kebab-case to camelCase
-      const camelKey = key.replace(/-([a-z])/g, (_, letter) =>
-        letter.toUpperCase()
-      );
+      const camelKey = key.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
 
       // Handle negations (--no-interactive -> nonInteractive: true)
       if (camelKey.startsWith('no') && camelKey.length > 2) {
@@ -331,10 +282,7 @@ function parseCliArgs(args: string[]): Record<string, any> {
  * Creates a minimal tree interface for standalone execution
  */
 function createStandaloneTree() {
-  const changes = new Map<
-    string,
-    { content: string; mode?: 'create' | 'update' | 'delete' }
-  >();
+  const changes = new Map<string, { content: string; mode?: 'create' | 'update' | 'delete' }>();
 
   return {
     root: process.cwd(),

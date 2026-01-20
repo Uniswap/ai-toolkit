@@ -31,19 +31,11 @@
           "watchDepsName": "watch-deps"
         }
       },
-      "exclude": [
-        "packages/commands/agnostic/*",
-        "packages/agents/agnostic/*",
-        "packages/commands/typescript/*"
-      ]
+      "exclude": ["packages/commands/agnostic/*", "packages/commands/typescript/*"]
     },
     {
       "plugin": "@nx/js/typescript",
-      "include": [
-        "packages/commands/agnostic/*",
-        "packages/agents/agnostic/*",
-        "packages/commands/typescript/*"
-      ],
+      "include": ["packages/commands/agnostic/*", "packages/commands/typescript/*"],
       "options": {
         "typecheck": {
           "targetName": "typecheck"

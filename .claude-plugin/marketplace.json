@@ -1,0 +1,49 @@
+{
+  "name": "uniswap-ai-toolkit",
+  "version": "1.0.0",
+  "owner": {
+    "name": "Uniswap Labs",
+    "email": "ai-services@uniswap.org"
+  },
+  "metadata": {
+    "description": "Uniswap Developer AI Toolkit - Comprehensive AI-powered development workflows for implementation planning, code review, PR management, codebase exploration, and external service integrations.",
+    "repository": "https://github.com/Uniswap/ai-toolkit"
+  },
+  "plugins": [
+    {
+      "name": "development-planning",
+      "source": "./packages/plugins/development-planning",
+      "description": "Implementation planning and execution workflows with multi-agent collaboration"
+    },
+    {
+      "name": "development-pr-workflow",
+      "source": "./packages/plugins/development-pr-workflow",
+      "description": "Pull request management including review, creation, issue resolution, and Graphite stack management"
+    },
+    {
+      "name": "development-codebase-tools",
+      "source": "./packages/plugins/development-codebase-tools",
+      "description": "Codebase exploration, refactoring, and quality analysis"
+    },
+    {
+      "name": "development-productivity",
+      "source": "./packages/plugins/development-productivity",
+      "description": "Documentation, research, test generation, and prompt optimization tools"
+    },
+    {
+      "name": "uniswap-integrations",
+      "source": "./packages/plugins/uniswap-integrations",
+      "description": "External service integrations (Linear, Notion, Nx, Chrome DevTools) and deployment orchestration"
+    },
+    {
+      "name": "uniswap-builder",
+      "source": "./packages/plugins/uniswap-builder",
+      "description": "Skills for building on top of and integrating the Uniswap protocol"
+    },
+    {
+      "name": "spec-workflow",
+      "source": "./packages/plugins/spec-workflow",
+      "description": "Autonomous spec-driven development workflow with multi-agent collaboration and specification management (optional)"
+    }
+  ]
+}

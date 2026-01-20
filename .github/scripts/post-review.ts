@@ -14,6 +14,7 @@
  * - in-progress: Posts a "review in progress" placeholder comment
  * - skipped: Preserves existing review content with a "still valid" status banner (cache hit)
  *            If no substantial review exists, posts a fallback "no review needed" message
+ * - too-large: Posts a message indicating the PR diff is too large for Claude review
  *
  * @usage
  *   # Full review mode (default)
@@ -35,6 +36,15 @@
  *     --owner "Uniswap" \
  *     --repo "ai-toolkit" \
  *     --pr-number 123
+ *
+ *   # Too large mode (PR diff exceeds threshold)
+ *   npx tsx .github/scripts/post-review.ts \
+ *     --mode too-large \
+ *     --owner "Uniswap" \
+ *     --repo "ai-toolkit" \
+ *     --pr-number 123 \
+ *     --line-count 2534 \
+ *     --max-diff-lines 2000
  *
  * @environment
  *   GITHUB_TOKEN - GitHub token for API authentication (required)
@@ -335,12 +345,14 @@ const STATUS_SKIPPED = `## 🤖 Claude Code Review
 >
 > <sub>💡 To force a fresh review, add a comment containing \`@request-claude-review\`.</sub>`;
 
-/** Status shown when review fails */
-const STATUS_FAILED = `## 🤖 Claude Code Review
+/** Function to generate status message when PR is too large for review */
+function STATUS_TOO_LARGE(lineCount: number, maxDiffLines: number): string {
+  return `## 🤖 Claude Code Review
 
-> ❌ **Review failed** — An error occurred during analysis. Check the workflow logs for details.
+> ⚠️ **PR too large for automated review** — This pull request contains ${lineCount.toLocaleString()} lines of diff, which exceeds the ${maxDiffLines.toLocaleString()} line threshold for Claude Code Review.
 >
-> <sub>💡 To retry, add a comment containing \`@request-claude-review\`.</sub>`;
+> <sub>💡 Consider breaking this PR into smaller, more focused changes for better reviewability.</sub>`;
+}
 
 // -----------------------------------------------------------------------------
 // Content Templates
@@ -349,8 +361,15 @@ const STATUS_FAILED = `## 🤖 Claude Code Review
 /** Placeholder content shown before first review completes */
 const CONTENT_PLACEHOLDER = `*Waiting for review to complete...*`;
 
-/** Content shown when no review exists and cache hit (first PR with no changes) */
-const CONTENT_NO_REVIEW_NEEDED = `This PR has no code changes that require review.`;
+/** Content shown when PR is too large for Claude review */
+const CONTENT_TOO_LARGE = `Claude Code Review has been skipped for this PR because the diff is too large. Large PRs are harder to review thoroughly and increase the risk of bugs slipping through.
+
+**Recommendations:**
+- Break this PR into smaller, focused changes
+- Each PR should ideally address a single concern or feature
+- Smaller PRs are easier to review, test, and merge safely
+
+Once you've split this into smaller PRs, Claude will be able to provide detailed automated reviews for each one.`;
 
 // =============================================================================
 // Comment Structure Helpers
@@ -1152,7 +1171,9 @@ async function main(): Promise<void> {
       'pr-number': { type: 'string' },
       'review-json': { type: 'string' },
       'dry-run': { type: 'boolean', default: false },
-      mode: { type: 'string', default: 'review' }, // 'review' | 'in-progress' | 'skipped'
+      mode: { type: 'string', default: 'review' }, // 'review' | 'in-progress' | 'skipped' | 'too-large'
+      'line-count': { type: 'string' },
+      'max-diff-lines': { type: 'string' }, // Maximum diff lines threshold (for too-large mode message)
     },
     strict: true,
   });
@@ -1161,7 +1182,9 @@ async function main(): Promise<void> {
   const repo = values.repo;
   const prNumber = parseInt(values['pr-number'] || '', 10);
   const dryRun = values['dry-run'];
-  const mode = values.mode as 'review' | 'in-progress' | 'skipped';
+  const mode = values.mode as 'review' | 'in-progress' | 'skipped' | 'too-large';
+  const lineCount = values['line-count'] ? parseInt(values['line-count'], 10) : undefined;
+  const maxDiffLines = values['max-diff-lines'] ? parseInt(values['max-diff-lines'], 10) : 2000;
 
   // Validate required inputs
   if (!owner || !repo || isNaN(prNumber)) {
@@ -1219,6 +1242,38 @@ async function main(): Promise<void> {
       process.exit(0);
     } catch (error) {
       logError(`Failed to post skipped comment: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  }
+
+  // Handle too-large mode - post message that PR is too large for review
+  if (mode === 'too-large') {
+    log(`Running in too-large mode for ${owner}/${repo}#${prNumber}`);
+
+    if (lineCount === undefined || isNaN(lineCount)) {
+      logError('Missing or invalid --line-count argument for too-large mode');
+      process.exit(1);
+    }
+
+    if (dryRun) {
+      log(
+        `DRY RUN - Would post too-large message (${lineCount} lines, threshold: ${maxDiffLines})`
+      );
+      console.log(buildReviewComment(STATUS_TOO_LARGE(lineCount, maxDiffLines), CONTENT_TOO_LARGE));
+      process.exit(0);
+    }
+
+    try {
+      const result = upsertReviewComment(owner, repo, prNumber, {
+        status: STATUS_TOO_LARGE(lineCount, maxDiffLines),
+        content: CONTENT_TOO_LARGE,
+      });
+      log(`Too-large message posted: ${result.html_url}`);
+      console.log(`comment_url=${result.html_url}`);
+      console.log(`comment_id=${result.id}`);
+      process.exit(0);
+    } catch (error) {
+      logError(`Failed to post too-large message: ${(error as Error).message}`);
       process.exit(1);
     }
   }

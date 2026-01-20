@@ -63,6 +63,12 @@ on:
         type: string
         default: ".github/prompts/generate-pr-title-description.md"
 
+      toolkit_ref:
+        description: "Git ref (branch, tag, or SHA) of ai-toolkit to use for downloading the validate-claude-auth action. Defaults to 'main'. Use 'next' or a specific SHA to test unreleased changes."
+        required: false
+        type: string
+        default: "main"
+
       timeout_minutes:
         description: "Job timeout in minutes"
         required: false
@@ -108,10 +114,39 @@ on:
         type: string
         default: "description,title-suggestion"
 
+      install_uniswap_plugins:
+        description: |
+          Whether to install the uniswap-ai-toolkit plugins automatically.
+
+          When true (default): All 5 uniswap-ai-toolkit plugins are installed:
+          - development-planning
+          - development-pr-workflow
+          - development-codebase-tools
+          - development-productivity
+          - uniswap-integrations
+
+          When false: No uniswap plugins are installed. Use this if you want to
+          use only your own plugins via plugin_marketplaces and plugins inputs.
+        required: false
+        type: boolean
+        default: true
+
+      plugin_ref:
+        description: |
+          Git ref of ai-toolkit to use for the build-plugin-config composite
+          action. Must be 'main' (stable) or 'next' (pre-release). Defaults to
+          'main'.
+        required: false
+        type: string
+        default: "main"
+
     secrets:
       ANTHROPIC_API_KEY:
-        description: "Anthropic API key for Claude access"
-        required: true
+        description: "Anthropic API key for Claude access. Required unless CLAUDE_CODE_OAUTH_TOKEN is provided."
+        required: false
+      CLAUDE_CODE_OAUTH_TOKEN:
+        description: "OAuth token for Claude Code (alternative to ANTHROPIC_API_KEY, takes precedence if both set). Generate with 'claude setup-token'."
+        required: false
       WORKFLOW_PAT:
         description: "Deprecated. No longer required as ai-toolkit is now a public repository."
         required: false
@@ -135,10 +170,61 @@ jobs:
           egress-policy: audit
 
       # Checkout code with full history for pattern analysis
+      # Must come before validate-claude-auth (local composite action)
       - name: Checkout Repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0 # Full history needed for git merge-base and history analysis
+
+      # Download validate-claude-auth action if caller repo doesn't have it
+      # This allows external repos to use this reusable workflow without copying the action
+      - name: Ensure validate-claude-auth action exists
+        env:
+          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ACTION_FILE=".github/actions/validate-claude-auth/action.yml"
+
+          if [ -f "$ACTION_FILE" ]; then
+            echo "Using local validate-claude-auth action"
+          else
+            echo "Downloading validate-claude-auth action from ai-toolkit@${TOOLKIT_REF}..."
+            mkdir -p .github/actions/validate-claude-auth
+
+            # Use GitHub API (same pattern as other reusable workflows)
+            # Authentication required to avoid GitHub API rate limits on shared runner IPs
+            if ! curl -fSs --max-time 30 --max-redirs 3 \
+                      -H "Accept: application/vnd.github.v4.raw" \
+                      -H "Authorization: Bearer $GITHUB_TOKEN" \
+                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/actions/validate-claude-auth/action.yml?ref=${TOOLKIT_REF}" \
+                      -o "$ACTION_FILE" 2>&1 | tee /tmp/curl-error.log; then
+              echo "::error::Failed to download validate-claude-auth action from ai-toolkit@${TOOLKIT_REF}"
+              cat /tmp/curl-error.log
+              exit 1
+            fi
+
+            # Verify the file was downloaded and has content
+            if [ ! -s "$ACTION_FILE" ]; then
+              echo "::error::Downloaded action.yml is empty"
+              exit 1
+            fi
+
+            # Verify it's a valid action file (has 'runs:' section)
+            if ! grep -q "^runs:" "$ACTION_FILE"; then
+              echo "::error::Downloaded action.yml is invalid (missing 'runs:' section)"
+              echo "File contents:"
+              cat "$ACTION_FILE"
+              exit 1
+            fi
+
+            echo "Successfully downloaded validate-claude-auth action from ai-toolkit@${TOOLKIT_REF}"
+          fi
+
+      - name: Validate authentication
+        uses: ./.github/actions/validate-claude-auth
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
       # Calculate patch-ID (stable hash of code changes, survives rebases)
       - name: Calculate Patch ID
@@ -628,17 +714,39 @@ jobs:
           echo "CLAUDE_ARGS_EOF" >> $GITHUB_OUTPUT
           echo "✅ Configured allowed tools (${#ALLOWED_TOOLS} chars)"
 
+      # Build plugin configuration using shared composite action
+      # Note: GitHub Actions requires static refs in 'uses:', so we use conditional
+      # steps instead of dynamic interpolation for security and predictability.
+      - name: Build plugin configuration (main)
+        if: steps.cache-check.outputs.cache-hit != 'true' && (inputs.plugin_ref == 'main' || inputs.plugin_ref == '')
+        id: build-plugins-main
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main
+        with:
+          install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+
+      - name: Build plugin configuration (next)
+        if: steps.cache-check.outputs.cache-hit != 'true' && inputs.plugin_ref == 'next'
+        id: build-plugins-next
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next
+        with:
+          install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+
       # Run Claude Code Action to generate the metadata
+      # Supports both API key and OAuth token authentication (OAuth takes precedence)
       - name: Run Claude Code Generation
         if: steps.cache-check.outputs.cache-hit != 'true'
         id: claude
-        uses: anthropics/claude-code-action@a7e4c51380c42dd89b127f5e5f9be7b54020bc6b # v1.0.21
+        uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71 # v1.0.29
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: ${{ steps.build-prompt.outputs.final_prompt }}
           track_progress: false # Disable to avoid PR comments
           allowed_bots: dependabot
           claude_args: ${{ steps.build-args.outputs.claude_args }}
+          # Coalesce outputs from conditional steps (only one will have run)
+          plugin_marketplaces: ${{ steps.build-plugins-main.outputs.plugin_marketplaces || steps.build-plugins-next.outputs.plugin_marketplaces }}
+          plugins: ${{ steps.build-plugins-main.outputs.plugins || steps.build-plugins-next.outputs.plugins }}
 
       # Update PR title and description using generated files
       - name: Update PR Metadata

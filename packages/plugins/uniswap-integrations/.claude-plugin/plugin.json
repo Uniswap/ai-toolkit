@@ -1,0 +1,24 @@
+{
+  "name": "uniswap-integrations",
+  "version": "1.0.0",
+  "description": "External service integrations (Linear, Notion, Nx, Chrome DevTools, GitHub) and deployment orchestration",
+  "author": {
+    "name": "Uniswap Labs",
+    "email": "ai-services@uniswap.org"
+  },
+  "homepage": "https://github.com/Uniswap/ai-toolkit",
+  "keywords": ["integrations", "linear", "notion", "nx", "deployment", "mcp", "github"],
+  "license": "MIT",
+  "skills": [
+    "./skills/daily-standup",
+    "./skills/github-setup",
+    "./skills/orchestrate-deployment",
+    "./skills/refine-linear-task"
+  ],
+  "commands": [
+    "./skills/daily-standup/daily-standup.md",
+    "./skills/github-setup/github-setup.md",
+    "./skills/orchestrate-deployment/orchestrate-deployment.md",
+    "./skills/refine-linear-task/refine-linear-task.md"
+  ]
+}

@@ -133,6 +133,7 @@ If no clear template exists, use this default structure:
 - **Don't be verbose**: Concise is better than comprehensive
 - **Don't guess**: If you're unsure about something, be conservative
 - **Don't add features**: Describe what exists, don't suggest additions
+- **Don't add decorative headers**: Do NOT include headers like `## :sparkles: Claude-Generated Content` or `## ✨ Claude-Generated Content` in your output - these are added automatically by the workflow
 - **Do match patterns**: Consistency with existing conventions is key
 - **Do be specific**: Vague descriptions are not helpful
 

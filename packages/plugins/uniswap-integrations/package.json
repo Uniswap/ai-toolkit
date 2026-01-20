@@ -1,0 +1,30 @@
+{
+  "name": "@uniswap/uniswap-integrations",
+  "version": "0.0.1",
+  "private": true,
+  "description": "External service integrations for Claude Code - Linear, Notion, Nx, Chrome DevTools, and more",
+  "author": "Uniswap Labs <ai-services@uniswap.org>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Uniswap/ai-toolkit.git",
+    "directory": "packages/plugins/uniswap-integrations"
+  },
+  "keywords": [
+    "claude-code",
+    "plugin",
+    "integrations",
+    "linear",
+    "notion",
+    "nx",
+    "mcp",
+    "ai-toolkit"
+  ],
+  "files": [
+    ".claude-plugin",
+    "agents",
+    "skills",
+    ".mcp.json",
+    "README.md"
+  ]
+}

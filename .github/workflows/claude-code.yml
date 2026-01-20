@@ -25,7 +25,11 @@ jobs:
     uses: ./.github/workflows/_claude-main.yml
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
     with:
+      # Use 'next' branch for plugin configuration (testing pre-release)
+      plugin_ref: 'next'
+
       # Use default Sonnet 4.5 model
       model: 'claude-sonnet-4-5-20250929'
 

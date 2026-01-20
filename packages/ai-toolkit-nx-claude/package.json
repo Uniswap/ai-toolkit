@@ -1,13 +1,13 @@
 {
   "name": "@uniswap/ai-toolkit-nx-claude",
-  "version": "0.5.23",
+  "version": "0.5.31-next.0",
   "private": false,
   "main": "./dist/index.cjs",
   "module": "./dist/index.cjs",
   "types": "./dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/uniswap/ai-toolkit.git",
+    "url": "https://github.com/Uniswap/ai-toolkit.git",
     "directory": "packages/ai-toolkit-nx-claude"
   },
   "publishConfig": {
@@ -47,11 +47,7 @@
           "additionalEntryPoints": [
             "packages/ai-toolkit-nx-claude/src/index.ts",
             "packages/ai-toolkit-nx-claude/src/scripts/claude-plus/index.ts",
-            "packages/ai-toolkit-nx-claude/src/generators/add-agent/generator.ts",
-            "packages/ai-toolkit-nx-claude/src/generators/add-command/generator.ts",
-            "packages/ai-toolkit-nx-claude/src/generators/addons/generator.ts",
-            "packages/ai-toolkit-nx-claude/src/generators/hooks/generator.ts",
-            "packages/ai-toolkit-nx-claude/src/generators/init/generator.ts"
+            "packages/ai-toolkit-nx-claude/src/generators/addons/generator.ts"
           ],
           "tsConfig": "packages/ai-toolkit-nx-claude/tsconfig.lib.json",
           "bundle": true,
@@ -81,16 +77,6 @@
               "input": "./packages/ai-toolkit-nx-claude/src",
               "glob": "**/!(*.ts)",
               "output": "."
-            },
-            {
-              "input": "./packages/commands/agnostic/src",
-              "glob": "**/*.md",
-              "output": "content/commands/agnostic"
-            },
-            {
-              "input": "./packages/agents/agnostic/src",
-              "glob": "**/*.md",
-              "output": "content/agents/agnostic"
             }
           ]
         }
@@ -118,21 +104,7 @@
             "nx run @uniswap/ai-toolkit-nx-claude:bundle"
           ],
           "parallel": false
-        },
-        "dependsOn": [
-          {
-            "projects": [
-              "@ai-toolkit/agents-agnostic"
-            ],
-            "target": "build"
-          },
-          {
-            "projects": [
-              "@ai-toolkit/commands-agnostic"
-            ],
-            "target": "build"
-          }
-        ]
+        }
       },
       "postbuild": {
         "executor": "nx:run-commands",
@@ -172,7 +144,7 @@
         ],
         "options": {
           "jestConfig": "packages/ai-toolkit-nx-claude/jest.config.ts",
-          "passWithNoTests": false
+          "passWithNoTests": true
         }
       }
     }
@@ -181,9 +153,5 @@
   "dependencies": {
     "@nx/devkit": "*",
     "enquirer": "*"
-  },
-  "devDependencies": {
-    "@ai-toolkit/commands-agnostic": "0.1.16-next.7",
-    "@ai-toolkit/agents-agnostic": "0.2.12-next.7"
   }
 }

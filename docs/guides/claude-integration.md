@@ -36,6 +36,7 @@ Both leverage a system of `CLAUDE.md` files that provide contextual documentatio
 The system identifies two types of core nodes:
 
 1. **Package Nodes**: Directories containing package manifests
+
    - JavaScript/TypeScript: `package.json`
    - Rust: `Cargo.toml`
    - Python: `pyproject.toml`, `setup.py`
@@ -253,14 +254,14 @@ git commit -m "docs: initialize CLAUDE.md files"
 ```
 You: Create a new agent for code reviews
 
-Claude: I'll create this in packages/agents/agnostic/src/ following
-       the agent structure documented in that package's CLAUDE.md.
+Claude: I'll create this in packages/plugins/development-codebase-tools/agents/
+       following the agent structure used by the plugin system.
 
        [Creates agent file]
 
-       Now I'll update the CLAUDE.md to document this new agent.
+       Now I'll update the plugin's CLAUDE.md to document this new agent.
 
-       Would you like me to also update the package index?
+       Would you like me to also register it in the plugin.json?
 ```
 
 ### Available Custom Commands
@@ -274,20 +275,20 @@ The AI Toolkit provides several custom slash commands:
 
 ### Using Nx Generators
 
-Claude Code can use the Nx generators to scaffold code:
+Claude Code can use the Nx generators for MCP server addons:
 
 ```bash
-# Add a new agent
-nx generate @ai-toolkit/ai-toolkit-nx-claude:add-agent
-
-# Add a custom command
-nx generate @ai-toolkit/ai-toolkit-nx-claude:add-command
-
-# Add hooks or MCP servers
-nx generate @ai-toolkit/ai-toolkit-nx-claude:addons
+# Install MCP server addons
+nx generate @uniswap/ai-toolkit-nx-claude:addons
 ```
 
-Claude understands these generators and can suggest/use them when appropriate.
+**Note**: Agents, skills, and commands are now distributed through plugins. Create them directly in the appropriate plugin directory:
+
+- `packages/plugins/<plugin-name>/agents/` - For agents
+- `packages/plugins/<plugin-name>/skills/` - For skills
+- `packages/plugins/<plugin-name>/commands/` - For commands
+
+Claude understands these generators and the plugin architecture.
 
 ## Claude in GitHub Actions
 
@@ -353,7 +354,7 @@ custom_instructions: |
 **Configuration:**
 
 ```yaml
-model: 'claude-haiku-4-5'  # Cost-effective for reviews
+model: 'claude-haiku-4-5' # Cost-effective for reviews
 timeout_minutes: 20
 # Optional: restrict to read-only tools
 allowed_tools: 'Read,Grep,Glob,Bash(git log),Bash(git diff)'

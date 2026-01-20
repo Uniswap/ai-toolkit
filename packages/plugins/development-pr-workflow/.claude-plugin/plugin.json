@@ -1,0 +1,28 @@
+{
+  "name": "development-pr-workflow",
+  "version": "1.0.0",
+  "description": "Pull request review, issue resolution, and Graphite stack management",
+  "author": {
+    "name": "Uniswap Labs",
+    "email": "ai-services@uniswap.org"
+  },
+  "homepage": "https://github.com/Uniswap/ai-toolkit",
+  "keywords": ["pull-request", "pr-review", "graphite", "git"],
+  "license": "MIT",
+  "skills": [
+    "./skills/resolve-pr-issues",
+    "./skills/review-code",
+    "./skills/split-graphite-stack",
+    "./skills/update-graphite-stack"
+  ],
+  "commands": [
+    "./commands/linear-task-and-pr-from-changes.md",
+    "./commands/review-pr.md",
+    "./commands/start-linear-task.md",
+    "./commands/work-through-pr-comments.md",
+    "./skills/resolve-pr-issues/resolve-pr-issues.md",
+    "./skills/review-code/review-code.md",
+    "./skills/split-graphite-stack/split-graphite-stack.md",
+    "./skills/update-graphite-stack/update-graphite-stack.md"
+  ]
+}

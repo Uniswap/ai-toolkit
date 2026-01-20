@@ -52,8 +52,9 @@
 # - timeout_minutes (optional): Job timeout in minutes (default: 10)
 # - anthropic_api_key_secret_name (optional): Name of the secret containing the Anthropic API key (default: ANTHROPIC_API_KEY)
 #
-# SECRETS REQUIRED:
-# - ANTHROPIC_API_KEY (or custom secret name via anthropic_api_key_secret_name input)
+# SECRETS (at least one required):
+# - ANTHROPIC_API_KEY: Anthropic API key (or custom secret name via anthropic_api_key_secret_name input)
+# - CLAUDE_CODE_OAUTH_TOKEN: OAuth token for Claude Code (alternative to API key, takes precedence if both set)
 #
 # FIXED SETTINGS (cannot be overridden):
 # - Security: bullfrog egress-policy: audit
@@ -201,10 +202,75 @@ on:
         type: string
         default: "ANTHROPIC_API_KEY"
 
+      toolkit_ref:
+        description: |
+          Git ref (branch, tag, or SHA) of ai-toolkit to use for downloading
+          the validate-claude-auth action. Defaults to 'main'.
+
+          Use 'next' or a specific SHA to test unreleased changes.
+        required: false
+        type: string
+        default: "main"
+
+      plugin_marketplaces:
+        description: |
+          Additional plugin marketplace paths beyond uniswap-ai-toolkit (if enabled).
+          Newline-separated list of local paths or Git URLs.
+
+          Example:
+          plugin_marketplaces: |
+            ./custom-plugins
+            https://github.com/org/marketplace.git
+        required: false
+        type: string
+        default: ""
+
+      plugins:
+        description: |
+          Additional plugins to install beyond the uniswap-ai-toolkit plugins.
+          Newline-separated list in 'plugin-name@marketplace-name' format.
+
+          Example:
+          plugins: |
+            code-review@my-marketplace
+            pr-helper@my-marketplace
+        required: false
+        type: string
+        default: ""
+
+      install_uniswap_plugins:
+        description: |
+          Whether to install the uniswap-ai-toolkit plugins automatically.
+
+          When true (default): All 5 uniswap-ai-toolkit plugins are installed:
+          - development-planning
+          - development-pr-workflow
+          - development-codebase-tools
+          - development-productivity
+          - uniswap-integrations
+
+          When false: No uniswap plugins are installed. Use this if you want to
+          use only your own plugins via plugin_marketplaces and plugins inputs.
+        required: false
+        type: boolean
+        default: true
+
+      plugin_ref:
+        description: |
+          Git ref of ai-toolkit to use for the build-plugin-config composite
+          action. Must be 'main' (stable) or 'next' (pre-release). Defaults to
+          'main'.
+        required: false
+        type: string
+        default: "main"
+
     secrets:
       ANTHROPIC_API_KEY:
-        description: "Anthropic API key for Claude Code. Must be passed explicitly from the calling workflow."
-        required: true
+        description: "Anthropic API key for Claude Code. Required unless CLAUDE_CODE_OAUTH_TOKEN is provided."
+        required: false
+      CLAUDE_CODE_OAUTH_TOKEN:
+        description: "Claude Code OAuth token for authentication. Alternative to ANTHROPIC_API_KEY. When provided, takes precedence over API key. Generate with 'claude setup-token'."
+        required: false
 
 jobs:
   claude:
@@ -238,6 +304,56 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 50
+
+      # Download validate-claude-auth action if caller repo doesn't have it
+      # This allows external repos to use this reusable workflow without copying the action
+      - name: Ensure validate-claude-auth action exists
+        env:
+          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ACTION_FILE=".github/actions/validate-claude-auth/action.yml"
+
+          if [ -f "$ACTION_FILE" ]; then
+            echo "Using local validate-claude-auth action"
+          else
+            echo "Downloading validate-claude-auth action from ai-toolkit@${TOOLKIT_REF}..."
+            mkdir -p .github/actions/validate-claude-auth
+
+            # Use GitHub API (same pattern as other reusable workflows)
+            # Authentication required to avoid GitHub API rate limits on shared runner IPs
+            if ! curl -fSs --max-time 30 --max-redirs 3 \
+                      -H "Accept: application/vnd.github.v4.raw" \
+                      -H "Authorization: Bearer $GITHUB_TOKEN" \
+                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/actions/validate-claude-auth/action.yml?ref=${TOOLKIT_REF}" \
+                      -o "$ACTION_FILE" 2>&1 | tee /tmp/curl-error.log; then
+              echo "::error::Failed to download validate-claude-auth action from ai-toolkit@${TOOLKIT_REF}"
+              cat /tmp/curl-error.log
+              exit 1
+            fi
+
+            # Verify the file was downloaded and has content
+            if [ ! -s "$ACTION_FILE" ]; then
+              echo "::error::Downloaded action.yml is empty"
+              exit 1
+            fi
+
+            # Verify it's a valid action file (has 'runs:' section)
+            if ! grep -q "^runs:" "$ACTION_FILE"; then
+              echo "::error::Downloaded action.yml is invalid (missing 'runs:' section)"
+              echo "File contents:"
+              cat "$ACTION_FILE"
+              exit 1
+            fi
+
+            echo "Successfully downloaded validate-claude-auth action from ai-toolkit@${TOOLKIT_REF}"
+          fi
+
+      - name: Validate Authentication
+        uses: ./.github/actions/validate-claude-auth
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
       # Build claude_args with CLI arguments
       - name: Build Claude CLI arguments
@@ -286,15 +402,43 @@ jobs:
           echo "$ARGS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      # Build plugin configuration using shared composite action
+      # Note: GitHub Actions requires static refs in 'uses:', so we use conditional
+      # steps instead of dynamic interpolation for security and predictability.
+      - name: Build plugin configuration (main)
+        id: build-plugins-main
+        if: inputs.plugin_ref == 'main' || inputs.plugin_ref == ''
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main
+        with:
+          install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+          plugin_marketplaces: ${{ inputs.plugin_marketplaces }}
+          plugins: ${{ inputs.plugins }}
+
+      - name: Build plugin configuration (next)
+        id: build-plugins-next
+        if: inputs.plugin_ref == 'next'
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next
+        with:
+          install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+          plugin_marketplaces: ${{ inputs.plugin_marketplaces }}
+          plugins: ${{ inputs.plugins }}
+
       # Run Claude Code
+      # Supports both API key and OAuth token authentication (validated in earlier step)
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@a7e4c51380c42dd89b127f5e5f9be7b54020bc6b # v1.0.21
+        uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71 # v1.0.29
         with:
+          # Authentication: provide either API key or OAuth token (validated in earlier step)
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: ${{ inputs.prompt }}
           claude_args: ${{ steps.build-args.outputs.claude_args }}
           settings: ${{ inputs.settings }}
+          # Plugin configuration (requires claude-code-action v1.0.28+)
+          # Coalesce outputs from conditional steps (only one will have run)
+          plugin_marketplaces: ${{ steps.build-plugins-main.outputs.plugin_marketplaces || steps.build-plugins-next.outputs.plugin_marketplaces }}
+          plugins: ${{ steps.build-plugins-main.outputs.plugins || steps.build-plugins-next.outputs.plugins }}
           additional_permissions: |
             actions: read
 

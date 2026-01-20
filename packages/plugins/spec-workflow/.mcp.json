@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "spec-workflow": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "-p",
+        "@uniswap/spec-workflow-mcp@latest",
+        "spec-workflow-mcp",
+        "--AutoStartDashboard"
+      ],
+      "env": {}
+    }
+  }
+}

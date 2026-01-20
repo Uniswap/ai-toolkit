@@ -1,0 +1,134 @@
+# Composite action for building Claude Code plugin configuration
+#
+# This action consolidates the plugin configuration logic used across all
+# Claude-related reusable workflows. It builds the plugin_marketplaces and
+# plugins outputs that are passed to claude-code-action.
+#
+# USAGE:
+# - uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main
+#   id: build-plugins
+#   with:
+#     install_uniswap_plugins: true
+#     plugin_marketplaces: |
+#       https://github.com/my-org/my-marketplace.git
+#     plugins: |
+#       my-plugin@my-marketplace
+
+name: 'Build Plugin Configuration'
+description: 'Builds plugin marketplace and plugin lists for claude-code-action'
+
+inputs:
+  install_uniswap_plugins:
+    description: |
+      Whether to install the uniswap-ai-toolkit plugins automatically.
+
+      When 'true' (default): All 5 uniswap-ai-toolkit plugins are installed:
+      - development-planning
+      - development-pr-workflow
+      - development-codebase-tools
+      - development-productivity
+      - uniswap-integrations
+
+      When 'false': No uniswap plugins are installed.
+    required: false
+    default: 'true'
+
+  plugin_marketplaces:
+    description: |
+      Additional plugin marketplace paths beyond uniswap-ai-toolkit (if enabled).
+      Newline-separated list of local paths or Git URLs.
+
+      Example:
+        ./custom-plugins
+        https://github.com/org/marketplace.git
+    required: false
+    default: ''
+
+  plugins:
+    description: |
+      Additional plugins to install beyond the uniswap-ai-toolkit plugins.
+      Newline-separated list in 'plugin-name@marketplace-name' format.
+
+      Example:
+        code-review@my-marketplace
+        pr-helper@my-marketplace
+    required: false
+    default: ''
+
+outputs:
+  plugin_marketplaces:
+    description: 'Combined plugin marketplace list (newline-separated)'
+    value: ${{ steps.build.outputs.plugin_marketplaces }}
+
+  plugins:
+    description: 'Combined plugin list (newline-separated)'
+    value: ${{ steps.build.outputs.plugins }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Build plugin configuration
+      id: build
+      shell: bash
+      env:
+        INSTALL_UNISWAP_PLUGINS: ${{ inputs.install_uniswap_plugins }}
+        EXTRA_MARKETPLACES: ${{ inputs.plugin_marketplaces }}
+        EXTRA_PLUGINS: ${{ inputs.plugins }}
+      run: |
+        MARKETPLACES=""
+        PLUGINS=""
+
+        # Include uniswap-ai-toolkit marketplace via Git URL (unless opt-out is set)
+        if [[ "$INSTALL_UNISWAP_PLUGINS" != "false" ]]; then
+          echo "Including uniswap-ai-toolkit plugins from Git"
+          MARKETPLACES="https://github.com/Uniswap/ai-toolkit.git"$'\n'
+          PLUGINS="development-planning@uniswap-ai-toolkit
+        development-pr-workflow@uniswap-ai-toolkit
+        development-codebase-tools@uniswap-ai-toolkit
+        development-productivity@uniswap-ai-toolkit
+        uniswap-integrations@uniswap-ai-toolkit"$'\n'
+        else
+          echo "Skipping uniswap-ai-toolkit plugins (install_uniswap_plugins=false)"
+        fi
+
+        # Add extra marketplaces from inputs
+        if [[ -n "$EXTRA_MARKETPLACES" ]]; then
+          MARKETPLACES="${MARKETPLACES}${EXTRA_MARKETPLACES}"$'\n'
+        fi
+
+        # Add extra plugins from inputs
+        if [[ -n "$EXTRA_PLUGINS" ]]; then
+          PLUGINS="${PLUGINS}${EXTRA_PLUGINS}"$'\n'
+        fi
+
+        # Trim trailing newlines and empty lines
+        MARKETPLACES=$(echo -n "$MARKETPLACES" | sed '/^$/d')
+        PLUGINS=$(echo -n "$PLUGINS" | sed '/^$/d')
+
+        # Output results
+        {
+          echo "plugin_marketplaces<<EOF"
+          echo "$MARKETPLACES"
+          echo "EOF"
+        } >> $GITHUB_OUTPUT
+
+        {
+          echo "plugins<<EOF"
+          echo "$PLUGINS"
+          echo "EOF"
+        } >> $GITHUB_OUTPUT
+
+        # Log configuration
+        if [[ -n "$MARKETPLACES" ]]; then
+          echo "Plugin marketplaces:"
+          echo "$MARKETPLACES" | while read -r line; do
+            [[ -n "$line" ]] && echo "  - $line"
+          done
+        fi
+
+        if [[ -n "$PLUGINS" ]]; then
+          echo "Plugins to install:"
+          echo "$PLUGINS" | while read -r line; do
+            [[ -n "$line" ]] && echo "  - $line"
+          done
+        fi

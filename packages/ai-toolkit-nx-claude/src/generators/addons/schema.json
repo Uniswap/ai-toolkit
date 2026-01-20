@@ -16,7 +16,7 @@
         "items": [
           {
             "value": "all",
-            "label": "All recommended MCP servers (12 servers)"
+            "label": "All recommended MCP servers (2 servers)"
           },
           {
             "value": "specific",
@@ -30,44 +30,11 @@
       "description": "The addons to install",
       "items": {
         "type": "string",
-        "enum": [
-          "spec-workflow-mcp",
-          "graphite-mcp",
-          "nx-mcp",
-          "slack-mcp",
-          "universe-mcp",
-          "linear-mcp",
-          "notion-mcp",
-          "github-mcp",
-          "figma-mcp",
-          "chrome-devtools-mcp",
-          "vercel-mcp",
-          "supabase-mcp",
-          "aws-log-analyzer-mcp",
-          "pulumi-mcp"
-        ]
+        "enum": ["slack-mcp", "aws-log-analyzer-mcp"]
       },
       "prompt-when": "selectionMode === 'specific'",
       "prompt-type": "multiselect",
       "prompt-message": "🔌 Select MCP servers to install"
-    },
-    "dashboardMode": {
-      "type": "string",
-      "description": "Dashboard startup mode",
-      "enum": ["always", "manual"],
-      "default": "always",
-      "prompt-message": "📊 When should the spec-workflow dashboard start?",
-      "prompt-type": "select",
-      "prompt-items": [
-        { "value": "always", "label": "Always (auto-start on Claude launch)" },
-        { "value": "manual", "label": "Manual (start via command only)" }
-      ]
-    },
-    "port": {
-      "type": "number",
-      "description": "Dashboard port (default: auto)",
-      "default": 0,
-      "prompt-message": "🔌 Dashboard port (0 for auto)"
     },
     "force": {
       "type": "boolean",
@@ -79,11 +46,6 @@
       "description": "Skip installation verification",
       "default": false
     },
-    "projectPath": {
-      "type": "string",
-      "description": "Path to the project where spec-workflow should be installed",
-      "x-skip-prompt": true
-    },
     "dry": {
       "type": "boolean",
       "description": "Dry run mode",
@@ -93,7 +55,25 @@
       "type": "string",
       "description": "Installation mode from parent generator (default or custom)",
       "enum": ["default", "custom"],
-      "hidden": true
+      "hidden": true,
+      "x-skip-prompt": true
+    },
+    "installationType": {
+      "type": "string",
+      "description": "Installation location for MCP servers",
+      "enum": ["global", "local"],
+      "prompt-message": "📍 Where should MCP servers be installed?",
+      "prompt-type": "list",
+      "prompt-items": [
+        {
+          "value": "global",
+          "label": "Global (~/.claude) - Available in all projects"
+        },
+        {
+          "value": "local",
+          "label": "Local (./.claude) - Project-specific configuration"
+        }
+      ]
     }
   },
   "required": []
