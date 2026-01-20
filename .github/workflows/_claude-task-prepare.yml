@@ -4,6 +4,11 @@
 # a matrix for parallel processing. It's designed to be called by orchestrating
 # workflows that need to fan out to multiple Claude task workers.
 #
+# MULTI-TEAM SUPPORT:
+# This workflow supports querying issues from multiple Linear teams. Use the
+# `linear_teams` input with a comma-separated list of team names, or use
+# `linear_team` for a single team (backwards compatible).
+#
 # USAGE:
 # Call this workflow from a parent workflow:
 #
@@ -11,7 +16,10 @@
 #   prepare:
 #     uses: ./.github/workflows/_claude-task-prepare.yml
 #     with:
+#       # Single team (backwards compatible):
 #       linear_team: "Developer AI"
+#       # OR multiple teams:
+#       linear_teams: "Developer AI,Apps Infra,Backend Engineering"
 #       linear_label: "claude"
 #       max_issues: "3"
 #     secrets:
@@ -26,6 +34,7 @@
 #     with:
 #       issue_id: ${{ matrix.issue_id }}
 #       issue_identifier: ${{ matrix.issue_identifier }}
+#       linear_team: ${{ matrix.linear_team }}
 #       # ... other inputs
 #
 # OUTPUTS:
@@ -42,9 +51,20 @@ name: "[claude] Task Prepare"
 on:
   workflow_call:
     inputs:
+      linear_teams:
+        description: |
+          Comma-separated list of Linear team names to query.
+          Example: "Developer AI,Apps Infra,Backend Engineering"
+          Takes precedence over linear_team if both are provided.
+        required: false
+        type: string
+
       linear_team:
-        description: "Linear team name to query"
-        required: true
+        description: |
+          Single Linear team name to query (backwards compatible).
+          Use linear_teams for multi-team support.
+          Ignored if linear_teams is provided.
+        required: false
         type: string
 
       linear_label:
@@ -118,57 +138,127 @@ jobs:
         with:
           node-version: "22.21.1"
 
-      # Ensure the claude label exists
-      - name: Ensure label exists
+      # Determine the list of teams to query
+      # Supports both linear_teams (comma-separated) and linear_team (single, backwards compatible)
+      - name: Determine teams
+        id: teams
+        env:
+          INPUT_LINEAR_TEAMS: ${{ inputs.linear_teams }}
+          INPUT_LINEAR_TEAM: ${{ inputs.linear_team }}
         run: |
-          npx "@uniswap/ai-toolkit-linear-task-utils@${LINEAR_TASK_UTILS_TAG}" ensure-label \
-            --team "$LINEAR_TEAM" \
-            --label "$LINEAR_LABEL"
+          # Use linear_teams if provided, otherwise fall back to linear_team
+          if [ -n "$INPUT_LINEAR_TEAMS" ]; then
+            TEAMS_LIST="$INPUT_LINEAR_TEAMS"
+            echo "Using multi-team input: $TEAMS_LIST"
+          elif [ -n "$INPUT_LINEAR_TEAM" ]; then
+            TEAMS_LIST="$INPUT_LINEAR_TEAM"
+            echo "Using single team input (backwards compatible): $TEAMS_LIST"
+          else
+            echo "::error::Either linear_teams or linear_team must be provided"
+            exit 1
+          fi
+          echo "teams=$TEAMS_LIST" >> $GITHUB_OUTPUT
+
+      # Ensure the claude label exists in all teams
+      - name: Ensure label exists in all teams
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           LINEAR_TASK_UTILS_TAG: ${{ inputs.linear_task_utils_tag }}
-          LINEAR_TEAM: ${{ inputs.linear_team }}
+          TEAMS_LIST: ${{ steps.teams.outputs.teams }}
           LINEAR_LABEL: ${{ inputs.linear_label }}
-
-      # Query Linear for issues
-      - name: Query Linear issues
-        id: query
         run: |
-          RESULT=$(npx "@uniswap/ai-toolkit-linear-task-utils@${LINEAR_TASK_UTILS_TAG}" query \
-            --team "$LINEAR_TEAM" \
-            --label "$LINEAR_LABEL" \
-            --statuses "Backlog,Todo" \
-            --max "$MAX_ISSUES")
+          # Convert comma-separated list to array and iterate
+          IFS=',' read -ra TEAMS <<< "$TEAMS_LIST"
+          for TEAM in "${TEAMS[@]}"; do
+            # Trim whitespace
+            TEAM=$(echo "$TEAM" | xargs)
+            echo "Ensuring label '$LINEAR_LABEL' exists in team '$TEAM'..."
+            npx "@uniswap/ai-toolkit-linear-task-utils@${LINEAR_TASK_UTILS_TAG}" ensure-label \
+              --team "$TEAM" \
+              --label "$LINEAR_LABEL"
+          done
+
+      # Query Linear for issues from all teams
+      - name: Query Linear issues from all teams
+        id: query
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          LINEAR_TASK_UTILS_TAG: ${{ inputs.linear_task_utils_tag }}
+          TEAMS_LIST: ${{ steps.teams.outputs.teams }}
+          LINEAR_LABEL: ${{ inputs.linear_label }}
+          MAX_ISSUES: ${{ inputs.max_issues }}
+        run: |
+          # Initialize empty combined results
+          COMBINED_INCLUDE='[]'
+          TOTAL_COUNT=0
+
+          # Convert comma-separated list to array and iterate
+          IFS=',' read -ra TEAMS <<< "$TEAMS_LIST"
+          for TEAM in "${TEAMS[@]}"; do
+            # Trim whitespace
+            TEAM=$(echo "$TEAM" | xargs)
+            echo "Querying issues from team '$TEAM'..."
+
+            RESULT=$(npx "@uniswap/ai-toolkit-linear-task-utils@${LINEAR_TASK_UTILS_TAG}" query \
+              --team "$TEAM" \
+              --label "$LINEAR_LABEL" \
+              --statuses "Backlog,Todo" \
+              --max "$MAX_ISSUES")
+
+            # Extract count and issues from this team
+            TEAM_COUNT=$(echo "$RESULT" | jq -r '.count')
+            TEAM_ISSUES=$(echo "$RESULT" | jq -c '.include')
+
+            echo "Found $TEAM_COUNT issue(s) in team '$TEAM'"
+
+            # Merge issues into combined array
+            COMBINED_INCLUDE=$(echo "$COMBINED_INCLUDE" "$TEAM_ISSUES" | jq -sc '.[0] + .[1]')
+            TOTAL_COUNT=$((TOTAL_COUNT + TEAM_COUNT))
+          done
+
+          # Sort combined results by priority (1=Urgent, 2=High, 3=Normal, 4=Low, 0=No Priority)
+          # Priority sort order: 1, 2, 3, 4, 0 (Urgent first, No Priority last)
+          SORTED_INCLUDE=$(echo "$COMBINED_INCLUDE" | jq -c '
+            sort_by(
+              if .priority == 1 then 0
+              elif .priority == 2 then 1
+              elif .priority == 3 then 2
+              elif .priority == 4 then 3
+              else 4
+              end
+            )
+          ')
+
+          # Limit to max_issues total across all teams
+          LIMITED_INCLUDE=$(echo "$SORTED_INCLUDE" | jq -c ".[0:${MAX_ISSUES}]")
+          LIMITED_COUNT=$(echo "$LIMITED_INCLUDE" | jq 'length')
+
+          # Build final result
+          FINAL_RESULT=$(jq -nc --argjson include "$LIMITED_INCLUDE" --arg count "$LIMITED_COUNT" \
+            '{include: $include, count: ($count | tonumber)}')
 
           # Store full result for summary step
-          echo "result=$RESULT" >> $GITHUB_OUTPUT
+          echo "result=$FINAL_RESULT" >> $GITHUB_OUTPUT
 
           # Extract only the 'include' array for the matrix strategy
           # GitHub Actions matrix only accepts array values, not scalar properties like 'count'
-          MATRIX_JSON=$(echo "$RESULT" | jq -c '{include: .include}')
+          MATRIX_JSON=$(echo "$FINAL_RESULT" | jq -c '{include: .include}')
           echo "matrix_json=$MATRIX_JSON" >> $GITHUB_OUTPUT
 
           # Check if we have tasks
-          COUNT=$(echo "$RESULT" | jq -r '.count')
-          if [ "$COUNT" -gt 0 ]; then
+          if [ "$LIMITED_COUNT" -gt 0 ]; then
             echo "has_tasks=true" >> $GITHUB_OUTPUT
-            echo "Found $COUNT issue(s) to process"
+            echo "Found $LIMITED_COUNT issue(s) to process (from $TOTAL_COUNT total across all teams)"
           else
             echo "has_tasks=false" >> $GITHUB_OUTPUT
-            echo "No issues found matching criteria"
+            echo "No issues found matching criteria across any team"
           fi
-        env:
-          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-          LINEAR_TASK_UTILS_TAG: ${{ inputs.linear_task_utils_tag }}
-          LINEAR_TEAM: ${{ inputs.linear_team }}
-          LINEAR_LABEL: ${{ inputs.linear_label }}
-          MAX_ISSUES: ${{ inputs.max_issues }}
 
       # Create summary for prepare job
       - name: Create prepare summary
         env:
           QUERY_RESULT: ${{ steps.query.outputs.result }}
-          INPUT_LINEAR_TEAM: ${{ inputs.linear_team }}
+          INPUT_LINEAR_TEAMS: ${{ steps.teams.outputs.teams }}
           INPUT_LINEAR_LABEL: ${{ inputs.linear_label }}
           INPUT_MAX_ISSUES: ${{ inputs.max_issues }}
           INPUT_TARGET_BRANCH: ${{ inputs.target_branch }}
@@ -177,7 +267,7 @@ jobs:
           echo "## Prepare Phase" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Configuration:**" >> $GITHUB_STEP_SUMMARY
-          echo "- Team: $INPUT_LINEAR_TEAM" >> $GITHUB_STEP_SUMMARY
+          echo "- Teams: $INPUT_LINEAR_TEAMS" >> $GITHUB_STEP_SUMMARY
           echo "- Label: $INPUT_LINEAR_LABEL" >> $GITHUB_STEP_SUMMARY
           echo "- Max Issues: $INPUT_MAX_ISSUES" >> $GITHUB_STEP_SUMMARY
           echo "- Target Branch: $INPUT_TARGET_BRANCH" >> $GITHUB_STEP_SUMMARY
@@ -189,7 +279,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ "$COUNT" -gt 0 ]; then
-            echo "| Identifier | Title | Priority |" >> $GITHUB_STEP_SUMMARY
-            echo "|------------|-------|----------|" >> $GITHUB_STEP_SUMMARY
-            echo "$QUERY_RESULT" | jq -r '.include[] | "| \(.issue_identifier) | \(.issue_title) | \(.priority_label) |"' >> $GITHUB_STEP_SUMMARY
+            echo "| Identifier | Team | Title | Priority |" >> $GITHUB_STEP_SUMMARY
+            echo "|------------|------|-------|----------|" >> $GITHUB_STEP_SUMMARY
+            echo "$QUERY_RESULT" | jq -r '.include[] | "| \(.issue_identifier) | \(.linear_team) | \(.issue_title) | \(.priority_label) |"' >> $GITHUB_STEP_SUMMARY
           fi
