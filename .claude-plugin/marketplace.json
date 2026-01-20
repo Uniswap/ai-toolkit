@@ -36,6 +36,11 @@
       "description": "External service integrations (Linear, Notion, Nx, Chrome DevTools) and deployment orchestration"
     },
     {
+      "name": "uniswap-builder",
+      "source": "./packages/plugins/uniswap-builder",
+      "description": "Skills for building on top of and integrating the Uniswap protocol"
+    },
+    {
       "name": "spec-workflow",
       "source": "./packages/plugins/spec-workflow",
       "description": "Autonomous spec-driven development workflow with multi-agent collaboration and specification management (optional)"
