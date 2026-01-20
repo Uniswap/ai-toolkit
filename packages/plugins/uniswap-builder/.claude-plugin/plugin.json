@@ -1,0 +1,27 @@
+{
+  "name": "uniswap-builder",
+  "version": "1.0.0",
+  "description": "Skills for building on top of and integrating the Uniswap protocol",
+  "author": {
+    "name": "Uniswap Labs",
+    "email": "ai-services@uniswap.org"
+  },
+  "homepage": "https://github.com/Uniswap/ai-toolkit",
+  "keywords": [
+    "uniswap",
+    "swap",
+    "defi",
+    "integration",
+    "universal-router",
+    "viem",
+    "wagmi",
+    "evm"
+  ],
+  "license": "MIT",
+  "skills": ["./skills/viem-integration", "./skills/swap-integration"],
+  "commands": [
+    "./skills/viem-integration/viem-integration.md",
+    "./skills/swap-integration/swap-integration.md"
+  ],
+  "agents": ["./agents/viem-integration-expert.md", "./agents/swap-integration-expert.md"]
+}
