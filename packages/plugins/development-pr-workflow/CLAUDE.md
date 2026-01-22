@@ -33,6 +33,7 @@ This plugin supports two PR creation workflows:
 
 ### Skills (./skills/)
 
+- **resolve-all-prs**: Batch resolve issues across all your open PRs in parallel with auto-commit/push
 - **resolve-pr-issues**: Address PR review comments and fix CI failures
 - **review-code**: Comprehensive code review for architecture, security, performance, and style
 - **split-graphite-stack**: Split monolithic branches into logical PR stacks
@@ -111,6 +112,7 @@ development-pr-workflow/
 ├── .claude-plugin/
 │   └── plugin.json
 ├── skills/
+│   ├── resolve-all-prs/
 │   ├── resolve-pr-issues/
 │   ├── review-code/
 │   ├── split-graphite-stack/

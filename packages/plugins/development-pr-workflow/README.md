@@ -16,12 +16,13 @@ claude /plugin install development-pr-workflow
 
 ## Skills
 
-| Skill                     | Description                                                 |
-| ------------------------- | ----------------------------------------------------------- |
-| **resolve-pr-issues**     | Address PR review comments and fix CI failures              |
-| **review-code**           | Comprehensive code review using specialized agents          |
-| **split-graphite-stack**  | Split monolithic branches into logical PR stacks            |
-| **update-graphite-stack** | Update Graphite PR stacks by resolving comments and syncing |
+| Skill                     | Description                                                         |
+| ------------------------- | ------------------------------------------------------------------- |
+| **resolve-all-prs**       | Batch resolve issues on all your open PRs in parallel (auto-commit) |
+| **resolve-pr-issues**     | Address PR review comments and fix CI failures                      |
+| **review-code**           | Comprehensive code review using specialized agents                  |
+| **split-graphite-stack**  | Split monolithic branches into logical PR stacks                    |
+| **update-graphite-stack** | Update Graphite PR stacks by resolving comments and syncing         |
 
 ## Commands
 
@@ -68,6 +69,12 @@ This plugin handles **steps 6-7** of the canonical development workflow:
 
 # Address PR issues and CI failures
 /resolve-pr-issues
+
+# Batch resolve all your open PRs (max 5 by default)
+/resolve-all-prs
+
+# Batch resolve up to 10 open PRs
+/resolve-all-prs max=10
 
 # Start working on a Linear task
 /start-linear-task DEV-123
