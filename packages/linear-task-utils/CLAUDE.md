@@ -159,10 +159,24 @@ npx nx test @uniswap/ai-toolkit-linear-task-utils --configuration=ci
 
 ```json
 {
-  "include": [{ "issue_id": "...", "issue_identifier": "DAI-123", ... }],
+  "include": [
+    {
+      "issue_id": "abc123",
+      "issue_identifier": "DAI-123",
+      "issue_title": "Fix authentication bug",
+      "issue_description": "...",
+      "issue_url": "https://linear.app/...",
+      "branch_name": "claude/dai-123-fix-authentication-bug",
+      "priority": 2,
+      "priority_label": "High",
+      "linear_team": "Developer AI"
+    }
+  ],
   "count": 1
 }
 ```
+
+**Note**: The `linear_team` field tracks which team each issue belongs to, enabling multi-team support in consuming workflows.
 
 ### Ensure-Label Command
 
@@ -186,4 +200,16 @@ npx nx test @uniswap/ai-toolkit-linear-task-utils --configuration=ci
 ## Related Files
 
 - `.github/workflows/claude-auto-tasks.yml` - Consumer workflow using this package
+- `.github/workflows/_claude-task-prepare.yml` - Reusable prepare workflow that queries issues (supports multi-team)
 - `.github/workflows/_claude-task-worker.yml` - Reusable worker that calls update-issue
+
+## Multi-Team Support
+
+The CLI queries one team at a time via the `--team` argument. For multi-team support, the consuming workflow (`_claude-task-prepare.yml`) handles:
+
+1. Accepting comma-separated team names via `linear_teams` input
+2. Iterating over each team to ensure labels exist
+3. Querying issues from each team and aggregating results
+4. Sorting combined results by priority
+5. Limiting total issues to `max_issues` across all teams
+6. Including `linear_team` in matrix output for worker reference
