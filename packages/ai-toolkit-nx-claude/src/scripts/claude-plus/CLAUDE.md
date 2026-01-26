@@ -111,13 +111,29 @@ function updateRefreshToken(newRefreshToken: string, verbose?: boolean): void;
 
 **Configuration Sources**:
 
-1. Environment variables: `SLACK_REFRESH_URL`, `SLACK_REFRESH_TOKEN`
+1. Environment variables: `CLAUDE_CONFIG_DIR`, `SLACK_REFRESH_URL`, `SLACK_REFRESH_TOKEN`
 2. File: `~/.config/claude-code/slack-env.sh` (parsed for export statements)
 
 **Token Storage**:
 
-- Access token: `~/.claude.json` → `mcpServers["slack"].env.SLACK_BOT_TOKEN`
+- Access token: `$CLAUDE_CONFIG_DIR/claude.json` → `mcpServers["slack"].env.SLACK_BOT_TOKEN` (defaults to `~/.claude/claude.json`)
 - Refresh token: `~/.config/claude-code/slack-env.sh` (updated in-place)
+
+**CLAUDE_CONFIG_DIR Support**:
+
+The `getClaudeConfigDir()` and `getClaudeConfigPath()` helper functions respect the `CLAUDE_CONFIG_DIR` environment variable:
+
+```typescript
+function getClaudeConfigDir(): string {
+  return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+}
+
+function getClaudeConfigPath(): string {
+  return path.join(getClaudeConfigDir(), 'claude.json');
+}
+```
+
+This allows users to use personal Claude Code authentication on work computers or maintain separate configurations.
 
 **API Endpoints**:
 

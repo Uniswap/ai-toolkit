@@ -12,11 +12,12 @@
  *   npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus
  *
  * Environment Variables:
+ *   CLAUDE_CONFIG_DIR   - Custom Claude configuration directory (default: ~/.claude)
  *   SLACK_REFRESH_URL   - Backend URL for token refresh (default: https://ai-toolkit-slack-oauth-backend.vercel.app)
  *   SLACK_REFRESH_TOKEN - Slack OAuth refresh token
  *
  * Configuration:
- *   ~/.claude.json - Claude Code configuration file
+ *   $CLAUDE_CONFIG_DIR/claude.json - Claude Code configuration file (default: ~/.claude/claude.json)
  *   ~/.config/claude-code/slack-env.sh - Slack environment variables
  */
 
@@ -122,11 +123,12 @@ Slack Setup:
   3. Run --setup-slack and enter your tokens when prompted
 
 Environment Variables:
+  CLAUDE_CONFIG_DIR   - Custom Claude configuration directory (default: ~/.claude)
   SLACK_REFRESH_URL   - Backend URL for token refresh (default: https://ai-toolkit-slack-oauth-backend.vercel.app)
   SLACK_REFRESH_TOKEN - Slack OAuth refresh token (required for token refresh)
 
 Configuration Files:
-  ~/.claude.json                      - Claude Code configuration
+  $CLAUDE_CONFIG_DIR/claude.json      - Claude Code configuration (default: ~/.claude/claude.json)
   ~/.config/claude-code/slack-env.sh  - Slack environment variables (auto-created)
 
 Examples:
