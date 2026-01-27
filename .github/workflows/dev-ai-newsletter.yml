@@ -77,13 +77,12 @@
 name: Dev AI Newsletter
 
 on:
-
-# Run weekly on Monday at 9:00 AM EST (14:00 UTC)
+  # Run weekly on Monday at 9:00 AM EST (14:00 UTC)
 
   schedule:
     - cron: "0 14 * * 1"
 
-# Manual trigger with inputs
+  # Manual trigger with inputs
 
   workflow_dispatch:
     inputs:
@@ -134,11 +133,11 @@ env:
   DRY_RUN: ${{ inputs.dry_run || 'false' }}
   DEBUG_MODE: ${{ inputs.debug_mode || 'true' }}
 
-# Slack channel IDs to READ from: #pod-dev-ai (C094URH6C13), # ai-achieved-internally (C08J4JPQ3AM)
+  # Slack channel IDs to READ from: #eng-guild-ai (C094URH6C13), # ai-achieved-internally (C08J4JPQ3AM)
 
   SLACK_READ_CHANNEL_IDS: "C094URH6C13,C08J4JPQ3AM"
 
-# Slack channel IDs to POST to (comma-separated)
+  # Slack channel IDs to POST to (comma-separated)
 
   SLACK_POST_MESSAGE_CHANNEL_IDS: ${{ inputs.slack_post_channel_ids || 'C091XE1DNP2' }}
 
@@ -380,7 +379,7 @@ jobs:
         id: build-plugins
         uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next
         with:
-          install_uniswap_plugins: 'true'
+          install_uniswap_plugins: "true"
 
       # Run Claude Code with MCP servers
       - name: Generate newsletter with Claude
