@@ -125,7 +125,25 @@ source ~/.config/claude-code/slack-env.sh && claude-plus
 
 ### Claude Configuration
 
-The tool reads and updates `~/.claude.json` to manage the Slack bot token for the `slack` MCP server.
+The tool reads and updates the Claude configuration file to manage the Slack bot token for the `slack` MCP server.
+
+#### Custom Configuration Directory
+
+By default, claude-plus uses `~/.claude.json` for Claude configuration (backward compatible). You can customize this location using the `CLAUDE_CONFIG_DIR` environment variable:
+
+```bash
+# Use a custom configuration directory
+export CLAUDE_CONFIG_DIR="$HOME/.claude-personal"
+npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus
+```
+
+This is useful when:
+
+- Using personal Claude Code authentication on a work computer
+- Maintaining separate configurations for different projects
+- Testing with isolated configuration directories
+
+When `CLAUDE_CONFIG_DIR` is set, the tool will read/write to `$CLAUDE_CONFIG_DIR/claude.json` instead of the default `~/.claude.json`.
 
 ## How It Works
 
@@ -137,10 +155,10 @@ The tool reads and updates `~/.claude.json` to manage the Slack bot token for th
 
 2. **Slack Token Validation** (Step 2/3)
 
-   - Checks if the current Slack token in `~/.claude.json` is valid
+   - Checks if the current Slack token in `$CLAUDE_CONFIG_DIR/claude.json` is valid (defaults to `~/.claude.json`)
    - If expired, calls the backend refresh endpoint with the refresh token
    - Backend securely handles the OAuth refresh flow with Slack
-   - Updates `~/.claude.json` with the new access token
+   - Updates the Claude configuration file with the new access token
    - Also updates the refresh token (Slack refresh tokens are single-use)
 
 3. **Claude Launch** (Step 3/3)
