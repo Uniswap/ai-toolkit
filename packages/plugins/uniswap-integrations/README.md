@@ -1,6 +1,6 @@
 # @uniswap/uniswap-integrations
 
-External service integrations for Claude Code - Linear, Notion, Nx, Chrome DevTools, GitHub, Pulumi, Figma, Vercel, and more.
+External service integrations for Claude Code - Linear, Notion, Nx, Chrome DevTools, GitHub, Pulumi, Figma, Vercel, Slack, and more.
 
 ## Installation
 
@@ -26,6 +26,7 @@ This plugin bundles the following MCP (Model Context Protocol) servers:
 | **pulumi**          | Pulumi infrastructure as code management         | OAuth |
 | **figma**           | Figma design file access and collaboration       | OAuth |
 | **vercel**          | Vercel deployment management and hosting         | OAuth |
+| **slack**           | Slack workspace integration for messaging        | Token |
 
 ## Skills
 
@@ -68,6 +69,38 @@ Some MCP servers require authentication:
 ### Token-Based (Manual Setup)
 
 - **github**: Requires `GITHUB_PERSONAL_ACCESS_TOKEN` environment variable
+- **slack**: Requires `SLACK_BOT_TOKEN` environment variable (and optionally `SLACK_TEAM_ID`)
+
+#### Slack Setup
+
+1. **Obtain a Slack Bot Token**:
+
+   - Visit <https://ai-toolkit-slack-oauth-backend.vercel.app/>
+   - Click "Add to Slack" and authorize the app
+   - Copy the Access Token (starts with `xoxp-...`)
+
+2. **Add to your shell profile**:
+
+   ```bash
+   # Add to ~/.zshrc or ~/.bashrc
+   export SLACK_BOT_TOKEN="xoxp-your-token-here"
+   export SLACK_TEAM_ID="your-team-id"  # Optional, defaults to TKZBCKUJJ
+   ```
+
+3. **Reload and restart Claude Code**:
+
+   ```bash
+   source ~/.zshrc  # or ~/.bashrc
+   claude
+   ```
+
+4. **Using claude-plus** (recommended): The `claude-plus` launcher automatically handles Slack token validation and refresh. Run:
+
+   ```bash
+   npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus
+   ```
+
+For detailed Slack setup documentation, see: <https://www.notion.so/uniswaplabs/Using-a-Slack-MCP-with-Claude-Claude-Code-249c52b2548b8052b901dc05d90e57fc>
 
 #### GitHub Setup
 

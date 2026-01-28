@@ -12,7 +12,12 @@ import * as http from 'http';
 import * as os from 'os';
 import { displaySuccess, displayWarning, displayDebug, displayInfo } from './display';
 import { offerSlackSetup } from './slack-setup';
-import { getClaudeConfigDir, getClaudeConfigPath, isUsingCustomConfigDir } from './config-paths';
+import {
+  getClaudeConfigDir,
+  getClaudeConfigPath,
+  getAllClaudeConfigPaths,
+  isUsingCustomConfigDir,
+} from './config-paths';
 
 interface SlackConfig {
   refreshToken: string;
@@ -71,20 +76,36 @@ function loadSlackConfig(): SlackConfig | null {
 }
 
 /**
- * Get the current Slack token from Claude config
+ * Get the current Slack token from Claude config.
+ *
+ * For backward compatibility, this checks multiple config locations:
+ * 1. $CLAUDE_CONFIG_DIR/claude.json (if env var is set)
+ * 2. ~/.claude.json (legacy location)
+ * 3. ~/.claude/claude.json (new default user location)
+ *
+ * Returns the token from the first config file that contains it.
  */
 function getCurrentToken(): string | null {
-  const configPath = getClaudeConfigPath();
-  if (!fs.existsSync(configPath)) {
-    return null;
+  const configPaths = getAllClaudeConfigPaths();
+
+  for (const configPath of configPaths) {
+    if (!fs.existsSync(configPath)) {
+      continue;
+    }
+
+    try {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      const token = config?.mcpServers?.['slack']?.env?.SLACK_BOT_TOKEN;
+      if (token) {
+        return token;
+      }
+    } catch {
+      // Continue to next config path
+      continue;
+    }
   }
 
-  try {
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    return config?.mcpServers?.['slack']?.env?.SLACK_BOT_TOKEN || null;
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 /**

@@ -77,24 +77,11 @@ export interface AddonMetadata {
 
 /**
  * Registry of available addons
+ *
+ * Note: slack-mcp has been moved to the uniswap-integrations plugin.
+ * Users should install the plugin to get Slack MCP functionality.
  */
 const ADDON_REGISTRY: AddonMetadata[] = [
-  {
-    id: 'slack-mcp',
-    name: 'Slack MCP',
-    description: 'MCP server for Slack workspace integration',
-    type: 'mcp-server',
-    packageName: 'slack-mcp',
-    mcp: {
-      serverName: 'slack',
-      command: 'npx',
-      args: ['-y', '-p', '@zencoderai/slack-mcp-server', 'slack-mcp'],
-      env: {
-        SLACK_BOT_TOKEN: 'PROMPT_TO_INSERT_SLACK_BOT_TOKEN',
-        SLACK_TEAM_ID: 'TKZBCKUJJ',
-      },
-    },
-  },
   {
     id: 'aws-log-analyzer-mcp',
     name: 'AWS Log Analyzer MCP',

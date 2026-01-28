@@ -116,10 +116,10 @@ function updateRefreshToken(newRefreshToken: string, verbose?: boolean): void;
 
 **Token Storage**:
 
-- Access token: `$CLAUDE_CONFIG_DIR/claude.json` → `mcpServers["slack"].env.SLACK_BOT_TOKEN` (defaults to `~/.claude.json` for backward compatibility)
+- Access token: Searched in multiple locations (see below) → `mcpServers["slack"].env.SLACK_BOT_TOKEN`
 - Refresh token: `~/.config/claude-code/slack-env.sh` (updated in-place)
 
-**CLAUDE_CONFIG_DIR Support**:
+**CLAUDE_CONFIG_DIR Support & Backward Compatibility**:
 
 The config path utilities are centralized in `config-paths.ts`:
 
@@ -138,12 +138,31 @@ export function getClaudeConfigPath(): string {
   return path.join(os.homedir(), '.claude.json');
 }
 
+// For backward compatibility, check multiple config locations
+export function getAllClaudeConfigPaths(): string[] {
+  const paths: string[] = [];
+  if (process.env.CLAUDE_CONFIG_DIR) {
+    paths.push(path.join(process.env.CLAUDE_CONFIG_DIR, 'claude.json'));
+  }
+  paths.push(path.join(os.homedir(), '.claude.json')); // Legacy
+  paths.push(path.join(os.homedir(), '.claude', 'claude.json')); // New default
+  return paths;
+}
+
 export function isUsingCustomConfigDir(): boolean {
   return !!process.env.CLAUDE_CONFIG_DIR;
 }
 ```
 
-This allows users to use personal Claude Code authentication on work computers or maintain separate configurations while maintaining backward compatibility with existing `~/.claude.json` configurations.
+**Multiple Config Location Support**:
+
+The `getCurrentToken()` function searches for the Slack token in multiple locations for backward compatibility:
+
+1. `$CLAUDE_CONFIG_DIR/claude.json` (if env var is set)
+2. `~/.claude.json` (legacy location from addons generator)
+3. `~/.claude/claude.json` (new default user location from `claude mcp add --scope user`)
+
+This ensures that users who previously installed the Slack MCP via the addons generator (which used the legacy location) continue to work, while also supporting users who install the uniswap-integrations plugin or use the new default config location.
 
 **API Endpoints**:
 

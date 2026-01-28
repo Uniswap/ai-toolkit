@@ -16,7 +16,7 @@ npx nx generate @uniswap/ai-toolkit-nx-claude:addons --selection-mode=all
 # Install specific addon
 npx nx generate @uniswap/ai-toolkit-nx-claude:addons \
   --selection-mode=specific \
-  --addons=slack-mcp
+  --addons=aws-log-analyzer-mcp
 ```
 
 ## Options
@@ -24,7 +24,7 @@ npx nx generate @uniswap/ai-toolkit-nx-claude:addons \
 ### Installation Control
 
 - `selectionMode` - Selection mode for which addons to install:
-  - `all` - Install all available addons (2 MCP servers)
+  - `all` - Install all available addons (1 MCP server)
   - `specific` - Choose specific addons to install
 - `addons` - Specific addons to install (when `selectionMode=specific`)
 - `installationType` - Installation location for MCP servers:
@@ -39,21 +39,9 @@ npx nx generate @uniswap/ai-toolkit-nx-claude:addons \
 
 ## Available Addons
 
-Registered in `addon-registry.ts`. These 2 MCP servers are available for manual installation:
+Registered in `addon-registry.ts`. This MCP server is available for manual installation:
 
-### 1. slack-mcp
-
-**Purpose**: Slack workspace integration for Claude Code
-
-**Features**:
-
-- Send and receive Slack messages
-- Search channels and conversations
-- Manage workspace interactions
-
-**Requires**: Slack Bot Token authentication
-
-### 2. aws-log-analyzer-mcp
+### 1. aws-log-analyzer-mcp
 
 **Purpose**: MCP server for AWS CloudWatch log analysis
 
@@ -88,6 +76,7 @@ The following MCP servers are **NOT** available via this addons generator becaus
 - **pulumi-mcp** - Available via uniswap-integrations plugin
 - **figma-mcp** - Available via uniswap-integrations plugin
 - **vercel-mcp** - Available via uniswap-integrations plugin
+- **slack-mcp** - Available via uniswap-integrations plugin
 
 To access these, install the corresponding plugin from the Claude Code Plugin Marketplace.
 
@@ -148,12 +137,13 @@ export interface McpServerAddon {
 export function getAvailableAddons(): McpServerAddon[] {
   return [
     {
-      id: 'slack-mcp',
-      name: 'Slack MCP',
-      description: 'Slack workspace integration',
-      mcp: { command: 'npx', args: ['-y', '@anthropic/slack-mcp'] },
+      id: 'aws-log-analyzer-mcp',
+      name: 'AWS Log Analyzer MCP',
+      description: 'AWS CloudWatch log analysis',
+      mcp: { command: 'uv', args: ['--directory', '...', 'run', 'server.py'] },
+      requirements: { commands: ['git', 'uv', 'python3'] },
     },
-    // ... more addons
+    // Note: slack-mcp has been moved to the uniswap-integrations plugin
   ];
 }
 ```
@@ -195,16 +185,15 @@ Addons update `~/.claude/claude.json` (global) or `./.claude/claude.json` (local
 ```json
 {
   "mcpServers": {
-    "slack": {
-      "command": "npx",
-      "args": ["-y", "@anthropic/slack-mcp"],
-      "env": {
-        "SLACK_BOT_TOKEN": "xoxb-..."
-      }
+    "cw-mcp-server": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/.aws-log-analyzer-mcp", "run", "server.py"]
     }
   }
 }
 ```
+
+Note: For Slack MCP configuration, install the uniswap-integrations plugin which bundles slack-mcp along with other integrations.
 
 ## Development Patterns
 
