@@ -9,6 +9,9 @@ import {
   generateUniqueDelimiter,
   deriveSectionTagName,
   wrapSectionWithTags,
+  isBot,
+  filterBotReplies,
+  hasGenuineBackAndForth,
   hasActiveDiscussion,
   restructureCommentsIntoThreads,
   processExistingCommentsJson,
@@ -879,6 +882,121 @@ PR: \${PR_NUMBER}`;
   });
 
   describe('Thread Restructuring', () => {
+    describe('isBot', () => {
+      it('should identify GitHub App bot accounts', () => {
+        expect(isBot('dependabot[bot]')).toBe(true);
+        expect(isBot('renovate[bot]')).toBe(true);
+        expect(isBot('github-actions[bot]')).toBe(true);
+        expect(isBot('vercel[bot]')).toBe(true);
+      });
+
+      it('should identify bots with -bot suffix', () => {
+        expect(isBot('my-team-bot')).toBe(true);
+        expect(isBot('ci-bot')).toBe(true);
+        expect(isBot('review-bot')).toBe(true);
+      });
+
+      it('should identify common standalone bot names', () => {
+        expect(isBot('github-actions')).toBe(true);
+        expect(isBot('dependabot')).toBe(true);
+        expect(isBot('renovate')).toBe(true);
+        expect(isBot('codecov')).toBe(true);
+        expect(isBot('sonarcloud')).toBe(true);
+        expect(isBot('vercel')).toBe(true);
+      });
+
+      it('should be case-insensitive', () => {
+        expect(isBot('Dependabot[bot]')).toBe(true);
+        expect(isBot('CODECOV')).toBe(true);
+        expect(isBot('GitHub-Actions')).toBe(true);
+      });
+
+      it('should not flag regular human usernames', () => {
+        expect(isBot('johndoe')).toBe(false);
+        expect(isBot('alice-smith')).toBe(false);
+        expect(isBot('bob123')).toBe(false);
+        expect(isBot('robotlover')).toBe(false); // contains "bot" but not at end
+        expect(isBot('bottleneck')).toBe(false); // starts with "bot" but is a word
+      });
+    });
+
+    describe('filterBotReplies', () => {
+      it('should filter out bot replies', () => {
+        const replies: CommentReply[] = [
+          { id: 1, body: 'Human comment', user: 'alice' },
+          { id: 2, body: 'Bot comment', user: 'codecov[bot]' },
+          { id: 3, body: 'Another human', user: 'bob' },
+          { id: 4, body: 'CI message', user: 'github-actions' },
+        ];
+
+        const result = filterBotReplies(replies);
+
+        expect(result).toHaveLength(2);
+        expect(result[0].user).toBe('alice');
+        expect(result[1].user).toBe('bob');
+      });
+
+      it('should return empty array when all replies are from bots', () => {
+        const replies: CommentReply[] = [
+          { id: 1, body: 'Coverage report', user: 'codecov[bot]' },
+          { id: 2, body: 'Build status', user: 'github-actions' },
+        ];
+
+        expect(filterBotReplies(replies)).toEqual([]);
+      });
+
+      it('should return all replies when none are from bots', () => {
+        const replies: CommentReply[] = [
+          { id: 1, body: 'Comment 1', user: 'alice' },
+          { id: 2, body: 'Comment 2', user: 'bob' },
+        ];
+
+        const result = filterBotReplies(replies);
+        expect(result).toHaveLength(2);
+      });
+    });
+
+    describe('hasGenuineBackAndForth', () => {
+      it('should return false when all replies are from original commenter', () => {
+        const replies: CommentReply[] = [
+          { id: 1, body: 'First follow-up', user: 'reviewer1' },
+          { id: 2, body: 'Second follow-up', user: 'reviewer1' },
+        ];
+        expect(hasGenuineBackAndForth(replies, 'reviewer1')).toBe(false);
+      });
+
+      it('should return true when there are multiple participants', () => {
+        const replies: CommentReply[] = [
+          { id: 1, body: 'Question', user: 'author' },
+          { id: 2, body: 'Answer', user: 'reviewer1' },
+        ];
+        expect(hasGenuineBackAndForth(replies, 'reviewer1')).toBe(true);
+      });
+
+      it('should return true when reply is from different user than original commenter', () => {
+        const replies: CommentReply[] = [{ id: 1, body: 'Thanks for the review!', user: 'author' }];
+        // author != reviewer1, so 2 participants
+        expect(hasGenuineBackAndForth(replies, 'reviewer1')).toBe(true);
+      });
+
+      it('should handle empty replies array', () => {
+        const replies: CommentReply[] = [];
+        // Only original commenter, no back-and-forth
+        expect(hasGenuineBackAndForth(replies, 'reviewer1')).toBe(false);
+      });
+
+      it('should count unique participants correctly', () => {
+        const replies: CommentReply[] = [
+          { id: 1, body: 'Q1', user: 'author' },
+          { id: 2, body: 'A1', user: 'reviewer1' },
+          { id: 3, body: 'Q2', user: 'author' },
+          { id: 4, body: 'A2', user: 'reviewer1' },
+        ];
+        // Still only 2 participants even with multiple exchanges
+        expect(hasGenuineBackAndForth(replies, 'reviewer1')).toBe(true);
+      });
+    });
+
     describe('hasActiveDiscussion', () => {
       it('should return false for no replies', () => {
         const replies: CommentReply[] = [];
@@ -897,11 +1015,39 @@ PR: \${PR_NUMBER}`;
         expect(hasActiveDiscussion(replies, 'reviewer1')).toBe(true);
       });
 
-      it('should return true for 2+ replies regardless of users', () => {
+      it('should return false for 2+ replies from same user (no genuine discussion)', () => {
         const replies: CommentReply[] = [
           { id: 101, body: 'Reply 1', user: 'reviewer1' },
           { id: 102, body: 'Reply 2', user: 'reviewer1' },
         ];
+        // Same user adding multiple follow-ups is not a discussion
+        expect(hasActiveDiscussion(replies, 'reviewer1')).toBe(false);
+      });
+
+      it('should return true for 2+ replies with different participants', () => {
+        const replies: CommentReply[] = [
+          { id: 101, body: 'I will fix this', user: 'author' },
+          { id: 102, body: 'Actually, try this approach instead', user: 'reviewer1' },
+        ];
+        // Different participants = genuine discussion
+        expect(hasActiveDiscussion(replies, 'reviewer1')).toBe(true);
+      });
+
+      it('should ignore bot replies when determining active discussion', () => {
+        const replies: CommentReply[] = [
+          { id: 101, body: 'Coverage decreased by 2%', user: 'codecov[bot]' },
+          { id: 102, body: 'Build failed', user: 'github-actions' },
+        ];
+        // Bot replies don't count as discussion
+        expect(hasActiveDiscussion(replies, 'reviewer1')).toBe(false);
+      });
+
+      it('should detect active discussion even with bot replies mixed in', () => {
+        const replies: CommentReply[] = [
+          { id: 101, body: 'Coverage report', user: 'codecov[bot]' },
+          { id: 102, body: 'What do you think about this approach?', user: 'author' },
+        ];
+        // Human reply from different user = active discussion
         expect(hasActiveDiscussion(replies, 'reviewer1')).toBe(true);
       });
 

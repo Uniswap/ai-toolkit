@@ -291,36 +291,102 @@ export function wrapSectionWithTags(content: string, tagName: string): string {
 // =============================================================================
 
 /**
- * Determines if a thread has an active discussion based on reply patterns.
+ * Common bot username patterns to exclude from discussion detection.
+ * These are automated accounts whose replies don't indicate human deliberation.
+ */
+const BOT_PATTERNS = [
+  /\[bot\]$/i, // GitHub Apps: dependabot[bot], renovate[bot]
+  /-bot$/i, // Convention: my-team-bot
+  /^github-actions$/i, // GitHub Actions bot
+  /^dependabot$/i, // Dependabot (older format)
+  /^renovate$/i, // Renovate bot
+  /^codecov$/i, // Codecov bot
+  /^sonarcloud$/i, // SonarCloud bot
+  /^vercel$/i, // Vercel bot
+];
+
+/**
+ * Checks if a username appears to be a bot account.
  *
- * A thread is considered to have "active discussion" if:
- * - It has 2 or more replies (multiple back-and-forth exchanges)
- * - OR the last reply is NOT from the PR author (awaiting author response)
+ * @param username - GitHub username to check
+ * @returns true if the username matches known bot patterns
+ */
+export function isBot(username: string): boolean {
+  return BOT_PATTERNS.some((pattern) => pattern.test(username));
+}
+
+/**
+ * Filters out bot replies from a list of replies.
  *
- * Note: We don't have access to the PR author here, so we use a heuristic:
- * - If the last reply is from a different user than the original commenter,
- *   AND reply_count >= 1, it's likely an active discussion
+ * @param replies - Array of replies to filter
+ * @returns Array of replies from human users only
+ */
+export function filterBotReplies(replies: CommentReply[]): CommentReply[] {
+  return replies.filter((reply) => !isBot(reply.user));
+}
+
+/**
+ * Checks if replies represent genuine back-and-forth discussion.
+ *
+ * A genuine discussion requires at least 2 different human participants
+ * engaging in the thread. Multiple replies from the same person don't
+ * count as discussion - they might just be adding context or corrections.
+ *
+ * @param replies - Array of human (non-bot) replies
+ * @param originalCommenter - User who made the original comment
+ * @returns true if there's genuine multi-party discussion
+ */
+export function hasGenuineBackAndForth(
+  replies: CommentReply[],
+  originalCommenter: string
+): boolean {
+  // Collect unique human participants (including original commenter)
+  const participants = new Set<string>([originalCommenter]);
+
+  for (const reply of replies) {
+    participants.add(reply.user);
+  }
+
+  // Genuine discussion requires at least 2 different humans talking
+  return participants.size >= 2;
+}
+
+/**
+ * Determines if a thread has active discussion that shouldn't be auto-resolved.
+ *
+ * Heuristics (after filtering out bots):
+ * - If the last reply is from someone other than the original commenter,
+ *   it suggests they're waiting for a response
+ * - If there are 2+ human replies with genuine back-and-forth (multiple
+ *   participants), it indicates active discussion
+ *
+ * Excludes from "active discussion":
+ * - Bot replies (dependabot, github-actions, etc.)
+ * - Multiple replies from only the same person (no real discussion)
  *
  * @param replies - Array of replies in the thread
  * @param originalCommenter - User who made the original comment
- * @returns true if the thread appears to have active discussion
+ * @returns true if the thread appears to have active human discussion
  */
 export function hasActiveDiscussion(replies: CommentReply[], originalCommenter: string): boolean {
-  // No replies = no active discussion
-  if (replies.length === 0) {
+  // Filter out bot replies - they don't indicate human deliberation
+  const humanReplies = filterBotReplies(replies);
+
+  // No human replies = no active discussion
+  if (humanReplies.length === 0) {
     return false;
   }
 
-  // 2+ replies indicates back-and-forth discussion
-  if (replies.length >= 2) {
+  // Check if the last human reply is from someone other than the original commenter
+  // This means someone is waiting for a response
+  const lastHumanReply = humanReplies[humanReplies.length - 1];
+  if (lastHumanReply.user !== originalCommenter) {
     return true;
   }
 
-  // 1 reply: check if it's from a different user than the original commenter
-  // If the original reviewer replied to themselves, it's likely just a follow-up
-  // If someone else replied, they're waiting for a response
-  const lastReply = replies[replies.length - 1];
-  if (lastReply.user !== originalCommenter) {
+  // 2+ human replies: check if there's genuine back-and-forth
+  // (multiple participants, not just one person adding follow-ups)
+  if (humanReplies.length >= 2 && hasGenuineBackAndForth(humanReplies, originalCommenter)) {
     return true;
   }
 
