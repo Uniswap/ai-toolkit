@@ -540,8 +540,9 @@ jobs:
           echo "ℹ️  Fetching existing review comments for context..."
 
           # Get existing review comments (for re-review context)
+          # Include in_reply_to_id to identify thread structure for accurate resolution decisions
           COMMENTS=$(gh api "/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/comments" \
-            --jq '[.[] | {id: .id, path: .path, line: .line, body: .body, user: .user.login}]' || echo "[]")
+            --jq '[.[] | {id: .id, path: .path, line: .line, body: .body, user: .user.login, in_reply_to_id: .in_reply_to_id}]' || echo "[]")
 
           # Save to file for prompt inclusion
           echo "$COMMENTS" > /tmp/existing-comments.json
