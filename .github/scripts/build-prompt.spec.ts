@@ -9,6 +9,12 @@ import {
   generateUniqueDelimiter,
   deriveSectionTagName,
   wrapSectionWithTags,
+  isBot,
+  filterBotReplies,
+  hasGenuineBackAndForth,
+  hasActiveDiscussion,
+  restructureCommentsIntoThreads,
+  processExistingCommentsJson,
   FIXED_SECTIONS_EARLY,
   FIXED_SECTIONS_LATE,
   FIXED_SECTIONS_FINAL,
@@ -17,6 +23,9 @@ import {
   CRITICAL_SECTIONS,
   type TemplateVariables,
   type PromptBuildOptions,
+  type RawComment,
+  type CommentReply,
+  type ThreadedComment,
 } from './build-prompt';
 
 // Mock fs module with memfs
@@ -869,6 +878,428 @@ PR: \${PR_NUMBER}`;
       expect(result.errors.some((e) => e.includes('Absolute paths not allowed'))).toBe(true);
       // Should NOT have applied the malicious override
       expect(result.overridesApplied).not.toContain('filesToSkip');
+    });
+  });
+
+  describe('Thread Restructuring', () => {
+    describe('isBot', () => {
+      it('should identify GitHub App bot accounts', () => {
+        expect(isBot('dependabot[bot]')).toBe(true);
+        expect(isBot('renovate[bot]')).toBe(true);
+        expect(isBot('github-actions[bot]')).toBe(true);
+        expect(isBot('vercel[bot]')).toBe(true);
+      });
+
+      it('should identify bots with -bot suffix', () => {
+        expect(isBot('my-team-bot')).toBe(true);
+        expect(isBot('ci-bot')).toBe(true);
+        expect(isBot('review-bot')).toBe(true);
+      });
+
+      it('should identify common standalone bot names', () => {
+        expect(isBot('github-actions')).toBe(true);
+        expect(isBot('dependabot')).toBe(true);
+        expect(isBot('renovate')).toBe(true);
+        expect(isBot('codecov')).toBe(true);
+        expect(isBot('sonarcloud')).toBe(true);
+        expect(isBot('vercel')).toBe(true);
+      });
+
+      it('should be case-insensitive', () => {
+        expect(isBot('Dependabot[bot]')).toBe(true);
+        expect(isBot('CODECOV')).toBe(true);
+        expect(isBot('GitHub-Actions')).toBe(true);
+      });
+
+      it('should not flag regular human usernames', () => {
+        expect(isBot('johndoe')).toBe(false);
+        expect(isBot('alice-smith')).toBe(false);
+        expect(isBot('bob123')).toBe(false);
+        expect(isBot('robotlover')).toBe(false); // contains "bot" but not at end
+        expect(isBot('bottleneck')).toBe(false); // starts with "bot" but is a word
+      });
+    });
+
+    describe('filterBotReplies', () => {
+      it('should filter out bot replies', () => {
+        const replies: CommentReply[] = [
+          { id: 1, body: 'Human comment', user: 'alice' },
+          { id: 2, body: 'Bot comment', user: 'codecov[bot]' },
+          { id: 3, body: 'Another human', user: 'bob' },
+          { id: 4, body: 'CI message', user: 'github-actions' },
+        ];
+
+        const result = filterBotReplies(replies);
+
+        expect(result).toHaveLength(2);
+        expect(result[0].user).toBe('alice');
+        expect(result[1].user).toBe('bob');
+      });
+
+      it('should return empty array when all replies are from bots', () => {
+        const replies: CommentReply[] = [
+          { id: 1, body: 'Coverage report', user: 'codecov[bot]' },
+          { id: 2, body: 'Build status', user: 'github-actions' },
+        ];
+
+        expect(filterBotReplies(replies)).toEqual([]);
+      });
+
+      it('should return all replies when none are from bots', () => {
+        const replies: CommentReply[] = [
+          { id: 1, body: 'Comment 1', user: 'alice' },
+          { id: 2, body: 'Comment 2', user: 'bob' },
+        ];
+
+        const result = filterBotReplies(replies);
+        expect(result).toHaveLength(2);
+      });
+    });
+
+    describe('hasGenuineBackAndForth', () => {
+      it('should return false when all replies are from original commenter', () => {
+        const replies: CommentReply[] = [
+          { id: 1, body: 'First follow-up', user: 'reviewer1' },
+          { id: 2, body: 'Second follow-up', user: 'reviewer1' },
+        ];
+        expect(hasGenuineBackAndForth(replies, 'reviewer1')).toBe(false);
+      });
+
+      it('should return true when there are multiple participants', () => {
+        const replies: CommentReply[] = [
+          { id: 1, body: 'Question', user: 'author' },
+          { id: 2, body: 'Answer', user: 'reviewer1' },
+        ];
+        expect(hasGenuineBackAndForth(replies, 'reviewer1')).toBe(true);
+      });
+
+      it('should return true when reply is from different user than original commenter', () => {
+        const replies: CommentReply[] = [{ id: 1, body: 'Thanks for the review!', user: 'author' }];
+        // author != reviewer1, so 2 participants
+        expect(hasGenuineBackAndForth(replies, 'reviewer1')).toBe(true);
+      });
+
+      it('should handle empty replies array', () => {
+        const replies: CommentReply[] = [];
+        // Only original commenter, no back-and-forth
+        expect(hasGenuineBackAndForth(replies, 'reviewer1')).toBe(false);
+      });
+
+      it('should count unique participants correctly', () => {
+        const replies: CommentReply[] = [
+          { id: 1, body: 'Q1', user: 'author' },
+          { id: 2, body: 'A1', user: 'reviewer1' },
+          { id: 3, body: 'Q2', user: 'author' },
+          { id: 4, body: 'A2', user: 'reviewer1' },
+        ];
+        // Still only 2 participants even with multiple exchanges
+        expect(hasGenuineBackAndForth(replies, 'reviewer1')).toBe(true);
+      });
+    });
+
+    describe('hasActiveDiscussion', () => {
+      it('should return false for no replies', () => {
+        const replies: CommentReply[] = [];
+        expect(hasActiveDiscussion(replies, 'reviewer1')).toBe(false);
+      });
+
+      it('should return false for single reply from original commenter', () => {
+        const replies: CommentReply[] = [{ id: 101, body: 'Follow-up note', user: 'reviewer1' }];
+        expect(hasActiveDiscussion(replies, 'reviewer1')).toBe(false);
+      });
+
+      it('should return true for single reply from different user', () => {
+        const replies: CommentReply[] = [
+          { id: 101, body: 'What approach do you suggest?', user: 'author' },
+        ];
+        expect(hasActiveDiscussion(replies, 'reviewer1')).toBe(true);
+      });
+
+      it('should return false for 2+ replies from same user (no genuine discussion)', () => {
+        const replies: CommentReply[] = [
+          { id: 101, body: 'Reply 1', user: 'reviewer1' },
+          { id: 102, body: 'Reply 2', user: 'reviewer1' },
+        ];
+        // Same user adding multiple follow-ups is not a discussion
+        expect(hasActiveDiscussion(replies, 'reviewer1')).toBe(false);
+      });
+
+      it('should return true for 2+ replies with different participants', () => {
+        const replies: CommentReply[] = [
+          { id: 101, body: 'I will fix this', user: 'author' },
+          { id: 102, body: 'Actually, try this approach instead', user: 'reviewer1' },
+        ];
+        // Different participants = genuine discussion
+        expect(hasActiveDiscussion(replies, 'reviewer1')).toBe(true);
+      });
+
+      it('should ignore bot replies when determining active discussion', () => {
+        const replies: CommentReply[] = [
+          { id: 101, body: 'Coverage decreased by 2%', user: 'codecov[bot]' },
+          { id: 102, body: 'Build failed', user: 'github-actions' },
+        ];
+        // Bot replies don't count as discussion
+        expect(hasActiveDiscussion(replies, 'reviewer1')).toBe(false);
+      });
+
+      it('should detect active discussion even with bot replies mixed in', () => {
+        const replies: CommentReply[] = [
+          { id: 101, body: 'Coverage report', user: 'codecov[bot]' },
+          { id: 102, body: 'What do you think about this approach?', user: 'author' },
+        ];
+        // Human reply from different user = active discussion
+        expect(hasActiveDiscussion(replies, 'reviewer1')).toBe(true);
+      });
+
+      it('should return true for back-and-forth discussion', () => {
+        const replies: CommentReply[] = [
+          { id: 101, body: 'What approach?', user: 'author' },
+          { id: 102, body: 'Try factory pattern', user: 'reviewer1' },
+          { id: 103, body: 'Let me think about it', user: 'author' },
+        ];
+        expect(hasActiveDiscussion(replies, 'reviewer1')).toBe(true);
+      });
+    });
+
+    describe('restructureCommentsIntoThreads', () => {
+      it('should handle empty comment list', () => {
+        const rawComments: RawComment[] = [];
+        const result = restructureCommentsIntoThreads(rawComments);
+        expect(result).toEqual([]);
+      });
+
+      it('should convert single root comment with no replies', () => {
+        const rawComments: RawComment[] = [
+          {
+            id: 100,
+            path: 'src/foo.ts',
+            line: 42,
+            body: 'This needs refactoring',
+            user: 'reviewer1',
+            in_reply_to_id: null,
+          },
+        ];
+
+        const result = restructureCommentsIntoThreads(rawComments);
+
+        expect(result).toHaveLength(1);
+        expect(result[0]).toEqual({
+          id: 100,
+          path: 'src/foo.ts',
+          line: 42,
+          body: 'This needs refactoring',
+          user: 'reviewer1',
+          reply_count: 0,
+          has_active_discussion: false,
+          replies: [],
+        });
+      });
+
+      it('should group replies with their parent comment', () => {
+        const rawComments: RawComment[] = [
+          {
+            id: 100,
+            path: 'src/foo.ts',
+            line: 42,
+            body: 'This needs refactoring',
+            user: 'reviewer1',
+            in_reply_to_id: null,
+          },
+          {
+            id: 101,
+            path: 'src/foo.ts',
+            line: 42,
+            body: 'What approach?',
+            user: 'author',
+            in_reply_to_id: 100,
+          },
+          {
+            id: 102,
+            path: 'src/foo.ts',
+            line: 42,
+            body: 'Try factory pattern',
+            user: 'reviewer1',
+            in_reply_to_id: 100,
+          },
+        ];
+
+        const result = restructureCommentsIntoThreads(rawComments);
+
+        expect(result).toHaveLength(1);
+        expect(result[0].id).toBe(100);
+        expect(result[0].reply_count).toBe(2);
+        expect(result[0].has_active_discussion).toBe(true);
+        expect(result[0].replies).toHaveLength(2);
+        expect(result[0].replies[0]).toEqual({
+          id: 101,
+          body: 'What approach?',
+          user: 'author',
+        });
+        expect(result[0].replies[1]).toEqual({
+          id: 102,
+          body: 'Try factory pattern',
+          user: 'reviewer1',
+        });
+      });
+
+      it('should handle multiple threads', () => {
+        const rawComments: RawComment[] = [
+          {
+            id: 100,
+            path: 'src/foo.ts',
+            line: 42,
+            body: 'Thread 1 comment',
+            user: 'reviewer1',
+            in_reply_to_id: null,
+          },
+          {
+            id: 200,
+            path: 'src/bar.ts',
+            line: 15,
+            body: 'Thread 2 comment',
+            user: 'reviewer2',
+            in_reply_to_id: null,
+          },
+          {
+            id: 101,
+            path: 'src/foo.ts',
+            line: 42,
+            body: 'Reply to thread 1',
+            user: 'author',
+            in_reply_to_id: 100,
+          },
+        ];
+
+        const result = restructureCommentsIntoThreads(rawComments);
+
+        expect(result).toHaveLength(2);
+
+        // Thread 1: has a reply from different user -> active discussion
+        const thread1 = result.find((t) => t.id === 100);
+        expect(thread1).toBeDefined();
+        expect(thread1!.reply_count).toBe(1);
+        expect(thread1!.has_active_discussion).toBe(true);
+
+        // Thread 2: no replies -> no active discussion
+        const thread2 = result.find((t) => t.id === 200);
+        expect(thread2).toBeDefined();
+        expect(thread2!.reply_count).toBe(0);
+        expect(thread2!.has_active_discussion).toBe(false);
+      });
+
+      it('should mark thread with self-reply as not active', () => {
+        const rawComments: RawComment[] = [
+          {
+            id: 100,
+            path: 'src/foo.ts',
+            line: 42,
+            body: 'Original comment',
+            user: 'reviewer1',
+            in_reply_to_id: null,
+          },
+          {
+            id: 101,
+            path: 'src/foo.ts',
+            line: 42,
+            body: 'Actually, never mind',
+            user: 'reviewer1',
+            in_reply_to_id: 100,
+          },
+        ];
+
+        const result = restructureCommentsIntoThreads(rawComments);
+
+        expect(result).toHaveLength(1);
+        expect(result[0].reply_count).toBe(1);
+        // Single reply from same user = not active discussion
+        expect(result[0].has_active_discussion).toBe(false);
+      });
+    });
+
+    describe('processExistingCommentsJson', () => {
+      it('should return empty array for empty string', () => {
+        expect(processExistingCommentsJson('')).toBe('[]');
+      });
+
+      it('should return empty array for whitespace', () => {
+        expect(processExistingCommentsJson('   ')).toBe('[]');
+      });
+
+      it('should return empty array for empty JSON array', () => {
+        expect(processExistingCommentsJson('[]')).toBe('[]');
+      });
+
+      it('should process and restructure valid JSON', () => {
+        const input = JSON.stringify([
+          {
+            id: 100,
+            path: 'src/foo.ts',
+            line: 42,
+            body: 'Comment',
+            user: 'reviewer1',
+            in_reply_to_id: null,
+          },
+        ]);
+
+        const result = processExistingCommentsJson(input);
+        const parsed = JSON.parse(result);
+
+        expect(parsed).toHaveLength(1);
+        expect(parsed[0].id).toBe(100);
+        expect(parsed[0].reply_count).toBe(0);
+        expect(parsed[0].has_active_discussion).toBe(false);
+        expect(parsed[0].replies).toEqual([]);
+      });
+
+      it('should handle invalid JSON by returning original', () => {
+        const invalidJson = '{ invalid json }';
+        const result = processExistingCommentsJson(invalidJson);
+        expect(result).toBe(invalidJson);
+      });
+
+      it('should preserve full thread structure in output', () => {
+        const input = JSON.stringify([
+          {
+            id: 100,
+            path: 'src/foo.ts',
+            line: 42,
+            body: 'Root comment',
+            user: 'reviewer1',
+            in_reply_to_id: null,
+          },
+          {
+            id: 101,
+            path: 'src/foo.ts',
+            line: 42,
+            body: 'Reply 1',
+            user: 'author',
+            in_reply_to_id: 100,
+          },
+          {
+            id: 102,
+            path: 'src/foo.ts',
+            line: 42,
+            body: 'Reply 2',
+            user: 'reviewer1',
+            in_reply_to_id: 100,
+          },
+        ]);
+
+        const result = processExistingCommentsJson(input);
+        const parsed: ThreadedComment[] = JSON.parse(result);
+
+        expect(parsed).toHaveLength(1);
+        expect(parsed[0]).toMatchObject({
+          id: 100,
+          path: 'src/foo.ts',
+          line: 42,
+          body: 'Root comment',
+          user: 'reviewer1',
+          reply_count: 2,
+          has_active_discussion: true,
+        });
+        expect(parsed[0].replies).toHaveLength(2);
+      });
     });
   });
 });
