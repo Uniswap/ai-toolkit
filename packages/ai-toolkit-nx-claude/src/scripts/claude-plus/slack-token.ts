@@ -30,7 +30,10 @@ interface AuthTestResponse {
   error?: string;
 }
 
-const CLAUDE_CONFIG_PATH = path.join(os.homedir(), '.claude.json');
+// Legacy config path (user's personal Claude config)
+const CLAUDE_LEGACY_CONFIG_PATH = path.join(os.homedir(), '.claude.json');
+// New settings path (Claude settings including plugin-provided MCP servers)
+const CLAUDE_SETTINGS_PATH = path.join(os.homedir(), '.claude', 'settings.json');
 const SLACK_ENV_PATH = path.join(os.homedir(), '.config', 'claude-code', 'slack-env.sh');
 
 /**
@@ -72,18 +75,65 @@ function loadSlackConfig(): SlackConfig | null {
 
 /**
  * Get the current Slack token from Claude config
+ * Checks both legacy (~/.claude.json) and new (~/.claude/settings.json) locations
+ * for backwards compatibility
  */
 function getCurrentToken(): string | null {
-  if (!fs.existsSync(CLAUDE_CONFIG_PATH)) {
-    return null;
+  // Check both config locations for backwards compatibility
+  const configPaths = [
+    { path: CLAUDE_SETTINGS_PATH, name: 'settings.json' },
+    { path: CLAUDE_LEGACY_CONFIG_PATH, name: 'legacy .claude.json' },
+  ];
+
+  for (const { path: configPath } of configPaths) {
+    if (fs.existsSync(configPath)) {
+      try {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        const token = config?.mcpServers?.['slack']?.env?.SLACK_BOT_TOKEN;
+        if (token) {
+          return token;
+        }
+      } catch {
+        // Config parse error, continue checking
+        continue;
+      }
+    }
   }
 
-  try {
-    const config = JSON.parse(fs.readFileSync(CLAUDE_CONFIG_PATH, 'utf-8'));
-    return config?.mcpServers?.['slack']?.env?.SLACK_BOT_TOKEN || null;
-  } catch {
-    return null;
+  return null;
+}
+
+/**
+ * Determine which config file contains the Slack MCP configuration
+ * Returns the path to the config file that should be updated
+ */
+function getSlackConfigPath(): string {
+  // Prefer settings.json if it has a slack config
+  if (fs.existsSync(CLAUDE_SETTINGS_PATH)) {
+    try {
+      const config = JSON.parse(fs.readFileSync(CLAUDE_SETTINGS_PATH, 'utf-8'));
+      if (config?.mcpServers?.['slack']) {
+        return CLAUDE_SETTINGS_PATH;
+      }
+    } catch {
+      // Config parse error, continue
+    }
   }
+
+  // Check legacy config
+  if (fs.existsSync(CLAUDE_LEGACY_CONFIG_PATH)) {
+    try {
+      const config = JSON.parse(fs.readFileSync(CLAUDE_LEGACY_CONFIG_PATH, 'utf-8'));
+      if (config?.mcpServers?.['slack']) {
+        return CLAUDE_LEGACY_CONFIG_PATH;
+      }
+    } catch {
+      // Config parse error, continue
+    }
+  }
+
+  // Default to settings.json for new installations (plugin-based)
+  return CLAUDE_SETTINGS_PATH;
 }
 
 /**
@@ -220,14 +270,27 @@ async function refreshOAuthToken(
 
 /**
  * Update the Claude config with the new token
+ * Updates the config file that currently contains the Slack MCP configuration
  */
 function updateClaudeConfig(newToken: string, verbose?: boolean): void {
   displayDebug('Updating Claude config...', verbose);
 
+  // Determine which config file to update
+  const configPath = getSlackConfigPath();
+  displayDebug(`Using config path: ${configPath}`, verbose);
+
   // Read current config
   let config: Record<string, unknown> = {};
-  if (fs.existsSync(CLAUDE_CONFIG_PATH)) {
-    config = JSON.parse(fs.readFileSync(CLAUDE_CONFIG_PATH, 'utf-8'));
+  if (fs.existsSync(configPath)) {
+    config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  }
+
+  // Ensure the directory exists for settings.json
+  if (configPath === CLAUDE_SETTINGS_PATH) {
+    const settingsDir = path.dirname(configPath);
+    if (!fs.existsSync(settingsDir)) {
+      fs.mkdirSync(settingsDir, { recursive: true, mode: 0o700 });
+    }
   }
 
   // Ensure the path exists
@@ -248,7 +311,7 @@ function updateClaudeConfig(newToken: string, verbose?: boolean): void {
   env.SLACK_BOT_TOKEN = newToken;
 
   // Write back
-  fs.writeFileSync(CLAUDE_CONFIG_PATH, JSON.stringify(config, null, 2));
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
   displayDebug('Claude config updated successfully', verbose);
 }
 

@@ -116,8 +116,18 @@ function updateRefreshToken(newRefreshToken: string, verbose?: boolean): void;
 
 **Token Storage**:
 
-- Access token: `~/.claude.json` → `mcpServers["slack"].env.SLACK_BOT_TOKEN`
+- Access token: Checked in both locations for backwards compatibility:
+  - `~/.claude/settings.json` → `mcpServers["slack"].env.SLACK_BOT_TOKEN` (plugin-based, preferred)
+  - `~/.claude.json` → `mcpServers["slack"].env.SLACK_BOT_TOKEN` (legacy user config)
 - Refresh token: `~/.config/claude-code/slack-env.sh` (updated in-place)
+
+**Config Path Selection**:
+
+When updating tokens, the script determines which config file to update:
+
+1. If `~/.claude/settings.json` has a slack MCP config, use it
+2. Else if `~/.claude.json` has a slack MCP config, use it
+3. Otherwise, default to `~/.claude/settings.json` for new plugin-based installations
 
 **API Endpoints**:
 

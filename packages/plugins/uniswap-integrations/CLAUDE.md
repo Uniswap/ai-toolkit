@@ -31,6 +31,7 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 | **pulumi**          | Pulumi infrastructure as code management         | OAuth |
 | **figma**           | Figma design file access and collaboration       | OAuth |
 | **vercel**          | Vercel deployment management and hosting         | OAuth |
+| **slack**           | Slack workspace integration for messaging        | OAuth |
 
 ### Hooks (./hooks/)
 
@@ -42,14 +43,23 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 - Agents are auto-discovered from the `agents/` directory
 - Skills invoke agents via `Task(subagent_type:agent-name)`
 - MCP servers provide external service connectivity
-- OAuth-based servers (Notion, Linear, Pulumi, Figma, Vercel) authenticate via `/mcp` command
+- OAuth-based servers (Notion, Linear, Pulumi, Figma, Vercel, Slack) authenticate via `/mcp` command
 - PAT-based servers (GitHub) require environment variable configuration
 
 ## MCP Authentication
 
 ### OAuth Servers
 
-Notion and Linear use OAuth authentication. Users authenticate via the `/mcp` command which opens a browser flow.
+Notion, Linear, and Slack use OAuth authentication. Users authenticate via the `/mcp` command which opens a browser flow.
+
+#### Slack OAuth Setup
+
+For Slack, there's also a `claude-plus` launcher that can automatically validate and refresh Slack tokens. The launcher checks for Slack tokens in these locations (for backwards compatibility):
+
+1. **Plugin-provided MCP config** - Tokens in `~/.claude/settings.json` under `mcpServers.slack.env.SLACK_BOT_TOKEN`
+2. **Legacy user config** - Tokens in `~/.claude.json` under `mcpServers.slack.env.SLACK_BOT_TOKEN`
+
+Token refresh configuration is stored in `~/.config/claude-code/slack-env.sh`.
 
 ### PAT Servers
 
