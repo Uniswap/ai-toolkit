@@ -10,18 +10,10 @@ import * as path from 'path';
 import * as os from 'os';
 import * as readline from 'readline';
 import { displayInfo, displaySuccess, displayWarning, colorize } from './display';
+import { getClaudeConfigPath } from './config-paths';
 
 const SLACK_ENV_DIR = path.join(os.homedir(), '.config', 'claude-code');
 const SLACK_ENV_PATH = path.join(SLACK_ENV_DIR, 'slack-env.sh');
-
-/**
- * Get the Claude configuration directory path.
- * Respects the CLAUDE_CONFIG_DIR environment variable if set,
- * otherwise defaults to ~/.claude
- */
-function getClaudeConfigDir(): string {
-  return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
-}
 
 interface SlackCredentials {
   refreshToken: string;
@@ -92,10 +84,10 @@ function displaySetupInstructions(): void {
  * Prompt user for Slack OAuth credentials
  */
 async function promptForCredentials(rl: readline.Interface): Promise<SlackCredentials | null> {
-  const claudeConfigDir = getClaudeConfigDir();
+  const claudeConfigPath = getClaudeConfigPath();
   console.log(colorize('Enter your Slack OAuth configuration:', 'cyan'));
   console.log(colorize('(These will be stored in ~/.config/claude-code/slack-env.sh)', 'gray'));
-  console.log(colorize(`(Slack token will be saved to ${claudeConfigDir}/claude.json)`, 'gray'));
+  console.log(colorize(`(Slack token will be saved to ${claudeConfigPath})`, 'gray'));
   console.log('');
 
   console.log(

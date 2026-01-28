@@ -17,7 +17,7 @@
  *   SLACK_REFRESH_TOKEN - Slack OAuth refresh token
  *
  * Configuration:
- *   $CLAUDE_CONFIG_DIR/claude.json - Claude Code configuration file (default: ~/.claude/claude.json)
+ *   $CLAUDE_CONFIG_DIR/claude.json - Claude Code configuration file (default: ~/.claude.json)
  *   ~/.config/claude-code/slack-env.sh - Slack environment variables
  */
 
@@ -128,7 +128,7 @@ Environment Variables:
   SLACK_REFRESH_TOKEN - Slack OAuth refresh token (required for token refresh)
 
 Configuration Files:
-  $CLAUDE_CONFIG_DIR/claude.json      - Claude Code configuration (default: ~/.claude/claude.json)
+  $CLAUDE_CONFIG_DIR/claude.json      - Claude Code configuration (default: ~/.claude.json)
   ~/.config/claude-code/slack-env.sh  - Slack environment variables (auto-created)
 
 Examples:

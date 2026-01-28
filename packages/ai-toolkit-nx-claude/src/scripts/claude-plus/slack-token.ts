@@ -12,6 +12,7 @@ import * as http from 'http';
 import * as os from 'os';
 import { displaySuccess, displayWarning, displayDebug, displayInfo } from './display';
 import { offerSlackSetup } from './slack-setup';
+import { getClaudeConfigDir, getClaudeConfigPath, isUsingCustomConfigDir } from './config-paths';
 
 interface SlackConfig {
   refreshToken: string;
@@ -28,23 +29,6 @@ interface TokenRefreshResponse {
 interface AuthTestResponse {
   ok: boolean;
   error?: string;
-}
-
-/**
- * Get the Claude configuration directory path.
- * Respects the CLAUDE_CONFIG_DIR environment variable if set,
- * otherwise defaults to ~/.claude
- */
-function getClaudeConfigDir(): string {
-  return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
-}
-
-/**
- * Get the path to the Claude configuration file (claude.json).
- * Located in the Claude config directory.
- */
-function getClaudeConfigPath(): string {
-  return path.join(getClaudeConfigDir(), 'claude.json');
 }
 
 const SLACK_ENV_PATH = path.join(os.homedir(), '.config', 'claude-code', 'slack-env.sh');
@@ -243,10 +227,12 @@ function updateClaudeConfig(newToken: string, verbose?: boolean): void {
 
   const configPath = getClaudeConfigPath();
 
-  // Ensure the config directory exists
-  const configDir = getClaudeConfigDir();
-  if (!fs.existsSync(configDir)) {
-    fs.mkdirSync(configDir, { recursive: true, mode: 0o700 });
+  // Ensure the config directory exists (only needed when using custom CLAUDE_CONFIG_DIR)
+  if (isUsingCustomConfigDir()) {
+    const configDir = getClaudeConfigDir();
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true, mode: 0o700 });
+    }
   }
 
   // Read current config
