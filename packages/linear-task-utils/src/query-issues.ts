@@ -103,6 +103,7 @@ export async function queryIssues(
     branch_name: generateBranchName(issue.identifier, issue.title),
     priority: issue.priority ?? 0,
     priority_label: PRIORITY_MAP[issue.priority ?? 0] || 'No Priority',
+    linear_team: team,
   }));
 
   // Sort by priority (Urgent first, No Priority last)

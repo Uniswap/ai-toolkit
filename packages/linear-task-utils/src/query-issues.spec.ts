@@ -368,6 +368,7 @@ describe('query-issues.ts', () => {
         branch_name: 'claude/dai-123-fix-authentication-bug',
         priority: 2,
         priority_label: 'High',
+        linear_team: 'Developer AI',
       });
 
       // Check second issue
@@ -380,6 +381,7 @@ describe('query-issues.ts', () => {
         branch_name: 'claude/dai-124-add-dark-mode-support',
         priority: 3,
         priority_label: 'Normal',
+        linear_team: 'Developer AI',
       });
     });
 
