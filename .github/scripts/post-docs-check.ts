@@ -454,7 +454,18 @@ function autoCommitChanges(
     git(['config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com']);
 
     // Ensure we're on the correct branch
-    git(['checkout', headRef]);
+    // The workflow checks out by SHA which leaves us in detached HEAD state.
+    // We need to create/checkout a local branch that tracks the PR branch.
+    // This handles both same-repo PRs and fork PRs.
+    try {
+      // Try to checkout existing local branch
+      git(['checkout', headRef]);
+    } catch {
+      // Branch doesn't exist locally - create it from current HEAD
+      // (which is already at the correct commit from the SHA checkout)
+      log(`Creating local branch ${headRef} from current HEAD`);
+      git(['checkout', '-B', headRef, 'HEAD']);
+    }
 
     let filesModified = 0;
 
@@ -500,22 +511,64 @@ function autoCommitChanges(
         suggestion.line_start &&
         suggestion.current_content
       ) {
-        // Handle inline suggestions by replacing specific content
-        log(`Applying inline suggestion to: ${filePath}`);
+        // Handle inline suggestions by replacing content at specific line location
+        // Using line-based replacement to avoid replacing wrong occurrence of duplicate content
+        log(`Applying inline suggestion to: ${filePath} at line ${suggestion.line_start}`);
 
         if (existsSync(filePath)) {
           const content = readFileSync(filePath, 'utf-8');
-          const newContent = content.replace(
-            suggestion.current_content,
-            suggestion.suggested_content
-          );
+          const lines = content.split('\n');
 
-          if (newContent !== content) {
+          // Convert 1-indexed line_start to 0-indexed array position
+          const startLineIdx = suggestion.line_start - 1;
+
+          // Find the exact content to replace by comparing lines at the specified location
+          const currentLines = suggestion.current_content.split('\n');
+          const suggestedLines = suggestion.suggested_content.split('\n');
+
+          // Verify the content at the specified location matches what we expect
+          const actualContent = lines
+            .slice(startLineIdx, startLineIdx + currentLines.length)
+            .join('\n');
+          const expectedContent = suggestion.current_content;
+
+          // Normalize for comparison (trim trailing whitespace from lines)
+          const normalizeContent = (s: string) =>
+            s
+              .split('\n')
+              .map((line) => line.trimEnd())
+              .join('\n');
+
+          if (normalizeContent(actualContent) === normalizeContent(expectedContent)) {
+            // Replace the lines at the specific location
+            const newLines = [
+              ...lines.slice(0, startLineIdx),
+              ...suggestedLines,
+              ...lines.slice(startLineIdx + currentLines.length),
+            ];
+            const newContent = newLines.join('\n');
+
             writeFileSync(filePath, newContent, 'utf-8');
             git(['add', filePath]);
             filesModified++;
           } else {
-            log(`Warning: Could not find content to replace in ${filePath}`);
+            // Fallback: try simple string replacement if line-based match fails
+            // This handles cases where line numbers may be slightly off
+            log(
+              `Line content mismatch at line ${suggestion.line_start}, falling back to string match`
+            );
+            const newContent = content.replace(
+              suggestion.current_content,
+              suggestion.suggested_content
+            );
+
+            if (newContent !== content) {
+              writeFileSync(filePath, newContent, 'utf-8');
+              git(['add', filePath]);
+              filesModified++;
+            } else {
+              log(`Warning: Could not find content to replace in ${filePath}`);
+            }
           }
         } else {
           log(`Warning: File ${filePath} does not exist for inline suggestion`);
