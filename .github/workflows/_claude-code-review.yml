@@ -1435,10 +1435,12 @@ jobs:
           echo "📍 PR repo: $REPO_FULL_NAME"
 
       # Checkout with write access for auto-fix
+      # Note: For forked PRs, we need to checkout from the fork's repository
       - name: Checkout for Auto-Fix
         if: steps.auto-fix-check.outputs.should_fix == 'true'
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
+          repository: ${{ steps.pr-branch.outputs.repo_full_name }}
           ref: ${{ steps.pr-branch.outputs.branch_name }}
           # Use WORKFLOW_PAT for push access, fall back to GITHUB_TOKEN
           token: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
