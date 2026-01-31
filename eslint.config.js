@@ -30,6 +30,7 @@ export default defineConfig([
   },
   {
     files: ['**/*.ts', '**/*.tsx', '**/*.cts', '**/*.mts'],
+    ignores: ['.github/scripts/**/*.ts'],
     languageOptions: {
       parserOptions: {
         project: './tsconfig.base.json',
@@ -39,10 +40,22 @@ export default defineConfig([
       '@typescript-eslint/consistent-type-imports': 'error',
       '@typescript-eslint/consistent-type-exports': 'error',
       '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-unused-vars': [
-        'error',
-        { argsIgnorePattern: '^_' },
-      ],
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-non-null-assertion': 'warn',
+    },
+  },
+  {
+    files: ['.github/scripts/**/*.ts'],
+    languageOptions: {
+      parserOptions: {
+        project: './.github/scripts/tsconfig.json',
+      },
+    },
+    rules: {
+      '@typescript-eslint/consistent-type-imports': 'error',
+      '@typescript-eslint/consistent-type-exports': 'error',
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-non-null-assertion': 'warn',
     },
   },
