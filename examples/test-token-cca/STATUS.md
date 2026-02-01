@@ -72,11 +72,11 @@ Create a complete Continuous Clearing Auction (CCA) for TEST_Token memecoin with
 - ✅ Updated version table in root CLAUDE.md
 - ✅ Enhanced plugin README with examples section
 
-## Current Issue ⚠️
+## Resolution Status ✅
 
-### CCA Deployment Error
+### Issue Identified: Base Sepolia CCA Factory Limitation
 
-**Problem**: CCA Factory deployment is reverting with error signature `0xa9ac5820`
+**Root Cause**: The CCA Factory at `0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5` on Base Sepolia cannot be called directly. It returns error `0xa9ac5820` which is not documented in the public CCA repository.
 
 **Error Details**:
 
