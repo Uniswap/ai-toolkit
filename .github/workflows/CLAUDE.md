@@ -196,6 +196,7 @@ This workflow performs automated PR code reviews using Claude AI with the follow
 - **Lockfile exclusion**: Auto-generated lockfiles are excluded from the diff (package-lock.json, yarn.lock, bun.lock, pnpm-lock.yaml, Podfile.lock, etc.)
 - **Built-in Verdict Decision Rules** - Ensures consistent, predictable review verdicts
 - **Debug artifacts**: Uploads PR diff files and final assembled prompt as GitHub Actions artifacts for debugging
+- **Auto-fix mode**: Optionally auto-fix issues and push changes, triggering a re-review
 
 **Verdict Decision Rules:**
 
@@ -267,11 +268,11 @@ These artifacts are available in the workflow run's "Artifacts" section and are 
 
 **Required Secrets:**
 
-| Secret                    | Required                                      | Description                                                                                                                               |
-| ------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `ANTHROPIC_API_KEY`       | Yes (unless `CLAUDE_CODE_OAUTH_TOKEN` is set) | Anthropic API key for Claude access                                                                                                       |
-| `CLAUDE_CODE_OAUTH_TOKEN` | No (alternative to `ANTHROPIC_API_KEY`)       | Claude Code OAuth token for authentication. When provided, takes precedence over `ANTHROPIC_API_KEY`. Generate with `claude setup-token`. |
-| `WORKFLOW_PAT`            | No                                            | Personal Access Token with `repo` scope. Only needed for resolving review threads via GraphQL API (falls back to `GITHUB_TOKEN`).         |
+| Secret                    | Required                                      | Description                                                                                                                                                                         |
+| ------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`       | Yes (unless `CLAUDE_CODE_OAUTH_TOKEN` is set) | Anthropic API key for Claude access                                                                                                                                                 |
+| `CLAUDE_CODE_OAUTH_TOKEN` | No (alternative to `ANTHROPIC_API_KEY`)       | Claude Code OAuth token for authentication. When provided, takes precedence over `ANTHROPIC_API_KEY`. Generate with `claude setup-token`.                                           |
+| `WORKFLOW_PAT`            | No                                            | Personal Access Token with `repo` scope. Needed for resolving review threads via GraphQL API and for pushing auto-fix commits (falls back to `GITHUB_TOKEN` but auto-fix may fail). |
 
 **Authentication Methods:**
 
@@ -315,6 +316,8 @@ You must enable GitHub Actions to create and approve pull requests:
 | `allowed_tools`                       | No       | `""`                         | Comma-separated list of allowed tools for Claude                                                                               |
 | `toolkit_ref`                         | No       | `main`                       | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
 | `install_uniswap_plugins`             | No       | `true`                       | Auto-install uniswap-ai-toolkit plugins. Set to false to opt out and use only custom plugins.                                  |
+| `auto_fix`                            | No       | `false`                      | When enabled, auto-fix issues found in review and push changes (triggers re-review). Requires `WORKFLOW_PAT`.                  |
+| `auto_fix_model`                      | No       | (same as `model`)            | Model to use for auto-fixing. Use a more capable model (e.g., Opus) for complex fixes.                                         |
 
 **Section Overrides (Granular Prompt Customization):**
 
@@ -418,6 +421,34 @@ with:
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
+
+**Usage example (with auto-fix enabled):**
+
+When `auto_fix` is enabled, Claude will automatically attempt to fix issues found in the review and push the changes to the PR branch. This triggers a new push event, which runs a fresh review of the fixed code.
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  base_ref: ${{ github.base_ref }}
+  auto_fix: true # Enable automatic fixing of issues
+  auto_fix_model: 'claude-opus-4-5-20251101' # Use Opus for better fixes (optional)
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }} # Required for pushing fixes
+```
+
+> **Note:** `WORKFLOW_PAT` is required for auto-fix to push commits. Without it, the workflow will fall back to `GITHUB_TOKEN` which may lack push permissions for PRs from forks.
+
+**Auto-Fix Behavior:**
+
+| Review Outcome       | Auto-Fix Action                                            |
+| -------------------- | ---------------------------------------------------------- |
+| `REQUEST_CHANGES`    | Claude attempts to fix all identified issues               |
+| `COMMENT` (w/issues) | Claude attempts to fix issues mentioned in inline comments |
+| `APPROVE`            | No auto-fix needed (no issues found)                       |
+
+After pushing fixes, a new workflow run is triggered automatically, which will re-review the updated code. This creates a feedback loop until the code passes review or requires manual intervention.
 
 **Triggering a New Review Without Code Changes:**
 

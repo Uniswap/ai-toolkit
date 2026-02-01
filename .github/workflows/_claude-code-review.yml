@@ -205,6 +205,29 @@ on:
         type: string
         default: "main"
 
+      auto_fix:
+        description: |
+          When enabled, if the review finds issues (REQUEST_CHANGES verdict),
+          Claude will automatically attempt to fix them and push the changes
+          to the PR branch. This triggers a new push event, which will run a
+          fresh review of the fixed code.
+
+          Requires WORKFLOW_PAT secret with repo scope for pushing commits.
+
+          Default: false (backwards compatible)
+        required: false
+        type: boolean
+        default: false
+
+      auto_fix_model:
+        description: |
+          Claude model to use for auto-fixing issues. If not specified, uses
+          the same model as the review. You may want to use a more capable
+          model (e.g., Opus) for complex fixes.
+        required: false
+        type: string
+        default: ""
+
     secrets:
       ANTHROPIC_API_KEY:
         description: "Anthropic API key for Claude access. Required unless CLAUDE_CODE_OAUTH_TOKEN is provided."
@@ -225,7 +248,7 @@ jobs:
     # Fixed permissions (cannot be overridden by calling workflow)
     permissions:
       id-token: write # Required for OIDC
-      contents: read # Required to read repository code
+      contents: write # Required to read code and push fixes when auto_fix is enabled
       pull-requests: write # Required to comment and submit reviews
       issues: read # Required to read PR discussions
       actions: read # Required to check CI status
@@ -1344,3 +1367,275 @@ jobs:
           # Include merge_base_sha in cache key to invalidate when the merge base changes
           # (e.g., when a stacked PR's parent is merged and it rebases to main)
           key: review-pr${{ inputs.pr_number }}-base-${{ steps.patch-id.outputs.merge_base_sha }}-patch-${{ steps.patch-id.outputs.patch_id }}
+
+      # ============================================================================
+      # AUTO-FIX SECTION
+      # When auto_fix is enabled and review found issues, attempt to fix them
+      # ============================================================================
+
+      # Check if we should attempt auto-fix
+      - name: Check Auto-Fix Conditions
+        id: auto-fix-check
+        if: |
+          inputs.auto_fix == true &&
+          steps.cache-check.outputs.cache-hit != 'true' &&
+          steps.diff-size.outputs.is_too_large != 'true' &&
+          success()
+        env:
+          REVIEW_JSON_FILE: /tmp/claude-review-response.txt
+        run: |
+          set -euo pipefail
+
+          echo "🔧 Checking if auto-fix should run..."
+
+          # Read the review outcome
+          if [ ! -f "$REVIEW_JSON_FILE" ]; then
+            echo "❌ No review response file found"
+            echo "should_fix=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          OUTCOME=$(jq -r '.pr_review_outcome // "unknown"' < "$REVIEW_JSON_FILE")
+          INLINE_COUNT=$(jq -r '.inline_comments_new | length' < "$REVIEW_JSON_FILE")
+
+          echo "📋 Review outcome: $OUTCOME"
+          echo "📋 Inline comments: $INLINE_COUNT"
+
+          # Only auto-fix if there are actual issues to fix
+          if [ "$OUTCOME" = "REQUEST_CHANGES" ]; then
+            echo "✅ Auto-fix will run (REQUEST_CHANGES verdict)"
+            echo "should_fix=true" >> $GITHUB_OUTPUT
+          elif [ "$OUTCOME" = "COMMENT" ] && [ "$INLINE_COUNT" -gt 0 ]; then
+            echo "✅ Auto-fix will run (COMMENT verdict with inline comments)"
+            echo "should_fix=true" >> $GITHUB_OUTPUT
+          else
+            echo "ℹ️  Skipping auto-fix (no issues found or APPROVE verdict)"
+            echo "should_fix=false" >> $GITHUB_OUTPUT
+          fi
+
+      # Get PR branch info for checkout
+      - name: Get PR Branch Info
+        id: pr-branch
+        if: steps.auto-fix-check.outputs.should_fix == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+        run: |
+          set -euo pipefail
+
+          echo "📍 Getting PR branch information..."
+
+          PR_DATA=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER)
+          BRANCH_NAME=$(echo "$PR_DATA" | jq -r '.head.ref')
+          REPO_FULL_NAME=$(echo "$PR_DATA" | jq -r '.head.repo.full_name')
+
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "repo_full_name=$REPO_FULL_NAME" >> $GITHUB_OUTPUT
+          echo "📍 PR branch: $BRANCH_NAME"
+          echo "📍 PR repo: $REPO_FULL_NAME"
+
+      # Checkout with write access for auto-fix
+      # Note: For forked PRs, we need to checkout from the fork's repository
+      - name: Checkout for Auto-Fix
+        if: steps.auto-fix-check.outputs.should_fix == 'true'
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          repository: ${{ steps.pr-branch.outputs.repo_full_name }}
+          ref: ${{ steps.pr-branch.outputs.branch_name }}
+          # Use WORKFLOW_PAT for push access, fall back to GITHUB_TOKEN
+          token: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      # Build auto-fix prompt from review results
+      - name: Build Auto-Fix Prompt
+        id: build-fix-prompt
+        if: steps.auto-fix-check.outputs.should_fix == 'true'
+        env:
+          REVIEW_JSON_FILE: /tmp/claude-review-response.txt
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          echo "📝 Building auto-fix prompt from review results..."
+
+          # Extract review body and inline comments
+          REVIEW_BODY=$(jq -r '.pr_review_body // "No review body"' < "$REVIEW_JSON_FILE")
+          INLINE_COMMENTS=$(jq -r '.inline_comments_new // []' < "$REVIEW_JSON_FILE")
+
+          # Build the fix prompt
+          cat > /tmp/auto-fix-prompt.txt << 'PROMPT_EOF'
+          # Auto-Fix Task
+
+          You are fixing issues identified in a code review. The review found problems that need to be addressed.
+
+          ## Instructions
+
+          1. **Read the review feedback below** to understand what issues were identified
+          2. **Fix ONLY the issues mentioned** - don't make unrelated changes
+          3. **Make minimal, focused fixes** - address each issue directly without over-engineering
+          4. **Run any relevant linters/formatters** after making changes
+          5. **Do NOT create new commits** - just make the file changes (the workflow will commit)
+
+          ## Review Feedback
+
+          PROMPT_EOF
+
+          # Add review body
+          echo "$REVIEW_BODY" >> /tmp/auto-fix-prompt.txt
+
+          # Add inline comments if any
+          COMMENT_COUNT=$(echo "$INLINE_COMMENTS" | jq 'length')
+          if [ "$COMMENT_COUNT" -gt 0 ]; then
+            echo "" >> /tmp/auto-fix-prompt.txt
+            echo "## Inline Comments to Address" >> /tmp/auto-fix-prompt.txt
+            echo "" >> /tmp/auto-fix-prompt.txt
+
+            # Format each inline comment
+            echo "$INLINE_COMMENTS" | jq -r '.[] | "### \(.path):\(.line)\n\n\(.body)\n"' >> /tmp/auto-fix-prompt.txt
+          fi
+
+          # Add final instructions
+          cat >> /tmp/auto-fix-prompt.txt << 'PROMPT_EOF'
+
+          ## Important
+
+          - Focus on fixing the identified issues
+          - Do not add new features or make stylistic changes beyond what's needed
+          - If a fix is unclear or risky, skip it rather than making a potentially wrong change
+          - After making changes, verify they compile/lint if possible
+          PROMPT_EOF
+
+          echo "prompt_file=/tmp/auto-fix-prompt.txt" >> $GITHUB_OUTPUT
+          echo "✅ Auto-fix prompt built ($(wc -l < /tmp/auto-fix-prompt.txt) lines)"
+
+      # Run Claude to fix the issues
+      - name: Run Claude Auto-Fix
+        id: claude-fix
+        if: steps.auto-fix-check.outputs.should_fix == 'true'
+        uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71 # v1.0.29
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: "Read and execute the instructions at @${{ steps.build-fix-prompt.outputs.prompt_file }}"
+          track_progress: false
+          show_full_output: true
+          # Use auto_fix_model if specified, otherwise use the review model
+          claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }}"
+          # Plugin configuration
+          plugin_marketplaces: ${{ steps.build-plugins-main.outputs.plugin_marketplaces || steps.build-plugins-next.outputs.plugin_marketplaces }}
+          plugins: ${{ steps.build-plugins-main.outputs.plugins || steps.build-plugins-next.outputs.plugins }}
+
+      # Check for changes and commit
+      - name: Commit and Push Fixes
+        id: commit-fixes
+        if: steps.auto-fix-check.outputs.should_fix == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          BRANCH_NAME: ${{ steps.pr-branch.outputs.branch_name }}
+        run: |
+          set -euo pipefail
+
+          echo "📦 Checking for changes to commit..."
+
+          # Check if there are any changes
+          if git diff --quiet && git diff --staged --quiet; then
+            echo "ℹ️  No changes made by auto-fix"
+            echo "changes_pushed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Stage all changes
+          git add -A
+
+          # Show what changed
+          echo "📋 Changes to commit:"
+          git diff --staged --stat
+
+          # Commit with descriptive message
+          git commit -m "fix: address code review feedback (auto-fix)
+
+          Automated fixes applied by Claude Code Review workflow.
+
+          PR: #$PR_NUMBER
+          Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # Push the changes
+          echo "🚀 Pushing fixes to branch: $BRANCH_NAME"
+          git push origin HEAD:"$BRANCH_NAME"
+
+          echo "changes_pushed=true" >> $GITHUB_OUTPUT
+          echo "✅ Fixes committed and pushed"
+          echo ""
+          echo "ℹ️  This push will trigger a new review of the fixed code"
+
+      # Post auto-fix status comment
+      - name: Post Auto-Fix Status
+        if: steps.auto-fix-check.outputs.should_fix == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          CHANGES_PUSHED: ${{ steps.commit-fixes.outputs.changes_pushed }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          COMMENT_MARKER="<!-- claude-auto-fix-status -->"
+          JOB_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          if [ "$CHANGES_PUSHED" = "true" ]; then
+            COMMENT_BODY=$(cat <<EOF
+          ${COMMENT_MARKER}
+          ## 🔧 Auto-Fix Applied
+
+          Claude automatically fixed issues identified in the code review and pushed the changes.
+
+          **Status:** ✅ Fixes pushed
+          **Job:** [View workflow run](${JOB_URL})
+
+          A new review will run automatically on the updated code.
+
+          ---
+          *This is an automated fix. Please review the changes to ensure they are correct.*
+          EOF
+          )
+          else
+            COMMENT_BODY=$(cat <<EOF
+          ${COMMENT_MARKER}
+          ## 🔧 Auto-Fix Attempted
+
+          Claude attempted to fix issues but no changes were made.
+
+          **Status:** ℹ️ No changes
+          **Job:** [View workflow run](${JOB_URL})
+
+          This may mean the issues require manual intervention or Claude couldn't determine safe fixes.
+
+          ---
+          *Please review the issues manually.*
+          EOF
+          )
+          fi
+
+          # Find and update existing auto-fix comment, or create new one
+          EXISTING_COMMENT=$(gh api "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+            --jq ".[] | select(.body | contains(\"$COMMENT_MARKER\")) | .id" | head -1 || true)
+
+          if [ -n "$EXISTING_COMMENT" ]; then
+            gh api "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT}" \
+              -X PATCH \
+              -f body="$COMMENT_BODY" > /dev/null
+            echo "✅ Updated existing auto-fix status comment"
+          else
+            gh api "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              -X POST \
+              -f body="$COMMENT_BODY" > /dev/null
+            echo "✅ Posted auto-fix status comment"
+          fi
