@@ -57,6 +57,15 @@ The CCA Factory is **intentionally designed** to only work through LiquidityLaun
 3. **Provides Safety**: Prevents incomplete or misconfigured deployments
 4. **Maintains Standards**: All CCAs follow same deployment pattern
 
+### Factory Address Clarification
+
+Testing confirmed error 0xa9ac5820 occurs with **BOTH** factory addresses:
+
+- `0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5` (used in initial attempts)
+- `0xcca1101C61cF5cb44C968947985300DF945C3565` (from official quickstart docs)
+
+**Key Insight**: The official quickstart guide at `/local-deployment` is for **Anvil/local testing** where factory behavior may differ. Production networks (Base, Ethereum) REQUIRE LiquidityLauncher integration regardless of factory address used.
+
 ## Deployment Attempts Log
 
 ### Configuration Variations Tested (10+ attempts)
