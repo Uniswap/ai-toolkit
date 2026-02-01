@@ -15,6 +15,7 @@ claude-code plugin add uniswap-builder
 | `viem-integration` | EVM blockchain integration using viem and wagmi                                                 |
 | `swap-integration` | Integrate Uniswap swaps via Trading API, Universal Router, or SDKs                              |
 | `cca-integration`  | Create and manage Continuous Clearing Auctions (CCA) for token launches via Liquidity Launchpad |
+| `aggregator-hook`  | Build Uniswap V4 hooks that aggregate liquidity from external DEXs and liquidity sources        |
 
 ## Use Cases
 
@@ -25,6 +26,8 @@ This plugin helps developers build:
 - **Smart Contract Integrations** - Solidity contracts calling Universal Router
 - **Token Launches** - Fair token distribution via Continuous Clearing Auctions
 - **Liquidity Bootstrapping** - Automatic V4 pool creation with auction proceeds
+- **Aggregator Hooks** - Uniswap V4 hooks that integrate external liquidity sources
+- **Multi-Venue Routing** - Route swaps through external DEXs for better pricing
 
 ## Quick Start
 
@@ -41,6 +44,11 @@ The skills activate based on context:
 "Launch a token using CCA"
 "Create a continuous clearing auction for my token"
 "Bootstrap liquidity with Liquidity Launchpad"
+
+# aggregator-hook
+"Build an aggregator hook for Uniswap V4"
+"Integrate Curve liquidity into Uniswap"
+"Route swaps through an external DEX"
 ```
 
 ### Slash Commands
@@ -48,6 +56,7 @@ The skills activate based on context:
 ```text
 /swap-integration
 /cca-integration
+/aggregator-hook
 ```
 
 ## Supported Protocols
