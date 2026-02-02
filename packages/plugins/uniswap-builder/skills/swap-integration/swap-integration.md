@@ -194,10 +194,10 @@ POST /swap
 
 | ID  | Chain    | ID    | Chain    |
 | --- | -------- | ----- | -------- |
-| 1   | Mainnet  | 42161 | Arbitrum |
-| 10  | Optimism | 8453  | Base     |
+| 1   | Mainnet  | 8453  | Base     |
+| 130 | Unichain | 42161 | Arbitrum |
 | 137 | Polygon  | 81457 | Blast    |
-| 56  | BNB      | 130   | Unichain |
+| 56  | BNB      |       |          |
 
 ### Swap Types
 

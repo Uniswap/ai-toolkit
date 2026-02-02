@@ -228,6 +228,7 @@ All plugins follow semantic versioning (semver). Key versioning rules:
 | development-pr-workflow    | 1.0.0   |
 | development-productivity   | 1.0.0   |
 | uniswap-integrations       | 1.0.0   |
+| uniswap-builder            | 1.1.0   |
 | spec-workflow              | 1.0.0   |
 
 **Note:** Keep this table updated when versions change.

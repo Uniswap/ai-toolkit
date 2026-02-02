@@ -22,8 +22,10 @@
   ],
   "files": [
     ".claude-plugin",
+    ".mcp.json",
     "skills",
     "agents",
+    "mcp-server",
     "README.md"
   ]
 }

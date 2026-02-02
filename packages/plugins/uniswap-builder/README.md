@@ -8,12 +8,40 @@ Skills for building on top of and integrating the Uniswap protocol.
 claude-code plugin add uniswap-builder
 ```
 
+### MCP Server Setup
+
+The plugin includes an MCP server for generating CCA supply schedules. To set it up:
+
+```bash
+cd ~/.claude/plugins/uniswap-builder/mcp-server/supply-schedule
+./setup.sh
+```
+
+Or manually:
+
+```bash
+cd ~/.claude/plugins/uniswap-builder/mcp-server/supply-schedule
+pip3 install -r requirements.txt
+```
+
+**Requirements:**
+
+- Python 3.10 or later
+- pip3
+
 ## Skills
 
 | Skill              | Description                                                        |
 | ------------------ | ------------------------------------------------------------------ |
 | `viem-integration` | EVM blockchain integration using viem and wagmi                    |
 | `swap-integration` | Integrate Uniswap swaps via Trading API, Universal Router, or SDKs |
+| `cca-integration`  | Configure and deploy CCA (Continuous Clearing Auction) contracts   |
+
+## MCP Servers
+
+| Server                | Description                                         |
+| --------------------- | --------------------------------------------------- |
+| `cca-supply-schedule` | Generate supply schedules for CCA auction contracts |
 
 ## Use Cases
 
@@ -22,12 +50,15 @@ This plugin helps developers build:
 - **Custom Swap Frontends** - React/TypeScript applications with swap functionality
 - **Swap Scripts/Backends** - Node.js scripts for programmatic swaps
 - **Smart Contract Integrations** - Solidity contracts calling Universal Router
+- **Token Auction Deployment** - Configure parameters and deploy CCA auction contracts
 
 ## Quick Start
 
-### Using the Skill
+### Using the Skills
 
-The `swap-integration` skill activates when you mention building swaps or integrating Uniswap:
+The skills activate automatically when you mention related topics:
+
+**Swap Integration:**
 
 ```text
 "Help me integrate Uniswap swaps into my frontend"
@@ -35,10 +66,21 @@ The `swap-integration` skill activates when you mention building swaps or integr
 "Create a smart contract that executes swaps via Universal Router"
 ```
 
-### Slash Command
+**CCA Integration:**
+
+```text
+"Configure a CCA auction for my token"
+"Help me deploy a token auction on Base"
+"Generate supply schedule for my auction"
+```
+
+The CCA skill provides an **interactive configuration flow** that guides you through 18 steps to collect all auction parameters, validates input at each step, and generates a ready-to-deploy JSON configuration file.
+
+### Slash Commands
 
 ```text
 /swap-integration
+/cca-integration
 ```
 
 ## Supported Protocols
