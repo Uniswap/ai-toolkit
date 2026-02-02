@@ -113,8 +113,8 @@ For each step assigned to this PR:
 After all steps for this PR are complete:
 
 ```bash
-# Run validation
-npx nx affected -t lint typecheck test --base=HEAD~1
+# Run validation (use your project's linting/typecheck/test commands)
+# Examples: npm run lint, npm test, yarn typecheck, make check, etc.
 
 # Amend with all changes (if you staged incrementally)
 CLAUDE_CODE=1 gt modify --no-verify

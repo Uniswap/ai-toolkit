@@ -87,8 +87,7 @@ gt create -m "<type>(<scope>): <description>" --no-verify
 # 2. Implement assigned steps
 # ... make changes, stage files ...
 
-# 3. Validate
-npx nx affected -t lint typecheck --base=HEAD~1
+# 3. Validate (use your project's linting/typecheck commands)
 
 # 4. Finalize PR (timeout: 180000)
 git add <specific-files>
