@@ -253,13 +253,15 @@ if (file.path.endsWith('package.json')) {
 }
 ```
 
-### project.json Modified (if it is an Nx workspace)
+### project.json Modified (Nx workspaces only)
 
 ```typescript
-if (file.path.endsWith('project.json')) {
+// Only process if this is an Nx workspace (nx.json exists at repo root)
+if (file.path.endsWith('project.json') && existsSync(join(repoRoot, 'nx.json'))) {
   const diff = await getDiff(file.path);
   const addedTargets = parseAddedTargets(diff);
 
+  // Document discovered targets - don't assume what targets exist
   return {
     targetSection: 'Key Commands',
     text: addedTargets
@@ -270,6 +272,8 @@ if (file.path.endsWith('project.json')) {
   };
 }
 ```
+
+> **Note**: This only applies when `nx.json` exists. The targets documented are those actually discovered in the diff, not assumed.
 
 ### Significant Code Changes
 
