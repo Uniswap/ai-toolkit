@@ -974,6 +974,67 @@ function dismissPreviousBotReviews(owner: string, repo: string, prNumber: number
   }
 }
 
+/**
+ * Deletes any pending (not yet submitted) bot reviews on a PR.
+ *
+ * GitHub only allows one pending review per user per PR. If a previous workflow
+ * run crashed or failed before submitting its review, a stale PENDING review
+ * may block future reviews with error:
+ *   "User can only have one pending review per pull request" (HTTP 422)
+ *
+ * This function finds and deletes any such pending reviews before creating a new one.
+ */
+function deletePendingBotReviews(owner: string, repo: string, prNumber: number): void {
+  log('Checking for pending bot reviews to delete...');
+
+  const result = gh([
+    'api',
+    `repos/${owner}/${repo}/pulls/${prNumber}/reviews`,
+    '--jq',
+    '[.[] | select(.user.login == "github-actions[bot]" and .state == "PENDING")]',
+  ]);
+
+  if (!result) {
+    log('No pending bot reviews found');
+    return;
+  }
+
+  try {
+    const reviews = JSON.parse(result) as Array<{ id: number }>;
+
+    if (reviews.length === 0) {
+      log('No pending bot reviews to delete');
+      return;
+    }
+
+    log(`Found ${reviews.length} pending bot review(s) to delete`);
+
+    for (const review of reviews) {
+      try {
+        // Pending reviews must be deleted, not dismissed (dismiss only works on submitted reviews)
+        gh([
+          'api',
+          '--method',
+          'DELETE',
+          `repos/${owner}/${repo}/pulls/${prNumber}/reviews/${review.id}`,
+        ]);
+        log(`Deleted pending review ${review.id}`);
+      } catch (error) {
+        const errorMsg = (error as Error).message || '';
+        if (errorMsg.includes('404')) {
+          log(`Pending review ${review.id} already deleted or does not exist`);
+        } else if (errorMsg.includes('403')) {
+          log(`Could not delete pending review ${review.id} (insufficient permissions)`);
+        } else {
+          log(`Could not delete pending review ${review.id}: ${errorMsg}`);
+        }
+      }
+    }
+  } catch {
+    log('No pending reviews to delete');
+  }
+}
+
 // =============================================================================
 // Diff Validation
 // =============================================================================
@@ -1327,7 +1388,11 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  // Dismiss previous bot reviews
+  // Delete any pending bot reviews (required before creating a new review)
+  // GitHub only allows one pending review per user per PR
+  deletePendingBotReviews(owner, repo, prNumber);
+
+  // Dismiss previous submitted bot reviews
   dismissPreviousBotReviews(owner, repo, prNumber);
 
   // Process responses to existing comments first

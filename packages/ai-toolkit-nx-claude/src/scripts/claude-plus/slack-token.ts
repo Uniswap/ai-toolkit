@@ -12,6 +12,7 @@ import * as http from 'http';
 import * as os from 'os';
 import { displaySuccess, displayWarning, displayDebug, displayInfo } from './display';
 import { offerSlackSetup } from './slack-setup';
+import { getClaudeConfigDir, getClaudeConfigPath, isUsingCustomConfigDir } from './config-paths';
 
 interface SlackConfig {
   refreshToken: string;
@@ -30,7 +31,6 @@ interface AuthTestResponse {
   error?: string;
 }
 
-const CLAUDE_CONFIG_PATH = path.join(os.homedir(), '.claude.json');
 const SLACK_ENV_PATH = path.join(os.homedir(), '.config', 'claude-code', 'slack-env.sh');
 
 /**
@@ -74,12 +74,13 @@ function loadSlackConfig(): SlackConfig | null {
  * Get the current Slack token from Claude config
  */
 function getCurrentToken(): string | null {
-  if (!fs.existsSync(CLAUDE_CONFIG_PATH)) {
+  const configPath = getClaudeConfigPath();
+  if (!fs.existsSync(configPath)) {
     return null;
   }
 
   try {
-    const config = JSON.parse(fs.readFileSync(CLAUDE_CONFIG_PATH, 'utf-8'));
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
     return config?.mcpServers?.['slack']?.env?.SLACK_BOT_TOKEN || null;
   } catch {
     return null;
@@ -224,10 +225,20 @@ async function refreshOAuthToken(
 function updateClaudeConfig(newToken: string, verbose?: boolean): void {
   displayDebug('Updating Claude config...', verbose);
 
+  const configPath = getClaudeConfigPath();
+
+  // Ensure the config directory exists (only needed when using custom CLAUDE_CONFIG_DIR)
+  if (isUsingCustomConfigDir()) {
+    const configDir = getClaudeConfigDir();
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true, mode: 0o700 });
+    }
+  }
+
   // Read current config
   let config: Record<string, unknown> = {};
-  if (fs.existsSync(CLAUDE_CONFIG_PATH)) {
-    config = JSON.parse(fs.readFileSync(CLAUDE_CONFIG_PATH, 'utf-8'));
+  if (fs.existsSync(configPath)) {
+    config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
   }
 
   // Ensure the path exists
@@ -248,7 +259,7 @@ function updateClaudeConfig(newToken: string, verbose?: boolean): void {
   env.SLACK_BOT_TOKEN = newToken;
 
   // Write back
-  fs.writeFileSync(CLAUDE_CONFIG_PATH, JSON.stringify(config, null, 2));
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
   displayDebug('Claude config updated successfully', verbose);
 }
 

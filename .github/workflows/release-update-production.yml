@@ -17,7 +17,7 @@ name: Update Production
 # WORKFLOW BEHAVIOR:
 # - Creates a temporary release branch from `next`
 # - Opens PR to `main` with AI-generated categorized changelog
-# - Assigns reviewers: @wkoutre and @Melvillian
+# - Assigns reviewers: @wkoutre
 # - Automatically merges PR if there are no merge conflicts
 # - Sends notification to #ai-internal Slack channel with merge status
 # - After merge, publish-packages workflow runs automatically
@@ -314,9 +314,8 @@ jobs:
           # Add reviewers
           # Note: This may fail if GITHUB_TOKEN lacks organization permissions
           # Reviewers can be added manually if this step fails
-          gh pr edit $PR_NUMBER --add-reviewer wkoutre,Melvillian
-
-          echo "✅ Added reviewers: @wkoutre, @Melvillian"
+          gh pr edit $PR_NUMBER --add-reviewer wkoutre
+          echo "✅ Added reviewers: @wkoutre"
 
       - name: Comment on PR if reviewers couldn't be added
         if: steps.add-reviewers.outcome == 'failure'
@@ -325,7 +324,7 @@ jobs:
         run: |
           PR_NUMBER=${{ needs.create-pr.outputs.pr_number }}
 
-          gh pr comment $PR_NUMBER --body "⚠️ **Note**: Automatic reviewer assignment failed. Please manually add reviewers: @wkoutre @Melvillian"
+          gh pr comment $PR_NUMBER --body "⚠️ **Note**: Automatic reviewer assignment failed. Please manually add reviewers: @wkoutre"
 
       - name: Check PR mergeability
         id: check-mergeable
@@ -408,7 +407,7 @@ jobs:
               - type: "section"
                 fields:
                   - type: "mrkdwn"
-                    text: "${{ steps.auto-merge.outputs.merged == 'true' && '*Status:*\nMerged ✅' || format('*Reviewers:*\n{0}', steps.add-reviewers.outcome == 'success' && '@wkoutre @Melvillian' || 'Manual assignment needed ⚠️') }}"
+                    text: "${{ steps.auto-merge.outputs.merged == 'true' && '*Status:*\nMerged ✅' || format('*Reviewers:*\n{0}', steps.add-reviewers.outcome == 'success' && '@wkoutre' || 'Manual assignment needed ⚠️') }}"
                   - type: "mrkdwn"
                     text: "*Changelog:*\n${{ needs.generate-changelog.outputs.generation_method == 'ai' && 'AI-generated ✨' || 'Fallback (commit list) ⚠️' }}"
               - type: "actions"
@@ -492,9 +491,9 @@ jobs:
             echo "- **Status**: ✅ Automatically merged to main" >> $GITHUB_STEP_SUMMARY
           else
             if [ "${{ steps.add-reviewers.outcome }}" = "success" ]; then
-              echo "- **Reviewers**: @wkoutre, @Melvillian (automatically assigned)" >> $GITHUB_STEP_SUMMARY
+              echo "- **Reviewers**: @wkoutre (automatically assigned)" >> $GITHUB_STEP_SUMMARY
             else
-              echo "- **Reviewers**: ⚠️ Automatic assignment failed - please add manually (@wkoutre, @Melvillian)" >> $GITHUB_STEP_SUMMARY
+              echo "- **Reviewers**: ⚠️ Automatic assignment failed - please add manually (@wkoutre)" >> $GITHUB_STEP_SUMMARY
             fi
           fi
 
@@ -517,7 +516,7 @@ jobs:
             echo "1. ✅ PR created with AI-generated changelog" >> $GITHUB_STEP_SUMMARY
 
             if [ "${{ steps.add-reviewers.outcome }}" = "success" ]; then
-              echo "2. ✅ Reviewers assigned (@wkoutre, @Melvillian)" >> $GITHUB_STEP_SUMMARY
+              echo "2. ✅ Reviewers assigned (@wkoutre)" >> $GITHUB_STEP_SUMMARY
             else
               echo "2. ⚠️ Reviewers could not be assigned automatically - please add manually" >> $GITHUB_STEP_SUMMARY
             fi

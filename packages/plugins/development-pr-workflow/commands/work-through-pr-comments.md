@@ -121,7 +121,7 @@ Found 3 comment(s) to address
 📝 Comment 1/3
 ================================================================================
 
-**Author**: Melvillian
+**Author**: wkoutre
 **Type**: Inline code comment
 **Location**: `scripts/lefthook/lint-markdown.sh:14`
 **Comment**:
