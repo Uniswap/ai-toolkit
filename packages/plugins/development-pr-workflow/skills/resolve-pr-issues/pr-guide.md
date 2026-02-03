@@ -207,10 +207,12 @@ Would you like me to [alternative approach] instead?
 
 Before reporting completion:
 
-1. Run `nx affected -t lint typecheck` (or equivalent)
-2. Run relevant tests
+1. **Detect project tooling** by checking for `nx.json` (Nx workspace) or `package.json` scripts
+2. **Run available validation** - check what lint/typecheck/test targets or scripts exist, then run them
 3. Verify no regressions
 4. Check changes compile
+
+> **Note**: Do not assume specific commands exist. First discover what's available (e.g., `nx show project <name> --json` for Nx, or inspect `package.json` scripts), then run appropriate validation.
 
 ## Commit Strategy
 
