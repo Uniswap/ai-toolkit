@@ -1,5 +1,4 @@
 ---
-name: setup-repository
 description: Interactive setup wizard for configuring any repository with Claude Code best practices. Use when user says "setup claude", "init claude", "configure claude code", "setup repository", "boris setup", "best practices setup", or wants to configure their repo for optimal AI-assisted development.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*), Bash(npm:*), Bash(node:*), Bash(which:*), Bash(ls:*), Bash(cat:*), Bash(mkdir:*), AskUserQuestion, WebFetch
 model: opus
@@ -289,7 +288,9 @@ mkdir -p .claude/agents
 
 #### PostToolUse Hook Configuration
 
-Add to user's `~/.claude/settings.json` or project's `.claude/settings.local.json`:
+Add to user's global `~/.claude/settings.json` (for all projects) or project's `.claude/settings.local.json` (for this project only):
+
+> **Note**: Hook configuration uses `~/.claude/settings.json`, which is different from `~/.claude.json` (used for MCP servers).
 
 ```json
 {
