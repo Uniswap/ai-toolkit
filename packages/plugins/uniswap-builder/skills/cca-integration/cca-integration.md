@@ -100,12 +100,14 @@ Collect parameters in these batches:
 
 - Prompt: "Tick spacing as percentage of floor price?"
 - Options: "1% of floor price (Recommended)", "10% of floor price", "0.1% of floor price", Custom percentage (via "Other")
-- Calculate: `floorPrice * percentage`
-- Validate: Must be >= 1 basis point of floor price
-- Round floor price to be multiple of tick spacing
+- Calculate: `tickSpacing = int(floorPrice * percentage)`
+- **CRITICAL**: Round floor price DOWN to be evenly divisible by tick spacing:
+  - `roundedFloorPrice = (floorPrice // tickSpacing) * tickSpacing`
+  - Verify: `roundedFloorPrice % tickSpacing == 0` must be true
+- Validate: Tick spacing must be >= 1 basis point of floor price
 - Store: `tickSpacingPercentage`, `tickSpacing` (Q96), `roundedFloorPrice`
 
-**After collection:** Validate inputs, calculate and display Q96 values, show timing summary.
+**After collection:** Validate inputs, verify floor price divisibility, calculate and display Q96 values, show timing summary.
 
 ---
 
@@ -242,7 +244,9 @@ Ask the user what they want to do:
   - **CRITICAL**: Account for decimal differences: `Q96 * ratio / 10^(tokenDecimals - currencyDecimals)`
   - USDC is 6 decimals on all networks - divide by 10^12 for 18-decimal tokens
   - Native ETH is 18 decimals - no adjustment needed for 18-decimal tokens
-- **Round floor price** to be multiple of tick spacing
+- **Round floor price** to be evenly divisible by tick spacing:
+  - `roundedFloorPrice = (floorPrice // tickSpacing) * tickSpacing`
+  - **MUST verify**: `roundedFloorPrice % tickSpacing == 0`
 - **Use the MCP tool** for supply schedule generation (provide setup instructions if not running)
 - **Show educational disclaimer** before deployment steps
 - **Minimize interaction rounds** - Collect as many params as reasonable per batch
@@ -447,20 +451,36 @@ tickSpacing = int(floorPrice * 0.01)
 # Result: 79228162514264337593543950
 ```
 
-### Rounding Floor Price
+### Rounding Floor Price (CRITICAL)
 
-Floor price **must** be a multiple of tick spacing:
+**Floor price MUST be evenly divisible by tick spacing.** Round DOWN to ensure exact divisibility:
 
 ```python
+# Calculate tick spacing first
+tickSpacing = int(floorPrice * 0.01)  # 1% of floor price
+
+# Round floor price DOWN to be evenly divisible
 roundedFloorPrice = (floorPrice // tickSpacing) * tickSpacing
+
+# VERIFY divisibility (must be True)
+assert roundedFloorPrice % tickSpacing == 0, "Floor price must be divisible by tick spacing!"
 ```
 
 **Example:**
 
 ```python
-# Original floor price: 7922816251426433759354395087
-# Tick spacing: 79228162514264337593543950
-# Rounded: 7922816251426433759354395000 (last two digits → 00)
+Q96 = 79228162514264337593543950336
+raw_floor_price = int(Q96 * 0.0001)  # 0.0001 ETH per token
+# Result: 7922816251426434139029504
+
+tick_spacing = int(raw_floor_price * 0.01)  # 1%
+# Result: 79228162514264350785536
+
+rounded_floor_price = (raw_floor_price // tick_spacing) * tick_spacing
+# Result: 7843588088912170727768064
+
+# Verify: 7843588088912170727768064 / 79228162514264350785536 = 99 (exact)
+# Remainder: 0 ✓
 ```
 
 **Warning**: Setting too small of a tick spacing will make the auction extremely gas inefficient and can result in DoS attacks.
