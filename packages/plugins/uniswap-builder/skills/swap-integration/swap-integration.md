@@ -743,17 +743,22 @@ function useSwap() {
     }
   };
 
-  const executeSwap = async () => {
+  const executeSwap = async (permit2Signature?: string) => {
     if (!quoteResponse) throw new Error('No quote available');
 
     // CRITICAL: Strip null fields and spread quote response into body
     const { permitData, permitTransaction, ...cleanQuote } = quoteResponse;
 
-    const swapRequest = {
+    const swapRequest: Record<string, any> = {
       ...cleanQuote,
-      // Only include permitData if it's a valid object
-      ...(permitData && typeof permitData === 'object' && { permitData }),
     };
+
+    // CRITICAL: Only include permitData if we have BOTH signature and permitData
+    // The API requires both fields to be present or both to be absent
+    if (permit2Signature && permitData && typeof permitData === 'object') {
+      swapRequest.signature = permit2Signature;
+      swapRequest.permitData = permitData;
+    }
 
     const swapResponse = await fetch(`${API_URL}/swap`, {
       method: 'POST',
@@ -789,13 +794,15 @@ const API_URL = 'https://trade-api.gateway.uniswap.org/v1';
 const API_KEY = process.env.UNISWAP_API_KEY;
 
 // Helper to strip null fields from quote response
-function prepareSwapRequest(quoteResponse: any): object {
+function prepareSwapRequest(quoteResponse: any, signature?: string): object {
   const { permitData, permitTransaction, ...cleanQuote } = quoteResponse;
 
   const request: Record<string, any> = { ...cleanQuote };
 
-  // Only include permitData if it's a valid object (not null)
-  if (permitData && typeof permitData === 'object') {
+  // CRITICAL: Only include permitData if we have BOTH signature and permitData
+  // The API requires both fields to be present or both to be absent
+  if (signature && permitData && typeof permitData === 'object') {
+    request.signature = signature;
     request.permitData = permitData;
   }
 
