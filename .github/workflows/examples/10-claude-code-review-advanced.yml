@@ -44,7 +44,7 @@ jobs:
 
       # Model selection based on PR labels
       # Add 'claude-opus' label to PRs that need more thorough review
-      model: ${{ contains(github.event.pull_request.labels.*.name, 'claude-opus') && 'claude-opus-4-1-20250805' || 'claude-sonnet-4-5-20250929' }}
+      model: ${{ contains(github.event.pull_request.labels.*.name, 'claude-opus') && 'claude-opus-4-6' || 'claude-sonnet-4-5' }}
 
       # Allow more turns for complex reviews
       # Default is 15, increase for PRs that need deeper analysis
@@ -76,7 +76,7 @@ jobs:
 #     with:
 #       pr_number: ${{ github.event.pull_request.number }}
 #       base_ref: ${{ github.base_ref }}
-#       model: 'claude-opus-4-1-20250805'  # Always use Opus for security
+#       model: 'claude-opus-4-6'  # Always use Opus for security
 #       custom_prompt_path: '.github/prompts/security-only-review.md'
 #     secrets:
 #       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

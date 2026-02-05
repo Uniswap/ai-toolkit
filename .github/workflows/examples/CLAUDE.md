@@ -141,7 +141,7 @@ Most examples accept these inputs:
 inputs:
   model:
     description: 'Claude model to use'
-    default: 'claude-sonnet-4-5-20250929'
+    default: 'claude-sonnet-4-5'
 
   custom_prompt_path:
     description: 'Path to custom prompt file'

@@ -59,9 +59,9 @@ on:
         description: 'Claude model'
         type: choice
         options:
-          - 'claude-sonnet-4-5-20250929'
-          - 'claude-opus-4-5-20251101'
-        default: 'claude-sonnet-4-5-20250929'
+          - 'claude-sonnet-4-5'
+          - 'claude-opus-4-6'
+        default: 'claude-sonnet-4-5'
       target_branch:
         description: 'Branch to create PRs against'
         default: 'main'
@@ -130,21 +130,21 @@ See the full example at `.github/workflows/examples/11-autonomous-linear-tasks.y
 
 ### Workflow Inputs
 
-| Input           | Default                      | Description            |
-| --------------- | ---------------------------- | ---------------------- |
-| `linear_team`   | "Developer AI"               | Linear team to query   |
-| `linear_label`  | "claude"                     | Label to filter issues |
-| `max_issues`    | 3                            | Maximum issues per run |
-| `model`         | "claude-sonnet-4-5-20250929" | Claude model to use    |
-| `target_branch` | "next"                       | Branch for PRs         |
+| Input           | Default             | Description            |
+| --------------- | ------------------- | ---------------------- |
+| `linear_team`   | "Developer AI"      | Linear team to query   |
+| `linear_label`  | "claude"            | Label to filter issues |
+| `max_issues`    | 3                   | Maximum issues per run |
+| `model`         | "claude-sonnet-4-5" | Claude model to use    |
+| `target_branch` | "next"              | Branch for PRs         |
 
 ### Model Selection
 
-| Model                        | Best For                                  |
-| ---------------------------- | ----------------------------------------- |
-| `claude-sonnet-4-5-20250929` | Balance of speed and capability (default) |
-| `claude-opus-4-5-20251101`   | Complex tasks requiring deep reasoning    |
-| `claude-haiku-4-5@20251001`  | Simple tasks, cost optimization           |
+| Model               | Best For                                  |
+| ------------------- | ----------------------------------------- |
+| `claude-sonnet-4-5` | Balance of speed and capability (default) |
+| `claude-opus-4-6`   | Complex tasks requiring deep reasoning    |
+| `claude-haiku-4-5`  | Simple tasks, cost optimization           |
 
 ## Creating Good Task Descriptions
 
@@ -213,7 +213,7 @@ Trigger manually from the GitHub Actions UI or CLI:
 gh workflow run claude-auto-tasks.yml \
   -f linear_team="Your Team" \
   -f max_issues="5" \
-  -f model="claude-opus-4-5-20251101"
+  -f model="claude-opus-4-6"
 ```
 
 ## Monitoring
