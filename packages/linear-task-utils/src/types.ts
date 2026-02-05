@@ -58,6 +58,8 @@ export interface ProcessedIssue {
   priority: number;
   /** Human-readable priority label */
   priority_label: string;
+  /** Linear team name (for multi-team support) */
+  linear_team: string;
 }
 
 /**
