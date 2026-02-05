@@ -52,10 +52,10 @@ on:
         required: false
         type: choice
         options:
-          - "claude-sonnet-4-5-20250929"
-          - "claude-opus-4-5-20251101"
-          - "claude-haiku-4-5@20251001"
-        default: "claude-opus-4-5-20251101"
+          - "claude-sonnet-4-5"
+          - "claude-opus-4-6"
+          - "claude-haiku-4-5"
+        default: "claude-opus-4-6"
 
       target_branch:
         description: "Branch to create PRs against"
@@ -114,7 +114,7 @@ jobs:
       issue_url: ${{ matrix.issue_url }}
       branch_name: ${{ matrix.branch_name }}
       target_branch: ${{ inputs.target_branch || 'next' }}
-      model: ${{ inputs.model || 'claude-opus-4-5-20251101' }}
+      model: ${{ inputs.model || 'claude-opus-4-6' }}
       timeout_minutes: 60
       linear_task_utils_tag: ${{ needs.prepare.outputs.linear_task_utils_tag }}
       debug_mode: ${{ inputs.debug_mode != '' && inputs.debug_mode || true }}

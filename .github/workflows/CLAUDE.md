@@ -107,21 +107,21 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 
 **Configuration Inputs:**
 
-| Input                           | Required | Default                    | Description                                                         |
-| ------------------------------- | -------- | -------------------------- | ------------------------------------------------------------------- |
-| `prompt`                        | No       | `""`                       | Direct automation prompt (enables automation mode)                  |
-| `model`                         | No       | `claude-opus-4-5-20251101` | Claude model to use                                                 |
-| `allowed_tools`                 | No       | `""`                       | Comma-separated list of allowed tools                               |
-| `disallowed_tools`              | No       | `""`                       | Comma-separated list of disallowed tools                            |
-| `custom_instructions`           | No       | CLAUDE.md instructions     | Additional system prompt instructions                               |
-| `max_turns`                     | No       | unlimited                  | Maximum conversation turns                                          |
-| `mcp_config`                    | No       | `""`                       | MCP server configuration (JSON)                                     |
-| `settings`                      | No       | `""`                       | Additional settings including env vars (JSON)                       |
-| `timeout_minutes`               | No       | `10`                       | Job timeout in minutes                                              |
-| `anthropic_api_key_secret_name` | No       | `ANTHROPIC_API_KEY`        | Name of the secret containing the Anthropic API key                 |
-| `plugin_marketplaces`           | No       | `""`                       | Additional marketplace paths (newline-separated, local or Git URLs) |
-| `plugins`                       | No       | `""`                       | Additional plugins to install (newline-separated)                   |
-| `install_uniswap_plugins`       | No       | `true`                     | Auto-install uniswap-ai-toolkit plugins (false to opt out)          |
+| Input                           | Required | Default                | Description                                                         |
+| ------------------------------- | -------- | ---------------------- | ------------------------------------------------------------------- |
+| `prompt`                        | No       | `""`                   | Direct automation prompt (enables automation mode)                  |
+| `model`                         | No       | `claude-opus-4-6`      | Claude model to use                                                 |
+| `allowed_tools`                 | No       | `""`                   | Comma-separated list of allowed tools                               |
+| `disallowed_tools`              | No       | `""`                   | Comma-separated list of disallowed tools                            |
+| `custom_instructions`           | No       | CLAUDE.md instructions | Additional system prompt instructions                               |
+| `max_turns`                     | No       | unlimited              | Maximum conversation turns                                          |
+| `mcp_config`                    | No       | `""`                   | MCP server configuration (JSON)                                     |
+| `settings`                      | No       | `""`                   | Additional settings including env vars (JSON)                       |
+| `timeout_minutes`               | No       | `10`                   | Job timeout in minutes                                              |
+| `anthropic_api_key_secret_name` | No       | `ANTHROPIC_API_KEY`    | Name of the secret containing the Anthropic API key                 |
+| `plugin_marketplaces`           | No       | `""`                   | Additional marketplace paths (newline-separated, local or Git URLs) |
+| `plugins`                       | No       | `""`                   | Additional plugins to install (newline-separated)                   |
+| `install_uniswap_plugins`       | No       | `true`                 | Auto-install uniswap-ai-toolkit plugins (false to opt out)          |
 
 **Plugin Configuration:**
 
@@ -148,7 +148,7 @@ You can use the `plugin_marketplaces` and `plugins` inputs to install **addition
 ```yaml
 uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
 with:
-  model: 'claude-sonnet-4-5-20250929'
+  model: 'claude-sonnet-4-5'
   custom_instructions: |
     Focus on code quality and security.
     Follow CLAUDE.md guidelines.
@@ -161,7 +161,7 @@ secrets:
 ```yaml
 uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
 with:
-  model: 'claude-sonnet-4-5-20250929'
+  model: 'claude-sonnet-4-5'
 secrets:
   CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
@@ -171,7 +171,7 @@ secrets:
 ```yaml
 uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
 with:
-  model: 'claude-sonnet-4-5-20250929'
+  model: 'claude-sonnet-4-5'
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
   CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -300,24 +300,24 @@ You must enable GitHub Actions to create and approve pull requests:
 
 **Configuration Inputs:**
 
-| Input                                 | Required | Default                      | Description                                                                                                                    |
-| ------------------------------------- | -------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `pr_number`                           | Yes      | -                            | Pull request number to review                                                                                                  |
-| `base_ref`                            | No       | -                            | Base branch name (e.g., main, master). If not provided, fetched via GitHub API.                                                |
-| `force_review`                        | No       | `false`                      | Force a full review even if the code hasn't changed (bypasses patch-ID cache)                                                  |
-| `model`                               | No       | `claude-sonnet-4-5-20250929` | Claude model to use for review                                                                                                 |
-| `max_turns`                           | No       | unlimited                    | Maximum conversation turns for Claude                                                                                          |
-| `prompt_override_files_to_skip`       | No       | `""`                         | Path to markdown file overriding "Files to Skip" section                                                                       |
-| `prompt_override_review_priorities`   | No       | `""`                         | Path to markdown file overriding "Review Priorities" section                                                                   |
-| `prompt_override_communication_style` | No       | `""`                         | Path to markdown file overriding "Communication Style" section                                                                 |
-| `prompt_override_pattern_recognition` | No       | `""`                         | Path to markdown file overriding "Pattern Recognition" section                                                                 |
-| `timeout_minutes`                     | No       | `30`                         | Job timeout in minutes                                                                                                         |
-| `max_diff_lines`                      | No       | `5000`                       | Maximum diff lines before skipping Claude review (PR considered too large)                                                     |
-| `allowed_tools`                       | No       | `""`                         | Comma-separated list of allowed tools for Claude                                                                               |
-| `toolkit_ref`                         | No       | `main`                       | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
-| `install_uniswap_plugins`             | No       | `true`                       | Auto-install uniswap-ai-toolkit plugins. Set to false to opt out and use only custom plugins.                                  |
-| `auto_fix`                            | No       | `false`                      | When enabled, auto-fix issues found in review and push changes (triggers re-review). Requires `WORKFLOW_PAT`.                  |
-| `auto_fix_model`                      | No       | (same as `model`)            | Model to use for auto-fixing. Use a more capable model (e.g., Opus) for complex fixes.                                         |
+| Input                                 | Required | Default             | Description                                                                                                                    |
+| ------------------------------------- | -------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `pr_number`                           | Yes      | -                   | Pull request number to review                                                                                                  |
+| `base_ref`                            | No       | -                   | Base branch name (e.g., main, master). If not provided, fetched via GitHub API.                                                |
+| `force_review`                        | No       | `false`             | Force a full review even if the code hasn't changed (bypasses patch-ID cache)                                                  |
+| `model`                               | No       | `claude-sonnet-4-5` | Claude model to use for review                                                                                                 |
+| `max_turns`                           | No       | unlimited           | Maximum conversation turns for Claude                                                                                          |
+| `prompt_override_files_to_skip`       | No       | `""`                | Path to markdown file overriding "Files to Skip" section                                                                       |
+| `prompt_override_review_priorities`   | No       | `""`                | Path to markdown file overriding "Review Priorities" section                                                                   |
+| `prompt_override_communication_style` | No       | `""`                | Path to markdown file overriding "Communication Style" section                                                                 |
+| `prompt_override_pattern_recognition` | No       | `""`                | Path to markdown file overriding "Pattern Recognition" section                                                                 |
+| `timeout_minutes`                     | No       | `30`                | Job timeout in minutes                                                                                                         |
+| `max_diff_lines`                      | No       | `5000`              | Maximum diff lines before skipping Claude review (PR considered too large)                                                     |
+| `allowed_tools`                       | No       | `""`                | Comma-separated list of allowed tools for Claude                                                                               |
+| `toolkit_ref`                         | No       | `main`              | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
+| `install_uniswap_plugins`             | No       | `true`              | Auto-install uniswap-ai-toolkit plugins. Set to false to opt out and use only custom plugins.                                  |
+| `auto_fix`                            | No       | `false`             | When enabled, auto-fix issues found in review and push changes (triggers re-review). Requires `WORKFLOW_PAT`.                  |
+| `auto_fix_model`                      | No       | (same as `model`)   | Model to use for auto-fixing. Use a more capable model (e.g., Opus) for complex fixes.                                         |
 
 **Section Overrides (Granular Prompt Customization):**
 
@@ -388,7 +388,7 @@ uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
 with:
   pr_number: ${{ github.event.pull_request.number }}
   base_ref: ${{ github.base_ref }}
-  model: 'claude-sonnet-4-5-20250929'
+  model: 'claude-sonnet-4-5'
   toolkit_ref: 'main' # or 'next' to test unreleased changes
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -402,7 +402,7 @@ uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
 with:
   pr_number: ${{ github.event.pull_request.number }}
   base_ref: ${{ github.base_ref }}
-  model: 'claude-sonnet-4-5-20250929'
+  model: 'claude-sonnet-4-5'
 secrets:
   CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
   WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
@@ -432,7 +432,7 @@ with:
   pr_number: ${{ github.event.pull_request.number }}
   base_ref: ${{ github.base_ref }}
   auto_fix: true # Enable automatic fixing of issues
-  auto_fix_model: 'claude-opus-4-5-20251101' # Use Opus for better fixes (optional)
+  auto_fix_model: 'claude-opus-4-6' # Use Opus for better fixes (optional)
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
   WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }} # Required for pushing fixes
@@ -552,20 +552,20 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 
 **Configuration Inputs:**
 
-| Input                     | Required | Default                      | Description                                                              |
-| ------------------------- | -------- | ---------------------------- | ------------------------------------------------------------------------ |
-| `pr_number`               | Yes      | -                            | Pull request number to validate                                          |
-| `base_ref`                | No       | -                            | Base branch name (e.g., main). If not provided, fetched via GitHub API.  |
-| `suggestion_mode`         | No       | `suggest`                    | How to provide fix suggestions: suggest, branch, auto, or check          |
-| `auto_commit`             | No       | `false`                      | Auto-commit and push suggestions to PR branch (bypasses suggestion_mode) |
-| `fail_on_missing_docs`    | No       | `true`                       | Whether missing documentation should cause workflow to fail              |
-| `fail_on_missing_version` | No       | `true`                       | Whether missing plugin version bumps should cause workflow to fail       |
-| `model`                   | No       | `claude-sonnet-4-5-20250929` | Claude model to use                                                      |
-| `max_turns`               | No       | unlimited                    | Maximum conversation turns for Claude                                    |
-| `timeout_minutes`         | No       | `15`                         | Job timeout in minutes                                                   |
-| `toolkit_ref`             | No       | `main`                       | Git ref of ai-toolkit to use for scripts                                 |
-| `install_uniswap_plugins` | No       | `true`                       | Auto-install uniswap-ai-toolkit plugins                                  |
-| `plugin_ref`              | No       | `main`                       | Git ref for build-plugin-config action ('main' or 'next')                |
+| Input                     | Required | Default             | Description                                                              |
+| ------------------------- | -------- | ------------------- | ------------------------------------------------------------------------ |
+| `pr_number`               | Yes      | -                   | Pull request number to validate                                          |
+| `base_ref`                | No       | -                   | Base branch name (e.g., main). If not provided, fetched via GitHub API.  |
+| `suggestion_mode`         | No       | `suggest`           | How to provide fix suggestions: suggest, branch, auto, or check          |
+| `auto_commit`             | No       | `false`             | Auto-commit and push suggestions to PR branch (bypasses suggestion_mode) |
+| `fail_on_missing_docs`    | No       | `true`              | Whether missing documentation should cause workflow to fail              |
+| `fail_on_missing_version` | No       | `true`              | Whether missing plugin version bumps should cause workflow to fail       |
+| `model`                   | No       | `claude-sonnet-4-5` | Claude model to use                                                      |
+| `max_turns`               | No       | unlimited           | Maximum conversation turns for Claude                                    |
+| `timeout_minutes`         | No       | `15`                | Job timeout in minutes                                                   |
+| `toolkit_ref`             | No       | `main`              | Git ref of ai-toolkit to use for scripts                                 |
+| `install_uniswap_plugins` | No       | `true`              | Auto-install uniswap-ai-toolkit plugins                                  |
+| `plugin_ref`              | No       | `main`              | Git ref for build-plugin-config action ('main' or 'next')                |
 
 **Outputs:**
 
@@ -910,14 +910,14 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 
 **Configuration:**
 
-| Input                     | Default                    | Description                                     |
-| ------------------------- | -------------------------- | ----------------------------------------------- |
-| `model`                   | `claude-opus-4-5-20251101` | Claude model to use                             |
-| `max_turns`               | `150`                      | Maximum conversation turns                      |
-| `debug_mode`              | `true`                     | Show full Claude output                         |
-| `timeout_minutes`         | `60`                       | Job timeout                                     |
-| `pr_type`                 | `draft`                    | Type of PR to create: "draft" or "published"    |
-| `install_uniswap_plugins` | `true`                     | Auto-install uniswap plugins (false to opt out) |
+| Input                     | Default           | Description                                     |
+| ------------------------- | ----------------- | ----------------------------------------------- |
+| `model`                   | `claude-opus-4-6` | Claude model to use                             |
+| `max_turns`               | `150`             | Maximum conversation turns                      |
+| `debug_mode`              | `true`            | Show full Claude output                         |
+| `timeout_minutes`         | `60`              | Job timeout                                     |
+| `pr_type`                 | `draft`           | Type of PR to create: "draft" or "published"    |
+| `install_uniswap_plugins` | `true`            | Auto-install uniswap plugins (false to opt out) |
 
 **Validation Behavior:**
 
@@ -951,7 +951,7 @@ with:
   issue_url: ${{ matrix.issue_url }}
   branch_name: ${{ matrix.branch_name }}
   target_branch: 'next'
-  model: 'claude-opus-4-5-20251101'
+  model: 'claude-opus-4-6'
   debug_mode: true
   pr_type: 'draft' # or 'published' for non-draft PRs
 secrets:
@@ -971,7 +971,7 @@ with:
   issue_url: ${{ matrix.issue_url }}
   branch_name: ${{ matrix.branch_name }}
   target_branch: 'next'
-  model: 'claude-opus-4-5-20251101'
+  model: 'claude-opus-4-6'
   debug_mode: true
   pr_type: 'draft'
 secrets:
@@ -1029,15 +1029,15 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 
 **Configuration:**
 
-| Input                     | Default                      | Description                                     |
-| ------------------------- | ---------------------------- | ----------------------------------------------- |
-| `branch_name`             | required                     | Branch to work on                               |
-| `target_branch`           | `main`                       | Base branch for PR                              |
-| `dry_run`                 | `false`                      | Analyze only, skip PR creation                  |
-| `model`                   | `claude-sonnet-4-5-20250929` | Claude model to use                             |
-| `timeout_minutes`         | `30`                         | Maximum execution time                          |
-| `debug_mode`              | `true`                       | Show full Claude output                         |
-| `install_uniswap_plugins` | `true`                       | Auto-install uniswap plugins (false to opt out) |
+| Input                     | Default             | Description                                     |
+| ------------------------- | ------------------- | ----------------------------------------------- |
+| `branch_name`             | required            | Branch to work on                               |
+| `target_branch`           | `main`              | Base branch for PR                              |
+| `dry_run`                 | `false`             | Analyze only, skip PR creation                  |
+| `model`                   | `claude-sonnet-4-5` | Claude model to use                             |
+| `timeout_minutes`         | `30`                | Maximum execution time                          |
+| `debug_mode`              | `true`              | Show full Claude output                         |
+| `install_uniswap_plugins` | `true`              | Auto-install uniswap plugins (false to opt out) |
 
 **Example Transformation:**
 
@@ -1063,7 +1063,7 @@ gh workflow run update-action-versions.yml
 gh workflow run update-action-versions.yml -f dry_run=true
 
 # Use Opus model
-gh workflow run update-action-versions.yml -f model=claude-opus-4-5-20251101
+gh workflow run update-action-versions.yml -f model=claude-opus-4-6
 ```
 
 **Usage example (API Key):**
@@ -1178,13 +1178,13 @@ The Notion integration needs access to:
 
 **Configuration Inputs:**
 
-| Input                    | Default                      | Description                                                                                       |
-| ------------------------ | ---------------------------- | ------------------------------------------------------------------------------------------------- |
-| `days_back`              | `7`                          | Number of days to look back for content                                                           |
-| `model`                  | `claude-sonnet-4-5-20250929` | Claude model to use                                                                               |
-| `dry_run`                | `false`                      | Generate but don't publish to Notion                                                              |
-| `debug_mode`             | `true`                       | Enable full Claude output for debugging                                                           |
-| `slack_post_channel_ids` | `C091XE1DNP2`                | Comma-separated Slack channel IDs to post newsletter announcement (e.g., C091XE1DNP2,C094URH6C13) |
+| Input                    | Default             | Description                                                                                       |
+| ------------------------ | ------------------- | ------------------------------------------------------------------------------------------------- |
+| `days_back`              | `7`                 | Number of days to look back for content                                                           |
+| `model`                  | `claude-sonnet-4-5` | Claude model to use                                                                               |
+| `dry_run`                | `false`             | Generate but don't publish to Notion                                                              |
+| `debug_mode`             | `true`              | Enable full Claude output for debugging                                                           |
+| `slack_post_channel_ids` | `C091XE1DNP2`       | Comma-separated Slack channel IDs to post newsletter announcement (e.g., C091XE1DNP2,C094URH6C13) |
 
 **Manual Trigger:**
 
@@ -1199,7 +1199,7 @@ gh workflow run dev-ai-newsletter.yml -f dry_run=true
 gh workflow run dev-ai-newsletter.yml -f days_back=14
 
 # Use Opus model for better quality
-gh workflow run dev-ai-newsletter.yml -f model=claude-opus-4-5-20251101
+gh workflow run dev-ai-newsletter.yml -f model=claude-opus-4-6
 
 # Post to specific Slack channels
 gh workflow run dev-ai-newsletter.yml -f slack_post_channel_ids="C091XE1DNP2,C094URH6C13"
@@ -1318,7 +1318,7 @@ jobs:
   call-claude:
     uses: ./.github/workflows/_claude-main.yml
     with:
-      model: 'claude-sonnet-4-5-20250929'
+      model: 'claude-sonnet-4-5'
       allowed_tools: 'read-write'
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -1676,7 +1676,7 @@ Many workflows support manual triggering via GitHub UI or CLI:
 ```bash
 gh workflow run claude-code-review.yml \
   -f pr_number=123 \
-  -f model="claude-sonnet-4-5-20250929"
+  -f model="claude-sonnet-4-5"
 ```
 
 ## Troubleshooting

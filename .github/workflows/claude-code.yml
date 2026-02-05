@@ -31,7 +31,7 @@ jobs:
       plugin_ref: 'next'
 
       # Use default Sonnet 4.5 model
-      model: 'claude-sonnet-4-5-20250929'
+      model: 'claude-sonnet-4-5'
 
       # Repository-specific instructions
       custom_instructions: |

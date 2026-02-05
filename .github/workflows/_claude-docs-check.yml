@@ -83,7 +83,7 @@ on:
         description: "Claude model to use"
         required: false
         type: string
-        default: "claude-sonnet-4-5-20250929"
+        default: "claude-sonnet-4-5"
 
       max_turns:
         description: "Maximum conversation turns for Claude"

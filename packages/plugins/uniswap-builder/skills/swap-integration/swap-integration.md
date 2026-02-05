@@ -188,6 +188,7 @@ if (permit2Signature && permitData) {
 **Critical**: Do NOT wrap the quote in `{quote: quoteResponse}`. The API expects the quote response fields spread into the request body.
 
 **Permit2 Rules**:
+
 - `signature` and `permitData` must BOTH be present, or BOTH be absent
 - Never set `permitData: null` - omit the field entirely
 - The quote response often includes `permitData: null` - strip this before sending
@@ -252,14 +253,14 @@ The `/swap` endpoint expects the quote response **spread into the request body**
 ```typescript
 // WRONG - causes "quote does not match any of the allowed types"
 const badRequest = {
-  quote: quoteResponse,  // Don't wrap!
+  quote: quoteResponse, // Don't wrap!
   signature: '0x...',
 };
 
 // CORRECT - spread the quote response
 const goodRequest = {
   ...quoteResponse,
-  signature: '0x...',  // Only if using Permit2
+  signature: '0x...', // Only if using Permit2
 };
 ```
 
@@ -288,13 +289,13 @@ function prepareSwapRequest(quoteResponse: QuoteResponse, signature?: string): o
 
 When using Permit2 for gasless approvals:
 
-| Scenario | `signature` | `permitData` |
-|----------|-------------|--------------|
-| Standard swap (no Permit2) | Omit | Omit |
-| Permit2 swap | Required | Required |
-| **Invalid** | Present | Missing |
-| **Invalid** | Missing | Present |
-| **Invalid (API error)** | Any | `null` |
+| Scenario                   | `signature` | `permitData` |
+| -------------------------- | ----------- | ------------ |
+| Standard swap (no Permit2) | Omit        | Omit         |
+| Permit2 swap               | Required    | Required     |
+| **Invalid**                | Present     | Missing      |
+| **Invalid**                | Missing     | Present      |
+| **Invalid (API error)**    | Any         | `null`       |
 
 ### 4. Pre-Broadcast Validation
 
@@ -334,11 +335,13 @@ function validateSwapBeforeBroadcast(swap: SwapTransaction): void {
 When using viem/wagmi in browser environments, you need Node.js polyfills:
 
 **Install buffer polyfill**:
+
 ```bash
 npm install buffer
 ```
 
 **Add to your entry file (before other imports)**:
+
 ```typescript
 // src/main.tsx or src/index.tsx
 import { Buffer } from 'buffer';
@@ -351,6 +354,7 @@ import { WagmiProvider } from 'wagmi';
 ```
 
 **Vite configuration** (`vite.config.ts`):
+
 ```typescript
 export default defineConfig({
   define: {
@@ -952,34 +956,34 @@ contract SwapIntegration {
 
 ### Common Issues
 
-| Issue | Solution |
-| ----- | -------- |
-| "Insufficient allowance" | Call /check_approval first and submit approval tx |
-| "Quote expired" | Increase deadline or re-fetch quote |
-| "Slippage exceeded" | Increase slippageTolerance or retry |
-| "Insufficient liquidity" | Try smaller amount or different route |
-| **"Buffer is not defined"** | Add Buffer polyfill (see Critical Implementation Notes) |
-| **On-chain revert with empty data** | Validate `swap.data` is non-empty hex before broadcasting |
-| **"permitData must be of type object"** | Strip `permitData: null` from request - omit field entirely |
+| Issue                                               | Solution                                                         |
+| --------------------------------------------------- | ---------------------------------------------------------------- |
+| "Insufficient allowance"                            | Call /check_approval first and submit approval tx                |
+| "Quote expired"                                     | Increase deadline or re-fetch quote                              |
+| "Slippage exceeded"                                 | Increase slippageTolerance or retry                              |
+| "Insufficient liquidity"                            | Try smaller amount or different route                            |
+| **"Buffer is not defined"**                         | Add Buffer polyfill (see Critical Implementation Notes)          |
+| **On-chain revert with empty data**                 | Validate `swap.data` is non-empty hex before broadcasting        |
+| **"permitData must be of type object"**             | Strip `permitData: null` from request - omit field entirely      |
 | **"quote does not match any of the allowed types"** | Don't wrap quote in `{quote: ...}` - spread it into request body |
 
 ### API Validation Errors (400)
 
-| Error Message | Cause | Fix |
-| ------------- | ----- | --- |
-| `"permitData" must be of type object` | Sending `permitData: null` | Omit the field entirely when null |
+| Error Message                                     | Cause                                      | Fix                                         |
+| ------------------------------------------------- | ------------------------------------------ | ------------------------------------------- |
+| `"permitData" must be of type object`             | Sending `permitData: null`                 | Omit the field entirely when null           |
 | `"quote" does not match any of the allowed types` | Wrapping quote in `{quote: quoteResponse}` | Spread quote response: `{...quoteResponse}` |
-| `signature and permitData must both be present` | Including only one Permit2 field | Include both or neither |
+| `signature and permitData must both be present`   | Including only one Permit2 field           | Include both or neither                     |
 
 ### API Error Codes
 
-| Code | Meaning |
-| ---- | ------- |
-| 400 | Invalid request parameters (see validation errors above) |
-| 401 | Invalid or missing API key |
-| 404 | No route found for pair |
-| 429 | Rate limit exceeded |
-| 500 | API error - implement exponential backoff retry |
+| Code | Meaning                                                  |
+| ---- | -------------------------------------------------------- |
+| 400  | Invalid request parameters (see validation errors above) |
+| 401  | Invalid or missing API key                               |
+| 404  | No route found for pair                                  |
+| 429  | Rate limit exceeded                                      |
+| 500  | API error - implement exponential backoff retry          |
 
 ### Pre-Broadcast Checklist
 

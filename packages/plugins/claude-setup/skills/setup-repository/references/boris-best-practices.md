@@ -62,9 +62,9 @@ The key insight: Claude Code is powerful by default. The goal of configuration i
 - Use inline bash to pre-compute context (git status, etc.)
 - Reduces back-and-forth with the model
 
-### 5. Opus 4.5 with Thinking
+### 5. Opus 4.6 with Thinking
 
-> "The model choice is unambiguous: Opus 4.5 with thinking for everything."
+> "The model choice is unambiguous: Opus 4.6 with thinking for everything."
 
 **Rationale:**
 
@@ -135,7 +135,7 @@ Boris runs:
 | ------------------------------------ | ------------------------------------- |
 | `git add .`                          | Add files individually                |
 | Skip verification                    | Always verify before marking complete |
-| Use Sonnet for complex tasks         | Use Opus 4.5 with thinking            |
+| Use Sonnet for complex tasks         | Use Opus 4.6 with thinking            |
 | Skip plan mode                       | Start in plan mode, iterate on plan   |
 | Ignore mistakes                      | Add to CLAUDE.md immediately          |
 | Use `--dangerously-skip-permissions` | Use `/permissions` for pre-approval   |

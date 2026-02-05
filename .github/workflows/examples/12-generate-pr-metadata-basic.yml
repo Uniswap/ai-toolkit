@@ -44,7 +44,7 @@ jobs:
       pr_number: ${{ github.event.pull_request.number }}
       base_ref: ${{ github.base_ref }}
       # All other inputs use defaults:
-      # - model: claude-sonnet-4-5-20250929
+      # - model: claude-sonnet-4-5
       # - timeout_minutes: 15
       # - commit_history_count: 30
       # - pr_history_count: 10

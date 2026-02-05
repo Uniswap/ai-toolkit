@@ -71,7 +71,7 @@ This plugin implements key practices from Boris Cherny (creator of Claude Code):
 - **Plan mode first** - Start complex tasks with planning
 - **Compounding learning** - Update CLAUDE.md when Claude makes mistakes
 - **Slash commands for inner loops** - Automate repetitive workflows
-- **Opus 4.5 with thinking** - Use the best model for quality
+- **Opus 4.6 with thinking** - Use the best model for quality
 
 See [references/boris-best-practices.md](skills/setup-repository/references/boris-best-practices.md) for full details.
 

@@ -42,7 +42,7 @@ jobs:
       base_ref: ${{ github.base_ref }}
 
       # Use a faster model for quick generation
-      model: 'claude-sonnet-4-5-20250929'
+      model: 'claude-sonnet-4-5'
 
       # Increase timeout for complex PRs
       timeout_minutes: 20
