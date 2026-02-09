@@ -81,7 +81,7 @@ All EVM-compatible chains including: Ethereum, Arbitrum, Optimism, Base, Polygon
 
 1. **Trading API** (Recommended for most use cases)
 
-   - REST API at `https://trade.api.uniswap.org/v1`
+   - REST API at `https://trade-api.gateway.uniswap.org/v1`
    - Handles routing optimization automatically
    - 3-step flow: check_approval -> quote -> swap
 
@@ -109,7 +109,7 @@ Mainnet (1), Optimism (10), Polygon (137), Arbitrum (42161), Base (8453), BNB (5
 
 ### Uniswap
 
-- Trading API: `https://trade.api.uniswap.org/v1`
+- Trading API: `https://trade-api.gateway.uniswap.org/v1`
 - Universal Router: `github.com/Uniswap/universal-router`
 - SDKs: `@uniswap/universal-router-sdk`, `@uniswap/v3-sdk`, `@uniswap/sdk-core`
 - Permit2: Token approval infrastructure

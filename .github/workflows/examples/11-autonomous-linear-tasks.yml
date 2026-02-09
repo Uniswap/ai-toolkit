@@ -62,10 +62,10 @@ on:
         required: false
         type: choice
         options:
-          - "claude-sonnet-4-5-20250929" # Balanced (recommended)
-          - "claude-opus-4-5-20251101" # Most capable
-          - "claude-haiku-4-5@20251001" # Fast & economical
-        default: "claude-opus-4-5-20251101"
+          - "claude-sonnet-4-5" # Balanced (recommended)
+          - "claude-opus-4-6" # Most capable
+          - "claude-haiku-4-5" # Fast & economical
+        default: "claude-opus-4-6"
 
       target_branch:
         description: "Branch to create PRs against"

@@ -44,6 +44,11 @@
       "name": "spec-workflow",
       "source": "./packages/plugins/spec-workflow",
       "description": "Autonomous spec-driven development workflow with multi-agent collaboration and specification management (optional)"
+    },
+    {
+      "name": "claude-setup",
+      "source": "./packages/plugins/claude-setup",
+      "description": "Interactive setup wizard for configuring any repository with Claude Code best practices"
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
   "name": "@uniswap/ai-toolkit-notion-publisher",
-  "version": "0.0.13",
+  "version": "0.0.14-next.0",
   "private": false,
   "type": "module",
   "description": "CLI tool to publish release notes to Notion databases with markdown support",

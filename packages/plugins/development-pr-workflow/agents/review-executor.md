@@ -1,7 +1,7 @@
 ---
 name: review-executor
 description: Executes code review tasks - addresses PR comments, fixes CI issues, and implements review feedback
-model: claude-sonnet-4-5-20250929
+model: sonnet
 ---
 
 # review-executor Agent

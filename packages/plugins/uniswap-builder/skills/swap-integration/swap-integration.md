@@ -32,7 +32,7 @@ This skill assumes familiarity with viem basics. If you're new to viem, see the 
 
 Best for: Frontends, backends, scripts. Handles routing optimization automatically.
 
-**Base URL**: `https://trade.api.uniswap.org/v1`
+**Base URL**: `https://trade-api.gateway.uniswap.org/v1`
 
 **Authentication**: `x-api-key: <your-api-key>` header required
 
@@ -163,17 +163,35 @@ POST /quote
 POST /swap
 ```
 
-**Request**:
+**Request** - Spread the quote response directly into the body:
 
-```json
-{
-  "quote": {
-    /* full quote object from step 2 */
-  },
-  "signature": "0x...",
-  "deadline": 1704067200
+```typescript
+// CORRECT: Spread the quote response, strip null fields
+const quoteResponse = await fetchQuote(params);
+
+// Remove null permitData/permitTransaction (API rejects null values)
+const { permitData, permitTransaction, ...cleanQuote } = quoteResponse;
+
+const swapRequest = {
+  ...cleanQuote,
+  // Only include permitData if it's a valid object (not null)
+  ...(permitData && { permitData }),
+};
+
+// If using Permit2 signature, include BOTH signature and permitData
+if (permit2Signature && permitData) {
+  swapRequest.signature = permit2Signature;
+  swapRequest.permitData = permitData;
 }
 ```
+
+**Critical**: Do NOT wrap the quote in `{quote: quoteResponse}`. The API expects the quote response fields spread into the request body.
+
+**Permit2 Rules**:
+
+- `signature` and `permitData` must BOTH be present, or BOTH be absent
+- Never set `permitData: null` - omit the field entirely
+- The quote response often includes `permitData: null` - strip this before sending
 
 **Response** (ready-to-sign transaction):
 
@@ -186,6 +204,19 @@ POST /swap
     "value": "0",
     "chainId": 1,
     "gasLimit": "250000"
+  }
+}
+```
+
+**Response Validation** - Always validate before broadcasting:
+
+```typescript
+function validateSwapResponse(response: SwapResponse): void {
+  if (!response.swap?.data || response.swap.data === '' || response.swap.data === '0x') {
+    throw new Error('swap.data is empty - quote may have expired');
+  }
+  if (!isAddress(response.swap.to) || !isAddress(response.swap.from)) {
+    throw new Error('Invalid address in swap response');
   }
 }
 ```
@@ -208,6 +239,146 @@ POST /swap
 | 4     | WRAP     | ETH to WETH         |
 | 5     | UNWRAP   | WETH to ETH         |
 | 6     | BRIDGE   | Cross-chain bridge  |
+
+---
+
+## Critical Implementation Notes
+
+These are common pitfalls discovered during real-world Trading API integration. **Follow these rules to avoid on-chain reverts and API errors.**
+
+### 1. Swap Request Body Format
+
+The `/swap` endpoint expects the quote response **spread into the request body**, not wrapped in a `quote` field.
+
+```typescript
+// WRONG - causes "quote does not match any of the allowed types"
+const badRequest = {
+  quote: quoteResponse, // Don't wrap!
+  signature: '0x...',
+};
+
+// CORRECT - spread the quote response
+const goodRequest = {
+  ...quoteResponse,
+  signature: '0x...', // Only if using Permit2
+};
+```
+
+### 2. Null Field Handling
+
+The API rejects `permitData: null`. Always strip null fields before sending:
+
+```typescript
+function prepareSwapRequest(quoteResponse: QuoteResponse, signature?: string): object {
+  // Strip null values that the API rejects
+  const { permitData, permitTransaction, ...cleanQuote } = quoteResponse;
+
+  const request: Record<string, unknown> = { ...cleanQuote };
+
+  // Only include permitData if it's a valid object AND we have a signature
+  if (signature && permitData && typeof permitData === 'object') {
+    request.signature = signature;
+    request.permitData = permitData;
+  }
+
+  return request;
+}
+```
+
+### 3. Permit2 Field Rules
+
+When using Permit2 for gasless approvals:
+
+| Scenario                   | `signature` | `permitData` |
+| -------------------------- | ----------- | ------------ |
+| Standard swap (no Permit2) | Omit        | Omit         |
+| Permit2 swap               | Required    | Required     |
+| **Invalid**                | Present     | Missing      |
+| **Invalid**                | Missing     | Present      |
+| **Invalid (API error)**    | Any         | `null`       |
+
+### 4. Pre-Broadcast Validation
+
+Always validate the swap response before sending to the blockchain:
+
+```typescript
+import { isAddress, isHex } from 'viem';
+
+function validateSwapBeforeBroadcast(swap: SwapTransaction): void {
+  // 1. data must be non-empty hex
+  if (!swap.data || swap.data === '' || swap.data === '0x') {
+    throw new Error('swap.data is empty - this will revert on-chain. Re-fetch the quote.');
+  }
+
+  if (!isHex(swap.data)) {
+    throw new Error('swap.data is not valid hex');
+  }
+
+  // 2. Addresses must be valid
+  if (!isAddress(swap.to)) {
+    throw new Error('swap.to is not a valid address');
+  }
+
+  if (!isAddress(swap.from)) {
+    throw new Error('swap.from is not a valid address');
+  }
+
+  // 3. Value must be present (can be "0" for non-ETH swaps)
+  if (swap.value === undefined || swap.value === null) {
+    throw new Error('swap.value is missing');
+  }
+}
+```
+
+### 5. Browser Environment Setup
+
+When using viem/wagmi in browser environments, you need Node.js polyfills:
+
+**Install buffer polyfill**:
+
+```bash
+npm install buffer
+```
+
+**Add to your entry file (before other imports)**:
+
+```typescript
+// src/main.tsx or src/index.tsx
+import { Buffer } from 'buffer';
+globalThis.Buffer = Buffer;
+
+// Then your other imports
+import React from 'react';
+import { WagmiProvider } from 'wagmi';
+// ...
+```
+
+**Vite configuration** (`vite.config.ts`):
+
+```typescript
+export default defineConfig({
+  define: {
+    global: 'globalThis',
+  },
+  optimizeDeps: {
+    include: ['buffer'],
+  },
+  resolve: {
+    alias: {
+      buffer: 'buffer',
+    },
+  },
+});
+```
+
+Without this setup, you'll see: `ReferenceError: Buffer is not defined`
+
+### 6. Quote Freshness
+
+- Quotes expire quickly (typically 30 seconds)
+- Always re-fetch if the user takes time to review
+- Use the `deadline` parameter to prevent stale execution
+- If `/swap` returns empty `data`, the quote likely expired
 
 ---
 
@@ -542,47 +713,79 @@ async function executeRoute(planner: RoutePlanner, options?: { value?: bigint })
 
 ### Frontend Swap Hook (React)
 
+**Note**: Ensure you've set up the Buffer polyfill (see Critical Implementation Notes).
+
 ```typescript
+import { isAddress, isHex } from 'viem';
+
+const API_URL = 'https://trade-api.gateway.uniswap.org/v1';
+
 function useSwap() {
-  const [quote, setQuote] = useState(null);
+  const [quoteResponse, setQuoteResponse] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const getQuote = async (params) => {
     setLoading(true);
-    const response = await fetch('https://trade.api.uniswap.org/v1/quote', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': API_KEY,
-      },
-      body: JSON.stringify(params),
-    });
-    const data = await response.json();
-    setQuote(data.quote);
-    setLoading(false);
+    setError(null);
+    try {
+      const response = await fetch(`${API_URL}/quote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': API_KEY,
+        },
+        body: JSON.stringify(params),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Quote failed');
+      setQuoteResponse(data); // Store the FULL response, not just data.quote
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const executeSwap = async () => {
-    // Get swap transaction
-    const swapResponse = await fetch('https://trade.api.uniswap.org/v1/swap', {
+  const executeSwap = async (permit2Signature?: string) => {
+    if (!quoteResponse) throw new Error('No quote available');
+
+    // CRITICAL: Strip null fields and spread quote response into body
+    const { permitData, permitTransaction, ...cleanQuote } = quoteResponse;
+
+    const swapRequest: Record<string, any> = {
+      ...cleanQuote,
+    };
+
+    // CRITICAL: Only include permitData if we have BOTH signature and permitData
+    // The API requires both fields to be present or both to be absent
+    if (permit2Signature && permitData && typeof permitData === 'object') {
+      swapRequest.signature = permit2Signature;
+      swapRequest.permitData = permitData;
+    }
+
+    const swapResponse = await fetch(`${API_URL}/swap`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': API_KEY,
       },
-      body: JSON.stringify({
-        quote,
-        deadline: Math.floor(Date.now() / 1000) + 1200,
-      }),
+      body: JSON.stringify(swapRequest),
     });
-    const { swap } = await swapResponse.json();
+    const data = await swapResponse.json();
+    if (!swapResponse.ok) throw new Error(data.detail || 'Swap failed');
+
+    // CRITICAL: Validate response before broadcasting
+    if (!data.swap?.data || data.swap.data === '' || data.swap.data === '0x') {
+      throw new Error('Empty swap data - quote may have expired. Please refresh.');
+    }
 
     // Send transaction via wallet
-    const tx = await signer.sendTransaction(swap);
+    const tx = await signer.sendTransaction(data.swap);
     return tx;
   };
 
-  return { quote, loading, getQuote, executeSwap };
+  return { quote: quoteResponse?.quote, loading, error, getQuote, executeSwap };
 }
 ```
 
@@ -591,8 +794,34 @@ function useSwap() {
 ```typescript
 import { ethers } from 'ethers';
 
-const API_URL = 'https://trade.api.uniswap.org/v1';
+const API_URL = 'https://trade-api.gateway.uniswap.org/v1';
 const API_KEY = process.env.UNISWAP_API_KEY;
+
+// Helper to strip null fields from quote response
+function prepareSwapRequest(quoteResponse: any, signature?: string): object {
+  const { permitData, permitTransaction, ...cleanQuote } = quoteResponse;
+
+  const request: Record<string, any> = { ...cleanQuote };
+
+  // CRITICAL: Only include permitData if we have BOTH signature and permitData
+  // The API requires both fields to be present or both to be absent
+  if (signature && permitData && typeof permitData === 'object') {
+    request.signature = signature;
+    request.permitData = permitData;
+  }
+
+  return request;
+}
+
+// Validate swap response before broadcasting
+function validateSwap(swap: any): void {
+  if (!swap?.data || swap.data === '' || swap.data === '0x') {
+    throw new Error('swap.data is empty - quote may have expired');
+  }
+  if (!ethers.isAddress(swap.to) || !ethers.isAddress(swap.from)) {
+    throw new Error('Invalid address in swap response');
+  }
+}
 
 async function executeSwap(
   wallet: ethers.Wallet,
@@ -601,28 +830,30 @@ async function executeSwap(
   amount: string,
   chainId: number
 ) {
-  // 1. Check approval
-  const approvalRes = await fetch(`${API_URL}/check_approval`, {
-    method: 'POST',
-    headers: { 'x-api-key': API_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      walletAddress: wallet.address,
-      token: tokenIn,
-      amount,
-      chainId,
-    }),
-  });
-  const { approval } = await approvalRes.json();
+  // 1. Check approval (for ERC20 tokens, not native ETH)
+  if (tokenIn !== '0x0000000000000000000000000000000000000000') {
+    const approvalRes = await fetch(`${API_URL}/check_approval`, {
+      method: 'POST',
+      headers: { 'x-api-key': API_KEY!, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        walletAddress: wallet.address,
+        token: tokenIn,
+        amount,
+        chainId,
+      }),
+    });
+    const approvalData = await approvalRes.json();
 
-  if (approval) {
-    const approveTx = await wallet.sendTransaction(approval);
-    await approveTx.wait();
+    if (approvalData.approval) {
+      const approveTx = await wallet.sendTransaction(approvalData.approval);
+      await approveTx.wait();
+    }
   }
 
   // 2. Get quote
   const quoteRes = await fetch(`${API_URL}/quote`, {
     method: 'POST',
-    headers: { 'x-api-key': API_KEY, 'Content-Type': 'application/json' },
+    headers: { 'x-api-key': API_KEY!, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       swapper: wallet.address,
       tokenIn,
@@ -634,20 +865,30 @@ async function executeSwap(
       slippageTolerance: 0.5,
     }),
   });
-  const { quote } = await quoteRes.json();
+  const quoteResponse = await quoteRes.json(); // Store FULL response
 
-  // 3. Execute swap
+  if (!quoteRes.ok) {
+    throw new Error(quoteResponse.detail || 'Quote failed');
+  }
+
+  // 3. Execute swap - CRITICAL: spread quote response, strip null fields
+  const swapRequest = prepareSwapRequest(quoteResponse);
+
   const swapRes = await fetch(`${API_URL}/swap`, {
     method: 'POST',
-    headers: { 'x-api-key': API_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      quote,
-      deadline: Math.floor(Date.now() / 1000) + 1200,
-    }),
+    headers: { 'x-api-key': API_KEY!, 'Content-Type': 'application/json' },
+    body: JSON.stringify(swapRequest),
   });
-  const { swap } = await swapRes.json();
+  const swapData = await swapRes.json();
 
-  const tx = await wallet.sendTransaction(swap);
+  if (!swapRes.ok) {
+    throw new Error(swapData.detail || 'Swap request failed');
+  }
+
+  // 4. Validate before broadcasting
+  validateSwap(swapData.swap);
+
+  const tx = await wallet.sendTransaction(swapData.swap);
   return tx.wait();
 }
 ```
@@ -715,21 +956,44 @@ contract SwapIntegration {
 
 ### Common Issues
 
-| Issue                    | Solution                                          |
-| ------------------------ | ------------------------------------------------- |
-| "Insufficient allowance" | Call /check_approval first and submit approval tx |
-| "Quote expired"          | Increase deadline or re-fetch quote               |
-| "Slippage exceeded"      | Increase slippageTolerance or retry               |
-| "Insufficient liquidity" | Try smaller amount or different route             |
+| Issue                                               | Solution                                                         |
+| --------------------------------------------------- | ---------------------------------------------------------------- |
+| "Insufficient allowance"                            | Call /check_approval first and submit approval tx                |
+| "Quote expired"                                     | Increase deadline or re-fetch quote                              |
+| "Slippage exceeded"                                 | Increase slippageTolerance or retry                              |
+| "Insufficient liquidity"                            | Try smaller amount or different route                            |
+| **"Buffer is not defined"**                         | Add Buffer polyfill (see Critical Implementation Notes)          |
+| **On-chain revert with empty data**                 | Validate `swap.data` is non-empty hex before broadcasting        |
+| **"permitData must be of type object"**             | Strip `permitData: null` from request - omit field entirely      |
+| **"quote does not match any of the allowed types"** | Don't wrap quote in `{quote: ...}` - spread it into request body |
+
+### API Validation Errors (400)
+
+| Error Message                                     | Cause                                      | Fix                                         |
+| ------------------------------------------------- | ------------------------------------------ | ------------------------------------------- |
+| `"permitData" must be of type object`             | Sending `permitData: null`                 | Omit the field entirely when null           |
+| `"quote" does not match any of the allowed types` | Wrapping quote in `{quote: quoteResponse}` | Spread quote response: `{...quoteResponse}` |
+| `signature and permitData must both be present`   | Including only one Permit2 field           | Include both or neither                     |
 
 ### API Error Codes
 
-| Code | Meaning                    |
-| ---- | -------------------------- |
-| 401  | Invalid or missing API key |
-| 400  | Invalid request parameters |
-| 404  | No route found for pair    |
-| 429  | Rate limit exceeded        |
+| Code | Meaning                                                  |
+| ---- | -------------------------------------------------------- |
+| 400  | Invalid request parameters (see validation errors above) |
+| 401  | Invalid or missing API key                               |
+| 404  | No route found for pair                                  |
+| 429  | Rate limit exceeded                                      |
+| 500  | API error - implement exponential backoff retry          |
+
+### Pre-Broadcast Checklist
+
+Before sending a swap transaction to the blockchain:
+
+1. **Verify `swap.data`** is non-empty hex (not `''`, not `'0x'`)
+2. **Verify addresses** - `swap.to` and `swap.from` are valid
+3. **Check quote freshness** - Re-fetch if older than 30 seconds
+4. **Validate gas** - Apply 10-20% buffer to estimates
+5. **Confirm balance** - User has sufficient token balance
 
 ---
 
