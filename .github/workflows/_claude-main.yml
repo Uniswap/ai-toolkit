@@ -85,7 +85,7 @@ on:
           Default: claude-sonnet-4-5
         required: false
         type: string
-        default: "claude-opus-4-6"
+        default: "claude-sonnet-4-5"
 
       allowed_tools:
         description: |

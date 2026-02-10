@@ -110,7 +110,7 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 | Input                           | Required | Default                | Description                                                         |
 | ------------------------------- | -------- | ---------------------- | ------------------------------------------------------------------- |
 | `prompt`                        | No       | `""`                   | Direct automation prompt (enables automation mode)                  |
-| `model`                         | No       | `claude-opus-4-6`      | Claude model to use                                                 |
+| `model`                         | No       | `claude-sonnet-4-5`    | Claude model to use                                                 |
 | `allowed_tools`                 | No       | `""`                   | Comma-separated list of allowed tools                               |
 | `disallowed_tools`              | No       | `""`                   | Comma-separated list of disallowed tools                            |
 | `custom_instructions`           | No       | CLAUDE.md instructions | Additional system prompt instructions                               |

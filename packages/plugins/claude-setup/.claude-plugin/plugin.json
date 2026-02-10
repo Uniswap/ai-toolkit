@@ -1,6 +1,6 @@
 {
   "name": "claude-setup",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Interactive setup wizard for configuring any repository with Claude Code best practices, based on Boris Cherny's workflow",
   "author": {
     "name": "Uniswap Labs",
