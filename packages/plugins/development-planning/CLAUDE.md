@@ -69,7 +69,7 @@ development-planning/
 ├── skills/
 │   ├── create-pr/
 │   ├── execute-plan/
-│   │   ├── execute-plan.md
+│   │   ├── SKILL.md
 │   │   └── execution-guide.md
 │   ├── generate-commit-message/
 │   ├── plan-implementation/

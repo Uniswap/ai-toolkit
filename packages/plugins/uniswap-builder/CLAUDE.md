@@ -26,8 +26,7 @@ uniswap-builder/
 │   └── plugin.json
 ├── skills/
 │   ├── viem-integration/
-│   │   ├── viem-integration.md       # Main skill file
-│   │   ├── SKILL.md -> viem-integration.md
+│   │   ├── SKILL.md                  # Main skill file
 │   │   ├── clients-and-transports.md # Client setup, chains, RPC
 │   │   ├── reading-data.md           # readContract, getLogs, events
 │   │   ├── writing-transactions.md   # sendTransaction, writeContract
@@ -35,8 +34,7 @@ uniswap-builder/
 │   │   ├── contract-patterns.md      # ABI, multicall, encoding
 │   │   └── wagmi-react.md            # React hooks reference
 │   └── swap-integration/
-│       ├── swap-integration.md       # Main skill file
-│       └── SKILL.md -> swap-integration.md
+│       └── SKILL.md                  # Main skill file
 ├── agents/
 │   ├── viem-integration-expert.md
 │   └── swap-integration-expert.md

@@ -13,7 +13,7 @@ You execute implementation plans step-by-step.
 
 Before doing anything else, locate and read the full execute-plan skill instructions:
 
-1. Run `Glob` for `**/skills/execute-plan/execute-plan.md`
+1. Run `Glob` for `**/skills/execute-plan/SKILL.md`
 2. Read the file found
 3. Follow ALL instructions from that skill file for the remainder of this task
 

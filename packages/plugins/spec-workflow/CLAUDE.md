@@ -13,11 +13,9 @@ spec-workflow/
 ├── .mcp.json                 # MCP server configuration
 ├── skills/
 │   ├── auto-spec/
-│   │   ├── auto-spec.md     # Autonomous spec creation command
-│   │   └── SKILL.md -> auto-spec.md
+│   │   └── SKILL.md         # Autonomous spec creation skill
 │   └── implement-spec/
-│       ├── implement-spec.md # Spec task orchestration
-│       └── SKILL.md -> implement-spec.md
+│       └── SKILL.md         # Spec task orchestration skill
 ├── package.json
 ├── project.json
 ├── CLAUDE.md
@@ -28,17 +26,10 @@ spec-workflow/
 
 ### Skills (2)
 
-| Skill            | File                                      | Purpose                                      |
-| ---------------- | ----------------------------------------- | -------------------------------------------- |
-| `auto-spec`      | `skills/auto-spec/auto-spec.md`           | Fully autonomous spec-driven development     |
-| `implement-spec` | `skills/implement-spec/implement-spec.md` | Orchestrate execution of spec-workflow tasks |
-
-### Commands (2)
-
-| Command           | Purpose                                           |
-| ----------------- | ------------------------------------------------- |
-| `/auto-spec`      | Start autonomous spec creation and implementation |
-| `/implement-spec` | Execute existing spec-workflow tasks              |
+| Skill            | File                             | Purpose                                      |
+| ---------------- | -------------------------------- | -------------------------------------------- |
+| `auto-spec`      | `skills/auto-spec/SKILL.md`      | Fully autonomous spec-driven development     |
+| `implement-spec` | `skills/implement-spec/SKILL.md` | Orchestrate execution of spec-workflow tasks |
 
 ### MCP Server (1)
 
@@ -81,9 +72,8 @@ The skills in this plugin primarily use these MCP tools:
 ### Adding New Skills
 
 1. Create a new directory under `skills/`
-2. Add the skill markdown file
-3. Create a symlink: `ln -s <skill>.md SKILL.md`
-4. Update `plugin.json` skills and commands arrays
+2. Add the skill as `SKILL.md` inside that directory
+3. Update `plugin.json` skills array
 
 ### Testing Changes
 
