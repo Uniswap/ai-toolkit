@@ -150,11 +150,14 @@ The repository uses a plugin-based architecture where Claude Code capabilities a
 │   └── marketplace.json              # Plugin marketplace configuration
 ├── packages/
 │   └── plugins/
+│       ├── claude-setup/             # Repository setup wizard
+│       ├── development-codebase-tools/  # Code exploration & refactoring
 │       ├── development-planning/     # Implementation planning & execution workflows
 │       ├── development-pr-workflow/  # PR management, review, & Graphite integration
-│       ├── development-codebase-tools/  # Code exploration & refactoring
 │       ├── development-productivity/ # Documentation, research, & prompt optimization
-│       └── uniswap-integrations/     # External service integrations (Linear, Notion, Nx)
+│       ├── spec-workflow/            # Spec-driven development workflows
+│       ├── uniswap-builder/         # Uniswap protocol integration (swaps, viem)
+│       └── uniswap-integrations/    # External service integrations (Linear, Notion, Nx)
 └── scripts/
     └── validate-plugin.cjs           # Plugin structure validation script
 ```
@@ -224,13 +227,13 @@ All plugins follow semantic versioning (semver). Key versioning rules:
 | Plugin                     | Version |
 | -------------------------- | ------- |
 | claude-setup               | 1.0.3   |
-| development-codebase-tools | 1.1.0   |
-| development-planning       | 1.1.3   |
-| development-pr-workflow    | 1.1.5   |
-| development-productivity   | 1.0.2   |
+| development-codebase-tools | 1.1.1   |
+| development-planning       | 1.2.0   |
+| development-pr-workflow    | 1.2.0   |
+| development-productivity   | 1.1.0   |
 | spec-workflow              | 1.0.1   |
 | uniswap-builder            | 1.0.2   |
-| uniswap-integrations       | 1.0.1   |
+| uniswap-integrations       | 1.1.0   |
 
 **Note:** Keep this table updated when versions change.
 

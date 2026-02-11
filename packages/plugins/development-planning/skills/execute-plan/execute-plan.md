@@ -4,9 +4,6 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*), Bash(gt:*), Bash(npx:
 model: opus
 ---
 
-<!-- NOTE: This is a SKILL, not an agent. Invoke via `/execute-plan` or the Skill tool.
-     Do NOT invoke via Task(subagent_type:"development-planning:execute-plan") — that will fail. -->
-
 # Plan Executor
 
 Execute implementation plans by reading the plan file and implementing each step directly with progress tracking. Supports both **single PR** (default) and **Graphite PR stack** execution modes.
