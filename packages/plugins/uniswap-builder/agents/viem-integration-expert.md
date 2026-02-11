@@ -1,4 +1,5 @@
 ---
+name: viem-integration-expert
 description: Expert agent for complex viem and wagmi integration questions. Use for debugging transaction issues, optimizing gas, handling edge cases, multi-chain patterns, and advanced contract interactions.
 model: opus
 allowed-tools: Read, Glob, Grep, WebFetch, WebSearch
@@ -57,15 +58,17 @@ You are an expert in viem and wagmi for EVM blockchain integration. Help users w
 
 ```typescript
 // GOOD: Explicit types and error handling
-const balance = await client.getBalance({
-  address: '0x...' as `0x${string}`
-}).catch((error) => {
-  console.error('Failed to fetch balance:', error)
-  return 0n
-})
+const balance = await client
+  .getBalance({
+    address: '0x...' as `0x${string}`,
+  })
+  .catch((error) => {
+    console.error('Failed to fetch balance:', error);
+    return 0n;
+  });
 
 // BAD: No error handling, implicit types
-const balance = await client.getBalance({ address: '0x...' })
+const balance = await client.getBalance({ address: '0x...' });
 ```
 
 ## Reference Documentation

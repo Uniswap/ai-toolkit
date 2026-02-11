@@ -30,16 +30,14 @@ claude /plugin install development-productivity
 
 ## Agents
 
-| Agent                        | Description                                                               |
-| ---------------------------- | ------------------------------------------------------------------------- |
-| **doc-writer**               | Writes comprehensive documentation (API docs, READMEs, architecture docs) |
-| **researcher**               | Conducts thorough research on topics                                      |
-| **prompt-engineer**          | Optimizes prompts for AI models                                           |
-| **test-writer**              | Generates comprehensive tests with edge case identification               |
-| **agent-tester**             | Validates agent behaviors and runs automated agent tests                  |
-| **claude-docs-manager**      | Manages CLAUDE.md documentation updates                                   |
-| **claude-docs-initializer**  | Initializes CLAUDE.md files for new projects                              |
-| **claude-docs-fact-checker** | Verifies CLAUDE.md accuracy against codebase                              |
+| Agent                       | Description                                                                                                                       |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| **documentation**           | Comprehensive documentation agent (API docs, READMEs, architecture docs, CLAUDE.md management, quality verification)              |
+| **claude-docs-initializer** | Discovers repository structure and creates initial CLAUDE.md documentation at all appropriate levels                              |
+| **researcher**              | Conducts comprehensive research including architectural patterns, technology comparison, security analysis, and codebase patterns |
+| **prompt-engineer**         | Expert in analyzing, optimizing, and testing prompts for AI agents and LLMs                                                       |
+| **test-writer**             | Generates comprehensive, deterministic tests with advanced testing strategies and edge case identification                        |
+| **agent-tester**            | Automated agent testing specialist that validates agent behaviors, tests prompt variations, and detects regressions               |
 
 ## Usage Examples
 
