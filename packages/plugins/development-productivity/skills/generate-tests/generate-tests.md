@@ -1,6 +1,6 @@
 ---
 description: Generate comprehensive tests for code. Use when user says "write tests for this function", "add unit tests to this file", "generate integration tests for the API", "I need test coverage for this module", or "create e2e tests for the checkout flow".
-allowed-tools: Read, Grep, Glob, Task(subagent_type:test-writer), Task(subagent_type:context-loader), Task(subagent_type:security-analyzer)
+allowed-tools: Read, Grep, Glob, Task(subagent_type:test-writer-agent), Task(subagent_type:context-loader-agent), Task(subagent_type:security-analyzer-agent)
 model: sonnet
 ---
 
@@ -51,14 +51,14 @@ Always identifies:
 
 ## Delegation
 
-Invoke **test-writer** agent with:
+Invoke **test-writer-agent** agent with:
 
 - `paths`: Files to test
 - `framework`: Testing framework
 - `testType`: Testing strategy
 - `requirements`: User stories (if provided)
 
-For complex scenarios, coordinate with **context-loader** and **security-analyzer**.
+For complex scenarios, coordinate with **context-loader-agent** and **security-analyzer-agent**.
 
 ## Examples
 

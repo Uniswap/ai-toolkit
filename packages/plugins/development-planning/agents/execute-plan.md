@@ -1,7 +1,7 @@
 ---
-name: execute-plan
+name: execute-plan-agent
 description: Execute implementation plans step-by-step. Bridge agent that ensures both Task and Skill invocations of execute-plan work correctly.
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*), Bash(gt:*), Bash(npx:*), Task(subagent_type:test-writer), Task(subagent_type:documentation), Task(subagent_type:pr-creator), Task(subagent_type:commit-message-generator)
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*), Bash(gt:*), Bash(npx:*), Task(subagent_type:test-writer-agent), Task(subagent_type:documentation-agent), Task(subagent_type:pr-creator-agent), Task(subagent_type:commit-message-generator-agent)
 model: opus
 ---
 

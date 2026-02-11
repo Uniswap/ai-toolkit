@@ -20,12 +20,12 @@ This plugin provides documentation, research, test generation, and prompt optimi
 
 ### Agents (./agents/)
 
-- **documentation**: Comprehensive documentation agent (API docs, READMEs, architecture docs, CLAUDE.md management, quality verification)
-- **claude-docs-initializer**: Initializes CLAUDE.md files for new projects via deep repo analysis
-- **researcher**: Conducts thorough research on topics
-- **prompt-engineer**: Optimizes prompts for AI models
-- **test-writer**: Generates comprehensive tests with edge case identification
-- **agent-tester**: Validates agent behaviors and runs automated agent tests (tests agents, not code)
+- **documentation-agent**: Comprehensive documentation agent (API docs, READMEs, architecture docs, CLAUDE.md management, quality verification)
+- **claude-docs-initializer-agent**: Initializes CLAUDE.md files for new projects via deep repo analysis
+- **researcher-agent**: Conducts thorough research on topics
+- **prompt-engineer-agent**: Optimizes prompts for AI models
+- **test-writer-agent**: Generates comprehensive tests with edge case identification
+- **agent-tester-agent**: Validates agent behaviors and runs automated agent tests (tests agents, not code)
 
 ## Integration Notes
 
@@ -33,7 +33,7 @@ This plugin provides documentation, research, test generation, and prompt optimi
 - Agents are auto-discovered from the `agents/` directory
 - Skills invoke agents via `Task(subagent_type:agent-name)`
 - generate-tests skill supports multiple frameworks (jest, vitest, pytest, cypress, playwright)
-- The `documentation` agent consolidates previous doc-writer, claude-docs-manager, and claude-docs-fact-checker agents
+- The `documentation-agent` consolidates previous doc-writer, claude-docs-manager, and claude-docs-fact-checker agents
 
 ## File Structure
 

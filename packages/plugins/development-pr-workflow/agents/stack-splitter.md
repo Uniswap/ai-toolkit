@@ -1,5 +1,5 @@
 ---
-name: stack-splitter
+name: stack-splitter-agent
 description: Semantic analysis agent for splitting monolithic branches into logical, reviewable PR stacks. Analyzes git history, file changes, and code semantics to propose optimal split boundaries.
 ---
 

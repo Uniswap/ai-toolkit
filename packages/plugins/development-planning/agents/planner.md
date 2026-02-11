@@ -1,5 +1,5 @@
 ---
-name: planner
+name: planner-agent
 description: Create clear, actionable implementation plans without writing code
 ---
 

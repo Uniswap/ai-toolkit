@@ -64,7 +64,7 @@ Execute autonomous spec-driven development workflow with multi-agent collaborati
    - Analyze existing codebase patterns and architecture
 
 2. **Feature Analysis**
-   - Spawn **planner** agent to analyze feature requirements
+   - Spawn **planner-agent** agent to analyze feature requirements
    - Identify complexity level and required capabilities
 
 ### Phase 2: Requirements Document Creation
@@ -75,9 +75,9 @@ Execute autonomous spec-driven development workflow with multi-agent collaborati
    - Create initial requirements using `mcp__spec-workflow__create-spec-doc`
 
 2. **Multi-Agent Requirements Review (INSTEAD of user review)**
-   - Spawn **plan-reviewer** to validate architectural alignment
-   - Spawn **security-analyzer** to identify security requirements
-   - Spawn **performance-analyzer** to define performance criteria
+   - Spawn **plan-reviewer-agent** to validate architectural alignment
+   - Spawn **security-analyzer-agent** to identify security requirements
+   - Spawn **performance-analyzer-agent** to define performance criteria
    - Iterate until consensus reached
 
 ### Phase 3: Design Document Creation
@@ -88,9 +88,9 @@ Execute autonomous spec-driven development workflow with multi-agent collaborati
    - Include architectural decisions, data models, and interfaces
 
 2. **Multi-Agent Design Review (INSTEAD of user review)**
-   - Spawn **plan-reviewer** for architectural patterns validation
-   - Spawn **refactorer** for implementation feasibility
-   - Spawn **test-writer** for testability assessment
+   - Spawn **plan-reviewer-agent** for architectural patterns validation
+   - Spawn **refactorer-agent** for implementation feasibility
+   - Spawn **test-writer-agent** for testability assessment
 
 ### Phase 4: Task Planning
 
@@ -100,8 +100,8 @@ Execute autonomous spec-driven development workflow with multi-agent collaborati
    - Break down implementation into granular, testable tasks
 
 2. **Task Validation (INSTEAD of user review)**
-   - Spawn **planner** to validate task completeness
-   - Spawn **code-explainer** to assess task dependencies
+   - Spawn **planner-agent** to validate task completeness
+   - Spawn **code-explainer-agent** to assess task dependencies
 
 ### Phase 5: Implementation Execution
 
@@ -114,8 +114,8 @@ For each task in the implementation plan:
 
 2. **Quality Validation Loop (INSTEAD of user review)**
 
-   - Spawn **refactorer** to review implementation
-   - Spawn **test-writer** to verify test coverage
+   - Spawn **refactorer-agent** to review implementation
+   - Spawn **test-writer-agent** to verify test coverage
    - Iterate until quality threshold met
 
 3. **Task Completion**
@@ -124,9 +124,9 @@ For each task in the implementation plan:
 
 ### Phase 6: Final Quality Assurance
 
-1. **Integration Testing** - Spawn **test-writer** to create integration tests
-2. **Performance Validation** - Spawn **performance-analyzer** to assess performance
-3. **Security Audit** - Spawn **security-analyzer** for final security review
+1. **Integration Testing** - Spawn **test-writer-agent** to create integration tests
+2. **Performance Validation** - Spawn **performance-analyzer-agent** to assess performance
+3. **Security Audit** - Spawn **security-analyzer-agent** for final security review
 
 ### Phase 7: Deliverable Generation
 

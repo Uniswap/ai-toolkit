@@ -16,16 +16,16 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 
 ### Agents (./agents/)
 
-- **agent-orchestrator**: Centralized agent orchestration and capability matching
-- **code-explainer**: Explains code architecture, patterns, and dependencies
-- **code-generator**: Generates production-ready code following patterns (delegates to test-writer for tests)
-- **context-loader**: Advanced context management with summarization, checkpointing, and cross-agent sharing
-- **debug-assistant**: Advanced debugging with root cause analysis
-- **pattern-learner**: Learns and applies codebase patterns
-- **performance-analyzer**: Analyzes performance bottlenecks and optimization opportunities
-- **refactorer**: Performs safe, incremental refactoring operations
-- **security-analyzer**: Identifies security vulnerabilities and recommends fixes
-- **style-enforcer**: Enforces code style and conventions
+- **agent-orchestrator-agent**: Centralized agent orchestration and capability matching
+- **code-explainer-agent**: Explains code architecture, patterns, and dependencies
+- **code-generator-agent**: Generates production-ready code following patterns (delegates to test-writer-agent for tests)
+- **context-loader-agent**: Advanced context management with summarization, checkpointing, and cross-agent sharing
+- **debug-assistant-agent**: Advanced debugging with root cause analysis
+- **pattern-learner-agent**: Learns and applies codebase patterns
+- **performance-analyzer-agent**: Analyzes performance bottlenecks and optimization opportunities
+- **refactorer-agent**: Performs safe, incremental refactoring operations
+- **security-analyzer-agent**: Identifies security vulnerabilities and recommends fixes
+- **style-enforcer-agent**: Enforces code style and conventions
 
 ### Hooks (./hooks/)
 
@@ -67,7 +67,7 @@ Projects using alternative formatters (Biome, dprint, etc.) would have their for
 
 - Skills are the primary interface for all workflows
 - Agents are auto-discovered from the `agents/` directory
-- Skills invoke agents via `Task(subagent_type:agent-name)`
+- Skills invoke agents via `Task(subagent_type:agent-name-agent)`
 - The post-edit-lint hook requires `CLAUDE_POST_EDIT_LINT=1` to be enabled
 - Cross-plugin delegation uses `Task(subagent_type:plugin-name:skill-name)`
 

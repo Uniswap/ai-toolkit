@@ -1,7 +1,7 @@
 ---
 description: Comprehensive code explanation using multi-agent analysis for architecture, patterns, security, and performance insights.
 argument-hint: <path|glob> [--depth overview|deep|architectural] [--focus patterns|security|performance|all]
-allowed-tools: Read(*), Grep(*), Bash(git show:*), Bash(git ls-files:*), Task(subagent_type:code-explainer), Task(subagent_type:security-analyzer), Task(subagent_type:performance-analyzer), Task(subagent_type:context-loader)
+allowed-tools: Read(*), Grep(*), Bash(git show:*), Bash(git ls-files:*), Task(subagent_type:code-explainer-agent), Task(subagent_type:security-analyzer-agent), Task(subagent_type:performance-analyzer-agent), Task(subagent_type:context-loader-agent)
 ---
 
 ## Inputs
@@ -77,15 +77,15 @@ Full system context analysis:
 
 1. **Context Loading Phase**:
 
-   - Invoke **context-loader** to map surrounding architecture
+   - Invoke **context-loader-agent** to map surrounding architecture
    - Identify integration points and dependencies
    - Build system-level understanding
 
 2. **Multi-Agent Analysis**:
-   - **code-explainer**: Core functionality and patterns
-   - **security-analyzer**: Security boundaries and risks
-   - **performance-analyzer**: Scalability implications
-   - **refactorer**: Improvement opportunities
+   - **code-explainer-agent**: Core functionality and patterns
+   - **security-analyzer-agent**: Security boundaries and risks
+   - **performance-analyzer-agent**: Scalability implications
+   - **refactorer-agent**: Improvement opportunities
 
 ## Output Format
 

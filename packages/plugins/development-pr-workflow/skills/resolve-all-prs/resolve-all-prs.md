@@ -40,7 +40,7 @@ Batch resolve issues across all your open pull requests in the current repositor
 3. Cap at max PRs
         ↓
 4. For each PR (in parallel):
-   └─→ Spawn Task agent with review-executor
+   └─→ Spawn Task agent with review-executor-agent
        └─→ Fix CI issues
        └─→ Address review comments
        └─→ Auto-commit and push each fix
@@ -73,11 +73,11 @@ gh pr list --author @me --state open --json number,title,url,createdAt --limit {
 
 ### Step 3: Spawn Parallel Agents
 
-For each PR, spawn a Task agent with the `review-executor` subagent type:
+For each PR, spawn a Task agent with the `review-executor-agent` subagent type:
 
 ```
 Task(
-  subagent_type: "development-pr-workflow:review-executor",
+  subagent_type: "development-pr-workflow:review-executor-agent",
   prompt: "Resolve all issues on PR #{pr_number} in {owner}/{repo}.
 
 IMPORTANT: This is an AUTOMATED batch run. You MUST:

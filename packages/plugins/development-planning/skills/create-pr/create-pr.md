@@ -1,6 +1,6 @@
 ---
 description: Create or update pull requests with conventional commits. Use when user says "create a PR for these changes", "submit this for review", "open a pull request", "push these changes and create a PR", "I'm ready to submit this work", or "create PR and link to issue #123".
-allowed-tools: Bash(git:*), Bash(gt:*), Bash(gh:*), Read, Glob, Grep, Task(subagent_type:pr-creator), Task(subagent_type:commit-message-generator)
+allowed-tools: Bash(git:*), Bash(gt:*), Bash(gh:*), Read, Glob, Grep, Task(subagent_type:pr-creator-agent), Task(subagent_type:commit-message-generator-agent)
 model: opus
 ---
 

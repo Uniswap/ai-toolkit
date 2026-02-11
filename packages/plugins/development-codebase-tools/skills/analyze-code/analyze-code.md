@@ -1,6 +1,6 @@
 ---
 description: Comprehensive code explanation and analysis. Use when user says "explain this file to me", "what does this code do", "analyze the security of this module", "review the performance of this function", or "help me understand this architecture".
-allowed-tools: Read, Grep, Glob, Bash(git show:*), Bash(git ls-files:*), Task(subagent_type:code-explainer), Task(subagent_type:security-analyzer), Task(subagent_type:performance-analyzer), Task(subagent_type:context-loader)
+allowed-tools: Read, Grep, Glob, Bash(git show:*), Bash(git ls-files:*), Task(subagent_type:code-explainer-agent), Task(subagent_type:security-analyzer-agent), Task(subagent_type:performance-analyzer-agent), Task(subagent_type:context-loader-agent)
 model: sonnet
 ---
 
@@ -50,14 +50,14 @@ Provide comprehensive code explanation through multi-agent analysis for architec
 
 ## Delegation
 
-For simple explanations, use **code-explainer** directly.
+For simple explanations, use **code-explainer-agent** directly.
 
 For deep analysis, coordinate:
 
-- **code-explainer**: Architecture and patterns
-- **security-analyzer**: Vulnerability assessment
-- **performance-analyzer**: Complexity analysis
-- **context-loader**: System-level context
+- **code-explainer-agent**: Architecture and patterns
+- **security-analyzer-agent**: Vulnerability assessment
+- **performance-analyzer-agent**: Complexity analysis
+- **context-loader-agent**: System-level context
 
 ## Examples
 
