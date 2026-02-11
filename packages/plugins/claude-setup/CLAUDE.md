@@ -12,8 +12,7 @@ claude-setup/
 │   └── plugin.json
 ├── skills/
 │   └── setup-repository/
-│       ├── setup-repository.md    # Main wizard skill
-│       ├── SKILL.md -> setup-repository.md  # Symlink for auto-activation
+│       ├── SKILL.md               # Main wizard skill
 │       └── references/
 │           ├── boris-best-practices.md
 │           ├── claude-md-examples.md

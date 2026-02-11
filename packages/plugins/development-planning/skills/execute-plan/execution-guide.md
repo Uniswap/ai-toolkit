@@ -140,7 +140,7 @@ Part of: [plan file reference]
 When user requests tests:
 
 ```
-Invoke test-writer agent with:
+Invoke test-writer-agent with:
 - Files modified/created
 - Implementation details from plan
 - Existing test patterns in codebase
@@ -151,7 +151,7 @@ Invoke test-writer agent with:
 When user requests docs:
 
 ```
-Invoke doc-writer agent with:
+Invoke documentation-agent with:
 - Changes made
 - API modifications
 - User-facing feature changes
@@ -162,15 +162,15 @@ Invoke doc-writer agent with:
 When user requests PR creation:
 
 ```
-Invoke pr-creator agent with:
+Invoke pr-creator-agent with:
 - Current branch changes (git diff)
-- Commit message (conventional format via commit-message-generator)
+- Commit message (conventional format via commit-message-generator-agent)
 - PR description summarizing the plan executed
 ```
 
-The pr-creator agent will:
+The pr-creator-agent will:
 
-1. Generate conventional commit message using commit-message-generator
+1. Generate conventional commit message using commit-message-generator-agent
 2. Ask user for commit confirmation
 3. Create PR with comprehensive description
 4. Return PR URL for review

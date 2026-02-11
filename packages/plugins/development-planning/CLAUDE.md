@@ -21,12 +21,13 @@ This plugin provides the complete implementation lifecycle for Claude Code: plan
 
 ### Agents (./agents/)
 
-- **planner**: Core planning agent that creates actionable implementation plans
-- **plan-reviewer**: Validates plans for completeness and feasibility
-- **pr-creator**: Creates well-formatted PRs with comprehensive descriptions
-- **commit-message-generator**: Generates structured git commit messages
+- **planner-agent**: Core planning agent that creates actionable implementation plans
+- **plan-reviewer-agent**: Validates plans for completeness and feasibility
+- **pr-creator-agent**: Creates well-formatted PRs with comprehensive descriptions
+- **commit-message-generator-agent**: Generates structured git commit messages
+- **execute-plan-agent**: Executes implementation plans step-by-step (bridge agent for skill/agent namespace)
 
-> **Note**: The `context-loader` agent has been moved to `development-codebase-tools` for centralized context management. Planning agents can still delegate to it via `Task(subagent_type:context-loader)`.
+> **Note**: The `context-loader` agent has been moved to `development-codebase-tools` for centralized context management. Planning agents can still delegate to it via `Task(subagent_type:context-loader-agent)`.
 
 ## Canonical Development Workflow
 
@@ -50,7 +51,7 @@ After PR creation, use `development-pr-workflow` for: 6. **PR Review** → 7. **
 - Agents are auto-discovered from the `agents/` directory
 - Skills invoke agents via `Task(subagent_type:agent-name)`
 - Context flows automatically between exploration and planning phases
-- execute-plan can seamlessly invoke pr-creator after implementation completes
+- execute-plan can seamlessly invoke pr-creator-agent after implementation completes
 
 ## Related Plugins
 
@@ -68,7 +69,7 @@ development-planning/
 ├── skills/
 │   ├── create-pr/
 │   ├── execute-plan/
-│   │   ├── execute-plan.md
+│   │   ├── SKILL.md
 │   │   └── execution-guide.md
 │   ├── generate-commit-message/
 │   ├── plan-implementation/
@@ -78,6 +79,7 @@ development-planning/
 │   └── graphite-stack-execution.md
 ├── agents/
 │   ├── commit-message-generator.md
+│   ├── execute-plan.md
 │   ├── plan-reviewer.md
 │   ├── planner.md
 │   └── pr-creator.md

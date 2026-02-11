@@ -150,11 +150,14 @@ The repository uses a plugin-based architecture where Claude Code capabilities a
 │   └── marketplace.json              # Plugin marketplace configuration
 ├── packages/
 │   └── plugins/
+│       ├── claude-setup/             # Repository setup wizard
+│       ├── development-codebase-tools/  # Code exploration & refactoring
 │       ├── development-planning/     # Implementation planning & execution workflows
 │       ├── development-pr-workflow/  # PR management, review, & Graphite integration
-│       ├── development-codebase-tools/  # Code exploration & refactoring
 │       ├── development-productivity/ # Documentation, research, & prompt optimization
-│       └── uniswap-integrations/     # External service integrations (Linear, Notion, Nx)
+│       ├── spec-workflow/            # Spec-driven development workflows
+│       ├── uniswap-builder/         # Uniswap protocol integration (swaps, viem)
+│       └── uniswap-integrations/    # External service integrations (Linear, Notion, Nx)
 └── scripts/
     └── validate-plugin.cjs           # Plugin structure validation script
 ```
@@ -164,7 +167,7 @@ The repository uses a plugin-based architecture where Claude Code capabilities a
 - Plugins are stored in `./packages/plugins/<plugin-name>/`
 - Each plugin is a self-contained Nx package with its own `package.json`, `project.json`, and `.claude-plugin/plugin.json`
 - The `.claude-plugin/marketplace.json` file references plugins via relative paths: `"./packages/plugins/<plugin-name>"`
-- There are 5 plugins: development-planning, development-pr-workflow, development-codebase-tools, development-productivity, uniswap-integrations
+- There are 8 plugins: claude-setup, development-codebase-tools, development-planning, development-pr-workflow, development-productivity, spec-workflow, uniswap-builder, uniswap-integrations
 
 **Plugin Validation:**
 
@@ -223,13 +226,14 @@ All plugins follow semantic versioning (semver). Key versioning rules:
 
 | Plugin                     | Version |
 | -------------------------- | ------- |
-| claude-setup               | 1.0.2   |
-| development-codebase-tools | 1.1.0   |
-| development-planning       | 1.1.1   |
-| development-pr-workflow    | 1.1.3   |
-| development-productivity   | 1.0.1   |
-| spec-workflow              | 1.0.0   |
-| uniswap-integrations       | 1.0.0   |
+| claude-setup               | 1.0.4   |
+| development-codebase-tools | 2.0.1   |
+| development-planning       | 2.0.1   |
+| development-pr-workflow    | 2.0.1   |
+| development-productivity   | 2.0.1   |
+| spec-workflow              | 2.0.1   |
+| uniswap-builder            | 2.0.1   |
+| uniswap-integrations       | 2.0.1   |
 
 **Note:** Keep this table updated when versions change.
 
@@ -239,39 +243,37 @@ When making changes to `packages/plugins/`, follow these guidelines:
 
 #### A. Adding User-Invocable Skills
 
-For new skills that do NOT have `user-invocable: false` in their frontmatter, use this workaround to make them invocable via Claude Code's slash command syntax:
+Skills are automatically discoverable by Claude Code when placed in the `skills` array in `plugin.json`. Each skill directory contains a `SKILL.md` file with the skill content.
 
 **Steps:**
 
-1. **Remove `name` field** from skill frontmatter (this causes the command to use the filename instead)
-2. **Rename SKILL.md** to `<skillname>.md` (e.g., `sre.md`)
-3. **Create symlink**: `ln -s <skillname>.md SKILL.md` (so the skills array still finds it for auto-activation)
-4. **Add to commands array** in `plugin.json`: `./skills/<name>/<name>.md`
-5. **Keep in skills array** for auto-activation: `./skills/<name>`
+1. Create a skill directory: `skills/<skill-name>/`
+2. Create the skill file as `SKILL.md` inside that directory
+3. Add to the `skills` array in `plugin.json`: `"./skills/<skill-name>"`
+4. Do NOT add skills to the `commands` array — that is only for standalone commands in `./commands/`
 
 **Example structure:**
 
 ```text
 skills/sre/
-├── sre.md           # actual content, no "name" field in frontmatter
-└── SKILL.md -> sre.md   # symlink for auto-activation
+└── SKILL.md           # skill content with YAML frontmatter
 ```
 
 **plugin.json configuration:**
 
 ```json
 {
-  "skills": ["./skills/sre"], // for auto-activation
-  "commands": ["./skills/sre/sre.md"] // for slash menu
+  "skills": ["./skills/sre"]
 }
 ```
 
 #### B. Adding New Slash Commands
 
-When adding new slash commands:
+Standalone commands (not skills) go in the `./commands/` directory:
 
-1. **Do NOT add a `name` field** in the YAML frontmatter (let it use the filename)
-2. **Add the path** of the new slash command to the plugin's `plugin.json` commands array
+1. Create the command as a `.md` file in `./commands/`
+2. **Do NOT add a `name` field** in the YAML frontmatter (let it use the filename)
+3. **Add the path** of the new slash command to the plugin's `plugin.json` commands array
 
 #### C. Plugin Component Naming Conventions
 

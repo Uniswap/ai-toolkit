@@ -1,7 +1,7 @@
 ---
 description: Orchestrate comprehensive pull request review using specialized agents for architecture, security, performance, testing, and maintainability analysis.
 argument-hint: [branch|commit-range] [--depth standard|comprehensive] [--suggest-fixes] [--check-coverage]
-allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git branch:*), Bash(git log:*), Bash(git show:*), Task(subagent_type:agent-orchestrator), Task(subagent_type:*), Read(*), Grep(*)
+allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git branch:*), Bash(git log:*), Bash(git show:*), Task(subagent_type:agent-orchestrator-agent), Task(subagent_type:*), Read(*), Grep(*)
 ---
 
 ## Inputs
@@ -67,19 +67,19 @@ Quick, focused review of key concerns:
 {
   sequential: [
     {
-      agent: 'code-explainer',
+      agent: 'code-explainer-agent',
       task: 'Analyze changed files for intent and patterns',
     },
     {
-      agent: 'security-analyzer',
+      agent: 'security-analyzer-agent',
       task: 'Quick vulnerability scan',
     },
     {
-      agent: 'style-enforcer',
+      agent: 'style-enforcer-agent',
       task: 'Check style compliance',
     },
     {
-      agent: 'test-writer',
+      agent: 'test-writer-agent',
       task: 'Identify missing test coverage',
     },
   ];
@@ -88,50 +88,50 @@ Quick, focused review of key concerns:
 
 ### Comprehensive Review (--depth comprehensive)
 
-Deep multi-agent analysis using **agent-orchestrator** (from development-codebase-tools plugin):
+Deep multi-agent analysis using **agent-orchestrator-agent** (from development-codebase-tools plugin):
 
 ```typescript
 {
-  // agent-orchestrator is provided by development-codebase-tools plugin
+  // agent-orchestrator-agent is provided by development-codebase-tools plugin
   // Fallback: If unavailable, execute phases sequentially without orchestration
-  orchestrator: "agent-orchestrator",
+  orchestrator: "agent-orchestrator-agent",
   phases: [
     {
       name: "Impact Analysis",
       parallel: [
-        { agent: "code-explainer", focus: "change-intent" },
-        { agent: "context-loader", focus: "affected-systems" }
+        { agent: "code-explainer-agent", focus: "change-intent" },
+        { agent: "context-loader-agent", focus: "affected-systems" }
       ]
     },
     {
       name: "Quality Assessment",
       parallel: [
-        { agent: "plan-reviewer", focus: "design-consistency" },
-        { agent: "security-analyzer", focus: "vulnerability-assessment" },
-        { agent: "performance-analyzer", focus: "performance-impact" },
-        { agent: "style-enforcer", focus: "code-standards" }
+        { agent: "plan-reviewer-agent", focus: "design-consistency" },
+        { agent: "security-analyzer-agent", focus: "vulnerability-assessment" },
+        { agent: "performance-analyzer-agent", focus: "performance-impact" },
+        { agent: "style-enforcer-agent", focus: "code-standards" }
       ]
     },
     {
       name: "Test & Documentation",
       parallel: [
-        { agent: "test-writer", focus: "coverage-gaps" },
-        { agent: "agent-tester", focus: "regression-testing" },
-        { agent: "documentation", focus: "documentation-updates" }
+        { agent: "test-writer-agent", focus: "coverage-gaps" },
+        { agent: "agent-tester-agent", focus: "regression-testing" },
+        { agent: "documentation-agent", focus: "documentation-updates" }
       ]
     },
     {
       name: "Fix Generation",
       sequential: [
-        { agent: "refactorer", focus: "improvement-suggestions" },
-        { agent: "migration-assistant", focus: "breaking-changes" }
+        { agent: "refactorer-agent", focus: "improvement-suggestions" },
+        { agent: "migration-assistant-agent", focus: "breaking-changes" }
       ]
     }
   ]
 }
 ```
 
-**Fallback (if agent-orchestrator is not available)**: Execute each phase sequentially, invoking agents directly without parallel coordination. The review will still cover all aspects but may take longer.
+**Fallback (if agent-orchestrator-agent is not available)**: Execute each phase sequentially, invoking agents directly without parallel coordination. The review will still cover all aspects but may take longer.
 
 ## Output Format
 

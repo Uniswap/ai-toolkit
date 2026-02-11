@@ -14,9 +14,9 @@ This plugin provides skills for building on top of and integrating the Uniswap p
 
 ### Agents (./agents/)
 
-- **viem-integration-expert**: Expert agent for complex viem and wagmi integration questions, debugging, and best practices
+- **viem-integration-expert-agent**: Expert agent for complex viem and wagmi integration questions, debugging, and best practices
 
-- **swap-integration-expert**: Specialized agent for complex swap integration questions
+- **swap-integration-expert-agent**: Specialized agent for complex swap integration questions
 
 ## File Structure
 
@@ -26,8 +26,7 @@ uniswap-builder/
 │   └── plugin.json
 ├── skills/
 │   ├── viem-integration/
-│   │   ├── viem-integration.md       # Main skill file
-│   │   ├── SKILL.md -> viem-integration.md
+│   │   ├── SKILL.md                  # Main skill file
 │   │   ├── clients-and-transports.md # Client setup, chains, RPC
 │   │   ├── reading-data.md           # readContract, getLogs, events
 │   │   ├── writing-transactions.md   # sendTransaction, writeContract
@@ -35,8 +34,7 @@ uniswap-builder/
 │   │   ├── contract-patterns.md      # ABI, multicall, encoding
 │   │   └── wagmi-react.md            # React hooks reference
 │   └── swap-integration/
-│       ├── swap-integration.md       # Main skill file
-│       └── SKILL.md -> swap-integration.md
+│       └── SKILL.md                  # Main skill file
 ├── agents/
 │   ├── viem-integration-expert.md
 │   └── swap-integration-expert.md

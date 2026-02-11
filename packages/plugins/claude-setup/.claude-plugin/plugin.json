@@ -1,6 +1,6 @@
 {
   "name": "claude-setup",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "description": "Interactive setup wizard for configuring any repository with Claude Code best practices, based on Boris Cherny's workflow",
   "author": {
     "name": "Uniswap Labs",
@@ -9,6 +9,5 @@
   "homepage": "https://github.com/Uniswap/ai-toolkit",
   "keywords": ["claude-code", "setup", "configuration", "best-practices", "workflow"],
   "license": "MIT",
-  "skills": ["./skills/setup-repository"],
-  "commands": ["./skills/setup-repository/setup-repository.md"]
+  "skills": ["./skills/setup-repository"]
 }

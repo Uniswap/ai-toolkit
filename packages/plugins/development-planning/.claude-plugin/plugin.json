@@ -1,6 +1,6 @@
 {
   "name": "development-planning",
-  "version": "1.1.1",
+  "version": "2.0.1",
   "description": "Implementation planning, execution, and PR creation workflows with multi-agent collaboration",
   "author": {
     "name": "Uniswap Labs",
@@ -17,12 +17,11 @@
     "./skills/plan-swarm",
     "./skills/review-plan"
   ],
-  "commands": [
-    "./skills/create-pr/create-pr.md",
-    "./skills/execute-plan/execute-plan.md",
-    "./skills/generate-commit-message/generate-commit-message.md",
-    "./skills/plan-implementation/plan-implementation.md",
-    "./skills/plan-swarm/plan-swarm.md",
-    "./skills/review-plan/review-plan.md"
+  "agents": [
+    "./agents/commit-message-generator.md",
+    "./agents/execute-plan.md",
+    "./agents/plan-reviewer.md",
+    "./agents/planner.md",
+    "./agents/pr-creator.md"
   ]
 }

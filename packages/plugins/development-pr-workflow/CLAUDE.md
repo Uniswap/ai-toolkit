@@ -26,7 +26,7 @@ This plugin supports two PR creation workflows:
 
 **Graphite-only features:**
 
-- `stack-splitter` - Requires Graphite for PR stacking
+- `stack-splitter-agent` - Requires Graphite for PR stacking
 - `graphite-stack-updater` - Requires Graphite for stack management
 
 ## Plugin Components
@@ -53,8 +53,8 @@ This plugin supports two PR creation workflows:
 
 ### Agents (./agents/)
 
-- **review-executor**: Executes code review tasks and implements feedback
-- **stack-splitter**: Splits monolithic branches into logical PR stacks
+- **review-executor-agent**: Executes code review tasks and implements feedback
+- **stack-splitter-agent**: Splits monolithic branches into logical PR stacks
 
 ### MCP Integration (./.mcp.json)
 

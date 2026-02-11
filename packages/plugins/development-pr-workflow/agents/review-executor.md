@@ -1,10 +1,10 @@
 ---
-name: review-executor
+name: review-executor-agent
 description: Executes code review tasks - addresses PR comments, fixes CI issues, and implements review feedback
 model: sonnet
 ---
 
-# review-executor Agent
+# review-executor-agent
 
 ## Description
 
@@ -131,7 +131,7 @@ Return a structured response with:
 ## Example Usage
 
 ```
-/agent review-executor
+/agent review-executor-agent
 ```
 
 ## Implementation Notes

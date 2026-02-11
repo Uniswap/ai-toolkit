@@ -1,6 +1,6 @@
 {
   "name": "development-productivity",
-  "version": "1.0.1",
+  "version": "2.0.1",
   "description": "Documentation, research, test generation, and prompt optimization tools",
   "author": {
     "name": "Uniswap Labs",
@@ -15,12 +15,13 @@
     "./skills/research-topic",
     "./skills/update-claude-docs"
   ],
-  "commands": [
-    "./commands/claude-init-plus.md",
-    "./commands/update-claude-md.md",
-    "./skills/generate-tests/generate-tests.md",
-    "./skills/optimize-prompt/optimize-prompt.md",
-    "./skills/research-topic/research-topic.md",
-    "./skills/update-claude-docs/update-claude-docs.md"
-  ]
+  "agents": [
+    "./agents/agent-tester.md",
+    "./agents/claude-docs-initializer.md",
+    "./agents/documentation.md",
+    "./agents/prompt-engineer.md",
+    "./agents/researcher.md",
+    "./agents/test-writer.md"
+  ],
+  "commands": ["./commands/claude-init-plus.md", "./commands/update-claude-md.md"]
 }

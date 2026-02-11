@@ -1523,9 +1523,11 @@ jobs:
           show_full_output: true
           # Use auto_fix_model if specified, otherwise use the review model
           claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }}"
-          # Plugin configuration
-          plugin_marketplaces: ${{ steps.build-plugins-main.outputs.plugin_marketplaces || steps.build-plugins-next.outputs.plugin_marketplaces }}
-          plugins: ${{ steps.build-plugins-main.outputs.plugins || steps.build-plugins-next.outputs.plugins }}
+          # Note: plugin_marketplaces and plugins are intentionally omitted here.
+          # The marketplace and plugins were already installed by the "Run Claude Code
+          # Review" step earlier in this job. Both steps share the same runner and
+          # ~/.claude/ directory, so re-installing would cause a fatal
+          # "Marketplace already installed" error.
 
       # Check for changes and commit
       - name: Commit and Push Fixes
