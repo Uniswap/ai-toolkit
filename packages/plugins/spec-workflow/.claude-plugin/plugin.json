@@ -1,6 +1,6 @@
 {
   "name": "spec-workflow",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Autonomous spec-driven development workflow with multi-agent collaboration, specification management, and task orchestration",
   "author": {
     "name": "Uniswap Labs",
@@ -9,6 +9,5 @@
   "homepage": "https://github.com/Uniswap/ai-toolkit",
   "keywords": ["spec-workflow", "specification", "implementation", "multi-agent", "orchestration"],
   "license": "MIT",
-  "skills": ["./skills/auto-spec", "./skills/implement-spec"],
-  "commands": ["./skills/auto-spec/auto-spec.md", "./skills/implement-spec/implement-spec.md"]
+  "skills": ["./skills/auto-spec", "./skills/implement-spec"]
 }

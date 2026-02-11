@@ -1,6 +1,6 @@
 {
   "name": "uniswap-integrations",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "External service integrations (Linear, Notion, Nx, Chrome DevTools, GitHub) and deployment orchestration",
   "author": {
     "name": "Uniswap Labs",
@@ -19,11 +19,5 @@
     "./agents/cicd-agent.md",
     "./agents/infrastructure-agent.md",
     "./agents/migration-assistant.md"
-  ],
-  "commands": [
-    "./skills/daily-standup/daily-standup.md",
-    "./skills/github-setup/github-setup.md",
-    "./skills/orchestrate-deployment/orchestrate-deployment.md",
-    "./skills/refine-linear-task/refine-linear-task.md"
   ]
 }
