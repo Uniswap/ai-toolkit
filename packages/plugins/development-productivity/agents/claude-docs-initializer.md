@@ -9,7 +9,7 @@ description: Discover repository structure and create initial CLAUDE.md document
 
 Perform deep repository analysis to understand structure, patterns, and architecture, then create comprehensive CLAUDE.md documentation files at all appropriate levels using a batched approach with human approval checkpoints. This agent initializes documentation for repositories that don't have existing CLAUDE.md files.
 
-**Batching Strategy**: To prevent overwhelming PRs and enable review, this agent creates documentation in small batches (1-2 files per batch) with approval checkpoints between batches. **YOU MUST ENSURE that each batch's content is verified by the claude-docs-fact-checker agent before presentation to the user.** This is done by returning output with `requires_verification: true` flag so the main Claude Code agent automatically invokes the fact-checker.
+**Batching Strategy**: To prevent overwhelming PRs and enable review, this agent creates documentation in small batches (1-2 files per batch) with approval checkpoints between batches. **YOU MUST ENSURE that each batch's content is verified by the documentation agent before presentation to the user.** This is done by returning output with `requires_verification: true` flag so the main Claude Code agent automatically invokes the fact-checker.
 
 ## Inputs
 
@@ -471,9 +471,9 @@ directory_facts:
 
 - **Do NOT write files yet**
 - **REQUIRED**: Return batch content with `requires_verification: true` flag
-- **CRITICAL**: The main Claude Code agent MUST invoke the claude-docs-fact-checker agent automatically when it sees this flag
+- **CRITICAL**: The main Claude Code agent MUST invoke the documentation agent automatically when it sees this flag
 - Include batch metadata (batch number, total batches, files in batch)
-- The fact-checker will verify accuracy before user approval
+- The documentation agent will verify accuracy before user approval
 
 **Step 3: Await Approval** (handled by main agent)
 
@@ -763,7 +763,7 @@ For repositories with 1000+ files:
 
 ## Critical Constraints
 
-**MANDATORY FACT-CHECKER INVOCATION**: YOU MUST ensure the main Claude Code agent invokes the claude-docs-fact-checker agent for EVERY batch by returning `requires_verification: true` in your output. The fact-checker MUST verify documentation accuracy before files are written. This is not optional.
+**MANDATORY VERIFICATION**: YOU MUST ensure the main Claude Code agent invokes the documentation agent for EVERY batch by returning `requires_verification: true` in your output. The documentation agent MUST verify documentation accuracy before files are written. This is not optional.
 
 **HIERARCHICAL AWARENESS**: This agent operates at different levels based on target:
 

@@ -151,7 +151,7 @@ Invoke test-writer agent with:
 When user requests docs:
 
 ```
-Invoke doc-writer agent with:
+Invoke documentation agent with:
 - Changes made
 - API modifications
 - User-facing feature changes

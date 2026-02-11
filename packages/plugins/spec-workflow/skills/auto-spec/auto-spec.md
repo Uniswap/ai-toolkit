@@ -1,7 +1,7 @@
 ---
 description: Autonomously create and implement a complete spec workflow with multi-agent collaboration, bypassing manual review steps through intelligent consensus-building
 argument-hint: <feature/task description> [--skip-final-review]
-allowed-tools: Read(*), Write(*), MultiEdit(*), Edit(*), Glob(*), Grep(*), LS(*), Bash(*), WebSearch(*), WebFetch(*), TodoWrite(*), mcp__spec-workflow__*, Task(*), planner, refactorer, test-writer, documentation, plan-reviewer, performance-analyzer, security-analyzer, code-generator, code-explainer, debug-assistant
+allowed-tools: Read(*), Write(*), MultiEdit(*), Edit(*), Glob(*), Grep(*), LS(*), Bash(*), WebSearch(*), WebFetch(*), TodoWrite(*), mcp__spec-workflow__*, Task(*)
 ---
 
 # Auto-Spec Command

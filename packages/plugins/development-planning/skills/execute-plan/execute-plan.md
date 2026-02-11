@@ -1,6 +1,6 @@
 ---
 description: Execute implementation plans step-by-step. Use when user says "execute the plan", "implement the plan we created", "start building based on the plan", "go ahead and implement it", "proceed with the implementation", "execute as a stack", "create a PR stack while implementing", "implement with one PR per step", or references a plan file and wants to begin coding.
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*), Bash(gt:*), Bash(npx:*), Task(subagent_type:test-writer), Task(subagent_type:doc-writer), Task(subagent_type:pr-creator), Task(subagent_type:commit-message-generator)
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*), Bash(gt:*), Bash(npx:*), Task(subagent_type:test-writer), Task(subagent_type:documentation), Task(subagent_type:pr-creator), Task(subagent_type:commit-message-generator)
 model: opus
 ---
 
@@ -170,7 +170,7 @@ After implementation, ask:
 > 4. All of the above?"
 
 - **Tests**: Delegate to test-writer agent
-- **Docs**: Delegate to doc-writer agent
+- **Docs**: Delegate to documentation agent
 - **PR**: Delegate to pr-creator agent (commits changes with conventional commit format, creates PR)
 
 ### Stack Mode

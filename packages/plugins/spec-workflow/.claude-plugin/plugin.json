@@ -1,6 +1,6 @@
 {
   "name": "spec-workflow",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Autonomous spec-driven development workflow with multi-agent collaboration, specification management, and task orchestration",
   "author": {
     "name": "Uniswap Labs",

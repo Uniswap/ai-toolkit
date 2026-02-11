@@ -150,11 +150,14 @@ The repository uses a plugin-based architecture where Claude Code capabilities a
 │   └── marketplace.json              # Plugin marketplace configuration
 ├── packages/
 │   └── plugins/
+│       ├── claude-setup/             # Repository setup wizard
+│       ├── development-codebase-tools/  # Code exploration & refactoring
 │       ├── development-planning/     # Implementation planning & execution workflows
 │       ├── development-pr-workflow/  # PR management, review, & Graphite integration
-│       ├── development-codebase-tools/  # Code exploration & refactoring
 │       ├── development-productivity/ # Documentation, research, & prompt optimization
-│       └── uniswap-integrations/     # External service integrations (Linear, Notion, Nx)
+│       ├── spec-workflow/            # Spec-driven development workflows
+│       ├── uniswap-builder/         # Uniswap protocol integration (swaps, viem)
+│       └── uniswap-integrations/    # External service integrations (Linear, Notion, Nx)
 └── scripts/
     └── validate-plugin.cjs           # Plugin structure validation script
 ```
@@ -164,7 +167,7 @@ The repository uses a plugin-based architecture where Claude Code capabilities a
 - Plugins are stored in `./packages/plugins/<plugin-name>/`
 - Each plugin is a self-contained Nx package with its own `package.json`, `project.json`, and `.claude-plugin/plugin.json`
 - The `.claude-plugin/marketplace.json` file references plugins via relative paths: `"./packages/plugins/<plugin-name>"`
-- There are 5 plugins: development-planning, development-pr-workflow, development-codebase-tools, development-productivity, uniswap-integrations
+- There are 8 plugins: claude-setup, development-codebase-tools, development-planning, development-pr-workflow, development-productivity, spec-workflow, uniswap-builder, uniswap-integrations
 
 **Plugin Validation:**
 
@@ -224,12 +227,13 @@ All plugins follow semantic versioning (semver). Key versioning rules:
 | Plugin                     | Version |
 | -------------------------- | ------- |
 | claude-setup               | 1.0.3   |
-| development-codebase-tools | 1.1.0   |
-| development-planning       | 1.1.2   |
-| development-pr-workflow    | 1.1.4   |
-| development-productivity   | 1.0.1   |
-| spec-workflow              | 1.0.0   |
-| uniswap-integrations       | 1.0.0   |
+| development-codebase-tools | 1.1.1   |
+| development-planning       | 1.2.0   |
+| development-pr-workflow    | 1.2.0   |
+| development-productivity   | 1.1.0   |
+| spec-workflow              | 1.0.1   |
+| uniswap-builder            | 1.0.2   |
+| uniswap-integrations       | 1.1.0   |
 
 **Note:** Keep this table updated when versions change.
 
