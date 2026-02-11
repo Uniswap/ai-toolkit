@@ -156,7 +156,6 @@ The repository uses a plugin-based architecture where Claude Code capabilities a
 │       ├── development-pr-workflow/  # PR management, review, & Graphite integration
 │       ├── development-productivity/ # Documentation, research, & prompt optimization
 │       ├── spec-workflow/            # Spec-driven development workflows
-│       ├── uniswap-builder/         # Uniswap protocol integration (swaps, viem)
 │       └── uniswap-integrations/    # External service integrations (Linear, Notion, Nx)
 └── scripts/
     └── validate-plugin.cjs           # Plugin structure validation script
@@ -167,7 +166,7 @@ The repository uses a plugin-based architecture where Claude Code capabilities a
 - Plugins are stored in `./packages/plugins/<plugin-name>/`
 - Each plugin is a self-contained Nx package with its own `package.json`, `project.json`, and `.claude-plugin/plugin.json`
 - The `.claude-plugin/marketplace.json` file references plugins via relative paths: `"./packages/plugins/<plugin-name>"`
-- There are 8 plugins: claude-setup, development-codebase-tools, development-planning, development-pr-workflow, development-productivity, spec-workflow, uniswap-builder, uniswap-integrations
+- There are 7 plugins: claude-setup, development-codebase-tools, development-planning, development-pr-workflow, development-productivity, spec-workflow, uniswap-integrations
 
 **Plugin Validation:**
 
@@ -232,7 +231,6 @@ All plugins follow semantic versioning (semver). Key versioning rules:
 | development-pr-workflow    | 2.0.1   |
 | development-productivity   | 2.0.1   |
 | spec-workflow              | 2.0.1   |
-| uniswap-builder            | 2.0.1   |
 | uniswap-integrations       | 2.0.1   |
 
 **Note:** Keep this table updated when versions change.
