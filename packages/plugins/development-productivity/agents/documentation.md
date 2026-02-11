@@ -1,5 +1,5 @@
 ---
-name: documentation
+name: documentation-agent
 description: Comprehensive documentation agent that handles all documentation tasks including API docs, README generation, architecture documentation, CLAUDE.md management, and documentation quality verification
 ---
 

@@ -1,6 +1,6 @@
 ---
 description: Research external documentation and best practices. Use when user says "look up the docs for this library", "research best practices for implementing caching", "how do other projects handle authentication", "check the official documentation for this API", "compare our implementation with industry standards", or "what's the recommended way to structure this".
-allowed-tools: WebSearch, WebFetch, Read, Glob, Grep, Bash(git ls-files:*), Bash(git log:*), Task(subagent_type:researcher)
+allowed-tools: WebSearch, WebFetch, Read, Glob, Grep, Bash(git ls-files:*), Bash(git log:*), Task(subagent_type:researcher-agent)
 model: opus
 ---
 
@@ -54,4 +54,4 @@ Return structured findings:
 
 ## Delegation
 
-Invokes the **researcher** agent with query, sources, and codebase context.
+Invokes the **researcher-agent** with query, sources, and codebase context.

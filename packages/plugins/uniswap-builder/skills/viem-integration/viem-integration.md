@@ -1,6 +1,6 @@
 ---
 description: Integrate EVM blockchains using viem. Use when user says "read blockchain data", "send transaction", "interact with smart contract", "connect to Ethereum", "use viem", "use wagmi", "wallet integration", "viem setup", or mentions blockchain/EVM development with TypeScript.
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash(npm:*), Bash(npx:*), WebFetch, Task(subagent_type:viem-integration-expert)
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(npm:*), Bash(npx:*), WebFetch, Task(subagent_type:viem-integration-expert-agent)
 model: opus
 ---
 

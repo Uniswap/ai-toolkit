@@ -1,5 +1,5 @@
 ---
-name: security-analyzer
+name: security-analyzer-agent
 description: Comprehensive security analysis agent for vulnerability assessment, threat modeling, and compliance checking
 ---
 

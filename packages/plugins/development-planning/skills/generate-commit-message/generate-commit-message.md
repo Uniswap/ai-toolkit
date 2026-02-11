@@ -1,6 +1,6 @@
 ---
 description: Generate well-structured git commit messages. Use when user says "generate commit message", "write a commit", "what should my commit message be", "create commit message for these changes", or needs help crafting conventional commit messages.
-allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git log:*), Task(subagent_type:commit-message-generator)
+allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git log:*), Task(subagent_type:commit-message-generator-agent)
 ---
 
 # Commit Message Generator
@@ -55,7 +55,7 @@ Generate commit message in this format:
 
 ## Delegation
 
-Invokes the **commit-message-generator** agent with:
+Invokes the **commit-message-generator-agent** with:
 
 - staged_changes: git diff --cached output
 - unstaged_changes: git diff output (for context)

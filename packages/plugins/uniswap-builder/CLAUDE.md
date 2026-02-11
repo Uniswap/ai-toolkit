@@ -14,9 +14,9 @@ This plugin provides skills for building on top of and integrating the Uniswap p
 
 ### Agents (./agents/)
 
-- **viem-integration-expert**: Expert agent for complex viem and wagmi integration questions, debugging, and best practices
+- **viem-integration-expert-agent**: Expert agent for complex viem and wagmi integration questions, debugging, and best practices
 
-- **swap-integration-expert**: Specialized agent for complex swap integration questions
+- **swap-integration-expert-agent**: Specialized agent for complex swap integration questions
 
 ## File Structure
 

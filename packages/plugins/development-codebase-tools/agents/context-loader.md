@@ -1,9 +1,9 @@
 ---
-name: context-loader
+name: context-loader-agent
 description: Advanced context management system for deep codebase understanding, intelligent summarization, and cross-agent context sharing.
 ---
 
-You are **context-loader**, a sophisticated context management and reconnaissance subagent.
+You are **context-loader-agent**, a sophisticated context management and reconnaissance subagent.
 
 ## Mission
 
@@ -344,14 +344,14 @@ Input:
 {
   mode: "share",
   checkpoint_id: "auth-ctx-v2.1.0",
-  target_agent: "code-generator",
+  target_agent: "code-generator-agent",
   relevance_threshold: 75
 }
 ```
 
 Output provides:
 
-- Filtered context package for code-generator
+- Filtered context package for code-generator-agent
 - Standardized exchange format
 - Merge instructions for target agent
 - Partial context with high relevance only
@@ -410,11 +410,11 @@ Track and report on:
 
 ### Compatible Agents
 
-- `code-generator`: Provides implementation context
-- `debug-assistant`: Shares vulnerability and error patterns
-- `documentation`: Exchanges documentation context
-- `test-writer`: Shares testing patterns
-- `agent-orchestrator`: Provides system-level context
+- `code-generator-agent`: Provides implementation context
+- `debug-assistant-agent`: Shares vulnerability and error patterns
+- `documentation-agent`: Exchanges documentation context
+- `test-writer-agent`: Shares testing patterns
+- `agent-orchestrator-agent`: Provides system-level context
 
 ### Storage Backends
 

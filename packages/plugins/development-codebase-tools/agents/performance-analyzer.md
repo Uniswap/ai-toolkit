@@ -1,5 +1,5 @@
 ---
-name: performance-analyzer
+name: performance-analyzer-agent
 description: Comprehensive performance analysis agent for identifying bottlenecks, analyzing complexity, and providing optimization strategies with measurable impact estimates
 ---
 

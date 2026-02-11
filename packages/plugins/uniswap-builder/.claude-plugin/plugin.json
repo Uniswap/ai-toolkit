@@ -1,6 +1,6 @@
 {
   "name": "uniswap-builder",
-  "version": "1.0.2",
+  "version": "2.0.0",
   "description": "Skills for building on top of and integrating the Uniswap protocol",
   "author": {
     "name": "Uniswap Labs",

@@ -1,6 +1,6 @@
 ---
 description: Orchestrate implementation of spec-workflow tasks. Use when user says "implement the spec", "execute spec tasks", "run the spec workflow", "implement spec-name tasks", or needs to coordinate agent execution for spec-workflow documents.
-allowed-tools: Read(*), Task(subagent_type:agent-orchestrator), Task(subagent_type:*), mcp__spec-workflow__manage-tasks(*), mcp__spec-workflow__get-spec-context(*)
+allowed-tools: Read(*), Task(subagent_type:agent-orchestrator-agent), Task(subagent_type:*), mcp__spec-workflow__manage-tasks(*), mcp__spec-workflow__get-spec-context(*)
 ---
 
 # Implement Spec
@@ -49,7 +49,7 @@ Parse from request:
 
 ### Phase 2: Agent Orchestration
 
-**If agent-orchestrator is available** (from development-codebase-tools plugin):
+**If agent-orchestrator-agent is available** (from development-codebase-tools plugin):
 
 Invoke it with comprehensive context including:
 
@@ -64,7 +64,7 @@ The orchestrator will:
 - Coordinate specialized agents for each task
 - Handle parallel execution groups
 
-**Fallback (if agent-orchestrator is not available)**:
+**Fallback (if agent-orchestrator-agent is not available)**:
 
 Execute tasks sequentially without orchestration:
 
@@ -77,18 +77,18 @@ Execute tasks sequentially without orchestration:
 
 For each task, coordinate:
 
-1. **Code Implementation Tasks**: code-generator, test-writer, documentation
-2. **Refactoring Tasks**: refactorer, style-enforcer, agent-tester
+1. **Code Implementation Tasks**: code-generator-agent, test-writer-agent, documentation-agent
+2. **Refactoring Tasks**: refactorer-agent, style-enforcer-agent, agent-tester-agent
 3. **Infrastructure Tasks**: infrastructure-agent, cicd-agent
-4. **Migration Tasks**: migration-assistant, agent-tester
+4. **Migration Tasks**: migration-assistant-agent, agent-tester-agent
 
 ### Phase 4: Quality Gates
 
 Between task groups, apply quality checks:
 
-- **Code Quality**: style-enforcer, security-analyzer, performance-analyzer
-- **Test Coverage**: agent-tester, test-writer
-- **Documentation**: documentation, review-plan
+- **Code Quality**: style-enforcer-agent, security-analyzer-agent, performance-analyzer-agent
+- **Test Coverage**: agent-tester-agent, test-writer-agent
+- **Documentation**: documentation-agent, review-plan
 
 ## Output Format
 
@@ -110,6 +110,6 @@ Return structured results:
 
 ## Delegation
 
-**Primary**: Invokes **agent-orchestrator** (from development-codebase-tools plugin) with spec context, task dependencies, and execution configuration.
+**Primary**: Invokes **agent-orchestrator-agent** (from development-codebase-tools plugin) with spec context, task dependencies, and execution configuration.
 
-**Fallback**: If agent-orchestrator is unavailable, executes tasks sequentially using direct agent invocations based on task type.
+**Fallback**: If agent-orchestrator-agent is unavailable, executes tasks sequentially using direct agent invocations based on task type.

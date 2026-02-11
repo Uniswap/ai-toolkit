@@ -1,5 +1,5 @@
 ---
-name: pr-creator
+name: pr-creator-agent
 description: Creates or updates pull requests with auto-generated conventional commit messages and comprehensive PR descriptions based on diffs. Supports both standard Git + GitHub CLI (default) and Graphite workflows.
 model: sonnet
 ---
