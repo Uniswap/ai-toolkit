@@ -67,7 +67,7 @@ Projects using alternative formatters (Biome, dprint, etc.) would have their for
 
 - Skills are the primary interface for all workflows
 - Agents are auto-discovered from the `agents/` directory
-- Skills invoke agents via `Task(subagent_type:agent-name-agent)`
+- Skills invoke agents via `Task(subagent_type:agent-name)`
 - The post-edit-lint hook requires `CLAUDE_POST_EDIT_LINT=1` to be enabled
 - Cross-plugin delegation uses `Task(subagent_type:plugin-name:skill-name)`
 

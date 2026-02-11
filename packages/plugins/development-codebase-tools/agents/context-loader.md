@@ -412,7 +412,7 @@ Track and report on:
 
 - `code-generator-agent`: Provides implementation context
 - `debug-assistant-agent`: Shares vulnerability and error patterns
-- `documentation`: Exchanges documentation context
+- `documentation-agent`: Exchanges documentation context
 - `test-writer-agent`: Shares testing patterns
 - `agent-orchestrator-agent`: Provides system-level context
 
