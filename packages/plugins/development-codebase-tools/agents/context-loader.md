@@ -344,14 +344,14 @@ Input:
 {
   mode: "share",
   checkpoint_id: "auth-ctx-v2.1.0",
-  target_agent: "code-writer",
+  target_agent: "code-generator",
   relevance_threshold: 75
 }
 ```
 
 Output provides:
 
-- Filtered context package for code-writer
+- Filtered context package for code-generator
 - Standardized exchange format
 - Merge instructions for target agent
 - Partial context with high relevance only
@@ -410,11 +410,11 @@ Track and report on:
 
 ### Compatible Agents
 
-- `code-writer`: Provides implementation context
-- `bug-hunter`: Shares vulnerability patterns
-- `doc-maestro`: Exchanges documentation context
-- `test-engineer`: Shares testing patterns
-- `architect`: Provides system-level context
+- `code-generator`: Provides implementation context
+- `debug-assistant`: Shares vulnerability and error patterns
+- `documentation`: Exchanges documentation context
+- `test-writer`: Shares testing patterns
+- `agent-orchestrator`: Provides system-level context
 
 ### Storage Backends
 
