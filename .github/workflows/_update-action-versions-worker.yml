@@ -115,6 +115,8 @@ on:
         description: "PAT for pushing branches (optional)"
         required: false
 
+permissions: {}
+
 jobs:
   update-actions:
     runs-on: ubuntu-latest
@@ -141,6 +143,7 @@ jobs:
           ref: ${{ inputs.branch_name }}
           fetch-depth: 50
           token: ${{ secrets.WORKFLOW_PAT || github.token }}
+          persist-credentials: false
 
       # Download validate-claude-auth action if caller repo doesn't have it
       # This allows external repos to use this reusable workflow without copying the action
@@ -209,8 +212,8 @@ jobs:
 
           ## Context
 
-          - **Branch:** `${{ inputs.branch_name }}`
-          - **Target Branch:** `${{ inputs.target_branch }}`
+          - **Branch:** `${INPUTS_BRANCH_NAME}`
+          - **Target Branch:** `${INPUTS_TARGET_BRANCH}`
           - **Dry Run:** ${{ inputs.dry_run }}
 
           ## Your Workflow
@@ -299,7 +302,7 @@ jobs:
 
           3. Push the branch:
           ```bash
-          git push origin ${{ inputs.branch_name }}
+          git push origin ${INPUTS_BRANCH_NAME}
           ```
 
           4. Create the PR using gh CLI:
@@ -323,8 +326,8 @@ jobs:
 
           ---
           *Automated by Claude Code on $(date +%Y-%m-%d)*" \
-            --base "${{ inputs.target_branch }}" \
-            --head "${{ inputs.branch_name }}"
+            --base "${INPUTS_TARGET_BRANCH}" \
+            --head "${INPUTS_BRANCH_NAME}"
           ```
 
           ### If Dry Run Mode
@@ -378,6 +381,9 @@ jobs:
           echo "prompt<<PROMPT_DELIM" >> $GITHUB_OUTPUT
           echo "$PROMPT" >> $GITHUB_OUTPUT
           echo "PROMPT_DELIM" >> $GITHUB_OUTPUT
+        env:
+          INPUTS_BRANCH_NAME: ${{ inputs.branch_name }}
+          INPUTS_TARGET_BRANCH: ${{ inputs.target_branch }}
 
       # Build plugin configuration using shared composite action
       # Note: GitHub Actions requires static refs in 'uses:', so we use conditional

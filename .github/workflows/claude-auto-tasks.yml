@@ -83,6 +83,8 @@ concurrency:
   group: claude-auto-tasks
   cancel-in-progress: false
 
+permissions: {}
+
 jobs:
   # Job 1: Query Linear and prepare the task matrix
   prepare:

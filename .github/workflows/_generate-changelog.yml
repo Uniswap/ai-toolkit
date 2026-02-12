@@ -90,6 +90,8 @@ on:
         description: 'Anthropic API key for AI changelog generation'
         required: true
 
+permissions: {}
+
 jobs:
   generate:
     runs-on: ubuntu-24.04
@@ -107,6 +109,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Normalize git references
         id: normalize-refs
@@ -128,8 +131,8 @@ jobs:
       - name: Get git diff and commit messages
         id: git-context
         run: |
-          FROM_SHA="${{ steps.normalize-refs.outputs.from_sha }}"
-          TO_SHA="${{ steps.normalize-refs.outputs.to_sha }}"
+          FROM_SHA="${STEPS_NORMALIZE_REFS_OUTPUTS_FROM_SHA}"
+          TO_SHA="${STEPS_NORMALIZE_REFS_OUTPUTS_TO_SHA}"
 
           echo "Comparing commits: $FROM_SHA...$TO_SHA"
 
@@ -150,12 +153,15 @@ jobs:
             echo "$FULL_CONTEXT"
             echo 'EOF'
           } >> $GITHUB_OUTPUT
+        env:
+          STEPS_NORMALIZE_REFS_OUTPUTS_FROM_SHA: ${{ steps.normalize-refs.outputs.from_sha }}
+          STEPS_NORMALIZE_REFS_OUTPUTS_TO_SHA: ${{ steps.normalize-refs.outputs.to_sha }}
 
       - name: Load custom prompt from file
         id: load-prompt
         if: inputs.custom_prompt_file != ''
         run: |
-          PROMPT_FILE="${{ inputs.custom_prompt_file }}"
+          PROMPT_FILE="${INPUTS_CUSTOM_PROMPT_FILE}"
 
           if [ ! -f "$PROMPT_FILE" ]; then
             echo "Error: Custom prompt file not found: $PROMPT_FILE"
@@ -173,6 +179,8 @@ jobs:
           } >> $GITHUB_OUTPUT
 
           echo "✅ Loaded custom prompt from $PROMPT_FILE"
+        env:
+          INPUTS_CUSTOM_PROMPT_FILE: ${{ inputs.custom_prompt_file }}
 
       - name: Generate AI-powered changelog
         id: ai-changelog
@@ -412,8 +420,8 @@ jobs:
         if: steps.ai-changelog.outcome == 'failure'
         id: fallback-changelog
         run: |
-          FROM_SHA="${{ steps.normalize-refs.outputs.from_sha }}"
-          TO_SHA="${{ steps.normalize-refs.outputs.to_sha }}"
+          FROM_SHA="${STEPS_NORMALIZE_REFS_OUTPUTS_FROM_SHA}"
+          TO_SHA="${STEPS_NORMALIZE_REFS_OUTPUTS_TO_SHA}"
 
           echo "⚠️ AI generation failed, using fallback changelog (markdown format)"
 
@@ -430,6 +438,9 @@ jobs:
             echo "$COMMITS"
             echo 'EOF'
           } >> $GITHUB_OUTPUT
+        env:
+          STEPS_NORMALIZE_REFS_OUTPUTS_FROM_SHA: ${{ steps.normalize-refs.outputs.from_sha }}
+          STEPS_NORMALIZE_REFS_OUTPUTS_TO_SHA: ${{ steps.normalize-refs.outputs.to_sha }}
 
       - name: Summary
         if: always()
