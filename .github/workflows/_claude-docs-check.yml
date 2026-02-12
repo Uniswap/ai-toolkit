@@ -246,6 +246,21 @@ jobs:
           echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
           echo "📍 Head ref: $HEAD_REF"
 
+      # Setup Node.js and install tsx BEFORE checking out PR code.
+      # Security: PR checkout may contain a malicious .npmrc that redirects
+      # the npm registry, so all npm operations must complete first.
+      - name: Setup Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: "22"
+
+      - name: Install tsx globally (security)
+        run: |
+          npm install -g tsx
+          TSX_BIN=$(which tsx)
+          echo "TSX_BIN=$TSX_BIN" >> "$GITHUB_ENV"
+          echo "✅ Installed tsx globally at: $TSX_BIN"
+
       # Checkout PR head
       - name: Checkout PR Head
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -253,11 +268,13 @@ jobs:
           ref: ${{ steps.pr-info.outputs.head_sha }}
           fetch-depth: 0
 
-      # Setup Node.js
-      - name: Setup Node.js
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
-        with:
-          node-version: "22"
+      # Defense-in-depth: remove any attacker-supplied binaries from PR checkout
+      - name: Remove untrusted node_modules binaries
+        run: |
+          if [ -d "node_modules/.bin" ]; then
+            rm -rf node_modules/.bin
+            echo "🗑️  Removed node_modules/.bin from PR checkout"
+          fi
 
       # Generate PR diff
       - name: Generate PR Diff
@@ -290,35 +307,33 @@ jobs:
           echo "lines_changed=$TOTAL_CHANGES" >> $GITHUB_OUTPUT
           echo "📊 Lines changed: $TOTAL_CHANGES"
 
-      # Download post-docs-check script
+      # Download post-docs-check script from trusted ref (never use PR checkout files)
+      # Security: Always fetch from a trusted ref to prevent script tampering via PR
       - name: Setup Post Docs Check Script
         id: setup-script
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
           TOOLKIT_REF: ${{ inputs.toolkit_ref }}
         run: |
           set -euo pipefail
 
-          if [ "$GITHUB_REPOSITORY" = "Uniswap/ai-toolkit" ]; then
-            echo "ℹ️  Running from ai-toolkit - using local post-docs-check.ts"
-            echo "script_path=.github/scripts/post-docs-check.ts" >> $GITHUB_OUTPUT
-          else
-            echo "ℹ️  Downloading post-docs-check.ts from ai-toolkit@${TOOLKIT_REF}"
+          echo "ℹ️  Downloading post-docs-check.ts from Uniswap/ai-toolkit@${TOOLKIT_REF}"
 
-            if ! curl -fSs \
-                      -H "Accept: application/vnd.github.v4.raw" \
-                      -H "Authorization: Bearer $GITHUB_TOKEN" \
-                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/scripts/post-docs-check.ts?ref=${TOOLKIT_REF}" \
-                      -o /tmp/post-docs-check.ts 2>&1 | tee /tmp/curl-error.log; then
-              echo "❌ Failed to download post-docs-check.ts"
-              cat /tmp/curl-error.log | head -5
-              exit 1
-            fi
-
-            echo "✅ Downloaded post-docs-check.ts"
-            echo "script_path=/tmp/post-docs-check.ts" >> $GITHUB_OUTPUT
+          # Always download from trusted ref - never use local files from PR checkout
+          # This prevents attackers from modifying scripts in their PR
+          if ! curl -fSs \
+                    -H "Accept: application/vnd.github.v4.raw" \
+                    -H "Authorization: Bearer $GITHUB_TOKEN" \
+                    -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/scripts/post-docs-check.ts?ref=${TOOLKIT_REF}" \
+                    -o /tmp/post-docs-check.ts 2>&1 | tee /tmp/curl-error.log; then
+            echo "❌ Failed to download post-docs-check.ts from Uniswap/ai-toolkit@${TOOLKIT_REF}"
+            echo "   Error details:"
+            cat /tmp/curl-error.log | head -5
+            exit 1
           fi
+
+          echo "✅ Downloaded post-docs-check.ts from ref: $TOOLKIT_REF"
+          echo "script_path=/tmp/post-docs-check.ts" >> $GITHUB_OUTPUT
 
       # Build prompt
       - name: Build Docs Check Prompt
@@ -639,8 +654,8 @@ jobs:
             SCRIPT_ARGS="$SCRIPT_ARGS --auto-commit"
           fi
 
-          # Run post-processing script
-          npx tsx "$POST_SCRIPT" $SCRIPT_ARGS
+          # Run post-processing script (use globally installed tsx, not npx)
+          "$TSX_BIN" "$POST_SCRIPT" $SCRIPT_ARGS
 
           # Check if branch was created
           if [ -f /tmp/fixup-branch-name.txt ]; then
