@@ -373,11 +373,25 @@ jobs:
           ref: ${{ steps.pr-info.outputs.head_sha }}
           fetch-depth: 0 # Full history needed for accurate diff calculation
 
+      - name: Remove untrusted node_modules binaries
+        run: |
+          if [ -d "node_modules/.bin" ]; then
+            rm -rf node_modules/.bin
+            echo "🗑️  Removed node_modules/.bin from PR checkout"
+          fi
+
       # Setup Node.js early so we can post status updates
       - name: Setup Node.js (Early)
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: "22"
+
+      - name: Install tsx globally (security)
+        run: |
+          npm install -g tsx
+          TSX_BIN=$(which tsx)
+          echo "TSX_BIN=$TSX_BIN" >> "$GITHUB_ENV"
+          echo "✅ Installed tsx globally at: $TSX_BIN"
 
       # Download or use local post-review script (needed for status updates)
       - name: Setup Post Review Script (Early)
@@ -476,7 +490,7 @@ jobs:
           REPO_OWNER=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)
           REPO_NAME=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
 
-          npx tsx "$POST_REVIEW_SCRIPT" \
+          "$TSX_BIN" "$POST_REVIEW_SCRIPT" \
             --mode skipped \
             --owner "$REPO_OWNER" \
             --repo "$REPO_NAME" \
@@ -543,7 +557,7 @@ jobs:
           REPO_NAME=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
 
           # Post in-progress comment (creates or updates the bot's comment)
-          npx tsx "$POST_REVIEW_SCRIPT" \
+          "$TSX_BIN" "$POST_REVIEW_SCRIPT" \
             --mode in-progress \
             --owner "$REPO_OWNER" \
             --repo "$REPO_NAME" \
@@ -678,7 +692,7 @@ jobs:
           REPO_NAME=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
 
           # Post message that PR is too large for Claude review
-          npx tsx "$POST_REVIEW_SCRIPT" \
+          "$TSX_BIN" "$POST_REVIEW_SCRIPT" \
             --mode too-large \
             --owner "$REPO_OWNER" \
             --repo "$REPO_NAME" \
@@ -926,7 +940,7 @@ jobs:
           REPO_NAME=$(echo "$REPO" | cut -d'/' -f2)
 
           # Run the build-prompt script
-          npx tsx "$BUILD_PROMPT_SCRIPT" \
+          "$TSX_BIN" "$BUILD_PROMPT_SCRIPT" \
             --prompt-dir "/tmp/pr-review-prompts" \
             --output "/tmp/final-prompt.txt" \
             --repo-owner "$REPO_OWNER" \
@@ -1220,7 +1234,7 @@ jobs:
           # Run the post-review script (path from setup-script step)
           # REVIEW_JSON_FILE env var is passed to the script, which reads the file directly
           # This avoids shell expansion of file content (shell injection safe)
-          npx tsx "$POST_REVIEW_SCRIPT" \
+          "$TSX_BIN" "$POST_REVIEW_SCRIPT" \
             --owner "$REPO_OWNER" \
             --repo "$REPO_NAME" \
             --pr-number "$PR_NUMBER"
