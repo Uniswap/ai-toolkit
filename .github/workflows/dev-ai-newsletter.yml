@@ -141,6 +141,8 @@ env:
 
   SLACK_POST_MESSAGE_CHANNEL_IDS: ${{ inputs.slack_post_channel_ids || 'C091XE1DNP2' }}
 
+permissions: {}
+
 jobs:
   generate-newsletter:
     name: Generate Newsletter
@@ -162,6 +164,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
@@ -170,7 +173,10 @@ jobs:
           cache: "npm"
 
       - name: Install npm
-        run: npm install -g npm@${{ vars.NPM_VERSION }}
+        run: npm install -g npm@${VARS_NPM_VERSION}
+
+        env:
+          VARS_NPM_VERSION: ${{ vars.NPM_VERSION }}
 
       # Calculate date range for the newsletter
       - name: Calculate date range

@@ -85,6 +85,8 @@ on:
         type: string
         default: ''
 
+permissions: {}
+
 jobs:
   welcome-claude:
     runs-on: ubuntu-latest

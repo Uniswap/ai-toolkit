@@ -239,6 +239,8 @@ on:
         description: "Personal Access Token with repo scope. Only needed for resolving review threads via GraphQL API (falls back to GITHUB_TOKEN if not provided)."
         required: false
 
+permissions: {}
+
 jobs:
   claude-review:
     runs-on: ubuntu-latest
@@ -265,6 +267,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 50
+          persist-credentials: false
 
       # Download validate-claude-auth action if caller repo doesn't have it
       # This allows external repos to use this reusable workflow without copying the action
@@ -388,6 +391,8 @@ jobs:
           ref: ${{ steps.pr-info.outputs.head_sha }}
           fetch-depth: 0 # Full history needed for accurate diff calculation
 
+          persist-credentials: false
+
       # Defense-in-depth: remove any attacker-supplied binaries from PR checkout
       - name: Remove untrusted node_modules binaries
         run: |
@@ -469,11 +474,12 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ inputs.pr_number }}
           POST_REVIEW_SCRIPT: ${{ steps.setup-script-early.outputs.script_path }}
+          STEPS_PATCH_ID_OUTPUTS_PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
         run: |
           echo "✅ Skipping review - no actual code changes detected"
           echo ""
           echo "This push appears to be a rebase or merge without new code changes."
-          echo "Patch-ID: ${{ steps.patch-id.outputs.patch_id }}"
+          echo "Patch-ID: ${STEPS_PATCH_ID_OUTPUTS_PATCH_ID}"
           echo ""
           echo "We've already reviewed this exact code, so skipping to save API costs."
           echo ""
@@ -1354,8 +1360,11 @@ jobs:
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && success()
         run: |
           mkdir -p .review-cache
-          echo "${{ steps.patch-id.outputs.patch_id }}" > .review-cache/patch-id
-          echo "Cached review for patch-ID: ${{ steps.patch-id.outputs.patch_id }}"
+          echo "${STEPS_PATCH_ID_OUTPUTS_PATCH_ID}" > .review-cache/patch-id
+          echo "Cached review for patch-ID: ${STEPS_PATCH_ID_OUTPUTS_PATCH_ID}"
+
+        env:
+          STEPS_PATCH_ID_OUTPUTS_PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
 
       # Persist cache for future rebase detection
       - name: Cache Review State
@@ -1444,6 +1453,8 @@ jobs:
           # Use WORKFLOW_PAT for push access, fall back to GITHUB_TOKEN
           token: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
+
+          persist-credentials: false
 
       # Build auto-fix prompt from review results
       - name: Build Auto-Fix Prompt

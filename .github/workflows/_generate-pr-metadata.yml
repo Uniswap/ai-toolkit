@@ -151,6 +151,8 @@ on:
         description: "Deprecated. No longer required as ai-toolkit is now a public repository."
         required: false
 
+permissions: {}
+
 jobs:
   generate-metadata:
     runs-on: ubuntu-latest
@@ -175,6 +177,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0 # Full history needed for git merge-base and history analysis
+          persist-credentials: false
 
       # Download validate-claude-auth action if caller repo doesn't have it
       # This allows external repos to use this reusable workflow without copying the action
@@ -267,10 +270,13 @@ jobs:
           echo "Skipping generation - no actual code changes detected"
           echo ""
           echo "This push appears to be a rebase or merge without new code changes."
-          echo "Patch-ID: ${{ steps.patch-id.outputs.patch_id }}"
+          echo "Patch-ID: ${STEPS_PATCH_ID_OUTPUTS_PATCH_ID}"
           echo ""
           echo "We've already generated metadata for this exact code, so skipping to save API costs."
           exit 0
+
+        env:
+          STEPS_PATCH_ID_OUTPUTS_PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
 
       # Gather commit history for pattern learning
       - name: Gather Commit History
@@ -951,8 +957,11 @@ jobs:
         if: steps.cache-check.outputs.cache-hit != 'true' && success()
         run: |
           mkdir -p .pr-metadata-cache
-          echo "${{ steps.patch-id.outputs.patch_id }}" > .pr-metadata-cache/patch-id
-          echo "Cached generation for patch-ID: ${{ steps.patch-id.outputs.patch_id }}"
+          echo "${STEPS_PATCH_ID_OUTPUTS_PATCH_ID}" > .pr-metadata-cache/patch-id
+          echo "Cached generation for patch-ID: ${STEPS_PATCH_ID_OUTPUTS_PATCH_ID}"
+
+        env:
+          STEPS_PATCH_ID_OUTPUTS_PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
 
       # Persist cache for future rebase detection
       - name: Cache Generation State

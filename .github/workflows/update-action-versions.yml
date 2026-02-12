@@ -58,6 +58,8 @@ concurrency:
   group: update-action-versions
   cancel-in-progress: false
 
+permissions: {}
+
 jobs:
   prepare:
     name: Prepare update branch
@@ -109,6 +111,7 @@ jobs:
           ref: ${{ steps.config.outputs.target_branch }}
           fetch-depth: 1
           token: ${{ secrets.WORKFLOW_PAT || github.token }}
+          persist-credentials: false
 
       # Create and push the update branch
       - name: Create update branch
