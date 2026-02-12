@@ -393,40 +393,33 @@ jobs:
           echo "TSX_BIN=$TSX_BIN" >> "$GITHUB_ENV"
           echo "✅ Installed tsx globally at: $TSX_BIN"
 
-      # Download or use local post-review script (needed for status updates)
+      # Download post-review script from trusted ref (never use PR checkout files)
+      # Security: Always fetch from a trusted ref to prevent script tampering via PR
       - name: Setup Post Review Script (Early)
         id: setup-script-early
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
           TOOLKIT_REF: ${{ inputs.toolkit_ref }}
         run: |
           set -euo pipefail
 
-          # Check if we're running from the ai-toolkit repository
-          if [ "$GITHUB_REPOSITORY" = "Uniswap/ai-toolkit" ]; then
-            echo "ℹ️  Running from ai-toolkit - using local post-review.ts"
-            echo "script_path=.github/scripts/post-review.ts" >> $GITHUB_OUTPUT
-          else
-            echo "ℹ️  Running from external repository - downloading post-review.ts from Uniswap/ai-toolkit"
-            echo "ℹ️  Using toolkit ref: $TOOLKIT_REF"
+          echo "ℹ️  Downloading post-review.ts from Uniswap/ai-toolkit@${TOOLKIT_REF}"
 
-            # Download the script from ai-toolkit repository
-            # Note: Authentication required to avoid GitHub API rate limits on shared runner IPs
-            if ! curl -fSs \
-                      -H "Accept: application/vnd.github.v4.raw" \
-                      -H "Authorization: Bearer $GITHUB_TOKEN" \
-                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/scripts/post-review.ts?ref=${TOOLKIT_REF}" \
-                      -o /tmp/post-review.ts 2>&1 | tee /tmp/curl-error.log; then
-              echo "❌ Failed to download post-review.ts from Uniswap/ai-toolkit@${TOOLKIT_REF}"
-              echo "   Error details:"
-              cat /tmp/curl-error.log | head -5
-              exit 1
-            fi
-
-            echo "✅ Downloaded post-review.ts from SHA: $TOOLKIT_REF"
-            echo "script_path=/tmp/post-review.ts" >> $GITHUB_OUTPUT
+          # Always download from trusted ref - never use local files from PR checkout
+          # This prevents attackers from modifying scripts in their PR
+          if ! curl -fSs \
+                    -H "Accept: application/vnd.github.v4.raw" \
+                    -H "Authorization: Bearer $GITHUB_TOKEN" \
+                    -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/scripts/post-review.ts?ref=${TOOLKIT_REF}" \
+                    -o /tmp/post-review.ts 2>&1 | tee /tmp/curl-error.log; then
+            echo "❌ Failed to download post-review.ts from Uniswap/ai-toolkit@${TOOLKIT_REF}"
+            echo "   Error details:"
+            cat /tmp/curl-error.log | head -5
+            exit 1
           fi
+
+          echo "✅ Downloaded post-review.ts from ref: $TOOLKIT_REF"
+          echo "script_path=/tmp/post-review.ts" >> $GITHUB_OUTPUT
 
       # Calculate patch-ID (stable hash of code changes, survives rebases)
       # This must run BEFORE posting in-progress so we can check cache first
@@ -704,41 +697,37 @@ jobs:
           echo "⏭️  Skipping Claude review due to large diff size"
           exit 0
 
-      # Download or use local build-prompt script
+      # Download build-prompt script from trusted ref (never use PR checkout files)
+      # Security: Always fetch from a trusted ref to prevent script tampering via PR
       - name: Setup Build Prompt Script
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
         id: setup-build-prompt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
           TOOLKIT_REF: ${{ inputs.toolkit_ref }}
         run: |
           set -euo pipefail
 
-          if [ "$GITHUB_REPOSITORY" = "Uniswap/ai-toolkit" ]; then
-            echo "ℹ️  Running from ai-toolkit - using local build-prompt.ts"
-            echo "script_path=.github/scripts/build-prompt.ts" >> $GITHUB_OUTPUT
-          else
-            echo "ℹ️  Running from external repository - downloading build-prompt.ts"
-            if ! curl -fSs \
-                      -H "Accept: application/vnd.github.v4.raw" \
-                      -H "Authorization: Bearer $GITHUB_TOKEN" \
-                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/scripts/build-prompt.ts?ref=${TOOLKIT_REF}" \
-                      -o /tmp/build-prompt.ts 2>&1 | tee /tmp/curl-error.log; then
-              echo "❌ Failed to download build-prompt.ts"
-              cat /tmp/curl-error.log | head -5
-              exit 1
-            fi
-            echo "✅ Downloaded build-prompt.ts"
-            echo "script_path=/tmp/build-prompt.ts" >> $GITHUB_OUTPUT
-          fi
+          echo "ℹ️  Downloading build-prompt.ts from Uniswap/ai-toolkit@${TOOLKIT_REF}"
 
-      # Fetch prompt section files for external repos
+          if ! curl -fSs \
+                    -H "Accept: application/vnd.github.v4.raw" \
+                    -H "Authorization: Bearer $GITHUB_TOKEN" \
+                    -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/scripts/build-prompt.ts?ref=${TOOLKIT_REF}" \
+                    -o /tmp/build-prompt.ts 2>&1 | tee /tmp/curl-error.log; then
+            echo "❌ Failed to download build-prompt.ts"
+            cat /tmp/curl-error.log | head -5
+            exit 1
+          fi
+          echo "✅ Downloaded build-prompt.ts"
+          echo "script_path=/tmp/build-prompt.ts" >> $GITHUB_OUTPUT
+
+      # Fetch prompt section files from trusted ref (never use PR checkout files)
+      # Security: Always fetch from a trusted ref to prevent prompt tampering via PR
       - name: Fetch Prompt Section Files
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
           TOOLKIT_REF: ${{ inputs.toolkit_ref }}
         run: |
           set -euo pipefail
@@ -746,60 +735,53 @@ jobs:
           PROMPT_DIR="/tmp/pr-review-prompts"
           mkdir -p "$PROMPT_DIR/fixed" "$PROMPT_DIR/overridable"
 
-          # If running from ai-toolkit, just copy local files
-          if [ "$GITHUB_REPOSITORY" = "Uniswap/ai-toolkit" ]; then
-            echo "ℹ️  Using local prompt section files"
-            cp -r .github/prompts/pr-review/fixed/* "$PROMPT_DIR/fixed/" 2>/dev/null || true
-            cp -r .github/prompts/pr-review/overridable/* "$PROMPT_DIR/overridable/" 2>/dev/null || true
-          else
-            echo "ℹ️  Downloading prompt section files from ai-toolkit..."
+          echo "ℹ️  Downloading prompt section files from Uniswap/ai-toolkit@${TOOLKIT_REF}..."
 
-            # Define all section files to download
-            # Section numbering: 1-3 (fixed early), 4-12 (overridable), 13-15 (fixed late),
-            # 16-18 (conditional), 19 (fixed final)
-            FIXED_SECTIONS=(
-              "1-review-context.md"
-              "2-diff-instructions.md"
-              "3-repository-context.md"
-              "13-inline-comment-rules.md"
-              "14-important-notes.md"
-              "15-comment-examples.md"
-              "17-existing-comments.md"
-              "18-fast-review-mode.md"
-              "19-output-guidance.md"
-            )
+          # Define all section files to download
+          # Section numbering: 1-3 (fixed early), 4-12 (overridable), 13-15 (fixed late),
+          # 16-18 (conditional), 19 (fixed final)
+          FIXED_SECTIONS=(
+            "1-review-context.md"
+            "2-diff-instructions.md"
+            "3-repository-context.md"
+            "13-inline-comment-rules.md"
+            "14-important-notes.md"
+            "15-comment-examples.md"
+            "17-existing-comments.md"
+            "18-fast-review-mode.md"
+            "19-output-guidance.md"
+          )
 
-            OVERRIDABLE_SECTIONS=(
-              "4-review-priorities.md"
-              "5-files-to-skip.md"
-              "6-communication-style.md"
-              "7-pattern-recognition.md"
-              "8-initial-review-process.md"
-              "9-avoid-patterns.md"
-              "10-verdict-approve.md"
-              "11-verdict-request-changes.md"
-              "12-verdict-comment.md"
-              "16-re-review-process.md"
-            )
+          OVERRIDABLE_SECTIONS=(
+            "4-review-priorities.md"
+            "5-files-to-skip.md"
+            "6-communication-style.md"
+            "7-pattern-recognition.md"
+            "8-initial-review-process.md"
+            "9-avoid-patterns.md"
+            "10-verdict-approve.md"
+            "11-verdict-request-changes.md"
+            "12-verdict-comment.md"
+            "16-re-review-process.md"
+          )
 
-            # Download fixed sections
-            for section in "${FIXED_SECTIONS[@]}"; do
-              curl -fSs \
-                -H "Accept: application/vnd.github.v4.raw" \
-                -H "Authorization: Bearer $GITHUB_TOKEN" \
-                -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/prompts/pr-review/fixed/${section}?ref=${TOOLKIT_REF}" \
-                -o "$PROMPT_DIR/fixed/${section}" 2>/dev/null || echo "::warning::Failed to fetch fixed/${section}"
-            done
+          # Download fixed sections
+          for section in "${FIXED_SECTIONS[@]}"; do
+            curl -fSs \
+              -H "Accept: application/vnd.github.v4.raw" \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/prompts/pr-review/fixed/${section}?ref=${TOOLKIT_REF}" \
+              -o "$PROMPT_DIR/fixed/${section}" 2>/dev/null || echo "::warning::Failed to fetch fixed/${section}"
+          done
 
-            # Download overridable sections
-            for section in "${OVERRIDABLE_SECTIONS[@]}"; do
-              curl -fSs \
-                -H "Accept: application/vnd.github.v4.raw" \
-                -H "Authorization: Bearer $GITHUB_TOKEN" \
-                -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/prompts/pr-review/overridable/${section}?ref=${TOOLKIT_REF}" \
-                -o "$PROMPT_DIR/overridable/${section}" 2>/dev/null || echo "::warning::Failed to fetch overridable/${section}"
-            done
-          fi
+          # Download overridable sections
+          for section in "${OVERRIDABLE_SECTIONS[@]}"; do
+            curl -fSs \
+              -H "Accept: application/vnd.github.v4.raw" \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/prompts/pr-review/overridable/${section}?ref=${TOOLKIT_REF}" \
+              -o "$PROMPT_DIR/overridable/${section}" 2>/dev/null || echo "::warning::Failed to fetch overridable/${section}"
+          done
 
           echo "✅ Prompt section files ready"
           ls -la "$PROMPT_DIR/fixed/" | head -5
