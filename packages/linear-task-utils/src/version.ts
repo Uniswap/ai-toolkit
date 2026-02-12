@@ -1,2 +1,2 @@
 // Auto-generated from package.json - DO NOT EDIT
-export const VERSION = '0.0.17';
+export const VERSION = '0.0.18-next.0';
