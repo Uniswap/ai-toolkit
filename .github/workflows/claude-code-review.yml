@@ -81,6 +81,7 @@ jobs:
       - name: Checkout repository (for composite action)
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
+          persist-credentials: false
           sparse-checkout: .github/actions
           sparse-checkout-cone-mode: false
 
@@ -96,12 +97,17 @@ jobs:
   get-pr-info:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       base_ref: ${{ steps.pr-info.outputs.base_ref }}
       head_ref: ${{ steps.pr-info.outputs.head_ref }}
       pr_number: ${{ steps.pr-info.outputs.pr_number }}
       should_run: ${{ steps.pr-info.outputs.should_run }}
     steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
       - name: Get PR Info
         id: pr-info
         env:
@@ -113,6 +119,7 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body }}
           COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
           IS_PR: ${{ github.event.issue.pull_request && 'true' || 'false' }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           # Determine PR number based on event type
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
@@ -168,7 +175,7 @@ jobs:
           fi
 
           echo "ℹ️  Fetching PR #$PR_NUMBER info..."
-          PR_DATA=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER)
+          PR_DATA=$(gh api repos/${GITHUB_REPOSITORY}/pulls/$PR_NUMBER)
 
           BASE_REF=$(echo "$PR_DATA" | jq -r '.base.ref')
           HEAD_REF=$(echo "$PR_DATA" | jq -r '.head.ref')
@@ -195,7 +202,12 @@ jobs:
         github.event.action == 'ready_for_review' ||
         github.event.pull_request.user.login == 'claude[bot]'
       )
-
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+      issues: read
+      actions: read
     uses: ./.github/workflows/_claude-code-review.yml
     with:
       pr_number: ${{ github.event.pull_request.number }}
@@ -235,6 +247,8 @@ jobs:
       needs.check-automated.outputs.is_automated == 'true' &&
       needs.check-automated.outputs.category != 'deps'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
 
@@ -253,7 +267,12 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' &&
       needs.get-pr-info.outputs.should_run == 'true'
-
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+      issues: read
+      actions: read
     uses: ./.github/workflows/_claude-code-review.yml
     with:
       pr_number: ${{ needs.get-pr-info.outputs.pr_number }}
@@ -283,7 +302,12 @@ jobs:
     if: |
       (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
       needs.get-pr-info.outputs.should_run == 'true'
-
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+      issues: read
+      actions: read
     uses: ./.github/workflows/_claude-code-review.yml
     with:
       pr_number: ${{ needs.get-pr-info.outputs.pr_number }}
@@ -311,7 +335,7 @@ jobs:
     needs: claude-review-auto
     if: |
       github.event_name == 'pull_request' &&
-      github.actor == 'dependabot[bot]' &&
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
       (contains(github.event.pull_request.title, 'security') || contains(github.event.pull_request.title, 'Bump')) &&
       needs.claude-review-auto.result == 'success'
     runs-on: ubuntu-latest
@@ -319,6 +343,8 @@ jobs:
       contents: write
       pull-requests: write
     steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
       - name: Enable auto-merge for Dependabot updates
         run: gh pr merge --auto --squash "$PR_NUMBER"
         env:
