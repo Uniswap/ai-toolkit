@@ -264,6 +264,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
+          persist-credentials: false
           fetch-depth: 50
 
       # Download validate-claude-auth action if caller repo doesn't have it
@@ -325,11 +326,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ inputs.pr_number }}
           INPUT_BASE_REF: ${{ inputs.base_ref }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           echo "ℹ️  Fetching PR #$PR_NUMBER info..."
 
           # Fetch PR data once
-          PR_DATA=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER)
+          PR_DATA=$(gh api repos/${GITHUB_REPOSITORY}/pulls/$PR_NUMBER)
 
           # Extract head SHA (always needed)
           HEAD_SHA=$(echo "$PR_DATA" | jq -r '.head.sha')
@@ -351,7 +353,7 @@ jobs:
           # PR diff view, which is more accurate than using base.sha (the current
           # HEAD of the base branch) when the base branch has moved forward.
           echo "📍 Calculating merge base..."
-          COMPARE_DATA=$(gh api "repos/${{ github.repository }}/compare/${BASE_REF}...${HEAD_SHA}")
+          COMPARE_DATA=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${BASE_REF}...${HEAD_SHA}")
           MERGE_BASE_SHA=$(echo "$COMPARE_DATA" | jq -r '.merge_base_commit.sha')
           echo "merge_base_sha=$MERGE_BASE_SHA" >> $GITHUB_OUTPUT
           echo "📍 Merge base SHA: $MERGE_BASE_SHA"
@@ -385,6 +387,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
+          persist-credentials: false
           ref: ${{ steps.pr-info.outputs.head_sha }}
           fetch-depth: 0 # Full history needed for accurate diff calculation
 
@@ -469,11 +472,12 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ inputs.pr_number }}
           POST_REVIEW_SCRIPT: ${{ steps.setup-script-early.outputs.script_path }}
+          PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
         run: |
           echo "✅ Skipping review - no actual code changes detected"
           echo ""
           echo "This push appears to be a rebase or merge without new code changes."
-          echo "Patch-ID: ${{ steps.patch-id.outputs.patch_id }}"
+          echo "Patch-ID: $PATCH_ID"
           echo ""
           echo "We've already reviewed this exact code, so skipping to save API costs."
           echo ""
@@ -1093,14 +1097,14 @@ jobs:
       - name: Build plugin configuration (main)
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && (inputs.plugin_ref == 'main' || inputs.plugin_ref == '')
         id: build-plugins-main
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@945d63b14a75cdbf8b78282be41c47723cdf7366 # main
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
 
       - name: Build plugin configuration (next)
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && inputs.plugin_ref == 'next'
         id: build-plugins-next
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@b13cfc578761f5dcd38a0c7b38e5c24cc0856ae7 # next
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
 
@@ -1352,10 +1356,12 @@ jobs:
       # Save successful review to cache
       - name: Save Review Cache Marker
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && success()
+        env:
+          PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
         run: |
           mkdir -p .review-cache
-          echo "${{ steps.patch-id.outputs.patch_id }}" > .review-cache/patch-id
-          echo "Cached review for patch-ID: ${{ steps.patch-id.outputs.patch_id }}"
+          echo "$PATCH_ID" > .review-cache/patch-id
+          echo "Cached review for patch-ID: $PATCH_ID"
 
       # Persist cache for future rebase detection
       - name: Cache Review State
@@ -1419,12 +1425,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
 
           echo "📍 Getting PR branch information..."
 
-          PR_DATA=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER)
+          PR_DATA=$(gh api repos/${GITHUB_REPOSITORY}/pulls/$PR_NUMBER)
           BRANCH_NAME=$(echo "$PR_DATA" | jq -r '.head.ref')
           REPO_FULL_NAME=$(echo "$PR_DATA" | jq -r '.head.repo.full_name')
 
@@ -1435,20 +1442,30 @@ jobs:
 
       # Checkout with write access for auto-fix
       # Note: For forked PRs, we need to checkout from the fork's repository
+      # Security: Only allow auto-fix for same-repo PRs (not forks)
       - name: Checkout for Auto-Fix
-        if: steps.auto-fix-check.outputs.should_fix == 'true'
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        # zizmor: ignore[artipacked] — persist-credentials needed for auto-fix push
         with:
           repository: ${{ steps.pr-branch.outputs.repo_full_name }}
           ref: ${{ steps.pr-branch.outputs.branch_name }}
-          # Use WORKFLOW_PAT for push access, fall back to GITHUB_TOKEN
           token: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
+
+      # Defense-in-depth: remove any attacker-supplied binaries from auto-fix checkout
+      - name: Remove potentially compromised bin directory (auto-fix)
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
+        run: |
+          if [ -d "node_modules/.bin" ]; then
+            rm -rf node_modules/.bin
+            echo "Removed node_modules/.bin after auto-fix checkout"
+          fi
 
       # Build auto-fix prompt from review results
       - name: Build Auto-Fix Prompt
         id: build-fix-prompt
-        if: steps.auto-fix-check.outputs.should_fix == 'true'
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
         env:
           REVIEW_JSON_FILE: /tmp/claude-review-response.txt
           PR_NUMBER: ${{ inputs.pr_number }}
@@ -1511,7 +1528,7 @@ jobs:
       # Run Claude to fix the issues
       - name: Run Claude Auto-Fix
         id: claude-fix
-        if: steps.auto-fix-check.outputs.should_fix == 'true'
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
         uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71 # v1.0.29
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -1531,11 +1548,14 @@ jobs:
       # Check for changes and commit
       - name: Commit and Push Fixes
         id: commit-fixes
-        if: steps.auto-fix-check.outputs.should_fix == 'true'
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
         env:
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ inputs.pr_number }}
           BRANCH_NAME: ${{ steps.pr-branch.outputs.branch_name }}
+          SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          WORKFLOW_RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
 
@@ -1565,7 +1585,7 @@ jobs:
           Automated fixes applied by Claude Code Review workflow.
 
           PR: #$PR_NUMBER
-          Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          Workflow run: ${SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${WORKFLOW_RUN_ID}"
 
           # Push the changes
           echo "🚀 Pushing fixes to branch: $BRANCH_NAME"
@@ -1578,7 +1598,7 @@ jobs:
 
       # Post auto-fix status comment
       - name: Post Auto-Fix Status
-        if: steps.auto-fix-check.outputs.should_fix == 'true'
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ inputs.pr_number }}

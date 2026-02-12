@@ -79,6 +79,8 @@ on:
         default: true
 
 # Prevent concurrent runs
+permissions: {}
+
 concurrency:
   group: claude-auto-tasks
   cancel-in-progress: false
@@ -86,6 +88,8 @@ concurrency:
 jobs:
   # Job 1: Query Linear and prepare the task matrix
   prepare:
+    permissions:
+      contents: read
     uses: ./.github/workflows/_claude-task-prepare.yml
     with:
       linear_team: ${{ inputs.linear_team || 'Developer AI' }}
@@ -100,6 +104,12 @@ jobs:
   process-task:
     needs: prepare
     if: needs.prepare.outputs.has_tasks == 'true'
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: read
     strategy:
       fail-fast: false
       max-parallel: 3
@@ -130,6 +140,7 @@ jobs:
     needs: [prepare, process-task]
     if: always()
     runs-on: ubuntu-latest
+    permissions: {}
 
     steps:
       # Security scanning

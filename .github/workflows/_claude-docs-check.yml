@@ -171,6 +171,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
+          persist-credentials: false
           fetch-depth: 50
 
       # Download validate-claude-auth action if needed
@@ -218,10 +219,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ inputs.pr_number }}
           INPUT_BASE_REF: ${{ inputs.base_ref }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           echo "ℹ️  Fetching PR #$PR_NUMBER info..."
 
-          PR_DATA=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER)
+          PR_DATA=$(gh api repos/${GITHUB_REPOSITORY}/pulls/$PR_NUMBER)
 
           HEAD_SHA=$(echo "$PR_DATA" | jq -r '.head.sha')
           echo "head_sha=$HEAD_SHA" >> $GITHUB_OUTPUT
@@ -236,7 +238,7 @@ jobs:
           echo "📍 Base ref: $BASE_REF"
 
           # Get merge base
-          COMPARE_DATA=$(gh api "repos/${{ github.repository }}/compare/${BASE_REF}...${HEAD_SHA}")
+          COMPARE_DATA=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${BASE_REF}...${HEAD_SHA}")
           MERGE_BASE_SHA=$(echo "$COMPARE_DATA" | jq -r '.merge_base_commit.sha')
           echo "merge_base_sha=$MERGE_BASE_SHA" >> $GITHUB_OUTPUT
           echo "📍 Merge base SHA: $MERGE_BASE_SHA"
@@ -265,6 +267,7 @@ jobs:
       - name: Checkout PR Head
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
+          persist-credentials: false
           ref: ${{ steps.pr-info.outputs.head_sha }}
           fetch-depth: 0
 
@@ -577,14 +580,14 @@ jobs:
       - name: Build plugin configuration (main)
         if: inputs.plugin_ref == 'main' || inputs.plugin_ref == ''
         id: build-plugins-main
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@945d63b14a75cdbf8b78282be41c47723cdf7366 # main
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
 
       - name: Build plugin configuration (next)
         if: inputs.plugin_ref == 'next'
         id: build-plugins-next
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@b13cfc578761f5dcd38a0c7b38e5c24cc0856ae7 # next
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
 

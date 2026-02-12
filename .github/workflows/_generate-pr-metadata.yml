@@ -174,6 +174,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
+          persist-credentials: false
           fetch-depth: 0 # Full history needed for git merge-base and history analysis
 
       # Download validate-claude-auth action if caller repo doesn't have it
@@ -263,11 +264,13 @@ jobs:
       # Early exit if we've already processed this code (rebase detected)
       - name: Skip Generation if No Changes
         if: steps.cache-check.outputs.cache-hit == 'true'
+        env:
+          PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
         run: |
           echo "Skipping generation - no actual code changes detected"
           echo ""
           echo "This push appears to be a rebase or merge without new code changes."
-          echo "Patch-ID: ${{ steps.patch-id.outputs.patch_id }}"
+          echo "Patch-ID: $PATCH_ID"
           echo ""
           echo "We've already generated metadata for this exact code, so skipping to save API costs."
           exit 0
@@ -720,14 +723,14 @@ jobs:
       - name: Build plugin configuration (main)
         if: steps.cache-check.outputs.cache-hit != 'true' && (inputs.plugin_ref == 'main' || inputs.plugin_ref == '')
         id: build-plugins-main
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@945d63b14a75cdbf8b78282be41c47723cdf7366 # main
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
 
       - name: Build plugin configuration (next)
         if: steps.cache-check.outputs.cache-hit != 'true' && inputs.plugin_ref == 'next'
         id: build-plugins-next
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@b13cfc578761f5dcd38a0c7b38e5c24cc0856ae7 # next
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
 
@@ -949,10 +952,12 @@ jobs:
       # Save successful generation to cache
       - name: Save Generation Cache Marker
         if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        env:
+          PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
         run: |
           mkdir -p .pr-metadata-cache
-          echo "${{ steps.patch-id.outputs.patch_id }}" > .pr-metadata-cache/patch-id
-          echo "Cached generation for patch-ID: ${{ steps.patch-id.outputs.patch_id }}"
+          echo "$PATCH_ID" > .pr-metadata-cache/patch-id
+          echo "Cached generation for patch-ID: $PATCH_ID"
 
       # Persist cache for future rebase detection
       - name: Cache Generation State
