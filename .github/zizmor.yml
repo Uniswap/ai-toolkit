@@ -9,7 +9,7 @@
 # Expected result: 0 findings
 #
 # Justified artipacked suppressions (inline comments):
-# - 8 checkout steps that need persist-credentials for git push operations
+# - 3 checkout steps that need persist-credentials for git push operations
 # - Each is annotated with: # zizmor: ignore[artipacked] — <reason>
 # - Risk mitigated by least-privilege per-job permissions and Bullfrog scanning
 
