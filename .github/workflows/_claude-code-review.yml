@@ -366,21 +366,9 @@ jobs:
             echo "   Using merge base for accurate diff calculation"
           fi
 
-      # Checkout the exact PR head commit (not GitHub's merge commit)
-      - name: Checkout Repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-        with:
-          ref: ${{ steps.pr-info.outputs.head_sha }}
-          fetch-depth: 0 # Full history needed for accurate diff calculation
-
-      - name: Remove untrusted node_modules binaries
-        run: |
-          if [ -d "node_modules/.bin" ]; then
-            rm -rf node_modules/.bin
-            echo "🗑️  Removed node_modules/.bin from PR checkout"
-          fi
-
-      # Setup Node.js early so we can post status updates
+      # Setup Node.js and install tsx BEFORE checking out PR code.
+      # Security: PR checkout may contain a malicious .npmrc that redirects
+      # the npm registry, so all npm operations must complete first.
       - name: Setup Node.js (Early)
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
@@ -392,6 +380,21 @@ jobs:
           TSX_BIN=$(which tsx)
           echo "TSX_BIN=$TSX_BIN" >> "$GITHUB_ENV"
           echo "✅ Installed tsx globally at: $TSX_BIN"
+
+      # Checkout the exact PR head commit (not GitHub's merge commit)
+      - name: Checkout Repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ steps.pr-info.outputs.head_sha }}
+          fetch-depth: 0 # Full history needed for accurate diff calculation
+
+      # Defense-in-depth: remove any attacker-supplied binaries from PR checkout
+      - name: Remove untrusted node_modules binaries
+        run: |
+          if [ -d "node_modules/.bin" ]; then
+            rm -rf node_modules/.bin
+            echo "🗑️  Removed node_modules/.bin from PR checkout"
+          fi
 
       # Download post-review script from trusted ref (never use PR checkout files)
       # Security: Always fetch from a trusted ref to prevent script tampering via PR
