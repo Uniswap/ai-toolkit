@@ -3,14 +3,10 @@
 #
 # All findings are addressed via:
 # 1. Code fixes (template injection → env vars, excessive-permissions → per-job blocks)
-# 2. Inline comments (# zizmor: ignore[artipacked]) for justified persist-credentials usage
+# 2. persist-credentials: false on all checkout steps (artipacked mitigation)
+# 3. git remote set-url for steps that need push access
 #
 # Run: zizmor .github/workflows/
 # Expected result: 0 findings
-#
-# Justified artipacked suppressions (inline comments):
-# - 3 checkout steps that need persist-credentials for git push operations
-# - Each is annotated with: # zizmor: ignore[artipacked] — <reason>
-# - Risk mitigated by least-privilege per-job permissions and Bullfrog scanning
 
 rules: {}
