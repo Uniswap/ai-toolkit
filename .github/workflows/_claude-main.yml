@@ -304,6 +304,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 50
+          persist-credentials: false
 
       # Download validate-claude-auth action if caller repo doesn't have it
       # This allows external repos to use this reusable workflow without copying the action
@@ -408,7 +409,7 @@ jobs:
       - name: Build plugin configuration (main)
         id: build-plugins-main
         if: inputs.plugin_ref == 'main' || inputs.plugin_ref == ''
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main # zizmor: ignore[unpinned-uses]
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
           plugin_marketplaces: ${{ inputs.plugin_marketplaces }}
@@ -417,7 +418,7 @@ jobs:
       - name: Build plugin configuration (next)
         id: build-plugins-next
         if: inputs.plugin_ref == 'next'
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next # zizmor: ignore[unpinned-uses]
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
           plugin_marketplaces: ${{ inputs.plugin_marketplaces }}
@@ -446,13 +447,23 @@ jobs:
       - name: Create job summary
         if: always()
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          CLAUDE_CONCLUSION: ${{ steps.claude.conclusion }}
+          INPUT_MODEL: ${{ inputs.model }}
+          INPUT_TIMEOUT_MINUTES: ${{ inputs.timeout_minutes }}
+          INPUT_PROMPT: ${{ inputs.prompt }}
+          INPUT_ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
+          INPUT_DISALLOWED_TOOLS: ${{ inputs.disallowed_tools }}
+          INPUT_MAX_TURNS: ${{ inputs.max_turns }}
+          EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
         with:
           script: |
             // Build summary
             let summary = '# 🤖 Claude Code Execution Summary\n\n';
 
             // Add status
-            const conclusion = '${{ steps.claude.conclusion }}';
+            const conclusion = process.env.CLAUDE_CONCLUSION;
             if (conclusion === 'success') {
               summary += '✅ **Status:** Completed successfully\n\n';
             } else if (conclusion === 'failure') {
@@ -465,33 +476,33 @@ jobs:
 
             // Add configuration
             summary += '**Configuration:**\n';
-            summary += `- Model: \`${{ inputs.model }}\`\n`;
-            summary += `- Timeout: ${{ inputs.timeout_minutes }} minutes\n`;
+            summary += `- Model: \`${process.env.INPUT_MODEL}\`\n`;
+            summary += `- Timeout: ${process.env.INPUT_TIMEOUT_MINUTES} minutes\n`;
 
-            if ('${{ inputs.prompt }}') {
+            if (process.env.INPUT_PROMPT) {
               summary += '- Mode: Automation (direct prompt)\n';
             } else {
               summary += '- Mode: Interactive (@claude mentions)\n';
             }
 
-            if ('${{ inputs.allowed_tools }}') {
-              summary += `- Allowed Tools: \`${{ inputs.allowed_tools }}\`\n`;
+            if (process.env.INPUT_ALLOWED_TOOLS) {
+              summary += `- Allowed Tools: \`${process.env.INPUT_ALLOWED_TOOLS}\`\n`;
             } else {
               summary += '- Tools: Default (permissive)\n';
             }
 
-            if ('${{ inputs.disallowed_tools }}') {
-              summary += `- Disallowed Tools: \`${{ inputs.disallowed_tools }}\`\n`;
+            if (process.env.INPUT_DISALLOWED_TOOLS) {
+              summary += `- Disallowed Tools: \`${process.env.INPUT_DISALLOWED_TOOLS}\`\n`;
             }
 
-            if ('${{ inputs.max_turns }}') {
-              summary += `- Max Turns: ${{ inputs.max_turns }}\n`;
+            if (process.env.INPUT_MAX_TURNS) {
+              summary += `- Max Turns: ${process.env.INPUT_MAX_TURNS}\n`;
             }
 
             // Add context
             summary += '\n**Context:**\n';
-            summary += `- Event: \`${{ github.event_name }}\`\n`;
-            summary += `- Repository: \`${{ github.repository }}\`\n`;
+            summary += `- Event: \`${process.env.EVENT_NAME}\`\n`;
+            summary += `- Repository: \`${process.env.REPOSITORY}\`\n`;
             if (context.issue.number) {
               summary += `- Issue/PR: #${context.issue.number}\n`;
             }

@@ -117,6 +117,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Validate required secrets
@@ -314,6 +315,8 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js for Notion publishing
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
@@ -345,13 +348,15 @@ jobs:
 
       - name: Add Notion URL to summary
         if: steps.notion-publish.outcome == 'success'
+        env:
+          NOTION_PAGE_URL: ${{ steps.notion-publish.outputs.page-url }}
         run: |
           cat <<SUMMARY_EOF >> $GITHUB_STEP_SUMMARY
           ## 📄 Notion Page Created
 
-          **Page URL**: ${{ steps.notion-publish.outputs.page-url }}
+          **Page URL**: $NOTION_PAGE_URL
 
-          [View in Notion](${{ steps.notion-publish.outputs.page-url }})
+          [View in Notion]($NOTION_PAGE_URL)
           SUMMARY_EOF
 
       - name: Notion publishing failed
