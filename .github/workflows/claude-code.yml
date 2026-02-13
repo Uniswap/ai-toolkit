@@ -13,6 +13,13 @@ on:
   pull_request_review:
     types: [submitted]
 
+permissions:
+  id-token: write # Required for OIDC authentication in _claude-main.yml
+  contents: read
+  issues: write
+  pull-requests: write
+  actions: read # Required to read CI results on PRs in _claude-main.yml
+
 jobs:
   claude:
     # Only run when @claude is mentioned and the comment is not from a bot

@@ -40,6 +40,8 @@ on:
         default: false
 
 # Prevent concurrent runs on the same PR
+permissions: {}
+
 concurrency:
   group: docs-check-${{ github.event.pull_request.number || github.event.inputs.pr_number }}
   cancel-in-progress: true
@@ -50,6 +52,12 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && !contains(github.event.pull_request.user.login, '[bot]'))
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+      issues: read
+      actions: read
     uses: ./.github/workflows/_claude-docs-check.yml
     with:
       pr_number: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
@@ -69,9 +77,3 @@ jobs:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       # PAT for branch creation
       WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
-    permissions:
-      contents: write
-      pull-requests: write
-      issues: read
-      actions: read
-      id-token: write
