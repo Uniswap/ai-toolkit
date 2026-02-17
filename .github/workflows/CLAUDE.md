@@ -742,6 +742,15 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 > **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
 >
 > **Note:** If you need assistance installing the Claude GitHub App, please open an issue at [GitHub Issues](https://github.com/Uniswap/ai-toolkit/issues).
+>
+> **Required permissions:** The caller workflow must include `id-token: write` permission (needed by Claude Code Action for ID token creation):
+>
+> ```yaml
+> permissions:
+>   contents: read
+>   pull-requests: write
+>   id-token: write
+> ```
 
 **Usage example (API Key):**
 
@@ -1526,7 +1535,7 @@ For reusable tools, publish as npm packages (e.g., `@uniswap/ai-toolkit-notion-p
 Always pin external actions to **specific commit hashes** with version comments:
 
 ```yaml
-- uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+- uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 ```
 
 Never use tags or branch names directly.
