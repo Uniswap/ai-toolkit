@@ -107,6 +107,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Normalize git references
         id: normalize-refs
@@ -127,9 +128,10 @@ jobs:
 
       - name: Get git diff and commit messages
         id: git-context
+        env:
+          FROM_SHA: ${{ steps.normalize-refs.outputs.from_sha }}
+          TO_SHA: ${{ steps.normalize-refs.outputs.to_sha }}
         run: |
-          FROM_SHA="${{ steps.normalize-refs.outputs.from_sha }}"
-          TO_SHA="${{ steps.normalize-refs.outputs.to_sha }}"
 
           echo "Comparing commits: $FROM_SHA...$TO_SHA"
 
@@ -154,9 +156,9 @@ jobs:
       - name: Load custom prompt from file
         id: load-prompt
         if: inputs.custom_prompt_file != ''
+        env:
+          PROMPT_FILE: ${{ inputs.custom_prompt_file }}
         run: |
-          PROMPT_FILE="${{ inputs.custom_prompt_file }}"
-
           if [ ! -f "$PROMPT_FILE" ]; then
             echo "Error: Custom prompt file not found: $PROMPT_FILE"
             exit 1
@@ -411,9 +413,10 @@ jobs:
       - name: Generate fallback changelog from commits
         if: steps.ai-changelog.outcome == 'failure'
         id: fallback-changelog
+        env:
+          FROM_SHA: ${{ steps.normalize-refs.outputs.from_sha }}
+          TO_SHA: ${{ steps.normalize-refs.outputs.to_sha }}
         run: |
-          FROM_SHA="${{ steps.normalize-refs.outputs.from_sha }}"
-          TO_SHA="${{ steps.normalize-refs.outputs.to_sha }}"
 
           echo "⚠️ AI generation failed, using fallback changelog (markdown format)"
 

@@ -31,6 +31,11 @@ concurrency:
   group: pr-metadata-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
 jobs:
   generate-metadata:
     # Skip certain PR types that have their own title/description formats
