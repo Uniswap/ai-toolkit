@@ -17,6 +17,9 @@ jobs:
       contents: read
       actions: read
     steps:
+      - name: Bullfrog
+        uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -24,3 +27,6 @@ jobs:
 
       - name: Run zizmor
         uses: zizmorcore/zizmor-action@0dce2577a4760a2749d8cfb7a84b7d5585ebcb7d # v0.5.0
+        with:
+          advanced-security: false
+          annotations: true
