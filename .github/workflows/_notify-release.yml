@@ -119,6 +119,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
+          persist-credentials: false
           fetch-depth: 0
           persist-credentials: false
 
@@ -350,16 +351,16 @@ jobs:
 
       - name: Add Notion URL to summary
         if: steps.notion-publish.outcome == 'success'
+        env:
+          NOTION_PAGE_URL: ${{ steps.notion-publish.outputs.page-url }}
         run: |
           cat <<SUMMARY_EOF >> $GITHUB_STEP_SUMMARY
           ## 📄 Notion Page Created
 
-          **Page URL**: ${STEPS_NOTION_PUBLISH_OUTPUTS_PAGE_URL}
+          **Page URL**: $NOTION_PAGE_URL
 
-          [View in Notion](${STEPS_NOTION_PUBLISH_OUTPUTS_PAGE_URL})
+          [View in Notion]($NOTION_PAGE_URL)
           SUMMARY_EOF
-        env:
-          STEPS_NOTION_PUBLISH_OUTPUTS_PAGE_URL: ${{ steps.notion-publish.outputs.page-url }}
 
       - name: Notion publishing failed
         if: steps.notion-publish.outcome == 'failure'

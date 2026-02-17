@@ -176,6 +176,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
+          persist-credentials: false
           fetch-depth: 0 # Full history needed for git merge-base and history analysis
           persist-credentials: false
 
@@ -266,17 +267,16 @@ jobs:
       # Early exit if we've already processed this code (rebase detected)
       - name: Skip Generation if No Changes
         if: steps.cache-check.outputs.cache-hit == 'true'
+        env:
+          PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
         run: |
           echo "Skipping generation - no actual code changes detected"
           echo ""
           echo "This push appears to be a rebase or merge without new code changes."
-          echo "Patch-ID: ${STEPS_PATCH_ID_OUTPUTS_PATCH_ID}"
+          echo "Patch-ID: $PATCH_ID"
           echo ""
           echo "We've already generated metadata for this exact code, so skipping to save API costs."
           exit 0
-
-        env:
-          STEPS_PATCH_ID_OUTPUTS_PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
 
       # Gather commit history for pattern learning
       - name: Gather Commit History
@@ -726,14 +726,14 @@ jobs:
       - name: Build plugin configuration (main)
         if: steps.cache-check.outputs.cache-hit != 'true' && (inputs.plugin_ref == 'main' || inputs.plugin_ref == '')
         id: build-plugins-main
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main # zizmor: ignore[unpinned-uses]
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
 
       - name: Build plugin configuration (next)
         if: steps.cache-check.outputs.cache-hit != 'true' && inputs.plugin_ref == 'next'
         id: build-plugins-next
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next # zizmor: ignore[unpinned-uses]
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
 
@@ -955,13 +955,12 @@ jobs:
       # Save successful generation to cache
       - name: Save Generation Cache Marker
         if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        env:
+          PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
         run: |
           mkdir -p .pr-metadata-cache
-          echo "${STEPS_PATCH_ID_OUTPUTS_PATCH_ID}" > .pr-metadata-cache/patch-id
-          echo "Cached generation for patch-ID: ${STEPS_PATCH_ID_OUTPUTS_PATCH_ID}"
-
-        env:
-          STEPS_PATCH_ID_OUTPUTS_PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
+          echo "$PATCH_ID" > .pr-metadata-cache/patch-id
+          echo "Cached generation for patch-ID: $PATCH_ID"
 
       # Persist cache for future rebase detection
       - name: Cache Generation State

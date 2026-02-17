@@ -64,6 +64,8 @@ jobs:
   prepare:
     name: Prepare update branch
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     outputs:
       branch_name: ${{ steps.create-branch.outputs.branch_name }}
       target_branch: ${{ steps.config.outputs.target_branch }}
@@ -113,6 +115,12 @@ jobs:
           token: ${{ secrets.WORKFLOW_PAT || github.token }}
           persist-credentials: false
 
+      - name: Configure git credentials for push
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
       # Create and push the update branch
       - name: Create update branch
         id: create-branch
@@ -142,6 +150,11 @@ jobs:
   update:
     name: Update action versions
     needs: prepare
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+      actions: read
     uses: ./.github/workflows/_update-action-versions-worker.yml
     with:
       branch_name: ${{ needs.prepare.outputs.branch_name }}

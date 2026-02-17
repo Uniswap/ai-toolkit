@@ -163,6 +163,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
+          persist-credentials: false
           fetch-depth: 1
           persist-credentials: false
 
@@ -173,10 +174,9 @@ jobs:
           cache: "npm"
 
       - name: Install npm
-        run: npm install -g npm@${VARS_NPM_VERSION}
-
         env:
-          VARS_NPM_VERSION: ${{ vars.NPM_VERSION }}
+          NPM_VERSION: ${{ vars.NPM_VERSION }}
+        run: npm install -g npm@$NPM_VERSION
 
       # Calculate date range for the newsletter
       - name: Calculate date range
@@ -383,7 +383,7 @@ jobs:
       # Build plugin configuration using shared composite action
       - name: Build plugin configuration
         id: build-plugins
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@b13cfc578761f5dcd38a0c7b38e5c24cc0856ae7 # next
         with:
           install_uniswap_plugins: "true"
 

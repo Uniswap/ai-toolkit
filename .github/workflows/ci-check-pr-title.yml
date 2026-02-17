@@ -1,6 +1,7 @@
 name: "Check PR Title"
 
 on:
+  # zizmor: ignore[dangerous-triggers] -- title validation only, no PR code checkout
   pull_request_target:
     types:
       - opened
@@ -9,6 +10,10 @@ on:
   workflow_run:
     workflows: ["Claude: Generate PR Title & Description"]
     types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -40,6 +45,7 @@ jobs:
       - name: Checkout repository (for composite action)
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
+          persist-credentials: false
           sparse-checkout: .github/actions
           sparse-checkout-cone-mode: false
           persist-credentials: false
