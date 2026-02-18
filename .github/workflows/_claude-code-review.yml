@@ -1398,15 +1398,25 @@ jobs:
 
           # Guard against infinite auto-fix loops: if the PR head commit was
           # already an auto-fix commit, skip to prevent push→review→fix→push cycles.
-          # Uses the GitHub API to check the actual PR head commit, which is reliable
-          # regardless of which ref is currently checked out (merge commit vs PR head).
+          #
+          # Security: Uses the GitHub API to verify the commit AUTHOR identity
+          # (not spoofable via commit message) as the primary guard. The commit
+          # message pattern is checked as defense in depth with an anchored regex
+          # to avoid false positives from reverts or commits that mention "auto-fix".
           HEAD_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')
-          LATEST_COMMIT_MSG=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}" --jq '.commit.message | split("\n")[0]')
-          if echo "$LATEST_COMMIT_MSG" | grep -q "(auto-fix)"; then
-            echo "ℹ️  Latest commit is already an auto-fix commit — skipping to prevent loop"
-            echo "   Commit ($HEAD_SHA): $LATEST_COMMIT_MSG"
-            echo "should_fix=false" >> $GITHUB_OUTPUT
-            exit 0
+          COMMIT_DATA=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}")
+          LATEST_COMMIT_AUTHOR=$(echo "$COMMIT_DATA" | jq -r '.author.login // .commit.author.name')
+          LATEST_COMMIT_MSG=$(echo "$COMMIT_DATA" | jq -r '.commit.message | split("\n")[0]')
+
+          if [ "$LATEST_COMMIT_AUTHOR" = "github-actions[bot]" ]; then
+            # Author is the bot — now verify the commit message pattern (defense in depth)
+            if echo "$LATEST_COMMIT_MSG" | grep -qE '^\w+\(claude\):.*\(auto-fix\)$'; then
+              echo "ℹ️  Latest commit is an auto-fix commit by github-actions[bot] — skipping to prevent loop"
+              echo "   Author: $LATEST_COMMIT_AUTHOR"
+              echo "   Commit ($HEAD_SHA): $LATEST_COMMIT_MSG"
+              echo "should_fix=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
           fi
 
           # Read the review outcome
