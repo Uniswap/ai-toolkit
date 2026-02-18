@@ -145,7 +145,7 @@ on:
         description: "Claude Code OAuth token for authentication. Alternative to ANTHROPIC_API_KEY."
         required: false
       WORKFLOW_PAT:
-        description: "Personal Access Token with repo scope. Needed for branch creation."
+        description: "Personal Access Token with repo scope. Required for: (1) branch creation, and (2) auto-fix pushes that trigger subsequent workflow runs. Falls back to GITHUB_TOKEN if not provided, but auto-fix pushes with GITHUB_TOKEN will NOT trigger new workflow runs."
         required: false
 
     outputs:
@@ -803,9 +803,18 @@ jobs:
       - name: Configure git credentials for push (auto-fix)
         if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
         env:
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          # Use WORKFLOW_PAT for push so the commit triggers subsequent workflow runs.
+          # Pushes with GITHUB_TOKEN do NOT trigger workflows (GitHub's loop prevention).
+          PUSH_TOKEN: ${{ secrets.WORKFLOW_PAT || github.token }}
+          HAS_WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT && 'true' || 'false' }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+        run: |
+          if [ "$HAS_WORKFLOW_PAT" != "true" ]; then
+            echo "⚠️  WORKFLOW_PAT not set — falling back to GITHUB_TOKEN."
+            echo "   Auto-fix push will NOT trigger subsequent workflow runs."
+            echo "   Set the WORKFLOW_PAT secret to enable re-triggering."
+          fi
+          git remote set-url origin "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
       # Defense-in-depth: remove any attacker-supplied binaries from auto-fix checkout
       - name: Remove potentially compromised bin directory (auto-fix)
@@ -921,7 +930,10 @@ jobs:
         id: commit-fixes
         if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
         env:
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          # Use WORKFLOW_PAT for push so the commit triggers subsequent workflow runs.
+          # Pushes with GITHUB_TOKEN do NOT trigger workflows (GitHub's loop prevention).
+          PUSH_TOKEN: ${{ secrets.WORKFLOW_PAT || github.token }}
+          HAS_WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT && 'true' || 'false' }}
           PR_NUMBER: ${{ inputs.pr_number }}
           BRANCH_NAME: ${{ steps.pr-branch.outputs.branch_name }}
           SERVER_URL: ${{ github.server_url }}
@@ -942,6 +954,10 @@ jobs:
           # Configure git
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Defensive: re-configure remote URL with push token in case an
+          # earlier step (e.g., claude-code-action) reset git credentials.
+          git remote set-url origin "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
           # Stage all changes
           git add -A
@@ -964,8 +980,13 @@ jobs:
 
           echo "changes_pushed=true" >> $GITHUB_OUTPUT
           echo "✅ Fixes committed and pushed"
-          echo ""
-          echo "ℹ️  This push will trigger a new docs check of the fixed code"
+
+          if [ "$HAS_WORKFLOW_PAT" = "true" ]; then
+            echo "ℹ️  Pushed with WORKFLOW_PAT — this will trigger a new docs check of the fixed code"
+          else
+            echo "⚠️  Pushed with GITHUB_TOKEN — this will NOT trigger a new docs check"
+            echo "   Set the WORKFLOW_PAT secret to enable automatic re-check after auto-fix"
+          fi
 
       # Post auto-fix status comment
       - name: Post Auto-Fix Status
