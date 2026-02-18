@@ -236,7 +236,7 @@ on:
         description: "Claude Code OAuth token for authentication. Alternative to ANTHROPIC_API_KEY. When provided, takes precedence over API key."
         required: false
       WORKFLOW_PAT:
-        description: "Personal Access Token with repo scope. Only needed for resolving review threads via GraphQL API (falls back to GITHUB_TOKEN if not provided)."
+        description: "Personal Access Token with repo scope. Required for: (1) resolving review threads via GraphQL API, and (2) auto-fix pushes that trigger subsequent workflow runs. Falls back to GITHUB_TOKEN if not provided, but auto-fix pushes with GITHUB_TOKEN will NOT trigger new workflow runs."
         required: false
 
 jobs:
@@ -1388,10 +1388,41 @@ jobs:
           success()
         env:
           REVIEW_JSON_FILE: /tmp/claude-review-response.txt
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
 
           echo "🔧 Checking if auto-fix should run..."
+
+          # Guard against infinite auto-fix loops: if the PR head commit was
+          # already an auto-fix commit, skip to prevent push→review→fix→push cycles.
+          #
+          # Security: Uses the GitHub API to verify the commit AUTHOR identity
+          # (not spoofable via commit message) as the primary guard. The commit
+          # message pattern is checked as defense in depth with an anchored regex
+          # to avoid false positives from reverts or commits that mention "auto-fix".
+          #
+          # We use .author.login (GitHub-verified identity) without falling back
+          # to .commit.author.name (user-controlled git metadata). If .author.login
+          # is null (e.g., unlinked email), the guard won't trigger — fail open
+          # means auto-fix runs, which is the safe default.
+          HEAD_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')
+          COMMIT_DATA=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}")
+          LATEST_COMMIT_AUTHOR=$(echo "$COMMIT_DATA" | jq -r '.author.login // empty')
+          LATEST_COMMIT_MSG=$(echo "$COMMIT_DATA" | jq -r '.commit.message | split("\n")[0]')
+
+          if [ "$LATEST_COMMIT_AUTHOR" = "github-actions[bot]" ]; then
+            # Author is the bot — now verify the commit message pattern (defense in depth)
+            if echo "$LATEST_COMMIT_MSG" | grep -qE '^\w+\(claude\):.*\(auto-fix\)$'; then
+              echo "ℹ️  Latest commit is an auto-fix commit by github-actions[bot] — skipping to prevent loop"
+              echo "   Author: $LATEST_COMMIT_AUTHOR"
+              echo "   Commit ($HEAD_SHA): $LATEST_COMMIT_MSG"
+              echo "should_fix=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          fi
 
           # Read the review outcome
           if [ ! -f "$REVIEW_JSON_FILE" ]; then
@@ -1456,9 +1487,18 @@ jobs:
       - name: Configure git credentials for push (auto-fix)
         if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
         env:
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          # Use WORKFLOW_PAT for push so the commit triggers subsequent workflow runs.
+          # Pushes with GITHUB_TOKEN do NOT trigger workflows (GitHub's loop prevention).
+          PUSH_TOKEN: ${{ secrets.WORKFLOW_PAT || github.token }}
+          HAS_WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT && 'true' || 'false' }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+        run: |
+          if [ "$HAS_WORKFLOW_PAT" != "true" ]; then
+            echo "⚠️  WORKFLOW_PAT not set — falling back to GITHUB_TOKEN."
+            echo "   Auto-fix push will NOT trigger subsequent workflow runs."
+            echo "   Set the WORKFLOW_PAT secret to enable re-triggering."
+          fi
+          git remote set-url origin "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
       # Defense-in-depth: remove any attacker-supplied binaries from auto-fix checkout
       - name: Remove potentially compromised bin directory (auto-fix)
@@ -1545,7 +1585,12 @@ jobs:
           track_progress: false
           show_full_output: true
           # Use auto_fix_model if specified, otherwise use the review model
-          claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }}"
+          # --allowedTools grants specific permissions for auto-fix
+          # without using the blanket --dangerously-skip-permissions flag.
+          # Bash is intentionally unrestricted here (unlike docs-check's
+          # Bash(git:*)) because code-review fixes may need to run linters,
+          # formatters, type checkers, and build tools to verify the fix.
+          claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }} --allowedTools Read,Edit,Write,Grep,Glob,Bash,WebSearch,WebFetch"
           # Note: plugin_marketplaces and plugins are intentionally omitted here.
           # The marketplace and plugins were already installed by the "Run Claude Code
           # Review" step earlier in this job. Both steps share the same runner and
@@ -1557,7 +1602,10 @@ jobs:
         id: commit-fixes
         if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
         env:
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          # Use WORKFLOW_PAT for push so the commit triggers subsequent workflow runs.
+          # Pushes with GITHUB_TOKEN do NOT trigger workflows (GitHub's loop prevention).
+          PUSH_TOKEN: ${{ secrets.WORKFLOW_PAT || github.token }}
+          HAS_WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT && 'true' || 'false' }}
           PR_NUMBER: ${{ inputs.pr_number }}
           BRANCH_NAME: ${{ steps.pr-branch.outputs.branch_name }}
           SERVER_URL: ${{ github.server_url }}
@@ -1568,8 +1616,8 @@ jobs:
 
           echo "📦 Checking for changes to commit..."
 
-          # Check if there are any changes
-          if git diff --quiet && git diff --staged --quiet; then
+          # Check if there are any changes (including untracked new files)
+          if [ -z "$(git status --porcelain)" ]; then
             echo "ℹ️  No changes made by auto-fix"
             echo "changes_pushed=false" >> $GITHUB_OUTPUT
             exit 0
@@ -1579,6 +1627,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+          # Defensive: re-configure remote URL with push token in case an
+          # earlier step (e.g., claude-code-action) reset git credentials.
+          git remote set-url origin "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
           # Stage all changes
           git add -A
 
@@ -1587,7 +1639,7 @@ jobs:
           git diff --staged --stat
 
           # Commit with descriptive message
-          git commit -m "fix: address code review feedback (auto-fix)
+          git commit -m "fix(claude): address code review feedback (auto-fix)
 
           Automated fixes applied by Claude Code Review workflow.
 
@@ -1600,8 +1652,13 @@ jobs:
 
           echo "changes_pushed=true" >> $GITHUB_OUTPUT
           echo "✅ Fixes committed and pushed"
-          echo ""
-          echo "ℹ️  This push will trigger a new review of the fixed code"
+
+          if [ "$HAS_WORKFLOW_PAT" = "true" ]; then
+            echo "ℹ️  Pushed with WORKFLOW_PAT — this will trigger a new review of the fixed code"
+          else
+            echo "⚠️  Pushed with GITHUB_TOKEN — this will NOT trigger a new review"
+            echo "   Set the WORKFLOW_PAT secret to enable automatic re-review after auto-fix"
+          fi
 
       # Post auto-fix status comment
       - name: Post Auto-Fix Status
@@ -1610,6 +1667,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ inputs.pr_number }}
           CHANGES_PUSHED: ${{ steps.commit-fixes.outputs.changes_pushed }}
+          CLAUDE_FIX_OUTCOME: ${{ steps.claude-fix.outcome }}
+          HAS_WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT && 'true' || 'false' }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
@@ -1619,6 +1678,11 @@ jobs:
           JOB_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
           if [ "$CHANGES_PUSHED" = "true" ]; then
+            if [ "$HAS_WORKFLOW_PAT" = "true" ]; then
+              RETRIGGER_NOTE="A new review will run automatically on the updated code."
+            else
+              RETRIGGER_NOTE="⚠️ \`WORKFLOW_PAT\` is not configured — this push will **not** trigger a new review automatically. Set the \`WORKFLOW_PAT\` secret to enable re-triggering."
+            fi
             COMMENT_BODY=$(cat <<EOF
           ${COMMENT_MARKER}
           ## 🔧 Auto-Fix Applied
@@ -1628,10 +1692,26 @@ jobs:
           **Status:** ✅ Fixes pushed
           **Job:** [View workflow run](${JOB_URL})
 
-          A new review will run automatically on the updated code.
+          ${RETRIGGER_NOTE}
 
           ---
           *This is an automated fix. Please review the changes to ensure they are correct.*
+          EOF
+          )
+          elif [ "$CLAUDE_FIX_OUTCOME" = "failure" ]; then
+            COMMENT_BODY=$(cat <<EOF
+          ${COMMENT_MARKER}
+          ## 🔧 Auto-Fix Failed
+
+          Claude encountered an error while attempting to fix the review issues.
+
+          **Status:** ❌ Auto-fix failed
+          **Job:** [View workflow run](${JOB_URL})
+
+          Please review the workflow logs and fix the issues manually.
+
+          ---
+          *The auto-fix step failed. Manual intervention is required.*
           EOF
           )
           else

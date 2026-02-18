@@ -114,6 +114,29 @@ on:
         type: string
         default: "main"
 
+      auto_fix:
+        description: |
+          When enabled, if the docs check finds issues (FAIL verdict),
+          Claude will automatically attempt to fix them and push the changes
+          to the PR branch. This triggers a new push event, which will run a
+          fresh docs check of the fixed code.
+
+          Requires WORKFLOW_PAT secret with repo scope for pushing commits.
+
+          Default: false (backwards compatible)
+        required: false
+        type: boolean
+        default: false
+
+      auto_fix_model:
+        description: |
+          Claude model to use for auto-fixing issues. If not specified, uses
+          the same model as the check. You may want to use a more capable
+          model (e.g., Opus) for complex fixes.
+        required: false
+        type: string
+        default: ""
+
     secrets:
       ANTHROPIC_API_KEY:
         description: "Anthropic API key for Claude access. Required unless CLAUDE_CODE_OAUTH_TOKEN is provided."
@@ -122,7 +145,7 @@ on:
         description: "Claude Code OAuth token for authentication. Alternative to ANTHROPIC_API_KEY."
         required: false
       WORKFLOW_PAT:
-        description: "Personal Access Token with repo scope. Needed for branch creation."
+        description: "Personal Access Token with repo scope. Required for: (1) branch creation, and (2) auto-fix pushes that trigger subsequent workflow runs. Falls back to GITHUB_TOKEN if not provided, but auto-fix pushes with GITHUB_TOKEN will NOT trigger new workflow runs."
         required: false
 
     outputs:
@@ -690,15 +713,413 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
+      # ============================================================================
+      # AUTO-FIX SECTION
+      # When auto_fix is enabled and docs check found issues, attempt to fix them
+      # ============================================================================
+
+      # Check if we should attempt auto-fix
+      - name: Check Auto-Fix Conditions
+        id: auto-fix-check
+        if: |
+          inputs.auto_fix == true &&
+          success()
+        env:
+          STRUCTURED_OUTPUT_FILE: /tmp/docs-check-response.json
+          VERDICT: ${{ steps.process-results.outputs.verdict }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          echo "🔧 Checking if auto-fix should run..."
+
+          # Guard against infinite auto-fix loops: if the PR head commit was
+          # already an auto-fix commit, skip to prevent push→check→fix→push cycles.
+          #
+          # Security: Uses the GitHub API to verify the commit AUTHOR identity
+          # (not spoofable via commit message) as the primary guard. The commit
+          # message pattern is checked as defense in depth with an anchored regex
+          # to avoid false positives from reverts or commits that mention "auto-fix".
+          #
+          # We use .author.login (GitHub-verified identity) without falling back
+          # to .commit.author.name (user-controlled git metadata). If .author.login
+          # is null (e.g., unlinked email), the guard won't trigger — fail open
+          # means auto-fix runs, which is the safe default.
+          HEAD_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')
+          COMMIT_DATA=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}")
+          LATEST_COMMIT_AUTHOR=$(echo "$COMMIT_DATA" | jq -r '.author.login // empty')
+          LATEST_COMMIT_MSG=$(echo "$COMMIT_DATA" | jq -r '.commit.message | split("\n")[0]')
+
+          if [ "$LATEST_COMMIT_AUTHOR" = "github-actions[bot]" ]; then
+            # Author is the bot — now verify the commit message pattern (defense in depth)
+            if echo "$LATEST_COMMIT_MSG" | grep -qE '^\w+\(claude\):.*\(auto-fix\)$'; then
+              echo "ℹ️  Latest commit is an auto-fix commit by github-actions[bot] — skipping to prevent loop"
+              echo "   Author: $LATEST_COMMIT_AUTHOR"
+              echo "   Commit ($HEAD_SHA): $LATEST_COMMIT_MSG"
+              echo "should_fix=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          fi
+
+          if [ ! -f "$STRUCTURED_OUTPUT_FILE" ]; then
+            echo "❌ No structured output file found"
+            echo "should_fix=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          SUGGESTION_COUNT=$(jq -r '.suggestions | length' < "$STRUCTURED_OUTPUT_FILE")
+          MISSING_COUNT=$(jq -r '.missing_updates | length' < "$STRUCTURED_OUTPUT_FILE")
+
+          echo "📋 Verdict: $VERDICT"
+          echo "📋 Suggestions: $SUGGESTION_COUNT"
+          echo "📋 Missing updates: $MISSING_COUNT"
+
+          if [ "$VERDICT" = "FAIL" ]; then
+            echo "✅ Auto-fix will run (FAIL verdict)"
+            echo "should_fix=true" >> $GITHUB_OUTPUT
+          elif [ "$SUGGESTION_COUNT" -gt 0 ] || [ "$MISSING_COUNT" -gt 0 ]; then
+            echo "✅ Auto-fix will run (suggestions or missing updates found)"
+            echo "should_fix=true" >> $GITHUB_OUTPUT
+          else
+            echo "ℹ️  Skipping auto-fix (no issues found)"
+            echo "should_fix=false" >> $GITHUB_OUTPUT
+          fi
+
+      # Get PR branch info for checkout
+      - name: Get PR Branch Info
+        id: pr-branch
+        if: steps.auto-fix-check.outputs.should_fix == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          echo "📍 Getting PR branch information..."
+
+          PR_DATA=$(gh api repos/${GITHUB_REPOSITORY}/pulls/$PR_NUMBER)
+          BRANCH_NAME=$(echo "$PR_DATA" | jq -r '.head.ref')
+          REPO_FULL_NAME=$(echo "$PR_DATA" | jq -r '.head.repo.full_name')
+
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "repo_full_name=$REPO_FULL_NAME" >> $GITHUB_OUTPUT
+          echo "📍 PR branch: $BRANCH_NAME"
+          echo "📍 PR repo: $REPO_FULL_NAME"
+
+      # Checkout with write access for auto-fix
+      # Security: Only allow auto-fix for same-repo PRs (not forks)
+      - name: Checkout for Auto-Fix
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: ${{ steps.pr-branch.outputs.repo_full_name }}
+          ref: ${{ steps.pr-branch.outputs.branch_name }}
+          token: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Configure git credentials for push (auto-fix)
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
+        env:
+          # Use WORKFLOW_PAT for push so the commit triggers subsequent workflow runs.
+          # Pushes with GITHUB_TOKEN do NOT trigger workflows (GitHub's loop prevention).
+          PUSH_TOKEN: ${{ secrets.WORKFLOW_PAT || github.token }}
+          HAS_WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT && 'true' || 'false' }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          if [ "$HAS_WORKFLOW_PAT" != "true" ]; then
+            echo "⚠️  WORKFLOW_PAT not set — falling back to GITHUB_TOKEN."
+            echo "   Auto-fix push will NOT trigger subsequent workflow runs."
+            echo "   Set the WORKFLOW_PAT secret to enable re-triggering."
+          fi
+          git remote set-url origin "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+      # Defense-in-depth: remove any attacker-supplied binaries from auto-fix checkout
+      - name: Remove potentially compromised bin directory (auto-fix)
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
+        run: |
+          if [ -d "node_modules/.bin" ]; then
+            rm -rf node_modules/.bin
+            echo "Removed node_modules/.bin after auto-fix checkout"
+          fi
+
+      # Build auto-fix prompt from docs check results
+      - name: Build Auto-Fix Prompt
+        id: build-fix-prompt
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
+        env:
+          STRUCTURED_OUTPUT_FILE: /tmp/docs-check-response.json
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          echo "📝 Building auto-fix prompt from docs check results..."
+
+          # Extract findings from structured output
+          VERDICT_REASON=$(jq -r '.verdict_reason // "No reason"' < "$STRUCTURED_OUTPUT_FILE")
+          SUMMARY=$(jq -r '.summary // "No summary"' < "$STRUCTURED_OUTPUT_FILE")
+          SUGGESTIONS=$(jq -r '.suggestions // []' < "$STRUCTURED_OUTPUT_FILE")
+          MISSING_UPDATES=$(jq -r '.missing_updates // []' < "$STRUCTURED_OUTPUT_FILE")
+
+          # Build the fix prompt
+          cat > /tmp/auto-fix-prompt.txt << 'PROMPT_EOF'
+          # Auto-Fix Task: Documentation Updates
+
+          You are fixing documentation issues identified by the PR Documentation Validator.
+
+          ## Instructions
+
+          1. **Read the findings below** to understand what documentation is missing or incorrect
+          2. **Fix ONLY the issues mentioned** - don't make unrelated changes
+          3. **Make minimal, focused fixes** - address each issue directly
+          4. **Do NOT create new commits** - just make the file changes (the workflow will commit)
+
+          ## Verdict
+
+          PROMPT_EOF
+
+          # Add verdict reason
+          echo "$VERDICT_REASON" >> /tmp/auto-fix-prompt.txt
+
+          echo "" >> /tmp/auto-fix-prompt.txt
+          echo "## Summary" >> /tmp/auto-fix-prompt.txt
+          echo "" >> /tmp/auto-fix-prompt.txt
+          echo "$SUMMARY" >> /tmp/auto-fix-prompt.txt
+
+          # Add suggestions if any
+          SUGGESTION_COUNT=$(echo "$SUGGESTIONS" | jq 'length')
+          if [ "$SUGGESTION_COUNT" -gt 0 ]; then
+            echo "" >> /tmp/auto-fix-prompt.txt
+            echo "## Suggestions to Apply" >> /tmp/auto-fix-prompt.txt
+            echo "" >> /tmp/auto-fix-prompt.txt
+            echo "$SUGGESTIONS" | jq -r '.[] | "### \(.file_path)\n\n**Severity:** \(.severity)\n**Type:** \(.type)\n**Explanation:** \(.explanation)\n\n**Suggested content:**\n```\n\(.suggested_content)\n```\n"' >> /tmp/auto-fix-prompt.txt
+          fi
+
+          # Add missing updates if any
+          MISSING_COUNT=$(echo "$MISSING_UPDATES" | jq 'length')
+          if [ "$MISSING_COUNT" -gt 0 ]; then
+            echo "" >> /tmp/auto-fix-prompt.txt
+            echo "## Missing Updates to Address" >> /tmp/auto-fix-prompt.txt
+            echo "" >> /tmp/auto-fix-prompt.txt
+            echo "$MISSING_UPDATES" | jq -r '.[] | "### \(.file_path)\n\n**Type:** \(.type)\n**Severity:** \(.severity)\n**Reason:** \(.reason)\n"' >> /tmp/auto-fix-prompt.txt
+          fi
+
+          # Add final instructions
+          cat >> /tmp/auto-fix-prompt.txt << 'PROMPT_EOF'
+
+          ## Important
+
+          - Focus on fixing the identified documentation issues
+          - For CLAUDE.md updates: update content to reflect the current state of the code
+          - For README updates: ensure documentation accurately describes current functionality
+          - For plugin version bumps: update the version in .claude-plugin/plugin.json
+          - If a fix is unclear or risky, skip it rather than making a potentially wrong change
+          PROMPT_EOF
+
+          echo "prompt_file=/tmp/auto-fix-prompt.txt" >> $GITHUB_OUTPUT
+          echo "✅ Auto-fix prompt built ($(wc -l < /tmp/auto-fix-prompt.txt) lines)"
+
+      # Run Claude to fix the documentation issues
+      - name: Run Claude Auto-Fix
+        id: claude-fix
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
+        uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71 # v1.0.29
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: "Read and execute the instructions at @${{ steps.build-fix-prompt.outputs.prompt_file }}"
+          track_progress: false
+          show_full_output: true
+          # --allowedTools grants specific permissions for auto-fix
+          # without using the blanket --dangerously-skip-permissions flag
+          # Bash is scoped to git commands only — docs fixes don't need arbitrary
+          # shell access (Edit/Write/Read handle file operations)
+          claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }} --allowedTools Read,Edit,Write,Grep,Glob,Bash(git:*),WebSearch,WebFetch"
+          # Note: plugin_marketplaces and plugins are intentionally omitted here.
+          # The marketplace and plugins were already installed by the "Run Claude
+          # Docs Check" step earlier in this job. Both steps share the same runner
+          # and ~/.claude/ directory, so re-installing would cause a fatal
+          # "Marketplace already installed" error.
+
+      # Check for changes and commit
+      - name: Commit and Push Fixes
+        id: commit-fixes
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
+        env:
+          # Use WORKFLOW_PAT for push so the commit triggers subsequent workflow runs.
+          # Pushes with GITHUB_TOKEN do NOT trigger workflows (GitHub's loop prevention).
+          PUSH_TOKEN: ${{ secrets.WORKFLOW_PAT || github.token }}
+          HAS_WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT && 'true' || 'false' }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          BRANCH_NAME: ${{ steps.pr-branch.outputs.branch_name }}
+          SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          WORKFLOW_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          echo "📦 Checking for changes to commit..."
+
+          # Check if there are any changes (including untracked new files)
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "ℹ️  No changes made by auto-fix"
+            echo "changes_pushed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Defensive: re-configure remote URL with push token in case an
+          # earlier step (e.g., claude-code-action) reset git credentials.
+          git remote set-url origin "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          # Stage all changes
+          git add -A
+
+          # Show what changed
+          echo "📋 Changes to commit:"
+          git diff --staged --stat
+
+          # Commit with descriptive message
+          git commit -m "docs(claude): fix documentation issues (auto-fix)
+
+          Automated documentation fixes applied by PR Documentation Validator.
+
+          PR: #$PR_NUMBER
+          Workflow run: ${SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${WORKFLOW_RUN_ID}"
+
+          # Push the changes
+          echo "🚀 Pushing fixes to branch: $BRANCH_NAME"
+          git push origin HEAD:"$BRANCH_NAME"
+
+          echo "changes_pushed=true" >> $GITHUB_OUTPUT
+          echo "✅ Fixes committed and pushed"
+
+          if [ "$HAS_WORKFLOW_PAT" = "true" ]; then
+            echo "ℹ️  Pushed with WORKFLOW_PAT — this will trigger a new docs check of the fixed code"
+          else
+            echo "⚠️  Pushed with GITHUB_TOKEN — this will NOT trigger a new docs check"
+            echo "   Set the WORKFLOW_PAT secret to enable automatic re-check after auto-fix"
+          fi
+
+      # Post auto-fix status comment
+      - name: Post Auto-Fix Status
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          CHANGES_PUSHED: ${{ steps.commit-fixes.outputs.changes_pushed }}
+          CLAUDE_FIX_OUTCOME: ${{ steps.claude-fix.outcome }}
+          HAS_WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT && 'true' || 'false' }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          COMMENT_MARKER="<!-- claude-docs-auto-fix-status -->"
+          JOB_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          if [ "$CHANGES_PUSHED" = "true" ]; then
+            if [ "$HAS_WORKFLOW_PAT" = "true" ]; then
+              RETRIGGER_NOTE="A new docs check will run automatically on the updated code."
+            else
+              RETRIGGER_NOTE="⚠️ \`WORKFLOW_PAT\` is not configured — this push will **not** trigger a new docs check automatically. Set the \`WORKFLOW_PAT\` secret to enable re-triggering."
+            fi
+            COMMENT_BODY=$(cat <<EOF
+          ${COMMENT_MARKER}
+          ## 🔧 Documentation Auto-Fix Applied
+
+          Claude automatically fixed documentation issues and pushed the changes.
+
+          **Status:** ✅ Fixes pushed
+          **Job:** [View workflow run](${JOB_URL})
+
+          ${RETRIGGER_NOTE}
+
+          ---
+          *This is an automated fix. Please review the changes to ensure they are correct.*
+          EOF
+          )
+          elif [ "$CLAUDE_FIX_OUTCOME" = "failure" ]; then
+            COMMENT_BODY=$(cat <<EOF
+          ${COMMENT_MARKER}
+          ## 🔧 Documentation Auto-Fix Failed
+
+          Claude encountered an error while attempting to fix documentation issues.
+
+          **Status:** ❌ Auto-fix failed
+          **Job:** [View workflow run](${JOB_URL})
+
+          Please review the workflow logs and fix the issues manually.
+
+          ---
+          *The auto-fix step failed. Manual intervention is required.*
+          EOF
+          )
+          else
+            COMMENT_BODY=$(cat <<EOF
+          ${COMMENT_MARKER}
+          ## 🔧 Documentation Auto-Fix Attempted
+
+          Claude attempted to fix documentation issues but no changes were made.
+
+          **Status:** ℹ️ No changes
+          **Job:** [View workflow run](${JOB_URL})
+
+          This may mean the issues require manual intervention or Claude couldn't determine safe fixes.
+
+          ---
+          *Please review the issues manually.*
+          EOF
+          )
+          fi
+
+          # Find and update existing auto-fix comment, or create new one
+          EXISTING_COMMENT=$(gh api "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+            --jq ".[] | select(.body | contains(\"$COMMENT_MARKER\")) | .id" | head -1 || true)
+
+          if [ -n "$EXISTING_COMMENT" ]; then
+            gh api "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT}" \
+              -X PATCH \
+              -f body="$COMMENT_BODY" > /dev/null
+            echo "✅ Updated existing auto-fix status comment"
+          else
+            gh api "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              -X POST \
+              -f body="$COMMENT_BODY" > /dev/null
+            echo "✅ Posted auto-fix status comment"
+          fi
+
       # Set final exit code based on verdict
       - name: Set Exit Code
         if: always()
         env:
           VERDICT: ${{ steps.process-results.outputs.verdict }}
+          AUTO_FIX_ENABLED: ${{ inputs.auto_fix }}
+          CHANGES_PUSHED: ${{ steps.commit-fixes.outputs.changes_pushed }}
+          HAS_WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT && 'true' || 'false' }}
         run: |
           if [ "$VERDICT" = "FAIL" ]; then
-            echo "❌ Documentation check failed"
-            exit 1
+            if [ "$AUTO_FIX_ENABLED" = "true" ] && [ "$CHANGES_PUSHED" = "true" ] && [ "$HAS_WORKFLOW_PAT" = "true" ]; then
+              echo "ℹ️  Documentation check found issues, but auto-fix pushed changes"
+              echo "   A new check will run automatically on the updated code"
+              exit 0
+            elif [ "$AUTO_FIX_ENABLED" = "true" ] && [ "$CHANGES_PUSHED" = "true" ] && [ "$HAS_WORKFLOW_PAT" != "true" ]; then
+              echo "❌ Documentation check failed — auto-fix pushed changes but WORKFLOW_PAT is not set"
+              echo "   The push used GITHUB_TOKEN which will NOT trigger a follow-up check"
+              echo "   Set the WORKFLOW_PAT secret to enable automatic re-validation"
+              exit 1
+            else
+              echo "❌ Documentation check failed"
+              exit 1
+            fi
           else
             echo "✅ Documentation check passed"
             exit 0

@@ -9,6 +9,7 @@ name: 'Example: Claude Code Review - Advanced'
 # - More conversation turns for complex reviews
 # - Path filtering (only review specific directories)
 # - Additional PR triggers (labeled/unlabeled)
+# - Auto-fix with WORKFLOW_PAT for triggering subsequent reviews
 #
 # Model Selection:
 # - Default: Claude Sonnet 4.6 (fast, cost-effective)
@@ -58,6 +59,11 @@ jobs:
       # Your prompt can emphasize specific concerns for your domain
       custom_prompt_path: '.github/prompts/security-focused-review.md'
 
+      # Auto-fix: When the review finds issues (REQUEST_CHANGES), Claude
+      # automatically attempts to fix them and pushes the changes.
+      # Requires WORKFLOW_PAT secret so the push triggers a new review.
+      auto_fix: true
+
       # Alternative: Use different API key from non-default secret
       # Useful if you have team-specific or environment-specific keys
       # anthropic_api_key_secret_name: 'ANTHROPIC_API_KEY_PROD'
@@ -65,6 +71,9 @@ jobs:
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      # Required for auto-fix: PAT with repo scope so pushes trigger new workflow runs.
+      # Without this, auto-fix pushes use GITHUB_TOKEN which won't re-trigger reviews.
+      WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
 # Optional: Add a second job that only runs on security-sensitive paths
 # jobs:
 #   security-review:

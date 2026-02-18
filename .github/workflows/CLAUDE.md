@@ -513,6 +513,7 @@ This workflow validates that PR documentation is properly updated based on code 
 | **Fixup Branch Creation**   | For larger changes, creates a fixup branch that can be merged into the PR          |
 | **Auto-Commit Mode**        | Optionally auto-commit and push all suggestions directly to the PR branch          |
 | **Pass/Fail Verdict**       | Returns clear pass/fail status for CI integration                                  |
+| **Auto-Fix Mode**           | Optionally auto-fix documentation issues and push changes (triggers re-check)      |
 | **Dual Authentication**     | Supports both API key and OAuth token authentication (OAuth takes precedence)      |
 
 **Suggestion Modes:**
@@ -537,7 +538,7 @@ This workflow validates that PR documentation is properly updated based on code 
 | ------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `ANTHROPIC_API_KEY`       | Yes (unless `CLAUDE_CODE_OAUTH_TOKEN` is set) | Anthropic API key for Claude access                                                                                                       |
 | `CLAUDE_CODE_OAUTH_TOKEN` | No (alternative to `ANTHROPIC_API_KEY`)       | Claude Code OAuth token for authentication. When provided, takes precedence over `ANTHROPIC_API_KEY`. Generate with `claude setup-token`. |
-| `WORKFLOW_PAT`            | No                                            | Personal Access Token with `repo` scope. Needed for fixup branch creation.                                                                |
+| `WORKFLOW_PAT`            | No                                            | Personal Access Token with `repo` scope. Needed for fixup branch creation and auto-fix push access.                                       |
 
 **Authentication Methods:**
 
@@ -552,20 +553,22 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 
 **Configuration Inputs:**
 
-| Input                     | Required | Default             | Description                                                              |
-| ------------------------- | -------- | ------------------- | ------------------------------------------------------------------------ |
-| `pr_number`               | Yes      | -                   | Pull request number to validate                                          |
-| `base_ref`                | No       | -                   | Base branch name (e.g., main). If not provided, fetched via GitHub API.  |
-| `suggestion_mode`         | No       | `suggest`           | How to provide fix suggestions: suggest, branch, auto, or check          |
-| `auto_commit`             | No       | `false`             | Auto-commit and push suggestions to PR branch (bypasses suggestion_mode) |
-| `fail_on_missing_docs`    | No       | `true`              | Whether missing documentation should cause workflow to fail              |
-| `fail_on_missing_version` | No       | `true`              | Whether missing plugin version bumps should cause workflow to fail       |
-| `model`                   | No       | `claude-sonnet-4-6` | Claude model to use                                                      |
-| `max_turns`               | No       | unlimited           | Maximum conversation turns for Claude                                    |
-| `timeout_minutes`         | No       | `15`                | Job timeout in minutes                                                   |
-| `toolkit_ref`             | No       | `main`              | Git ref of ai-toolkit to use for scripts                                 |
-| `install_uniswap_plugins` | No       | `true`              | Auto-install uniswap-ai-toolkit plugins                                  |
-| `plugin_ref`              | No       | `main`              | Git ref for build-plugin-config action ('main' or 'next')                |
+| Input                     | Required | Default             | Description                                                                                        |
+| ------------------------- | -------- | ------------------- | -------------------------------------------------------------------------------------------------- |
+| `pr_number`               | Yes      | -                   | Pull request number to validate                                                                    |
+| `base_ref`                | No       | -                   | Base branch name (e.g., main). If not provided, fetched via GitHub API.                            |
+| `suggestion_mode`         | No       | `suggest`           | How to provide fix suggestions: suggest, branch, auto, or check                                    |
+| `auto_commit`             | No       | `false`             | Auto-commit and push suggestions to PR branch (bypasses suggestion_mode)                           |
+| `fail_on_missing_docs`    | No       | `true`              | Whether missing documentation should cause workflow to fail                                        |
+| `fail_on_missing_version` | No       | `true`              | Whether missing plugin version bumps should cause workflow to fail                                 |
+| `model`                   | No       | `claude-sonnet-4-6` | Claude model to use                                                                                |
+| `max_turns`               | No       | unlimited           | Maximum conversation turns for Claude                                                              |
+| `timeout_minutes`         | No       | `15`                | Job timeout in minutes                                                                             |
+| `toolkit_ref`             | No       | `main`              | Git ref of ai-toolkit to use for scripts                                                           |
+| `install_uniswap_plugins` | No       | `true`              | Auto-install uniswap-ai-toolkit plugins                                                            |
+| `plugin_ref`              | No       | `main`              | Git ref for build-plugin-config action ('main' or 'next')                                          |
+| `auto_fix`                | No       | `false`             | When enabled, auto-fix issues found and push changes (triggers re-check). Requires `WORKFLOW_PAT`. |
+| `auto_fix_model`          | No       | (same as `model`)   | Model to use for auto-fixing. Use a more capable model (e.g., Opus) for complex fixes.             |
 
 **Outputs:**
 
@@ -626,6 +629,33 @@ secrets:
 ```
 
 > **Note:** When `auto_commit: true`, the workflow will apply all suggestions directly to the PR branch and push them. This bypasses `suggestion_mode` entirely. The `WORKFLOW_PAT` secret is required for push access.
+
+**Usage example (with auto-fix enabled):**
+
+When `auto_fix` is enabled, if the docs check finds issues (FAIL verdict or suggestions), Claude will automatically attempt to fix them and push the changes to the PR branch. This triggers a new push event, which runs a fresh docs check.
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-docs-check.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  auto_fix: true # Enable automatic fixing of documentation issues
+  auto_fix_model: 'claude-opus-4-6' # Use Opus for better fixes (optional)
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }} # Required for pushing fixes
+```
+
+> **Note:** `WORKFLOW_PAT` is required for auto-fix to push commits. Without it, the workflow will fall back to `GITHUB_TOKEN` which may lack push permissions for PRs from forks.
+
+**Auto-Fix Behavior:**
+
+| Docs Check Result          | Auto-Fix Action                                            |
+| -------------------------- | ---------------------------------------------------------- |
+| `FAIL` verdict             | Claude attempts to fix all identified documentation issues |
+| `PASS` with suggestions    | Claude attempts to apply suggested improvements            |
+| `PASS` with no suggestions | No auto-fix needed (no issues found)                       |
+
+After pushing fixes, a new workflow run is triggered automatically, which will re-check the updated documentation. This creates a feedback loop until the docs pass or require manual intervention.
 
 **What Gets Checked:**
 
