@@ -59,9 +59,9 @@ on:
         description: 'Claude model'
         type: choice
         options:
-          - 'claude-sonnet-4-5'
+          - 'claude-sonnet-4-6'
           - 'claude-opus-4-6'
-        default: 'claude-sonnet-4-5'
+        default: 'claude-sonnet-4-6'
       target_branch:
         description: 'Branch to create PRs against'
         default: 'main'
@@ -135,14 +135,14 @@ See the full example at `.github/workflows/examples/11-autonomous-linear-tasks.y
 | `linear_team`   | "Developer AI"      | Linear team to query   |
 | `linear_label`  | "claude"            | Label to filter issues |
 | `max_issues`    | 3                   | Maximum issues per run |
-| `model`         | "claude-sonnet-4-5" | Claude model to use    |
+| `model`         | "claude-sonnet-4-6" | Claude model to use    |
 | `target_branch` | "next"              | Branch for PRs         |
 
 ### Model Selection
 
 | Model               | Best For                                  |
 | ------------------- | ----------------------------------------- |
-| `claude-sonnet-4-5` | Balance of speed and capability (default) |
+| `claude-sonnet-4-6` | Balance of speed and capability (default) |
 | `claude-opus-4-6`   | Complex tasks requiring deep reasoning    |
 | `claude-haiku-4-5`  | Simple tasks, cost optimization           |
 

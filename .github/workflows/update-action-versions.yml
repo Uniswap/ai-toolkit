@@ -42,10 +42,10 @@ on:
       model:
         description: 'Claude model to use'
         required: false
-        default: 'claude-sonnet-4-5'
+        default: 'claude-sonnet-4-6'
         type: choice
         options:
-          - 'claude-sonnet-4-5'
+          - 'claude-sonnet-4-6'
           - 'claude-opus-4-6'
       target_branch:
         description: 'Base branch for the PR'
@@ -95,7 +95,7 @@ jobs:
           fi
 
           if [ -z "$INPUT_MODEL" ]; then
-            echo "model=claude-sonnet-4-5" >> $GITHUB_OUTPUT
+            echo "model=claude-sonnet-4-6" >> $GITHUB_OUTPUT
           else
             echo "model=$INPUT_MODEL" >> $GITHUB_OUTPUT
           fi

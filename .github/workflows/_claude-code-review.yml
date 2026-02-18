@@ -68,7 +68,7 @@ on:
         description: "Claude model to use for review"
         required: false
         type: string
-        default: "claude-sonnet-4-5"
+        default: "claude-sonnet-4-6"
 
       max_turns:
         description: "Maximum conversation turns for Claude. Omit to use unlimited turns."

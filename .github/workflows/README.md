@@ -75,7 +75,7 @@ Workflows designed to be called by other workflows using `workflow_call`. These 
 
   - Interactive AI assistance via @claude mentions
   - Works in issue comments, PR comments, review comments, and reviews
-  - Configurable models (Sonnet 4.5, Opus 4, Haiku 4.5)
+  - Configurable models (Sonnet 4.6, Opus 4, Haiku 4.5)
   - Flexible tool permissions (read-only, read-write, or custom)
   - Custom instructions for repository-specific standards
   - Fixed security settings (Bullfrog scanning, immutable permissions)
@@ -196,14 +196,14 @@ The [Claude GitHub App](https://github.com/apps/claude) must be installed on you
 
 ### Required Secrets
 
-| Secret                             | Used By                                     | Purpose                                                         |
-| ---------------------------------- | ------------------------------------------- | --------------------------------------------------------------- |
-| `WORKFLOW_PAT`                     | publish-packages.yml, update-production.yml | Push commits/tags, create PRs (internal CI/CD only)             |
-| `ANTHROPIC_API_KEY`                | generate-changelog.yml                      | AI-powered changelog generation                                 |
-| `SLACK_WEBHOOK_URL`                | notify-release.yml                          | Send Slack release notifications                                |
-| `NOTION_API_KEY`                   | notify-release.yml                          | Publish release notes to Notion (optional)                      |
-| `RELEASE_NOTES_NOTION_DATABASE_ID` | notify-release.yml                          | Notion database ID for release notes (optional)                 |
-| `NODE_AUTH_TOKEN`                  | publish-packages.yml                        | Publish to NPM registry                                         |
+| Secret                             | Used By                                     | Purpose                                             |
+| ---------------------------------- | ------------------------------------------- | --------------------------------------------------- |
+| `WORKFLOW_PAT`                     | publish-packages.yml, update-production.yml | Push commits/tags, create PRs (internal CI/CD only) |
+| `ANTHROPIC_API_KEY`                | generate-changelog.yml                      | AI-powered changelog generation                     |
+| `SLACK_WEBHOOK_URL`                | notify-release.yml                          | Send Slack release notifications                    |
+| `NOTION_API_KEY`                   | notify-release.yml                          | Publish release notes to Notion (optional)          |
+| `RELEASE_NOTES_NOTION_DATABASE_ID` | notify-release.yml                          | Notion database ID for release notes (optional)     |
+| `NODE_AUTH_TOKEN`                  | publish-packages.yml                        | Publish to NPM registry                             |
 
 > **Note:** External consumers of the reusable workflows (e.g., `_claude-code-review.yml`, `_generate-pr-metadata.yml`) do **not** need `WORKFLOW_PAT`. The ai-toolkit repository is public, so fetching default prompts requires no authentication.
 
