@@ -1555,8 +1555,11 @@ jobs:
           track_progress: false
           show_full_output: true
           # Use auto_fix_model if specified, otherwise use the review model
-          # --allowedTools grants specific write permissions for auto-fix
-          # without using the blanket --dangerously-skip-permissions flag
+          # --allowedTools grants specific permissions for auto-fix
+          # without using the blanket --dangerously-skip-permissions flag.
+          # Bash is intentionally unrestricted here (unlike docs-check's
+          # Bash(git:*)) because code-review fixes may need to run linters,
+          # formatters, type checkers, and build tools to verify the fix.
           claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }} --allowedTools Read,Edit,Write,Grep,Glob,Bash,WebSearch,WebFetch"
           # Note: plugin_marketplaces and plugins are intentionally omitted here.
           # The marketplace and plugins were already installed by the "Run Claude Code
@@ -1580,8 +1583,8 @@ jobs:
 
           echo "📦 Checking for changes to commit..."
 
-          # Check if there are any changes
-          if git diff --quiet && git diff --staged --quiet; then
+          # Check if there are any changes (including untracked new files)
+          if [ -z "$(git status --porcelain)" ]; then
             echo "ℹ️  No changes made by auto-fix"
             echo "changes_pushed=false" >> $GITHUB_OUTPUT
             exit 0

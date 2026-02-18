@@ -932,8 +932,8 @@ jobs:
 
           echo "📦 Checking for changes to commit..."
 
-          # Check if there are any changes
-          if git diff --quiet && git diff --staged --quiet; then
+          # Check if there are any changes (including untracked new files)
+          if [ -z "$(git status --porcelain)" ]; then
             echo "ℹ️  No changes made by auto-fix"
             echo "changes_pushed=false" >> $GITHUB_OUTPUT
             exit 0
