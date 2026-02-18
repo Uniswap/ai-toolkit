@@ -20,7 +20,7 @@
 #       issue_url: ${{ matrix.issue_url }}
 #       branch_name: ${{ matrix.branch_name }}
 #       target_branch: 'next'
-#       model: 'claude-sonnet-4-5'
+#       model: 'claude-sonnet-4-6'
 #     secrets:
 #       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 #       LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
@@ -33,7 +33,7 @@
 # - issue_url: Linear issue URL
 # - branch_name: Branch to create (e.g., "claude/dai-123-fix-bug")
 # - target_branch: Branch to create PR against (default: "next")
-# - model: Claude model to use (default: claude-sonnet-4-5)
+# - model: Claude model to use (default: claude-sonnet-4-6)
 # - timeout_minutes: Execution timeout (default: 60)
 # - linear_task_utils_tag: npm tag for @uniswap/ai-toolkit-linear-task-utils (default: "latest")
 # - debug_mode: Enable full Claude Code output for debugging (default: true)
@@ -89,7 +89,7 @@ on:
       model:
         description: |
           Claude model to use.
-          Options: claude-sonnet-4-5, claude-opus-4-6, claude-haiku-4-5
+          Options: claude-sonnet-4-6, claude-opus-4-6, claude-haiku-4-5
         required: false
         type: string
         default: "claude-opus-4-6"

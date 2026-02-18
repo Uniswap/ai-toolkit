@@ -38,11 +38,11 @@
 #     secrets:
 #       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 #     with:
-#       model: 'claude-sonnet-4-5'
+#       model: 'claude-sonnet-4-6'
 #
 # INPUTS:
 # - prompt (optional): Direct automation prompt (enables automation mode)
-# - model (optional): Claude model to use (default: claude-sonnet-4-5)
+# - model (optional): Claude model to use (default: claude-sonnet-4-6)
 # - allowed_tools (optional): Comma-separated list of allowed tools
 # - disallowed_tools (optional): Comma-separated list of disallowed tools
 # - custom_instructions (optional): Additional instructions for Claude (system prompt)
@@ -78,14 +78,14 @@ on:
           Claude model to use for this execution.
 
           Available models:
-          - claude-sonnet-4-5 (default, recommended) - Latest Sonnet model with best balance of speed and capability
+          - claude-sonnet-4-6 (default, recommended) - Latest Sonnet model with best balance of speed and capability
           - claude-opus-4-6 - Most capable model for complex tasks
           - claude-haiku-4-5 - Fast, cost-effective model for simpler tasks
 
-          Default: claude-sonnet-4-5
+          Default: claude-sonnet-4-6
         required: false
         type: string
-        default: "claude-sonnet-4-5"
+        default: "claude-sonnet-4-6"
 
       allowed_tools:
         description: |

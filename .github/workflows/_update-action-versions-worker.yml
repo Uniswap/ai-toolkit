@@ -21,7 +21,7 @@
 #   - branch_name: Branch to work on (required)
 #   - target_branch: Base branch for PR (default: main)
 #   - dry_run: Skip PR creation, report only (default: false)
-#   - model: Claude model to use (default: claude-sonnet-4-5)
+#   - model: Claude model to use (default: claude-sonnet-4-6)
 #   - timeout_minutes: Execution timeout (default: 30)
 #   - debug_mode: Show full Claude output (default: true)
 #
@@ -56,7 +56,7 @@ on:
         description: "Claude model to use"
         required: false
         type: string
-        default: "claude-sonnet-4-5"
+        default: "claude-sonnet-4-6"
 
       timeout_minutes:
         description: "Maximum execution time in minutes"

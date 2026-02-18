@@ -37,8 +37,8 @@ jobs:
       # Use 'next' branch for plugin configuration (testing pre-release)
       plugin_ref: 'next'
 
-      # Use default Sonnet 4.5 model
-      model: 'claude-sonnet-4-5'
+      # Use default Sonnet 4.6 model
+      model: 'claude-sonnet-4-6'
 
       # Repository-specific instructions
       custom_instructions: |
