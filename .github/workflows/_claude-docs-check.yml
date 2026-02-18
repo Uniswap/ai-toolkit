@@ -1002,6 +1002,7 @@ jobs:
           PR_NUMBER: ${{ inputs.pr_number }}
           CHANGES_PUSHED: ${{ steps.commit-fixes.outputs.changes_pushed }}
           CLAUDE_FIX_OUTCOME: ${{ steps.claude-fix.outcome }}
+          HAS_WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT && 'true' || 'false' }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
@@ -1011,6 +1012,11 @@ jobs:
           JOB_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
           if [ "$CHANGES_PUSHED" = "true" ]; then
+            if [ "$HAS_WORKFLOW_PAT" = "true" ]; then
+              RETRIGGER_NOTE="A new docs check will run automatically on the updated code."
+            else
+              RETRIGGER_NOTE="⚠️ \`WORKFLOW_PAT\` is not configured — this push will **not** trigger a new docs check automatically. Set the \`WORKFLOW_PAT\` secret to enable re-triggering."
+            fi
             COMMENT_BODY=$(cat <<EOF
           ${COMMENT_MARKER}
           ## 🔧 Documentation Auto-Fix Applied
@@ -1020,7 +1026,7 @@ jobs:
           **Status:** ✅ Fixes pushed
           **Job:** [View workflow run](${JOB_URL})
 
-          A new docs check will run automatically on the updated code.
+          ${RETRIGGER_NOTE}
 
           ---
           *This is an automated fix. Please review the changes to ensure they are correct.*
