@@ -1388,17 +1388,23 @@ jobs:
           success()
         env:
           REVIEW_JSON_FILE: /tmp/claude-review-response.txt
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
 
           echo "🔧 Checking if auto-fix should run..."
 
-          # Guard against infinite auto-fix loops: if the latest commit was
-          # already an auto-fix commit, skip to prevent push→review→fix→push cycles
-          LATEST_COMMIT_MSG=$(git log -1 --format='%s')
+          # Guard against infinite auto-fix loops: if the PR head commit was
+          # already an auto-fix commit, skip to prevent push→review→fix→push cycles.
+          # Uses the GitHub API to check the actual PR head commit, which is reliable
+          # regardless of which ref is currently checked out (merge commit vs PR head).
+          HEAD_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')
+          LATEST_COMMIT_MSG=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}" --jq '.commit.message | split("\n")[0]')
           if echo "$LATEST_COMMIT_MSG" | grep -q "(auto-fix)"; then
             echo "ℹ️  Latest commit is already an auto-fix commit — skipping to prevent loop"
-            echo "   Commit: $LATEST_COMMIT_MSG"
+            echo "   Commit ($HEAD_SHA): $LATEST_COMMIT_MSG"
             echo "should_fix=false" >> $GITHUB_OUTPUT
             exit 0
           fi

@@ -727,17 +727,23 @@ jobs:
         env:
           STRUCTURED_OUTPUT_FILE: /tmp/docs-check-response.json
           VERDICT: ${{ steps.process-results.outputs.verdict }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
 
           echo "🔧 Checking if auto-fix should run..."
 
-          # Guard against infinite auto-fix loops: if the latest commit was
-          # already an auto-fix commit, skip to prevent push→check→fix→push cycles
-          LATEST_COMMIT_MSG=$(git log -1 --format='%s')
+          # Guard against infinite auto-fix loops: if the PR head commit was
+          # already an auto-fix commit, skip to prevent push→check→fix→push cycles.
+          # Uses the GitHub API to check the actual PR head commit, which is reliable
+          # regardless of which ref is currently checked out (merge commit vs PR head).
+          HEAD_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')
+          LATEST_COMMIT_MSG=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}" --jq '.commit.message | split("\n")[0]')
           if echo "$LATEST_COMMIT_MSG" | grep -q "(auto-fix)"; then
             echo "ℹ️  Latest commit is already an auto-fix commit — skipping to prevent loop"
-            echo "   Commit: $LATEST_COMMIT_MSG"
+            echo "   Commit ($HEAD_SHA): $LATEST_COMMIT_MSG"
             echo "should_fix=false" >> $GITHUB_OUTPUT
             exit 0
           fi
@@ -1077,12 +1083,18 @@ jobs:
           VERDICT: ${{ steps.process-results.outputs.verdict }}
           AUTO_FIX_ENABLED: ${{ inputs.auto_fix }}
           CHANGES_PUSHED: ${{ steps.commit-fixes.outputs.changes_pushed }}
+          HAS_WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT && 'true' || 'false' }}
         run: |
           if [ "$VERDICT" = "FAIL" ]; then
-            if [ "$AUTO_FIX_ENABLED" = "true" ] && [ "$CHANGES_PUSHED" = "true" ]; then
+            if [ "$AUTO_FIX_ENABLED" = "true" ] && [ "$CHANGES_PUSHED" = "true" ] && [ "$HAS_WORKFLOW_PAT" = "true" ]; then
               echo "ℹ️  Documentation check found issues, but auto-fix pushed changes"
               echo "   A new check will run automatically on the updated code"
               exit 0
+            elif [ "$AUTO_FIX_ENABLED" = "true" ] && [ "$CHANGES_PUSHED" = "true" ] && [ "$HAS_WORKFLOW_PAT" != "true" ]; then
+              echo "❌ Documentation check failed — auto-fix pushed changes but WORKFLOW_PAT is not set"
+              echo "   The push used GITHUB_TOKEN which will NOT trigger a follow-up check"
+              echo "   Set the WORKFLOW_PAT secret to enable automatic re-validation"
+              exit 1
             else
               echo "❌ Documentation check failed"
               exit 1
