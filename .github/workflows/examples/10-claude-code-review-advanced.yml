@@ -12,7 +12,7 @@ name: 'Example: Claude Code Review - Advanced'
 #
 # Model Selection:
 # - Default: Claude Sonnet 4.6 (fast, cost-effective)
-# - With 'claude-opus' label: Claude Opus 4.1 (more thorough, slower)
+# - With 'claude-opus' label: Claude Opus 4.6 (more thorough, slower)
 #
 # Use Cases:
 # - Large PRs that need more time
