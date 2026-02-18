@@ -732,6 +732,16 @@ jobs:
 
           echo "🔧 Checking if auto-fix should run..."
 
+          # Guard against infinite auto-fix loops: if the latest commit was
+          # already an auto-fix commit, skip to prevent push→check→fix→push cycles
+          LATEST_COMMIT_MSG=$(git log -1 --format='%s')
+          if echo "$LATEST_COMMIT_MSG" | grep -q "(auto-fix)"; then
+            echo "ℹ️  Latest commit is already an auto-fix commit — skipping to prevent loop"
+            echo "   Commit: $LATEST_COMMIT_MSG"
+            echo "should_fix=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           if [ ! -f "$STRUCTURED_OUTPUT_FILE" ]; then
             echo "❌ No structured output file found"
             echo "should_fix=false" >> $GITHUB_OUTPUT
@@ -897,7 +907,9 @@ jobs:
           show_full_output: true
           # --allowedTools grants specific permissions for auto-fix
           # without using the blanket --dangerously-skip-permissions flag
-          claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }} --allowedTools Read,Edit,Write,Grep,Glob,Bash,WebSearch,WebFetch"
+          # Bash is scoped to git commands only — docs fixes don't need arbitrary
+          # shell access (Edit/Write/Read handle file operations)
+          claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }} --allowedTools Read,Edit,Write,Grep,Glob,Bash(git:*),WebSearch,WebFetch"
           # Note: plugin_marketplaces and plugins are intentionally omitted here.
           # The marketplace and plugins were already installed by the "Run Claude
           # Docs Check" step earlier in this job. Both steps share the same runner
@@ -962,6 +974,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ inputs.pr_number }}
           CHANGES_PUSHED: ${{ steps.commit-fixes.outputs.changes_pushed }}
+          CLAUDE_FIX_OUTCOME: ${{ steps.claude-fix.outcome }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
@@ -984,6 +997,22 @@ jobs:
 
           ---
           *This is an automated fix. Please review the changes to ensure they are correct.*
+          EOF
+          )
+          elif [ "$CLAUDE_FIX_OUTCOME" = "failure" ]; then
+            COMMENT_BODY=$(cat <<EOF
+          ${COMMENT_MARKER}
+          ## 🔧 Documentation Auto-Fix Failed
+
+          Claude encountered an error while attempting to fix documentation issues.
+
+          **Status:** ❌ Auto-fix failed
+          **Job:** [View workflow run](${JOB_URL})
+
+          Please review the workflow logs and fix the issues manually.
+
+          ---
+          *The auto-fix step failed. Manual intervention is required.*
           EOF
           )
           else
