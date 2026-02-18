@@ -1501,7 +1501,7 @@ Claude submitted multiple reviews instead of updating one
 2. **Model Selection**:
 
    - **Sonnet 4.6** (default): Best balance for most PRs (~80% of use cases)
-   - **Opus 4.1**: Reserve for critical code, security-sensitive changes, or complex architectures
+   - **Opus 4.6**: Reserve for critical code, security-sensitive changes, or complex architectures
    - Use labels to let developers request deeper reviews when needed
 
 3. **Custom Prompts**:
