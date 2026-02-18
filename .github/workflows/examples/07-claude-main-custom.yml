@@ -47,7 +47,7 @@ jobs:
     with:
       # MODEL SELECTION
       # Choose the Claude model based on your needs:
-      # - claude-sonnet-4-5: Latest, best balance (RECOMMENDED)
+      # - claude-sonnet-4-6: Latest, best balance (RECOMMENDED)
       # - claude-opus-4-6: Most capable, slower, higher cost
       # - claude-haiku-4-5: Fast, cost-effective for simpler tasks
       model: "claude-opus-4-6"
@@ -149,7 +149,7 @@ jobs:
 # Use when you trust Claude to make direct code changes:
 #
 #     with:
-#       model: 'claude-sonnet-4-5'
+#       model: 'claude-sonnet-4-6'
 #       timeout_minutes: '10'
 #       allowed_tools: |
 #         # File operations (read AND write)
@@ -171,7 +171,7 @@ jobs:
 # Allow file edits but restrict bash commands:
 #
 #     with:
-#       model: 'claude-sonnet-4-5'
+#       model: 'claude-sonnet-4-6'
 #       timeout_minutes: '10'
 #       allowed_tools: |
 #         # File operations (read and write)
@@ -196,7 +196,7 @@ jobs:
 # Minimal permissions for pure code review assistance:
 #
 #     with:
-#       model: 'claude-sonnet-4-5'
+#       model: 'claude-sonnet-4-6'
 #       timeout_minutes: '10'
 #       custom_instructions: |
 #         You are in READ-ONLY mode for code review.
@@ -220,7 +220,7 @@ jobs:
 #       ANTHROPIC_API_KEY: ${{ secrets.MY_CUSTOM_CLAUDE_KEY }}
 #     with:
 #       anthropic_api_key_secret_name: 'MY_CUSTOM_CLAUDE_KEY'
-#       model: 'claude-sonnet-4-5'
+#       model: 'claude-sonnet-4-6'
 #
 
 # -----------------------------------------------------------------------------
@@ -243,7 +243,7 @@ jobs:
 #     secrets:
 #       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 #     with:
-#       model: 'claude-sonnet-4-5'  # Fast for questions
+#       model: 'claude-sonnet-4-6'  # Fast for questions
 #       timeout_minutes: '5'
 #
 #   claude-pr-reviews:
@@ -354,7 +354,7 @@ jobs:
 # Solution:
 #   1. Increase timeout_minutes (e.g., from 10 to 15 or 20)
 #   2. Simplify custom_instructions to reduce processing time
-#   3. Use a faster model (Sonnet 4.5 instead of Opus)
+#   3. Use a faster model (Sonnet 4.6 instead of Opus)
 #   4. Restrict allowed_tools to reduce tool exploration time
 #
 # Problem: Different behavior than expected with tool restrictions
@@ -367,7 +367,7 @@ jobs:
 # Problem: Custom model not available or failing
 # Solution:
 #   1. Verify model name exactly matches available models:
-#      - claude-sonnet-4-5
+#      - claude-sonnet-4-6
 #      - claude-opus-4-6
 #      - claude-haiku-4-5
 #   2. Check Anthropic API key has access to requested model
@@ -417,7 +417,7 @@ jobs:
 #
 # 1. **Choose the right model**:
 #    - Haiku 4.5: Most cost-effective for simple tasks and high-volume usage
-#    - Sonnet 4.5: Best balance for most tasks (~80% cheaper than Opus)
+#    - Sonnet 4.6: Best balance for most tasks (~80% cheaper than Opus)
 #    - Opus: Reserve for complex analysis or critical reviews
 #
 # 2. **Set appropriate timeouts**:

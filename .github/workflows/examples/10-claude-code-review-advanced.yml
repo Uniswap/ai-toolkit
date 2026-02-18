@@ -12,8 +12,8 @@ name: 'Example: Claude Code Review - Advanced'
 # - Auto-fix with WORKFLOW_PAT for triggering subsequent reviews
 #
 # Model Selection:
-# - Default: Claude Sonnet 4.5 (fast, cost-effective)
-# - With 'claude-opus' label: Claude Opus 4.1 (more thorough, slower)
+# - Default: Claude Sonnet 4.6 (fast, cost-effective)
+# - With 'claude-opus' label: Claude Opus 4.6 (more thorough, slower)
 #
 # Use Cases:
 # - Large PRs that need more time
@@ -45,7 +45,7 @@ jobs:
 
       # Model selection based on PR labels
       # Add 'claude-opus' label to PRs that need more thorough review
-      model: ${{ contains(github.event.pull_request.labels.*.name, 'claude-opus') && 'claude-opus-4-6' || 'claude-sonnet-4-5' }}
+      model: ${{ contains(github.event.pull_request.labels.*.name, 'claude-opus') && 'claude-opus-4-6' || 'claude-sonnet-4-6' }}
 
       # Allow more turns for complex reviews
       # Default is 15, increase for PRs that need deeper analysis

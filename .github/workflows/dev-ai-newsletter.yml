@@ -97,9 +97,9 @@ on:
         required: false
         type: choice
         options:
-          - "claude-sonnet-4-5"
+          - "claude-sonnet-4-6"
           - "claude-opus-4-6"
-        default: "claude-sonnet-4-5"
+        default: "claude-sonnet-4-6"
 
       dry_run:
         description: "Dry run (generate but don't publish to Notion)"
@@ -129,7 +129,7 @@ concurrency:
 
 env:
   DAYS_BACK: ${{ inputs.days_back || '7' }}
-  MODEL: ${{ inputs.model || 'claude-sonnet-4-5' }}
+  MODEL: ${{ inputs.model || 'claude-sonnet-4-6' }}
   DRY_RUN: ${{ inputs.dry_run || 'false' }}
   DEBUG_MODE: ${{ inputs.debug_mode || 'true' }}
 

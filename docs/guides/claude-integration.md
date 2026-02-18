@@ -324,7 +324,7 @@ Claude: [Analyzes the PR files and responds with explanation]
 **Configuration:**
 
 ```yaml
-model: 'claude-sonnet-4-5'
+model: 'claude-sonnet-4-6'
 timeout_minutes: 10
 custom_instructions: |
   - Follow rules in all CLAUDE.md files
@@ -430,7 +430,7 @@ jobs:
   claude-task:
     uses: ./.github/workflows/_claude-main.yml
     with:
-      model: 'claude-sonnet-4-5'
+      model: 'claude-sonnet-4-6'
       custom_instructions: |
         Your task-specific instructions here
       timeout_minutes: 15

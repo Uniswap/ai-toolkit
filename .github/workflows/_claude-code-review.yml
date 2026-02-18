@@ -68,7 +68,7 @@ on:
         description: "Claude model to use for review"
         required: false
         type: string
-        default: "claude-sonnet-4-5"
+        default: "claude-sonnet-4-6"
 
       max_turns:
         description: "Maximum conversation turns for Claude. Omit to use unlimited turns."
@@ -1403,9 +1403,14 @@ jobs:
           # (not spoofable via commit message) as the primary guard. The commit
           # message pattern is checked as defense in depth with an anchored regex
           # to avoid false positives from reverts or commits that mention "auto-fix".
+          #
+          # We use .author.login (GitHub-verified identity) without falling back
+          # to .commit.author.name (user-controlled git metadata). If .author.login
+          # is null (e.g., unlinked email), the guard won't trigger — fail open
+          # means auto-fix runs, which is the safe default.
           HEAD_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')
           COMMIT_DATA=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}")
-          LATEST_COMMIT_AUTHOR=$(echo "$COMMIT_DATA" | jq -r '.author.login // .commit.author.name')
+          LATEST_COMMIT_AUTHOR=$(echo "$COMMIT_DATA" | jq -r '.author.login // empty')
           LATEST_COMMIT_MSG=$(echo "$COMMIT_DATA" | jq -r '.commit.message | split("\n")[0]')
 
           if [ "$LATEST_COMMIT_AUTHOR" = "github-actions[bot]" ]; then
