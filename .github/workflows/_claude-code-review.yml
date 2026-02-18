@@ -1545,7 +1545,9 @@ jobs:
           track_progress: false
           show_full_output: true
           # Use auto_fix_model if specified, otherwise use the review model
-          claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }}"
+          # --allowedTools grants specific write permissions for auto-fix
+          # without using the blanket --dangerously-skip-permissions flag
+          claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }} --allowedTools Read,Edit,Write,Grep,Glob,Bash,WebSearch,WebFetch"
           # Note: plugin_marketplaces and plugins are intentionally omitted here.
           # The marketplace and plugins were already installed by the "Run Claude Code
           # Review" step earlier in this job. Both steps share the same runner and
@@ -1587,7 +1589,7 @@ jobs:
           git diff --staged --stat
 
           # Commit with descriptive message
-          git commit -m "fix: address code review feedback (auto-fix)
+          git commit -m "fix(claude): address code review feedback (auto-fix)
 
           Automated fixes applied by Claude Code Review workflow.
 
