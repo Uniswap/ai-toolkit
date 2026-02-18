@@ -1,0 +1,7 @@
+{
+  "name": "github-scripts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "commonjs",
+  "description": "Internal GitHub Actions scripts for the ai-toolkit repository"
+}

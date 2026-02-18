@@ -1,0 +1,12 @@
+# zizmor configuration for GitHub Actions security linting
+# https://docs.zizmor.sh/configuration/
+#
+# All findings are addressed via:
+# 1. Code fixes (template injection → env vars, excessive-permissions → per-job blocks)
+# 2. persist-credentials: false on all checkout steps (artipacked mitigation)
+# 3. git remote set-url for steps that need push access
+#
+# Run: zizmor .github/workflows/
+# Expected result: 0 findings
+
+rules: {}

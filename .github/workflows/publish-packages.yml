@@ -14,6 +14,13 @@ name: Publish Packages
 # - Push to next: Auto mode with 'next' npm tag, prerelease versioning
 # - workflow_dispatch: Force mode with 'next' npm tag, prerelease versioning
 #
+# WORKFLOW CHANGE DETECTION:
+# In addition to package detection, this workflow also detects changes to reusable workflow
+# files (files prefixed with '_' in .github/workflows/). When workflow files change:
+# - The 'next' branch is synced with 'main' to propagate workflow updates
+# - A Slack notification is sent about the workflow changes
+# - These actions happen even when no npm packages need to be published
+#
 # REQUIRED SECRETS:
 # - WORKFLOW_PAT: For pushing commits/tags
 # - NODE_AUTH_TOKEN: For npm publishing
@@ -33,16 +40,18 @@ on:
       packages:
         description: 'Packages to publish (single name, comma-separated list, or "all")'
         required: true
-        default: 'all'
+        default: "all"
         type: string
       dryRun:
-        description: 'Perform a dry run without publishing'
+        description: "Perform a dry run without publishing"
         required: false
-        default: 'false'
+        default: "false"
         type: choice
         options:
-          - 'true'
-          - 'false'
+          - "true"
+          - "false"
+
+permissions: {}
 
 # Ensure only one publish workflow runs at a time per branch
 concurrency:
@@ -59,6 +68,8 @@ jobs:
   detect:
     name: Detect packages to publish
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     environment: ${{ github.event_name == 'push' && 'Production' || null }}
     outputs:
       has_packages: ${{ steps.resolve.outputs.has_packages }}
@@ -71,6 +82,9 @@ jobs:
       is_dry_run: ${{ steps.config.outputs.is_dry_run }}
       is_force_mode: ${{ steps.config.outputs.is_force_mode }}
       is_prerelease: ${{ steps.config.outputs.is_prerelease }}
+      has_workflow_changes: ${{ steps.workflow-changes.outputs.has_changes }}
+      changed_workflows: ${{ steps.workflow-changes.outputs.changed_files }}
+      should_continue: ${{ steps.resolve.outputs.has_packages == 'true' || steps.workflow-changes.outputs.has_changes == 'true' }}
     # Skip workflow for version bump commits and branch sync commits (prevents loops)
     if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') && !startsWith(github.event.head_commit.message, 'chore(sync):') }}
 
@@ -80,17 +94,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
           node-version: ${{ vars.NODE_VERSION }}
-          registry-url: 'https://registry.npmjs.org'
-          scope: '@uniswap'
+          registry-url: "https://registry.npmjs.org"
+          scope: "@uniswap"
 
       - name: Install npm
-        run: npm install -g npm@${{ vars.NPM_VERSION }}
+        env:
+          NPM_VERSION: ${{ vars.NPM_VERSION }}
+        run: npm install -g npm@$NPM_VERSION
 
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
@@ -166,6 +183,37 @@ jobs:
           else
             echo "Using commit before push: $BASE_SHA"
             echo "base=$BASE_SHA" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Detect reusable workflow changes
+        id: workflow-changes
+        if: github.event_name == 'push'
+        env:
+          BASE_SHA: ${{ steps.base-sha.outputs.base }}
+        run: |
+          echo "🔍 Checking for reusable workflow changes..."
+          echo "Base SHA: $BASE_SHA"
+          echo "Head SHA: HEAD"
+
+          # Get list of changed files matching the reusable workflow pattern
+          CHANGED_WORKFLOWS=$(git diff --name-only "$BASE_SHA" HEAD -- '.github/workflows/_*.yml' 2>/dev/null || echo "")
+
+          if [ -n "$CHANGED_WORKFLOWS" ]; then
+            echo "✅ Found reusable workflow changes:"
+            echo "$CHANGED_WORKFLOWS" | while read -r file; do
+              echo "  - $file"
+            done
+
+            # Output as JSON array for downstream consumption
+            CHANGED_JSON=$(echo "$CHANGED_WORKFLOWS" | jq -R . | jq -s -c .)
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "changed_files=$CHANGED_JSON" >> $GITHUB_OUTPUT
+            echo "change_count=$(echo "$CHANGED_WORKFLOWS" | wc -l | tr -d ' ')" >> $GITHUB_OUTPUT
+          else
+            echo "ℹ️  No reusable workflow changes detected"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "changed_files=[]" >> $GITHUB_OUTPUT
+            echo "change_count=0" >> $GITHUB_OUTPUT
           fi
 
       - name: Resolve packages to publish
@@ -345,16 +393,25 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.WORKFLOW_PAT }}
+          persist-credentials: false
+
+      - name: Configure git credentials for push
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
           node-version: ${{ vars.NODE_VERSION }}
-          registry-url: 'https://registry.npmjs.org'
-          scope: '@uniswap'
+          registry-url: "https://registry.npmjs.org"
+          scope: "@uniswap"
 
       - name: Install npm
-        run: npm install -g npm@${{ vars.NPM_VERSION }}
+        env:
+          NPM_VERSION: ${{ vars.NPM_VERSION }}
+        run: npm install -g npm@$NPM_VERSION
 
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
@@ -423,15 +480,17 @@ jobs:
 
             echo "Checking package: $package"
             PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
-            LATEST_TAG=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | sort -V | tail -n 1)
+            # Find highest stable tag (sort -V doesn't handle semver prereleases correctly)
+            # Filter to stable versions: @X.Y.Z (no hyphen after version = no prerelease suffix)
+            LATEST_TAG=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | grep -E '@[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
 
             if [ -z "$LATEST_TAG" ]; then
-              echo "  ℹ️  No tags found - will create first tag during versioning"
+              echo "  ℹ️  No stable tags found - skipping orphaned check"
               continue
             fi
 
             VERSION="${LATEST_TAG##*@}"
-            echo "  Latest tag: $LATEST_TAG (version: $VERSION)"
+            echo "  Latest stable tag: $LATEST_TAG (version: $VERSION)"
 
             if npm view "${package}@${VERSION}" version --registry=https://registry.npmjs.org &>/dev/null; then
               echo "  ✅ Version $VERSION exists on npm - tag is valid"
@@ -495,7 +554,7 @@ jobs:
           INPUT_PACKAGES: ${{ needs.detect.outputs.packages }}
           INPUT_NPM_TAG: ${{ needs.detect.outputs.npm_tag }}
           INPUT_VERSION_STRATEGY: ${{ needs.detect.outputs.version_strategy }}
-          INPUT_PREID: 'next'
+          INPUT_PREID: "next"
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
         run: |
           echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
@@ -506,6 +565,9 @@ jobs:
           echo "Projects: $INPUT_PROJECTS"
           echo "npm tag: $INPUT_NPM_TAG"
           echo "Version strategy: $INPUT_VERSION_STRATEGY"
+
+          # Source shared validation function (defense-in-depth for bash arithmetic)
+          source .github/scripts/validate-numeric.sh
 
           calculate_prerelease_version() {
             local package="$1"
@@ -521,6 +583,12 @@ jobs:
             local major minor patch
             IFS='.' read -r major minor patch <<< "$latest_version"
             patch="${patch%%-*}"
+
+            # Validate version components before arithmetic (defense-in-depth)
+            major=$(validate_numeric "$major" "major") || return 1
+            minor=$(validate_numeric "$minor" "minor") || return 1
+            patch=$(validate_numeric "$patch" "patch") || return 1
+
             local base_version="${major}.${minor}.$((patch + 1))"
 
             local npm_prerelease=-1
@@ -589,6 +657,11 @@ jobs:
 
             local major minor patch
             IFS='.' read -r major minor patch <<< "$base_version"
+
+            # Validate version components before arithmetic (defense-in-depth)
+            major=$(validate_numeric "$major" "major") || return 1
+            minor=$(validate_numeric "$minor" "minor") || return 1
+            patch=$(validate_numeric "$patch" "patch") || return 1
 
             local npm_versions
             npm_versions=$(npm view "$package" versions --json --registry=https://registry.npmjs.org 2>/dev/null || echo "[]")
@@ -660,7 +733,7 @@ jobs:
           INPUT_PACKAGES: ${{ needs.detect.outputs.packages }}
           INPUT_NPM_TAG: ${{ needs.detect.outputs.npm_tag }}
           INPUT_VERSION_STRATEGY: ${{ needs.detect.outputs.version_strategy }}
-          INPUT_PREID: 'next'
+          INPUT_PREID: "next"
           INPUT_BRANCH: ${{ github.ref_name }}
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
@@ -673,6 +746,9 @@ jobs:
           echo "=========================================="
           echo "For each package: version → publish → push (or revert on failure)"
           echo ""
+
+          # Source shared validation function (defense-in-depth for bash arithmetic)
+          source .github/scripts/validate-numeric.sh
 
           calculate_prerelease_version() {
             local package="$1"
@@ -693,6 +769,12 @@ jobs:
             local major minor patch
             IFS='.' read -r major minor patch <<< "$latest_version"
             patch="${patch%%-*}"
+
+            # Validate version components before arithmetic (defense-in-depth)
+            major=$(validate_numeric "$major" "major") || return 1
+            minor=$(validate_numeric "$minor" "minor") || return 1
+            patch=$(validate_numeric "$patch" "patch") || return 1
+
             local base_version="${major}.${minor}.$((patch + 1))"
             echo "  📐 Base version: $base_version" >&2
 
@@ -792,6 +874,11 @@ jobs:
             local major minor patch
             IFS='.' read -r major minor patch <<< "$base_version"
 
+            # Validate version components before arithmetic (defense-in-depth)
+            major=$(validate_numeric "$major" "major") || return 1
+            minor=$(validate_numeric "$minor" "minor") || return 1
+            patch=$(validate_numeric "$patch" "patch") || return 1
+
             # Find the highest stable version on npm
             local npm_versions
             npm_versions=$(npm view "$package" versions --json --registry=https://registry.npmjs.org 2>/dev/null || echo "[]")
@@ -835,6 +922,7 @@ jobs:
 
           FAILED_PACKAGES=()
           SUCCESS_PACKAGES=()
+          declare -A SUCCESS_VERSIONS  # Track versions for each successful package
 
           for i in "${!PROJECTS[@]}"; do
             project="${PROJECTS[$i]}"
@@ -958,8 +1046,9 @@ jobs:
                 fi
               fi
 
-              PACKAGE_TAG=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | sort -V | tail -n 1)
-              if [ -n "$PACKAGE_TAG" ]; then
+              # Use the exact tag we created - don't re-query with sort -V (it doesn't follow semver)
+              PACKAGE_TAG="${package}@${NEW_VERSION}"
+              if git rev-parse "$PACKAGE_TAG" >/dev/null 2>&1; then
                 echo "🏷️  Pushing tag: $PACKAGE_TAG"
                 if git push origin "$PACKAGE_TAG"; then
                   echo "✅ Pushed tag"
@@ -974,6 +1063,7 @@ jobs:
               fi
 
               SUCCESS_PACKAGES+=("$package")
+              SUCCESS_VERSIONS["$package"]="$NEW_VERSION"  # Track version for GitHub release
               if [ "$PUSH_FAILED" = true ]; then
                 echo "⚠️  Package published but git sync incomplete"
               else
@@ -1000,8 +1090,16 @@ jobs:
           SUCCESS_JSON=$(printf '%s\n' "${SUCCESS_PACKAGES[@]}" | jq -R . | jq -s -c .)
           FAILED_JSON=$(printf '%s\n' "${FAILED_PACKAGES[@]}" | jq -R . | jq -s -c .)
 
+          # Build versions JSON safely using jq: {"@scope/pkg": "1.2.3", ...}
+          # Note: -c flag ensures compact single-line output (required for GitHub Actions outputs)
+          VERSIONS_JSON="{}"
+          for pkg in "${SUCCESS_PACKAGES[@]}"; do
+            VERSIONS_JSON=$(echo "$VERSIONS_JSON" | jq -c --arg k "$pkg" --arg v "${SUCCESS_VERSIONS[$pkg]}" '. + {($k): $v}')
+          done
+
           echo "successful_packages=$SUCCESS_JSON" >> $GITHUB_OUTPUT
           echo "failed_packages=$FAILED_JSON" >> $GITHUB_OUTPUT
+          echo "successful_versions=$VERSIONS_JSON" >> $GITHUB_OUTPUT
           echo "successful_count=${#SUCCESS_PACKAGES[@]}" >> $GITHUB_OUTPUT
           echo "failed_count=${#FAILED_PACKAGES[@]}" >> $GITHUB_OUTPUT
           echo "has_failures=$( [ ${#FAILED_PACKAGES[@]} -gt 0 ] && echo 'true' || echo 'false' )" >> $GITHUB_OUTPUT
@@ -1028,6 +1126,7 @@ jobs:
         if: needs.detect.outputs.is_dry_run != 'true' && steps.publish.outputs.has_successes == 'true'
         env:
           SUCCESSFUL_PACKAGES: ${{ steps.publish.outputs.successful_packages }}
+          SUCCESSFUL_VERSIONS: ${{ steps.publish.outputs.successful_versions }}
           INPUT_IS_PRERELEASE: ${{ needs.detect.outputs.is_prerelease }}
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
         run: |
@@ -1038,24 +1137,26 @@ jobs:
           for package in "${PACKAGES[@]}"; do
             [ -z "$package" ] && continue
 
-            PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
-            LATEST_TAG=$(git tag -l "${PACKAGE_NAME}@*" "${package}@*" 2>/dev/null | sort -V | tail -n 1)
+            # Get version from passed data - don't re-query with sort -V (it doesn't follow semver)
+            VERSION=$(echo "$SUCCESSFUL_VERSIONS" | jq -r --arg pkg "$package" '.[$pkg] // empty')
+            if [ -z "$VERSION" ]; then
+              echo "⚠️ No version found for $package, skipping release"
+              continue
+            fi
 
-            if [ -n "$LATEST_TAG" ]; then
-              VERSION="${LATEST_TAG##*@}"
+            TAG="${package}@${VERSION}"
 
-              if gh release view "$LATEST_TAG" &>/dev/null; then
-                echo "✓ Release $LATEST_TAG already exists"
+            if gh release view "$TAG" &>/dev/null; then
+              echo "✓ Release $TAG already exists"
+            else
+              echo "Creating release for $TAG"
+
+              if [ "$INPUT_IS_PRERELEASE" = "true" ]; then
+                gh release create "$TAG" --title "$package $VERSION" --verify-tag --prerelease --notes "Prerelease $VERSION of $package."
               else
-                echo "Creating release for $LATEST_TAG"
-
-                if [ "$INPUT_IS_PRERELEASE" = "true" ]; then
-                  gh release create "$LATEST_TAG" --title "$package $VERSION" --verify-tag --prerelease --notes "Prerelease $VERSION of $package."
-                else
-                  gh release create "$LATEST_TAG" --title "$package $VERSION" --verify-tag --notes "Release $VERSION of $package."
-                fi
-                echo "✅ Created release for $LATEST_TAG"
+                gh release create "$TAG" --title "$package $VERSION" --verify-tag --notes "Release $VERSION of $package."
               fi
+              echo "✅ Created release for $TAG"
             fi
           done
 
@@ -1069,11 +1170,13 @@ jobs:
       github.event_name == 'push' &&
       needs.detect.outputs.is_dry_run != 'true' &&
       needs.publish.outputs.has_successes == 'true'
+    permissions:
+      contents: read
     uses: ./.github/workflows/_generate-changelog.yml
     with:
       from_ref: ${{ github.event.before }}
       to_ref: ${{ github.sha }}
-      output_formats: 'slack,markdown'
+      output_formats: "slack,markdown"
       custom_prompt_text: |
         # Release Changelog Generation Prompt
 
@@ -1130,11 +1233,13 @@ jobs:
       github.event_name == 'push' &&
       needs.detect.outputs.is_dry_run != 'true' &&
       needs.publish.outputs.has_successes == 'true'
+    permissions:
+      contents: read
     uses: ./.github/workflows/_notify-release.yml
     with:
       changelog_slack: ${{ needs.generate-changelog.outputs.changelog_slack }}
       changelog_markdown: ${{ needs.generate-changelog.outputs.changelog_markdown }}
-      destinations: 'slack,notion'
+      destinations: "slack,notion"
       from_ref: ${{ github.event.before }}
       to_ref: ${{ github.sha }}
       branch: ${{ github.ref_name }}
@@ -1143,19 +1248,25 @@ jobs:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
       RELEASE_NOTES_NOTION_DATABASE_ID: ${{ secrets.RELEASE_NOTES_NOTION_DATABASE_ID }}
-      NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
   # ============================================================================
-  # SYNC NEXT: Sync next branch with main after main releases (auto mode only)
+  # SYNC NEXT: Sync next branch with main after main releases or workflow changes
+  # ============================================================================
+  # Runs when packages are published OR reusable workflows have changed.
+  # This ensures workflow updates are synced to next branch even when no
+  # packages need to be published.
   # ============================================================================
   sync-next:
     name: Sync next branch with main
     runs-on: ubuntu-24.04
     needs: [detect, publish]
     if: |
+      always() &&
       github.ref_name == 'main' &&
       github.event_name == 'push' &&
-      needs.detect.outputs.is_dry_run != 'true'
+      needs.detect.outputs.is_dry_run != 'true' &&
+      needs.detect.outputs.should_continue == 'true' &&
+      (needs.publish.result == 'success' || needs.publish.result == 'skipped')
     permissions:
       contents: write
 
@@ -1167,6 +1278,13 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.WORKFLOW_PAT }}
+          persist-credentials: false
+
+      - name: Configure git credentials for push
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec # v6
@@ -1256,15 +1374,120 @@ jobs:
           gt sync --force --no-interactive && echo "✅ Synced using Graphite" || echo "⚠️ Graphite sync also failed"
 
   # ============================================================================
+  # NOTIFY WORKFLOW CHANGES: Slack notification for workflow-only updates
+  # ============================================================================
+  # Runs when reusable workflows have changed but no packages were published.
+  # Sends a Slack notification to inform the team about workflow updates.
+  # ============================================================================
+  notify-workflow-changes:
+    name: Notify workflow changes via Slack
+    runs-on: ubuntu-24.04
+    permissions: {}
+    needs: [detect, sync-next]
+    if: |
+      always() &&
+      github.ref_name == 'main' &&
+      github.event_name == 'push' &&
+      needs.detect.outputs.is_dry_run != 'true' &&
+      needs.detect.outputs.has_workflow_changes == 'true' &&
+      needs.detect.outputs.has_packages != 'true' &&
+      needs.sync-next.result == 'success'
+
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Send Slack notification for workflow changes
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          CHANGED_WORKFLOWS: ${{ needs.detect.outputs.changed_workflows }}
+          BRANCH_NAME: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
+          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          echo "📢 Sending Slack notification for workflow changes..."
+
+          # Build the list of changed workflows
+          WORKFLOW_LIST=$(echo "$CHANGED_WORKFLOWS" | jq -r '.[] | "• " + (. | split("/") | last)')
+
+          # Create the Slack message payload
+          PAYLOAD=$(jq -n \
+            --arg branch "$BRANCH_NAME" \
+            --arg sha "${COMMIT_SHA:0:7}" \
+            --arg commit_url "$COMMIT_URL" \
+            --arg repo_url "$REPO_URL" \
+            --arg workflows "$WORKFLOW_LIST" \
+            '{
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "🔄 Reusable Workflows Updated",
+                    "emoji": true
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ("*Branch:* `" + $branch + "`\n*Commit:* <" + $commit_url + "|" + $sha + ">")
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ("*Changed Workflows:*\n" + $workflows)
+                  }
+                },
+                {
+                  "type": "context",
+                  "elements": [
+                    {
+                      "type": "mrkdwn",
+                      "text": ("These reusable workflow updates have been synced to the `next` branch. | <" + $repo_url + "/actions|View Actions>")
+                    }
+                  ]
+                }
+              ]
+            }')
+
+          # Send to Slack
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+              --data "$PAYLOAD" \
+              "$SLACK_WEBHOOK_URL"
+            echo ""
+            echo "✅ Slack notification sent"
+          else
+            echo "⚠️ SLACK_WEBHOOK_URL not configured, skipping notification"
+          fi
+
+          # Generate step summary
+          echo "## 🔄 Reusable Workflows Updated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The following reusable workflows were updated:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "$CHANGED_WORKFLOWS" | jq -r '.[]' | while read -r workflow; do
+            echo "- \`$workflow\`" >> $GITHUB_STEP_SUMMARY
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "These changes have been synced to the \`next\` branch." >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
   # SUMMARY: Generate workflow summary (force mode only)
   # ============================================================================
   summary:
     name: Generate summary
     runs-on: ubuntu-24.04
+    permissions: {}
     needs: [detect, publish]
     if: github.event_name == 'workflow_dispatch' && always()
 
     steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
       - name: Generate workflow summary
         env:
           DRY_RUN: ${{ needs.detect.outputs.is_dry_run }}

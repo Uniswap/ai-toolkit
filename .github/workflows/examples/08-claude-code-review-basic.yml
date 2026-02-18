@@ -38,9 +38,10 @@ jobs:
       pr_number: ${{ github.event.pull_request.number }}
       base_ref: ${{ github.base_ref }}
       # All other inputs use defaults:
-      # - model: claude-sonnet-4-5-20250929
+      # - model: claude-sonnet-4-5
       # - max_turns: 15
       # - timeout_minutes: 30
       # - custom_prompt: (uses default from ai-toolkit)
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

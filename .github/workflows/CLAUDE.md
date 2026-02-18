@@ -8,39 +8,47 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 
 ### CI & Quality Assurance (2 workflows)
 
-- `ci-pr-checks.yml` - Validates PRs with build, lint, format, and test checks
+- `ci-pr-checks.yml` - Validates PRs with build, lint, format, test, and plugin validation checks
 - `claude-welcome.yml` - Posts welcome messages from Claude to new PRs
 
 ### Release & Deployment (2 workflows)
 
-- `publish-packages.yml` - Unified package publishing workflow (automatic on push to main/next, manual via workflow_dispatch)
+- `publish-packages.yml` - Unified package publishing workflow (automatic on push to main/next, manual via workflow_dispatch). Also detects changes to reusable workflows and syncs them to the `next` branch with Slack notifications.
 - `release-update-production.yml` - Creates production sync PRs with AI changelogs
 
-### Code Review & PR Management (3 workflows)
+### Code Review & PR Management (4 workflows)
 
 - `claude-code.yml` - Responds to @claude mentions in issues and PRs
 - `claude-code-review.yml` - Automated PR code reviews with inline comments
+- `claude-docs-check.yml` - Validates PR documentation is properly updated (CLAUDE.md, README, versions)
 - `generate-pr-title-description.yml` - Auto-generates PR titles and descriptions using Claude
 
 ### PR Title Validation (1 workflow)
 
 - `ci-check-pr-title.yml` - Validates PR titles follow conventional commit format
 
-### Autonomous Task Processing (2 workflows)
+### Autonomous Task Processing (3 workflows)
 
 - `claude-auto-tasks.yml` - Scheduled autonomous task processing from Linear
+- `_claude-task-prepare.yml` - Reusable workflow for querying Linear and preparing task matrix
 - `_claude-task-worker.yml` - Reusable worker for processing individual Linear tasks
+
+### Newsletter Automation (1 workflow)
+
+- `dev-ai-newsletter.yml` - Weekly Dev AI Pod newsletter generation using Claude with Notion and Slack MCPs
 
 ### Dependency Management (2 workflows)
 
 - `update-action-versions.yml` - Scheduled workflow to update GitHub Actions to latest versions
 - `_update-action-versions-worker.yml` - Reusable worker for analyzing and updating action versions
 
-### Reusable Workflows (8 workflows, prefixed with `_`)
+### Reusable Workflows (10 workflows, prefixed with `_`)
 
 - `_claude-main.yml` - Core Claude AI interaction engine
 - `_claude-welcome.yml` - Reusable welcome message poster
 - `_claude-code-review.yml` - Reusable PR review automation
+- `_claude-docs-check.yml` - Reusable PR documentation validator
+- `_claude-task-prepare.yml` - Linear task querying and matrix preparation
 - `_claude-task-worker.yml` - Autonomous task execution from Linear issues
 - `_generate-changelog.yml` - AI-powered changelog generation
 - `_generate-pr-metadata.yml` - AI-powered PR title and description generation
@@ -55,11 +63,119 @@ These workflows are prefixed with `_` and may be called from other repositories:
 
 - `_claude-main.yml` - Claude AI assistant for GitHub interactions
 - `_claude-code-review.yml` - Formal GitHub PR reviews with inline comments
+- `_claude-docs-check.yml` - PR documentation validator with commit suggestions
+- `_claude-task-prepare.yml` - Query Linear and prepare task matrix for parallel processing
 - `_claude-task-worker.yml` - Process single Linear task autonomously
 - `_claude-welcome.yml` - Welcome messages for new contributors
 - `_generate-changelog.yml` - AI-generated release notes
 - `_generate-pr-metadata.yml` - AI-generated PR titles and descriptions
 - `_notify-release.yml` - Slack notification dispatcher
+
+### Claude AI Assistant (`_claude-main.yml`)
+
+This workflow enables Claude to respond to @claude mentions in issues, PRs, comments, and reviews. It's the core Claude AI interaction engine for GitHub.
+
+**Key Features:**
+
+| Feature                 | Description                                                                   |
+| ----------------------- | ----------------------------------------------------------------------------- |
+| **@claude Mentions**    | Responds to @claude mentions in issue comments, PR comments, PR reviews       |
+| **Security Scanning**   | Built-in Bullfrog security scanning (egress-policy: audit)                    |
+| **Configurable Model**  | Choose between Sonnet, Opus, or Haiku models                                  |
+| **Tool Control**        | Restrict or allow specific tools via `allowed_tools` and `disallowed_tools`   |
+| **Custom Instructions** | Add system prompt instructions via `custom_instructions`                      |
+| **MCP Support**         | Configure MCP servers via `mcp_config`                                        |
+| **Dual Authentication** | Supports both API key and OAuth token authentication (OAuth takes precedence) |
+
+**Required Secrets:**
+
+| Secret                    | Required                                      | Description                                                                                                                               |
+| ------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`       | Yes (unless `CLAUDE_CODE_OAUTH_TOKEN` is set) | Anthropic API key for Claude access                                                                                                       |
+| `CLAUDE_CODE_OAUTH_TOKEN` | No (alternative to `ANTHROPIC_API_KEY`)       | Claude Code OAuth token for authentication. When provided, takes precedence over `ANTHROPIC_API_KEY`. Generate with `claude setup-token`. |
+
+**Authentication Methods:**
+
+You can authenticate with Claude using either method:
+
+1. **API Key (Traditional):** Set `ANTHROPIC_API_KEY` with your Anthropic API key
+2. **OAuth Token (Pro/Max Users):** Set `CLAUDE_CODE_OAUTH_TOKEN` with a token generated via `claude setup-token`
+
+If both are provided, OAuth token takes precedence. At least one authentication method must be configured.
+
+> **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
+
+**Configuration Inputs:**
+
+| Input                           | Required | Default                | Description                                                         |
+| ------------------------------- | -------- | ---------------------- | ------------------------------------------------------------------- |
+| `prompt`                        | No       | `""`                   | Direct automation prompt (enables automation mode)                  |
+| `model`                         | No       | `claude-sonnet-4-5`    | Claude model to use                                                 |
+| `allowed_tools`                 | No       | `""`                   | Comma-separated list of allowed tools                               |
+| `disallowed_tools`              | No       | `""`                   | Comma-separated list of disallowed tools                            |
+| `custom_instructions`           | No       | CLAUDE.md instructions | Additional system prompt instructions                               |
+| `max_turns`                     | No       | unlimited              | Maximum conversation turns                                          |
+| `mcp_config`                    | No       | `""`                   | MCP server configuration (JSON)                                     |
+| `settings`                      | No       | `""`                   | Additional settings including env vars (JSON)                       |
+| `timeout_minutes`               | No       | `10`                   | Job timeout in minutes                                              |
+| `anthropic_api_key_secret_name` | No       | `ANTHROPIC_API_KEY`    | Name of the secret containing the Anthropic API key                 |
+| `plugin_marketplaces`           | No       | `""`                   | Additional marketplace paths (newline-separated, local or Git URLs) |
+| `plugins`                       | No       | `""`                   | Additional plugins to install (newline-separated)                   |
+| `install_uniswap_plugins`       | No       | `true`                 | Auto-install uniswap-ai-toolkit plugins (false to opt out)          |
+
+**Plugin Configuration:**
+
+All Uniswap AI Toolkit plugins are **automatically installed** by default for every workflow invocation. This includes:
+
+- `development-planning` - Implementation planning & execution workflows
+- `development-pr-workflow` - PR management, review, & Graphite integration
+- `development-codebase-tools` - Code exploration & refactoring
+- `development-productivity` - Documentation, research, & prompt optimization
+- `uniswap-integrations` - External service integrations (Linear, Notion, Nx)
+
+**How it works:**
+
+The workflows pass the Git URL `https://github.com/Uniswap/ai-toolkit.git` to the `plugin_marketplaces` input, and the claude-code-action handles cloning and installing the plugins automatically.
+
+**Opt-out:** Set `install_uniswap_plugins: false` to disable automatic plugin installation. Use this when you want to use only your own plugins.
+
+You can use the `plugin_marketplaces` and `plugins` inputs to install **additional** plugins beyond the default set (or as the only plugins when `install_uniswap_plugins: false`).
+
+> **Note:** Plugin support requires claude-code-action v1.0.29+.
+
+**Usage example (API Key):**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+with:
+  model: 'claude-sonnet-4-5'
+  custom_instructions: |
+    Focus on code quality and security.
+    Follow CLAUDE.md guidelines.
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+**Usage example (OAuth Token):**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+with:
+  model: 'claude-sonnet-4-5'
+secrets:
+  CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+```
+
+**Usage example (Both - OAuth takes precedence):**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
+with:
+  model: 'claude-sonnet-4-5'
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+```
 
 ### PR Code Review (`_claude-code-review.yml`)
 
@@ -70,13 +186,17 @@ This workflow performs automated PR code reviews using Claude AI with the follow
 - Formal GitHub reviews (APPROVE/REQUEST_CHANGES/COMMENT)
 - Inline comments on specific lines of code (as `github-actions[bot]`)
 - **Real-time status updates**: Shows "review in progress" immediately when workflow starts
+- **Accurate diff calculation**: Uses the merge base (common ancestor) to compute diffs, matching exactly what GitHub shows in the PR view even when the base branch has moved forward
 - Patch-ID based caching to skip rebases (no actual code changes)
 - **Comment trigger**: Add `@request-claude-review` to any PR comment to force a fresh review
 - Manual trigger via workflow_dispatch to force a new review (bypasses cache)
-- Custom prompt support
+- **Modular prompt architecture**: Prompts assembled from section files using `build-prompt.ts` (with unit tests)
 - Existing review comment context for re-reviews
 - Fast review mode for trivial PRs (< 20 lines)
+- **Lockfile exclusion**: Auto-generated lockfiles are excluded from the diff (package-lock.json, yarn.lock, bun.lock, pnpm-lock.yaml, Podfile.lock, etc.)
 - **Built-in Verdict Decision Rules** - Ensures consistent, predictable review verdicts
+- **Debug artifacts**: Uploads PR diff files and final assembled prompt as GitHub Actions artifacts for debugging
+- **Auto-fix mode**: Optionally auto-fix issues and push changes, triggering a re-review
 
 **Verdict Decision Rules:**
 
@@ -94,12 +214,27 @@ This logic is built into the workflow's system prompt, so all consumers get cons
 
 **Architecture:**
 
-This workflow uses a hybrid approach:
+This workflow uses a hybrid approach with testable TypeScript components:
 
-1. Claude analyzes the PR and outputs structured JSON
-2. A TypeScript script (`post-review.ts`) parses the JSON and posts the review via `gh` CLI
+1. A TypeScript script (`build-prompt.ts`) assembles the prompt from modular section files and writes it to a temp file
+2. Claude receives a file reference (`@/tmp/final-prompt.txt`) and reads the prompt from disk
+3. Claude analyzes the PR and outputs structured JSON
+4. A TypeScript script (`post-review.ts`) parses the JSON and posts the review via `gh` CLI
 
-This ensures all comments appear as `github-actions[bot]` using the official Anthropic action without needing a fork.
+**Why file reference instead of direct prompt passing?**
+
+Large prompts (big diffs, many existing comments) can cause parsing issues when passed through GitHub Actions outputs to Bun. By writing the prompt to a file and using Claude Code's `@path` reference syntax, we avoid:
+
+- GitHub Actions output size limitations
+- Bun's string parsing issues with large heredoc content
+- Shell escaping problems with complex prompt content
+
+This architecture ensures:
+
+- All comments appear as `github-actions[bot]` using the official Anthropic action
+- Prompt building logic is testable (see `.github/scripts/build-prompt.spec.ts`)
+- External repos can use the workflow by downloading scripts from ai-toolkit
+- Large prompts are handled reliably regardless of content size
 
 **Real-Time Status Updates:**
 
@@ -113,52 +248,165 @@ The workflow provides immediate feedback to PR authors:
 
 This eliminates the "is it running?" uncertainty by posting a status comment as the very first action in the workflow, before any analysis begins. The same comment is then updated with the final review or skipped status.
 
+**Debug Artifacts:**
+
+The workflow uploads several artifacts for debugging and inspection (retained for 7 days):
+
+| Artifact Name                   | Contents                                                                   |
+| ------------------------------- | -------------------------------------------------------------------------- |
+| `pr-diff-files-pr{N}`           | Changed files list (`changed-files.txt`) and PR diff (`pr-diff.txt`)       |
+| `final-prompt-pr{N}`            | The fully assembled prompt sent to Claude (`final-prompt.txt`)             |
+| `claude-execution-output-pr{N}` | Raw Claude execution output JSON                                           |
+| `post-review-debug-pr{N}`       | JSON payloads sent to GitHub API by post-review script (`gh-input-*.json`) |
+
+These artifacts are available in the workflow run's "Artifacts" section and are useful for:
+
+- Debugging prompt assembly issues
+- Verifying which files were included in the diff
+- Inspecting Claude's raw output when reviews behave unexpectedly
+- Debugging GitHub API call failures (inspect the exact JSON payloads sent)
+
 **Required Secrets:**
 
-| Secret              | Required | Description                                                                                                              |
-| ------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `ANTHROPIC_API_KEY` | Yes      | Anthropic API key for Claude access                                                                                      |
-| `WORKFLOW_PAT`      | Optional | Personal Access Token with `repo` scope. Only needed for resolving review threads via GraphQL API (falls back to `GITHUB_TOKEN`). |
+| Secret                    | Required                                      | Description                                                                                                                                                                         |
+| ------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`       | Yes (unless `CLAUDE_CODE_OAUTH_TOKEN` is set) | Anthropic API key for Claude access                                                                                                                                                 |
+| `CLAUDE_CODE_OAUTH_TOKEN` | No (alternative to `ANTHROPIC_API_KEY`)       | Claude Code OAuth token for authentication. When provided, takes precedence over `ANTHROPIC_API_KEY`. Generate with `claude setup-token`.                                           |
+| `WORKFLOW_PAT`            | No                                            | Personal Access Token with `repo` scope. Needed for resolving review threads via GraphQL API and for pushing auto-fix commits (falls back to `GITHUB_TOKEN` but auto-fix may fail). |
+
+**Authentication Methods:**
+
+You can authenticate with Claude using either method:
+
+1. **API Key (Traditional):** Set `ANTHROPIC_API_KEY` with your Anthropic API key
+2. **OAuth Token (Pro/Max Users):** Set `CLAUDE_CODE_OAUTH_TOKEN` with a token generated via `claude setup-token`
+
+If both are provided, OAuth token takes precedence. At least one authentication method must be configured.
 
 > **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
 >
 > **Note:** If you need assistance installing the Claude GitHub App, please open an issue at [GitHub Issues](https://github.com/Uniswap/ai-toolkit/issues).
 
+**Repository Settings (Required):**
+
+You must enable GitHub Actions to create and approve pull requests:
+
+1. Go to your repository's **Settings** → **Actions** → **General**
+2. Scroll to **"Workflow permissions"**
+3. Check **"Allow GitHub Actions to create and approve pull requests"**
+4. Click **Save**
+
+> **Why this is needed:** The Claude Code Review workflow submits formal GitHub reviews (APPROVE/REQUEST_CHANGES/COMMENT). Without this setting enabled, the workflow cannot post review verdicts.
+
 **Configuration Inputs:**
 
-| Input                | Required | Default                            | Description                                                                                                                    |
-| -------------------- | -------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `pr_number`          | Yes      | -                                  | Pull request number to review                                                                                                  |
-| `base_ref`           | Yes      | -                                  | Base branch name (e.g., main, master)                                                                                          |
-| `force_review`       | No       | `false`                            | Force a full review even if the code hasn't changed (bypasses patch-ID cache)                                                  |
-| `model`              | No       | `claude-sonnet-4-5-20250929`       | Claude model to use for review                                                                                                 |
-| `max_turns`          | No       | unlimited                          | Maximum conversation turns for Claude                                                                                          |
-| `custom_prompt`      | No       | `""`                               | Custom prompt text (overrides prompt file and default)                                                                         |
-| `custom_prompt_path` | No       | `.claude/prompts/claude-pr-bot.md` | Path to custom prompt file in repository                                                                                       |
-| `timeout_minutes`    | No       | `30`                               | Job timeout in minutes                                                                                                         |
-| `allowed_tools`      | No       | `""`                               | Comma-separated list of allowed tools for Claude                                                                               |
-| `toolkit_ref`        | No       | `main`                             | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
+| Input                                 | Required | Default             | Description                                                                                                                    |
+| ------------------------------------- | -------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `pr_number`                           | Yes      | -                   | Pull request number to review                                                                                                  |
+| `base_ref`                            | No       | -                   | Base branch name (e.g., main, master). If not provided, fetched via GitHub API.                                                |
+| `force_review`                        | No       | `false`             | Force a full review even if the code hasn't changed (bypasses patch-ID cache)                                                  |
+| `model`                               | No       | `claude-sonnet-4-5` | Claude model to use for review                                                                                                 |
+| `max_turns`                           | No       | unlimited           | Maximum conversation turns for Claude                                                                                          |
+| `prompt_override_files_to_skip`       | No       | `""`                | Path to markdown file overriding "Files to Skip" section                                                                       |
+| `prompt_override_review_priorities`   | No       | `""`                | Path to markdown file overriding "Review Priorities" section                                                                   |
+| `prompt_override_communication_style` | No       | `""`                | Path to markdown file overriding "Communication Style" section                                                                 |
+| `prompt_override_pattern_recognition` | No       | `""`                | Path to markdown file overriding "Pattern Recognition" section                                                                 |
+| `timeout_minutes`                     | No       | `30`                | Job timeout in minutes                                                                                                         |
+| `max_diff_lines`                      | No       | `5000`              | Maximum diff lines before skipping Claude review (PR considered too large)                                                     |
+| `allowed_tools`                       | No       | `""`                | Comma-separated list of allowed tools for Claude                                                                               |
+| `toolkit_ref`                         | No       | `main`              | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
+| `install_uniswap_plugins`             | No       | `true`              | Auto-install uniswap-ai-toolkit plugins. Set to false to opt out and use only custom plugins.                                  |
+| `auto_fix`                            | No       | `false`             | When enabled, auto-fix issues found in review and push changes (triggers re-review). Requires `WORKFLOW_PAT`.                  |
+| `auto_fix_model`                      | No       | (same as `model`)   | Model to use for auto-fixing. Use a more capable model (e.g., Opus) for complex fixes.                                         |
 
-**Usage example:**
+**Section Overrides (Granular Prompt Customization):**
+
+The PR review prompt is assembled from modular section files in `.github/prompts/pr-review/`. You can selectively override specific sections using `prompt_override_*` inputs. Each input points to a markdown file in your repository containing the replacement content.
+
+| Input                                 | Section File Replaced                  | Default Behavior                                      |
+| ------------------------------------- | -------------------------------------- | ----------------------------------------------------- |
+| `prompt_override_files_to_skip`       | `overridable/5-files-to-skip.md`       | Lockfiles, snapshots, build artifacts, generated code |
+| `prompt_override_review_priorities`   | `overridable/4-review-priorities.md`   | Critical (bugs/security) → Maintainability → Style    |
+| `prompt_override_communication_style` | `overridable/6-communication-style.md` | Direct, specific, with code examples                  |
+| `prompt_override_pattern_recognition` | `overridable/7-pattern-recognition.md` | Common antipatterns, dependency injection patterns    |
+
+**Section Override Example:**
+
+Create markdown files in your repository:
+
+`.claude/prompts/review-files-to-skip.md`:
+
+```markdown
+## Files to Skip
+
+**Project-specific exclusions:**
+
+- `*.generated.ts` - Auto-generated TypeScript
+- `**/migrations/**` - Database migrations
+- `src/contracts/abis/*.json` - Contract ABIs
+```
+
+`.claude/prompts/review-priorities.md`:
+
+```markdown
+## Review Priorities
+
+### Critical (Security Focus)
+
+- Smart contract interactions
+- Token approval patterns
+- Reentrancy vulnerabilities
+
+### Standard
+
+- Business logic correctness
+- Error handling
+```
+
+Then reference them in your workflow:
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  prompt_override_files_to_skip: '.claude/prompts/review-files-to-skip.md'
+  prompt_override_review_priorities: '.claude/prompts/review-priorities.md'
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+```
+
+**Notes:**
+
+- Override files must exist in the repository; missing files will cause an error
+- Each override file should contain properly formatted markdown for that section
+
+**Usage example (API Key):**
 
 ```yaml
 uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
 with:
   pr_number: ${{ github.event.pull_request.number }}
   base_ref: ${{ github.base_ref }}
-  model: 'claude-sonnet-4-5-20250929'
+  model: 'claude-sonnet-4-5'
   toolkit_ref: 'main' # or 'next' to test unreleased changes
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
 ```
 
-**Prompt Configuration Options:**
+**Usage example (OAuth Token):**
 
-The workflow determines which prompt to use in this priority order:
-
-1. **`custom_prompt` input**: Explicit prompt text passed directly to the workflow
-2. **`custom_prompt_path` input**: Path to a prompt file in the calling repository (default: `.claude/prompts/claude-pr-bot.md`)
-3. **Default prompt from ai-toolkit**: Fetched from `Uniswap/ai-toolkit` repository (public, no authentication required)
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  base_ref: ${{ github.base_ref }}
+  model: 'claude-sonnet-4-5'
+secrets:
+  CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+```
 
 **Testing Unreleased Changes:**
 
@@ -173,6 +421,34 @@ with:
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
+
+**Usage example (with auto-fix enabled):**
+
+When `auto_fix` is enabled, Claude will automatically attempt to fix issues found in the review and push the changes to the PR branch. This triggers a new push event, which runs a fresh review of the fixed code.
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  base_ref: ${{ github.base_ref }}
+  auto_fix: true # Enable automatic fixing of issues
+  auto_fix_model: 'claude-opus-4-6' # Use Opus for better fixes (optional)
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }} # Required for pushing fixes
+```
+
+> **Note:** `WORKFLOW_PAT` is required for auto-fix to push commits. Without it, the workflow will fall back to `GITHUB_TOKEN` which may lack push permissions for PRs from forks.
+
+**Auto-Fix Behavior:**
+
+| Review Outcome       | Auto-Fix Action                                            |
+| -------------------- | ---------------------------------------------------------- |
+| `REQUEST_CHANGES`    | Claude attempts to fix all identified issues               |
+| `COMMENT` (w/issues) | Claude attempts to fix issues mentioned in inline comments |
+| `APPROVE`            | No auto-fix needed (no issues found)                       |
+
+After pushing fixes, a new workflow run is triggered automatically, which will re-review the updated code. This creates a feedback loop until the code passes review or requires manual intervention.
 
 **Triggering a New Review Without Code Changes:**
 
@@ -222,6 +498,187 @@ gh workflow run "Claude Code Review" -f pr_number=123 -f force_review=false
 
 When `force_review` is `true`, the workflow bypasses the patch-ID cache and runs a complete review even if the same code was previously reviewed.
 
+### PR Documentation Validator (`_claude-docs-check.yml`)
+
+This workflow validates that PR documentation is properly updated based on code changes. It checks CLAUDE.md files, README files, and plugin version bumps.
+
+**Key Features:**
+
+| Feature                     | Description                                                                        |
+| --------------------------- | ---------------------------------------------------------------------------------- |
+| **CLAUDE.md Validation**    | Checks if CLAUDE.md files need updating when code in their scope changes           |
+| **README Validation**       | Verifies README files reflect current state                                        |
+| **Plugin Version Checking** | Ensures plugin versions are bumped when plugin code changes (critical for plugins) |
+| **Commit Suggestions**      | Provides GitHub commit suggestions users can apply with one click                  |
+| **Fixup Branch Creation**   | For larger changes, creates a fixup branch that can be merged into the PR          |
+| **Auto-Commit Mode**        | Optionally auto-commit and push all suggestions directly to the PR branch          |
+| **Pass/Fail Verdict**       | Returns clear pass/fail status for CI integration                                  |
+| **Auto-Fix Mode**           | Optionally auto-fix documentation issues and push changes (triggers re-check)      |
+| **Dual Authentication**     | Supports both API key and OAuth token authentication (OAuth takes precedence)      |
+
+**Suggestion Modes:**
+
+| Mode      | Description                                                                              |
+| --------- | ---------------------------------------------------------------------------------------- |
+| `suggest` | Post inline commit suggestions via PR review (default). Users click "Commit suggestion". |
+| `branch`  | Create a fixup branch with all suggested changes for easy merging.                       |
+| `auto`    | Use `suggest` for ≤3 suggestions, `branch` for >3 suggestions.                           |
+| `check`   | Just analyze and report (no suggestions posted).                                         |
+
+**Verdict Logic:**
+
+| Verdict  | When Returned                                                       |
+| -------- | ------------------------------------------------------------------- |
+| **PASS** | No issues found OR only info/minor severity suggestions             |
+| **FAIL** | Any error-level issues (e.g., plugin modified without version bump) |
+
+**Required Secrets:**
+
+| Secret                    | Required                                      | Description                                                                                                                               |
+| ------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`       | Yes (unless `CLAUDE_CODE_OAUTH_TOKEN` is set) | Anthropic API key for Claude access                                                                                                       |
+| `CLAUDE_CODE_OAUTH_TOKEN` | No (alternative to `ANTHROPIC_API_KEY`)       | Claude Code OAuth token for authentication. When provided, takes precedence over `ANTHROPIC_API_KEY`. Generate with `claude setup-token`. |
+| `WORKFLOW_PAT`            | No                                            | Personal Access Token with `repo` scope. Needed for fixup branch creation and auto-fix push access.                                       |
+
+**Authentication Methods:**
+
+You can authenticate with Claude using either method:
+
+1. **API Key (Traditional):** Set `ANTHROPIC_API_KEY` with your Anthropic API key
+2. **OAuth Token (Pro/Max Users):** Set `CLAUDE_CODE_OAUTH_TOKEN` with a token generated via `claude setup-token`
+
+If both are provided, OAuth token takes precedence. At least one authentication method must be configured.
+
+> **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
+
+**Configuration Inputs:**
+
+| Input                     | Required | Default             | Description                                                                                        |
+| ------------------------- | -------- | ------------------- | -------------------------------------------------------------------------------------------------- |
+| `pr_number`               | Yes      | -                   | Pull request number to validate                                                                    |
+| `base_ref`                | No       | -                   | Base branch name (e.g., main). If not provided, fetched via GitHub API.                            |
+| `suggestion_mode`         | No       | `suggest`           | How to provide fix suggestions: suggest, branch, auto, or check                                    |
+| `auto_commit`             | No       | `false`             | Auto-commit and push suggestions to PR branch (bypasses suggestion_mode)                           |
+| `fail_on_missing_docs`    | No       | `true`              | Whether missing documentation should cause workflow to fail                                        |
+| `fail_on_missing_version` | No       | `true`              | Whether missing plugin version bumps should cause workflow to fail                                 |
+| `model`                   | No       | `claude-sonnet-4-5` | Claude model to use                                                                                |
+| `max_turns`               | No       | unlimited           | Maximum conversation turns for Claude                                                              |
+| `timeout_minutes`         | No       | `15`                | Job timeout in minutes                                                                             |
+| `toolkit_ref`             | No       | `main`              | Git ref of ai-toolkit to use for scripts                                                           |
+| `install_uniswap_plugins` | No       | `true`              | Auto-install uniswap-ai-toolkit plugins                                                            |
+| `plugin_ref`              | No       | `main`              | Git ref for build-plugin-config action ('main' or 'next')                                          |
+| `auto_fix`                | No       | `false`             | When enabled, auto-fix issues found and push changes (triggers re-check). Requires `WORKFLOW_PAT`. |
+| `auto_fix_model`          | No       | (same as `model`)   | Model to use for auto-fixing. Use a more capable model (e.g., Opus) for complex fixes.             |
+
+**Outputs:**
+
+| Output             | Description                                         |
+| ------------------ | --------------------------------------------------- |
+| `verdict`          | PASS or FAIL                                        |
+| `suggestion_count` | Number of suggestions made                          |
+| `branch_name`      | Name of fixup branch (if created)                   |
+| `branch_url`       | URL to fixup branch (if created)                    |
+| `commits_pushed`   | Number of commits pushed (when auto_commit is true) |
+
+**Usage example (API Key):**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-docs-check.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  suggestion_mode: 'suggest'
+  fail_on_missing_version: true
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+**Usage example (OAuth Token):**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-docs-check.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  suggestion_mode: 'suggest'
+  fail_on_missing_version: true
+secrets:
+  CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+```
+
+**Usage example (with fixup branch for larger changes):**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-docs-check.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  suggestion_mode: 'auto' # Uses suggest for ≤3 suggestions, branch for >3
+secrets:
+  CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }} # Required for branch creation
+```
+
+**Usage example (with auto-commit - changes pushed automatically):**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-docs-check.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  auto_commit: true # Automatically commit and push all suggestions
+secrets:
+  CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }} # Required for push access
+```
+
+> **Note:** When `auto_commit: true`, the workflow will apply all suggestions directly to the PR branch and push them. This bypasses `suggestion_mode` entirely. The `WORKFLOW_PAT` secret is required for push access.
+
+**Usage example (with auto-fix enabled):**
+
+When `auto_fix` is enabled, if the docs check finds issues (FAIL verdict or suggestions), Claude will automatically attempt to fix them and push the changes to the PR branch. This triggers a new push event, which runs a fresh docs check.
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_claude-docs-check.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  auto_fix: true # Enable automatic fixing of documentation issues
+  auto_fix_model: 'claude-opus-4-6' # Use Opus for better fixes (optional)
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }} # Required for pushing fixes
+```
+
+> **Note:** `WORKFLOW_PAT` is required for auto-fix to push commits. Without it, the workflow will fall back to `GITHUB_TOKEN` which may lack push permissions for PRs from forks.
+
+**Auto-Fix Behavior:**
+
+| Docs Check Result          | Auto-Fix Action                                            |
+| -------------------------- | ---------------------------------------------------------- |
+| `FAIL` verdict             | Claude attempts to fix all identified documentation issues |
+| `PASS` with suggestions    | Claude attempts to apply suggested improvements            |
+| `PASS` with no suggestions | No auto-fix needed (no issues found)                       |
+
+After pushing fixes, a new workflow run is triggered automatically, which will re-check the updated documentation. This creates a feedback loop until the docs pass or require manual intervention.
+
+**What Gets Checked:**
+
+1. **CLAUDE.md Files**: If code in a package/directory was modified, checks if the corresponding CLAUDE.md needs updating based on structural changes, new functions/classes, or changed APIs.
+
+2. **README.md Files**: If package structure, APIs, or usage patterns changed, checks if README needs updating.
+
+3. **Plugin Version Bumps** (Critical): If ANY file in `packages/plugins/<plugin-name>/` was modified, verifies that the plugin's `.claude-plugin/plugin.json` has its version bumped appropriately:
+
+   - Patch bump for bug fixes
+   - Minor bump for new features
+   - Major bump for breaking changes
+
+4. **Changelog Entries**: Checks if significant changes should have changelog entries (informational, not blocking).
+
+**Debug Artifacts:**
+
+The workflow uploads artifacts for debugging (retained for 7 days):
+
+| Artifact Name      | Contents                                           |
+| ------------------ | -------------------------------------------------- |
+| `docs-check-pr{N}` | Prompt file, response JSON, and changed files list |
+
 ### PR Metadata Generation (`_generate-pr-metadata.yml`)
 
 This workflow generates PR titles and descriptions using Claude AI with the following features:
@@ -255,8 +712,8 @@ This allows users to add custom notes, disclaimers, or additional context that s
 ```markdown
 > **Note:** This PR requires manual QA testing before merge.
 
-<!-- claude-pr-description-start -->
----
+## <!-- claude-pr-description-start -->
+
 ## :sparkles: Claude-Generated Content
 
 ## Summary
@@ -298,18 +755,36 @@ The `generation_mode` input is a comma-separated list that controls what the wor
 
 **Required Secrets:**
 
-| Secret              | Required | Description                         |
-| ------------------- | -------- | ----------------------------------- |
-| `ANTHROPIC_API_KEY` | Yes      | Anthropic API key for Claude access |
+| Secret                    | Required                                      | Description                                                                                                                               |
+| ------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`       | Yes (unless `CLAUDE_CODE_OAUTH_TOKEN` is set) | Anthropic API key for Claude access                                                                                                       |
+| `CLAUDE_CODE_OAUTH_TOKEN` | No (alternative to `ANTHROPIC_API_KEY`)       | Claude Code OAuth token for authentication. When provided, takes precedence over `ANTHROPIC_API_KEY`. Generate with `claude setup-token`. |
+
+**Authentication Methods:**
+
+You can authenticate with Claude using either method:
+
+1. **API Key (Traditional):** Set `ANTHROPIC_API_KEY` with your Anthropic API key
+2. **OAuth Token (Pro/Max Users):** Set `CLAUDE_CODE_OAUTH_TOKEN` with a token generated via `claude setup-token`
+
+If both are provided, OAuth token takes precedence. At least one authentication method must be configured.
 
 > **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
 >
 > **Note:** If you need assistance installing the Claude GitHub App, please open an issue at [GitHub Issues](https://github.com/Uniswap/ai-toolkit/issues).
+>
+> **Required permissions:** The caller workflow must include `id-token: write` permission (needed by Claude Code Action for ID token creation):
+>
+> ```yaml
+> permissions:
+>   contents: read
+>   pull-requests: write
+>   id-token: write
+> ```
 
-**Usage examples:**
+**Usage example (API Key):**
 
 ```yaml
-# Generate description with suggested title (non-intrusive)
 uses: Uniswap/ai-toolkit/.github/workflows/_generate-pr-metadata.yml@main
 with:
   pr_number: ${{ github.event.pull_request.number }}
@@ -319,19 +794,21 @@ secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-```yaml
-# Generate both title and description
-uses: Uniswap/ai-toolkit/.github/workflows/_generate-pr-metadata.yml@main
-with:
-  pr_number: ${{ github.event.pull_request.number }}
-  base_ref: ${{ github.base_ref }}
-  generation_mode: 'title,description'
-secrets:
-  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-```
+**Usage example (OAuth Token):**
 
 ```yaml
-# Generate both title and description
+uses: Uniswap/ai-toolkit/.github/workflows/_generate-pr-metadata.yml@main
+with:
+  pr_number: ${{ github.event.pull_request.number }}
+  base_ref: ${{ github.base_ref }}
+  generation_mode: 'description,title-suggestion'
+secrets:
+  CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+```
+
+**Usage example (Both - OAuth takes precedence):**
+
+```yaml
 uses: Uniswap/ai-toolkit/.github/workflows/_generate-pr-metadata.yml@main
 with:
   pr_number: ${{ github.event.pull_request.number }}
@@ -339,7 +816,7 @@ with:
   generation_mode: 'title,description'
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-  WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+  CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
 
 **Prompt Configuration Options:**
@@ -349,6 +826,78 @@ The workflow determines which prompt to use in this priority order:
 1. **`custom_prompt` input**: Explicit prompt text passed directly to the workflow
 2. **`custom_prompt_path` input**: Path to a prompt file in the calling repository (default: `.github/prompts/generate-pr-title-description.md`)
 3. **Default prompt from ai-toolkit**: Fetched from `Uniswap/ai-toolkit` repository (public, no authentication required)
+
+### Linear Task Preparation (`_claude-task-prepare.yml`)
+
+This reusable workflow queries Linear for issues matching specified criteria and outputs a matrix for parallel processing. It's designed to be called by orchestrating workflows that need to fan out to multiple Claude task workers.
+
+**Key Features:**
+
+| Feature              | Description                                                            |
+| -------------------- | ---------------------------------------------------------------------- |
+| **Label Management** | Ensures the specified label exists before querying                     |
+| **Priority Sorting** | Issues sorted by priority (Urgent > High > Normal > Low > No Priority) |
+| **Matrix Output**    | Outputs JSON matrix compatible with GitHub Actions `strategy.matrix`   |
+| **Configurable**     | Customizable team, label, max issues, and npm tag                      |
+
+**Required Secrets:**
+
+| Secret           | Required | Description                        |
+| ---------------- | -------- | ---------------------------------- |
+| `LINEAR_API_KEY` | Yes      | Linear API key for querying issues |
+
+**Configuration Inputs:**
+
+| Input                   | Required | Default | Description                                         |
+| ----------------------- | -------- | ------- | --------------------------------------------------- |
+| `linear_team`           | Yes      | -       | Linear team name to query                           |
+| `linear_label`          | Yes      | -       | Label to filter issues by                           |
+| `max_issues`            | No       | `3`     | Maximum number of issues to process                 |
+| `linear_task_utils_tag` | No       | `next`  | npm tag for `@uniswap/ai-toolkit-linear-task-utils` |
+| `target_branch`         | No       | `next`  | Branch to checkout                                  |
+
+**Outputs:**
+
+| Output                  | Description                                                  |
+| ----------------------- | ------------------------------------------------------------ |
+| `matrix_json`           | Matrix JSON for `strategy.matrix` (contains `include` array) |
+| `has_tasks`             | `'true'` if tasks found, `'false'` otherwise                 |
+| `result`                | Full query result JSON for summary/debugging                 |
+| `linear_task_utils_tag` | Resolved tag for passing to worker                           |
+
+**Usage example:**
+
+```yaml
+jobs:
+  prepare:
+    uses: ./.github/workflows/_claude-task-prepare.yml
+    with:
+      linear_team: 'Developer AI'
+      linear_label: 'claude'
+      max_issues: '5'
+    secrets:
+      LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+
+  process-task:
+    needs: prepare
+    if: needs.prepare.outputs.has_tasks == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix_json) }}
+    uses: ./.github/workflows/_claude-task-worker.yml
+    with:
+      issue_id: ${{ matrix.issue_id }}
+      issue_identifier: ${{ matrix.issue_identifier }}
+      issue_title: ${{ matrix.issue_title }}
+      issue_description: ${{ matrix.issue_description }}
+      issue_url: ${{ matrix.issue_url }}
+      branch_name: ${{ matrix.branch_name }}
+      linear_task_utils_tag: ${{ needs.prepare.outputs.linear_task_utils_tag }}
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+```
 
 ### Autonomous Task Processing (`_claude-task-worker.yml`)
 
@@ -367,6 +916,27 @@ This workflow processes Linear issues autonomously using Claude Code. It's calle
 | **Task Complexity Warnings** | Warns about tasks containing keywords like "audit", "review", "investigate"                              |
 | **Incremental Commits**      | Prompt instructs Claude to commit and push after each major piece of work to preserve progress           |
 | **Linear Integration**       | Updates Linear issue status to "In Progress" when PR is created                                          |
+| **Dual Authentication**      | Supports both API key and OAuth token authentication (OAuth takes precedence)                            |
+
+**Required Secrets:**
+
+| Secret                    | Required                                      | Description                                                                                                                               |
+| ------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`       | Yes (unless `CLAUDE_CODE_OAUTH_TOKEN` is set) | Anthropic API key for Claude access                                                                                                       |
+| `CLAUDE_CODE_OAUTH_TOKEN` | No (alternative to `ANTHROPIC_API_KEY`)       | Claude Code OAuth token for authentication. When provided, takes precedence over `ANTHROPIC_API_KEY`. Generate with `claude setup-token`. |
+| `LINEAR_API_KEY`          | Yes                                           | Linear API key for issue updates                                                                                                          |
+| `WORKFLOW_PAT`            | No                                            | Personal Access Token with `repo` scope for pushing branches (falls back to `GITHUB_TOKEN`)                                               |
+
+**Authentication Methods:**
+
+You can authenticate with Claude using either method:
+
+1. **API Key (Traditional):** Set `ANTHROPIC_API_KEY` with your Anthropic API key
+2. **OAuth Token (Pro/Max Users):** Set `CLAUDE_CODE_OAUTH_TOKEN` with a token generated via `claude setup-token`
+
+If both are provided, OAuth token takes precedence. At least one authentication method must be configured.
+
+> **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
 
 **Turn Budget (built into prompt):**
 
@@ -379,13 +949,14 @@ This workflow processes Linear issues autonomously using Claude Code. It's calle
 
 **Configuration:**
 
-| Input             | Default                    | Description                                  |
-| ----------------- | -------------------------- | -------------------------------------------- |
-| `model`           | `claude-opus-4-5-20251101` | Claude model to use                          |
-| `max_turns`       | `150`                      | Maximum conversation turns                   |
-| `debug_mode`      | `true`                     | Show full Claude output                      |
-| `timeout_minutes` | `60`                       | Job timeout                                  |
-| `pr_type`         | `draft`                    | Type of PR to create: "draft" or "published" |
+| Input                     | Default           | Description                                     |
+| ------------------------- | ----------------- | ----------------------------------------------- |
+| `model`                   | `claude-opus-4-6` | Claude model to use                             |
+| `max_turns`               | `150`             | Maximum conversation turns                      |
+| `debug_mode`              | `true`            | Show full Claude output                         |
+| `timeout_minutes`         | `60`              | Job timeout                                     |
+| `pr_type`                 | `draft`           | Type of PR to create: "draft" or "published"    |
+| `install_uniswap_plugins` | `true`            | Auto-install uniswap plugins (false to opt out) |
 
 **Validation Behavior:**
 
@@ -407,7 +978,7 @@ The job summary includes:
 - Failure reason (if applicable)
 - Linear status update
 
-**Usage example:**
+**Usage example (API Key):**
 
 ```yaml
 uses: ./.github/workflows/_claude-task-worker.yml
@@ -419,13 +990,32 @@ with:
   issue_url: ${{ matrix.issue_url }}
   branch_name: ${{ matrix.branch_name }}
   target_branch: 'next'
-  model: 'claude-opus-4-5-20251101'
+  model: 'claude-opus-4-6'
   debug_mode: true
   pr_type: 'draft' # or 'published' for non-draft PRs
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
   LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-  NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+```
+
+**Usage example (OAuth Token):**
+
+```yaml
+uses: ./.github/workflows/_claude-task-worker.yml
+with:
+  issue_id: ${{ matrix.issue_id }}
+  issue_identifier: ${{ matrix.issue_identifier }}
+  issue_title: ${{ matrix.issue_title }}
+  issue_description: ${{ matrix.issue_description }}
+  issue_url: ${{ matrix.issue_url }}
+  branch_name: ${{ matrix.branch_name }}
+  target_branch: 'next'
+  model: 'claude-opus-4-6'
+  debug_mode: true
+  pr_type: 'draft'
+secrets:
+  CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+  LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
 ```
 
 ### GitHub Actions Version Updater (`_update-action-versions-worker.yml`)
@@ -447,25 +1037,46 @@ This workflow uses Claude Code to automatically update GitHub Actions to their l
 
 **Key Features:**
 
-| Feature                      | Description                                                     |
-| ---------------------------- | --------------------------------------------------------------- |
-| **SHA Pinning Maintained**   | Updates SHA references while preserving security best practices |
-| **Version Comments Updated** | Updates both the SHA and the version comment (e.g., `# v4.2.0`) |
-| **All Versions Updated**     | Updates to latest regardless of major/minor/patch               |
-| **Comprehensive PR**         | Creates PR with table showing all updates and changelog links   |
-| **Dry Run Mode**             | Can analyze without making changes                              |
-| **Fallback PR**              | Creates fallback PR if Claude commits but doesn't create PR     |
+| Feature                      | Description                                                                   |
+| ---------------------------- | ----------------------------------------------------------------------------- |
+| **SHA Pinning Maintained**   | Updates SHA references while preserving security best practices               |
+| **Version Comments Updated** | Updates both the SHA and the version comment (e.g., `# v4.2.0`)               |
+| **All Versions Updated**     | Updates to latest regardless of major/minor/patch                             |
+| **Comprehensive PR**         | Creates PR with table showing all updates and changelog links                 |
+| **Dry Run Mode**             | Can analyze without making changes                                            |
+| **Fallback PR**              | Creates fallback PR if Claude commits but doesn't create PR                   |
+| **Dual Authentication**      | Supports both API key and OAuth token authentication (OAuth takes precedence) |
+
+**Required Secrets:**
+
+| Secret                    | Required                                      | Description                                                                                                                               |
+| ------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`       | Yes (unless `CLAUDE_CODE_OAUTH_TOKEN` is set) | Anthropic API key for Claude access                                                                                                       |
+| `CLAUDE_CODE_OAUTH_TOKEN` | No (alternative to `ANTHROPIC_API_KEY`)       | Claude Code OAuth token for authentication. When provided, takes precedence over `ANTHROPIC_API_KEY`. Generate with `claude setup-token`. |
+| `WORKFLOW_PAT`            | No                                            | Personal Access Token with `repo` scope for pushing branches (falls back to `GITHUB_TOKEN`)                                               |
+
+**Authentication Methods:**
+
+You can authenticate with Claude using either method:
+
+1. **API Key (Traditional):** Set `ANTHROPIC_API_KEY` with your Anthropic API key
+2. **OAuth Token (Pro/Max Users):** Set `CLAUDE_CODE_OAUTH_TOKEN` with a token generated via `claude setup-token`
+
+If both are provided, OAuth token takes precedence. At least one authentication method must be configured.
+
+> **Important:** The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository for these workflows to function. This is required by Anthropic's official Claude Code GitHub Action.
 
 **Configuration:**
 
-| Input             | Default                      | Description                    |
-| ----------------- | ---------------------------- | ------------------------------ |
-| `branch_name`     | required                     | Branch to work on              |
-| `target_branch`   | `main`                       | Base branch for PR             |
-| `dry_run`         | `false`                      | Analyze only, skip PR creation |
-| `model`           | `claude-sonnet-4-5-20250929` | Claude model to use            |
-| `timeout_minutes` | `30`                         | Maximum execution time         |
-| `debug_mode`      | `true`                       | Show full Claude output        |
+| Input                     | Default             | Description                                     |
+| ------------------------- | ------------------- | ----------------------------------------------- |
+| `branch_name`             | required            | Branch to work on                               |
+| `target_branch`           | `main`              | Base branch for PR                              |
+| `dry_run`                 | `false`             | Analyze only, skip PR creation                  |
+| `model`                   | `claude-sonnet-4-5` | Claude model to use                             |
+| `timeout_minutes`         | `30`                | Maximum execution time                          |
+| `debug_mode`              | `true`              | Show full Claude output                         |
+| `install_uniswap_plugins` | `true`              | Auto-install uniswap plugins (false to opt out) |
 
 **Example Transformation:**
 
@@ -491,10 +1102,10 @@ gh workflow run update-action-versions.yml
 gh workflow run update-action-versions.yml -f dry_run=true
 
 # Use Opus model
-gh workflow run update-action-versions.yml -f model=claude-opus-4-5-20251101
+gh workflow run update-action-versions.yml -f model=claude-opus-4-6
 ```
 
-**Usage example (calling from another repo):**
+**Usage example (API Key):**
 
 ```yaml
 uses: Uniswap/ai-toolkit/.github/workflows/_update-action-versions-worker.yml@main
@@ -503,6 +1114,29 @@ with:
   target_branch: 'main'
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+**Usage example (OAuth Token):**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_update-action-versions-worker.yml@main
+with:
+  branch_name: 'chore/update-action-versions-2024-01-15'
+  target_branch: 'main'
+secrets:
+  CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+```
+
+**Usage example (Both - OAuth takes precedence):**
+
+```yaml
+uses: Uniswap/ai-toolkit/.github/workflows/_update-action-versions-worker.yml@main
+with:
+  branch_name: 'chore/update-action-versions-2024-01-15'
+  target_branch: 'main'
+secrets:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
 
 ### Shared Internal Workflows
@@ -516,6 +1150,7 @@ These workflows are prefixed with two `__` and are only used within this reposit
     - **Force mode** (manual workflow_dispatch): Publishes user-specified packages with prerelease versioning, useful for new packages or failed releases
   - Handles atomic versioning, npm publish with OIDC, git commit/tag push, and GitHub release creation
   - **Lockfile sync**: Automatically updates `package-lock.json` when package versions are bumped to keep workspace dependencies in sync
+  - **Workflow change detection**: Detects changes to reusable workflows (files prefixed with `_` in `.github/workflows/`). When workflow files change, the `next` branch is synced and Slack notifications are sent, even if no packages need publishing.
 
 ### Consumer Workflows
 
@@ -525,13 +1160,134 @@ These workflows are prefixed with two `__` and are only used within this reposit
 - `claude-code.yml` - Enables @claude mentions
 - `claude-code-review.yml` - Automated code reviews
 - `claude-welcome.yml` - New PR welcomes
+- `dev-ai-newsletter.yml` - Weekly Dev AI Pod newsletter generation (scheduled)
 - `generate-pr-title-description.yml` - Auto-generated PR titles and descriptions
 - `release-update-production.yml` - Production sync automation
 - `update-action-versions.yml` - Automated GitHub Actions version updates (scheduled)
 
+### Dev AI Newsletter (`dev-ai-newsletter.yml`)
+
+This workflow automatically generates the Dev AI Pod weekly newsletter using Claude Code with MCP servers for Notion and Slack integration.
+
+**Schedule:**
+
+- **Frequency**: Every Monday at 9:00 AM EST (14:00 UTC)
+- **Cron**: `0 14 * * 1`
+- **Coverage**: Previous 7 days (Sunday to Saturday)
+
+**How It Works:**
+
+1. Calculates the date range (previous 7 days)
+2. Refreshes Slack OAuth token inline (single-use refresh tokens are automatically rotated)
+3. Creates MCP configuration for Notion and Slack servers
+4. Claude reads the agent instructions from `.claude/agents/dev-ai-pod-weekly-newsletter.md`
+5. Queries Notion databases for reading items and use cases
+6. Queries Slack channels for engaging discussions
+7. Queries GitHub releases for tool updates
+8. Formats the newsletter following the template
+9. Creates a new page in the Notion "Dev AI Weekly Newsletters" database
+
+**Required Secrets:**
+
+| Secret                | Required | Description                                       |
+| --------------------- | -------- | ------------------------------------------------- |
+| `ANTHROPIC_API_KEY`   | Yes      | Anthropic API key for Claude Code                 |
+| `NOTION_API_KEY`      | Yes      | Notion integration token (internal integration)   |
+| `SLACK_REFRESH_TOKEN` | Yes      | Slack OAuth refresh token (xoxe-1-...)            |
+| `SLACK_REFRESH_URL`   | No       | Token refresh backend URL (has default)           |
+| `SLACK_TEAM_ID`       | Yes      | Slack workspace team ID                           |
+| `WORKFLOW_PAT`        | Yes      | GitHub PAT with `repo` scope (for token rotation) |
+
+**Slack App Requirements:**
+
+The Slack app needs these Bot Token Scopes:
+
+- `channels:history` - View messages in public channels
+- `channels:read` - View basic channel information
+- `reactions:read` - Read emoji reactions
+- `users:read` - View users and their basic information
+
+**Notion Integration Requirements:**
+
+The Notion integration needs access to:
+
+- "📚 What We're Reading" database (read)
+- "🌎 Real-World AI Use Cases" database (read)
+- "Dev AI Weekly Newsletters" database (write)
+
+**Configuration Inputs:**
+
+| Input                    | Default             | Description                                                                                       |
+| ------------------------ | ------------------- | ------------------------------------------------------------------------------------------------- |
+| `days_back`              | `7`                 | Number of days to look back for content                                                           |
+| `model`                  | `claude-sonnet-4-5` | Claude model to use                                                                               |
+| `dry_run`                | `false`             | Generate but don't publish to Notion                                                              |
+| `debug_mode`             | `true`              | Enable full Claude output for debugging                                                           |
+| `slack_post_channel_ids` | `C091XE1DNP2`       | Comma-separated Slack channel IDs to post newsletter announcement (e.g., C091XE1DNP2,C094URH6C13) |
+
+**Manual Trigger:**
+
+```bash
+# Run with defaults (last 7 days)
+gh workflow run dev-ai-newsletter.yml
+
+# Dry run (generate but don't publish)
+gh workflow run dev-ai-newsletter.yml -f dry_run=true
+
+# Custom date range
+gh workflow run dev-ai-newsletter.yml -f days_back=14
+
+# Use Opus model for better quality
+gh workflow run dev-ai-newsletter.yml -f model=claude-opus-4-6
+
+# Post to specific Slack channels
+gh workflow run dev-ai-newsletter.yml -f slack_post_channel_ids="C091XE1DNP2,C094URH6C13"
+```
+
+**MCP Servers Used:**
+
+- `@notionhq/notion-mcp-server@1.9.1` - Official Notion MCP server (pinned to v1.9.1 due to breaking changes in v2.0.0)
+- `@modelcontextprotocol/server-slack` - Official Slack MCP server
+
+> **Important: MCP Server Version Pinning**
+>
+> The Notion MCP server is pinned to v1.9.1 because v2.0.0 (released Dec 24, 2025) introduced breaking changes:
+>
+> - Tool names changed from `notion-*` to `API-*` format
+> - Parameter format changed (e.g., `parent` must be an object, not a JSON string)
+>
+> The agent instructions in `.claude/agents/dev-ai-pod-weekly-newsletter.md` are written for v1.x API. To upgrade to v2.0.0, update both the version and the agent instructions.
+
+**Artifacts:**
+
+| Artifact Name                           | Condition    | Retention | Description                              |
+| --------------------------------------- | ------------ | --------- | ---------------------------------------- |
+| `newsletter-preview-{start}-to-{end}`   | Dry run only | 30 days   | Formatted newsletter markdown for review |
+| `claude-execution-log-{start}-to-{end}` | Always       | 7 days    | Claude execution log JSON for debugging  |
+
+**Related Files:**
+
+- `.claude/agents/dev-ai-pod-weekly-newsletter.md` - Agent instructions
+- `.claude/commands/dev-ai-pod-weekly-newsletter.md` - Slash command definition
+
 ## Subdirectories
 
 - `examples/` - Example implementations of workflows (13 numbered files)
+
+## Workflow Configuration
+
+### Environment Variables
+
+Workflows may define workflow-level environment variables for centralized configuration:
+
+**Claude Code Review (`claude-code-review.yml`):**
+
+```yaml
+env:
+  MAX_DIFF_LINES: 5000
+```
+
+This sets the default maximum diff line count before skipping Claude reviews (PR too large). The value is passed to all review jobs and can be overridden per job if needed.
 
 ## Conventions
 
@@ -559,7 +1315,7 @@ Version pinning is centralized using GitHub repository variables (`vars.*`):
 | Variable       | Value     | Purpose                                    |
 | -------------- | --------- | ------------------------------------------ |
 | `NODE_VERSION` | `22.21.1` | Node.js version for all workflows          |
-| `NPM_VERSION`  | `11.6.2`  | npm version (required for OIDC publishing) |
+| `NPM_VERSION`  | `11.7.0`  | npm version (required for OIDC publishing) |
 
 **Usage in workflows:**
 
@@ -577,12 +1333,17 @@ Version pinning is centralized using GitHub repository variables (`vars.*`):
 
 Common secrets referenced:
 
-- `ANTHROPIC_API_KEY` - Claude AI API authentication (also requires the [Claude GitHub App](https://github.com/apps/claude) to be installed on the repository)
-- `NODE_AUTH_TOKEN` - NPM registry authentication (for publishing and installing `@uniswap` scoped packages)
+- `ANTHROPIC_API_KEY` - Claude AI API authentication (also requires the [Claude GitHub App](https://github.com/apps/claude) to be installed on the repository). Alternative: use `CLAUDE_CODE_OAUTH_TOKEN` instead.
+- `CLAUDE_CODE_OAUTH_TOKEN` - Claude Code OAuth token for authentication (alternative to `ANTHROPIC_API_KEY`). Generate with `claude setup-token`. For Pro/Max users.
+- `NODE_AUTH_TOKEN` - NPM registry authentication (for publishing `@uniswap` scoped packages)
 - `WORKFLOW_PAT` - Personal Access Token with `repo` scope for: (1) pushing commits/tags in force-publish, (2) cross-repo access to fetch default prompts from ai-toolkit in `_claude-code-review.yml` and `_generate-pr-metadata.yml`, (3) resolving review threads via GraphQL API in `_claude-code-review.yml` (the default `GITHUB_TOKEN` lacks permissions for the `resolveReviewThread` mutation). **Important:** The account that owns the PAT must have write, maintain, or admin access to the repository for thread resolution to work.
 - `SERVICE_ACCOUNT_GPG_PRIVATE_KEY` - GPG key for signed commits/tags
 - `LINEAR_API_KEY` - Linear API authentication (for autonomous tasks)
 - `SLACK_WEBHOOK_URL` - Slack notifications
+- `NOTION_API_KEY` - Notion integration token (for newsletter automation)
+- `SLACK_REFRESH_TOKEN` - Slack OAuth refresh token (for newsletter automation, auto-rotated)
+- `SLACK_REFRESH_URL` - Slack token refresh backend URL (optional, has default)
+- `SLACK_TEAM_ID` - Slack workspace team ID (for newsletter automation)
 - `GITHUB_TOKEN` - Built-in token (automatic)
 
 ## Usage Patterns
@@ -596,10 +1357,11 @@ jobs:
   call-claude:
     uses: ./.github/workflows/_claude-main.yml
     with:
-      model: 'claude-sonnet-4-5-20250929'
+      model: 'claude-sonnet-4-5'
       allowed_tools: 'read-write'
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
 
 **Note**: `publish-packages.yml` is NOT a reusable workflow. It's a unified workflow triggered directly by push events and workflow_dispatch. See [Architecture: Publish Workflow](#architecture-publish-workflow) for details.
@@ -626,7 +1388,7 @@ gh workflow run publish-packages.yml \
 
 # Publish multiple packages
 gh workflow run publish-packages.yml \
-  -f packages="@uniswap/ai-toolkit-nx-claude,@ai-toolkit/utils"
+  -f packages="@uniswap/ai-toolkit-nx-claude,@uniswap/ai-toolkit-notion-publisher"
 
 # Publish all release-configured packages
 gh workflow run publish-packages.yml \
@@ -661,25 +1423,29 @@ The publishing functionality is consolidated into a single unified workflow due 
 │                                                                   │
 │  1. detect                                                        │
 │     ├── Auto: Detect affected packages via Nx                    │
+│     ├── Auto: Detect reusable workflow changes (_*.yml files)    │
 │     └── Force: Resolve user-specified packages                   │
 │                                                                   │
-│  2. publish                                                       │
+│  2. publish (if packages detected)                               │
 │     ├── Build packages                                           │
 │     ├── Version (smart stable or smart prerelease)               │
 │     ├── Publish to npm (OIDC authentication)                     │
 │     ├── Push commits + tags                                      │
 │     └── Create GitHub releases                                   │
 │                                                                   │
-│  3. generate-changelog (Auto mode only)                          │
+│  3. generate-changelog (Auto mode, if packages published)        │
 │     └── AI-generated release notes                               │
 │                                                                   │
-│  4. notify-release (Auto mode only)                              │
-│     └── Slack notifications                                      │
+│  4. notify-release (Auto mode, if packages published)            │
+│     └── Slack notifications for package releases                 │
 │                                                                   │
-│  5. sync-next (Auto mode, main branch only)                      │
-│     └── Sync main → next branch                                  │
+│  5. sync-next (Auto mode, main branch, after publish completes)  │
+│     └── Sync main → next branch (packages OR workflows)          │
 │                                                                   │
-│  6. summary (Force mode only)                                    │
+│  6. notify-workflow-changes (Auto mode, after sync-next)         │
+│     └── Slack notifications for workflow-only updates            │
+│                                                                   │
+│  7. summary (Force mode only)                                    │
 │     └── Publish summary                                          │
 │                                                                   │
 └───────────────────────────────────────────────────────────────────┘
@@ -799,10 +1565,109 @@ For reusable tools, publish as npm packages (e.g., `@uniswap/ai-toolkit-notion-p
 Always pin external actions to **specific commit hashes** with version comments:
 
 ```yaml
-- uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+- uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 ```
 
 Never use tags or branch names directly.
+
+### Bullfrog Security Scanning (CRITICAL)
+
+**Every job running on non-macOS runners MUST have `bullfrogsec/bullfrog` as the FIRST step** - no exceptions.
+
+This applies to ALL jobs, including:
+
+- Main workflow jobs (build, test, deploy)
+- Pre-check jobs (validation, detection)
+- Summary jobs (status reporting, skip notifications)
+- Any job that runs on `ubuntu-latest` or similar Linux runners
+
+**✅ CORRECT - Bullfrog as first step:**
+
+```yaml
+jobs:
+  my-job:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Do something
+        run: echo "This step comes after Bullfrog"
+```
+
+**❌ WRONG - Missing Bullfrog or not first:**
+
+```yaml
+jobs:
+  my-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Do something # ❌ Bullfrog must be first!
+        run: echo "Missing security scanning"
+```
+
+**Why this matters:**
+
+- Bullfrog provides egress security scanning for all workflow jobs
+- Semgrep code review automatically flags missing Bullfrog steps
+- Even "trivial" jobs that only echo status messages need security scanning
+- This is enforced by automated code review and will block PR approval
+
+**Checklist for new workflow jobs:**
+
+- [ ] Is the job on a non-macOS runner?
+- [ ] Is `bullfrogsec/bullfrog` the FIRST step?
+- [ ] Is it pinned to the correct SHA with version comment?
+
+### Static Refs in `uses:` Field (CRITICAL)
+
+**The `uses:` field in GitHub Actions requires STATIC strings at workflow parse time.**
+
+Dynamic interpolation via `${{ inputs.* }}`, `${{ github.* }}`, or environment variables is **explicitly disallowed** for security and predictability reasons. The workflow YAML is parsed and validated before any job runs, so variables are not yet available when `uses:` is evaluated.
+
+**❌ WRONG - This will FAIL:**
+
+```yaml
+# This looks like it would work, but GitHub Actions rejects it at parse time
+- uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@${{ inputs.plugin_ref }}
+```
+
+**✅ CORRECT - Use conditional steps with static refs:**
+
+```yaml
+# Use two steps with if conditions instead
+- name: Build plugin configuration (main)
+  if: inputs.plugin_ref == 'main' || inputs.plugin_ref == ''
+  id: build-plugins-main
+  uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main
+  with:
+    install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+
+- name: Build plugin configuration (next)
+  if: inputs.plugin_ref == 'next'
+  id: build-plugins-next
+  uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next
+  with:
+    install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+```
+
+**Why this constraint exists:**
+
+- **Security**: Prevents injection attacks where malicious input could change which action is executed
+- **Predictability**: GitHub validates the action reference exists before running any workflow code
+- **Caching**: GitHub can pre-fetch actions before job execution begins
+
+**Pattern for handling multiple refs:**
+
+1. Define a limited set of supported refs (e.g., `main` and `next`)
+2. Create separate conditional steps for each ref with static `uses:` values
+3. Use `if:` conditions to select which step runs
+4. Coalesce outputs with `||` operator: `${{ steps.main.outputs.foo || steps.next.outputs.foo }}`
+
+**This constraint applies to:**
+
+- External actions: `uses: owner/repo/.github/actions/action@ref`
+- Reusable workflows: `uses: owner/repo/.github/workflows/workflow.yml@ref`
+- Local actions/workflows: `uses: ./.github/actions/action` (no ref, always local)
 
 ### Reusable Workflow Permissions (CRITICAL)
 
@@ -850,7 +1715,7 @@ Many workflows support manual triggering via GitHub UI or CLI:
 ```bash
 gh workflow run claude-code-review.yml \
   -f pr_number=123 \
-  -f model="claude-sonnet-4-5-20250929"
+  -f model="claude-sonnet-4-5"
 ```
 
 ## Troubleshooting

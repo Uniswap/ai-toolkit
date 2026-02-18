@@ -5,9 +5,13 @@ import {
   getGlobalConfigPath,
   getLocalConfigPath,
   getMcpJsonConfigPath,
+  getInstalledPluginsPath,
   readGlobalConfig,
   readLocalConfig,
   readMcpJsonConfig,
+  readInstalledPlugins,
+  getPluginMcpServers,
+  getServersWithOrigins,
   getAvailableServers,
   getServerStatus,
   getAllServerStatuses,
@@ -69,6 +73,11 @@ describe('Configuration Reader', () => {
       const path = getMcpJsonConfigPath();
       expect(path).toBe(join(mockCwd, '.mcp.json'));
     });
+
+    it('should return correct installed plugins path', () => {
+      const path = getInstalledPluginsPath();
+      expect(path).toBe(join(mockHomedir, '.claude', 'plugins', 'installed_plugins.json'));
+    });
   });
 
   describe('readGlobalConfig', () => {
@@ -91,10 +100,7 @@ describe('Configuration Reader', () => {
         },
       };
 
-      vol.writeFileSync(
-        join(mockHomedir, '.claude.json'),
-        JSON.stringify(mockConfig)
-      );
+      vol.writeFileSync(join(mockHomedir, '.claude.json'), JSON.stringify(mockConfig));
 
       const config = readGlobalConfig();
       expect(config).toEqual(mockConfig);
@@ -126,10 +132,7 @@ describe('Configuration Reader', () => {
         },
       };
 
-      vol.writeFileSync(
-        join(mockHomedir, '.claude.json'),
-        JSON.stringify(mockConfig)
-      );
+      vol.writeFileSync(join(mockHomedir, '.claude.json'), JSON.stringify(mockConfig));
 
       const config = readGlobalConfig();
       expect(config).toEqual(mockConfig);
@@ -205,6 +208,643 @@ describe('Configuration Reader', () => {
     });
   });
 
+  describe('readInstalledPlugins', () => {
+    it('should return default config when file does not exist', () => {
+      const config = readInstalledPlugins();
+      expect(config).toEqual({ version: 2, plugins: {} });
+    });
+
+    it('should read installed plugins config successfully', () => {
+      const mockConfig = {
+        version: 2,
+        plugins: {
+          'test-plugin@marketplace': [
+            {
+              scope: 'user',
+              installPath: '/path/to/plugin',
+              version: '1.0.0',
+              installedAt: '2024-01-01T00:00:00.000Z',
+              lastUpdated: '2024-01-01T00:00:00.000Z',
+            },
+          ],
+        },
+      };
+
+      const pluginsPath = join(mockHomedir, '.claude', 'plugins', 'installed_plugins.json');
+      vol.mkdirSync(join(mockHomedir, '.claude', 'plugins'), { recursive: true });
+      vol.writeFileSync(pluginsPath, JSON.stringify(mockConfig));
+
+      const config = readInstalledPlugins();
+      expect(config).toEqual(mockConfig);
+    });
+
+    it('should handle invalid JSON gracefully', () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const pluginsPath = join(mockHomedir, '.claude', 'plugins', 'installed_plugins.json');
+      vol.mkdirSync(join(mockHomedir, '.claude', 'plugins'), { recursive: true });
+      vol.writeFileSync(pluginsPath, 'invalid json{');
+
+      const config = readInstalledPlugins();
+      expect(config).toEqual({ version: 2, plugins: {} });
+      expect(consoleSpy).toHaveBeenCalled();
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should read config with multiple plugins', () => {
+      const mockConfig = {
+        version: 2,
+        plugins: {
+          'plugin-a@marketplace': [
+            {
+              scope: 'user',
+              installPath: '/path/to/plugin-a',
+              version: '1.0.0',
+              installedAt: '2024-01-01T00:00:00.000Z',
+              lastUpdated: '2024-01-01T00:00:00.000Z',
+            },
+          ],
+          'plugin-b@marketplace': [
+            {
+              scope: 'user',
+              installPath: '/path/to/plugin-b',
+              version: '2.0.0',
+              installedAt: '2024-01-02T00:00:00.000Z',
+              lastUpdated: '2024-01-02T00:00:00.000Z',
+            },
+          ],
+        },
+      };
+
+      const pluginsPath = join(mockHomedir, '.claude', 'plugins', 'installed_plugins.json');
+      vol.mkdirSync(join(mockHomedir, '.claude', 'plugins'), { recursive: true });
+      vol.writeFileSync(pluginsPath, JSON.stringify(mockConfig));
+
+      const config = readInstalledPlugins();
+      expect(config).toEqual(mockConfig);
+      expect(Object.keys(config.plugins)).toHaveLength(2);
+    });
+  });
+
+  describe('getPluginMcpServers', () => {
+    it('should return empty map when no plugins installed', () => {
+      const servers = getPluginMcpServers();
+      expect(servers.size).toBe(0);
+    });
+
+    it('should return servers from single plugin with MCP config', () => {
+      // Setup installed plugins
+      const installedPlugins = {
+        version: 2,
+        plugins: {
+          'my-plugin@marketplace': [
+            {
+              scope: 'user',
+              installPath: '/path/to/my-plugin',
+              version: '1.0.0',
+              installedAt: '2024-01-01T00:00:00.000Z',
+              lastUpdated: '2024-01-01T00:00:00.000Z',
+            },
+          ],
+        },
+      };
+
+      const pluginsPath = join(mockHomedir, '.claude', 'plugins', 'installed_plugins.json');
+      vol.mkdirSync(join(mockHomedir, '.claude', 'plugins'), { recursive: true });
+      vol.writeFileSync(pluginsPath, JSON.stringify(installedPlugins));
+
+      // Setup plugin MCP config
+      const pluginMcpConfig = {
+        mcpServers: {
+          'plugin-server-1': { command: 'npx', args: ['server1'] },
+          'plugin-server-2': { command: 'npx', args: ['server2'] },
+        },
+      };
+
+      vol.mkdirSync('/path/to/my-plugin', { recursive: true });
+      vol.writeFileSync(join('/path/to/my-plugin', '.mcp.json'), JSON.stringify(pluginMcpConfig));
+
+      const servers = getPluginMcpServers();
+      expect(servers.size).toBe(2);
+      expect(servers.get('plugin:my-plugin:plugin-server-1')).toBe('my-plugin');
+      expect(servers.get('plugin:my-plugin:plugin-server-2')).toBe('my-plugin');
+    });
+
+    it('should return servers from multiple plugins', () => {
+      // Setup installed plugins
+      const installedPlugins = {
+        version: 2,
+        plugins: {
+          'plugin-a@marketplace': [
+            {
+              scope: 'user',
+              installPath: '/path/to/plugin-a',
+              version: '1.0.0',
+              installedAt: '2024-01-01T00:00:00.000Z',
+              lastUpdated: '2024-01-01T00:00:00.000Z',
+            },
+          ],
+          'plugin-b@marketplace': [
+            {
+              scope: 'user',
+              installPath: '/path/to/plugin-b',
+              version: '1.0.0',
+              installedAt: '2024-01-01T00:00:00.000Z',
+              lastUpdated: '2024-01-01T00:00:00.000Z',
+            },
+          ],
+        },
+      };
+
+      const pluginsPath = join(mockHomedir, '.claude', 'plugins', 'installed_plugins.json');
+      vol.mkdirSync(join(mockHomedir, '.claude', 'plugins'), { recursive: true });
+      vol.writeFileSync(pluginsPath, JSON.stringify(installedPlugins));
+
+      // Setup plugin-a MCP config
+      vol.mkdirSync('/path/to/plugin-a', { recursive: true });
+      vol.writeFileSync(
+        join('/path/to/plugin-a', '.mcp.json'),
+        JSON.stringify({
+          mcpServers: {
+            'server-from-a': { command: 'npx', args: ['a'] },
+          },
+        })
+      );
+
+      // Setup plugin-b MCP config
+      vol.mkdirSync('/path/to/plugin-b', { recursive: true });
+      vol.writeFileSync(
+        join('/path/to/plugin-b', '.mcp.json'),
+        JSON.stringify({
+          mcpServers: {
+            'server-from-b': { command: 'npx', args: ['b'] },
+          },
+        })
+      );
+
+      const servers = getPluginMcpServers();
+      expect(servers.size).toBe(2);
+      expect(servers.get('plugin:plugin-a:server-from-a')).toBe('plugin-a');
+      expect(servers.get('plugin:plugin-b:server-from-b')).toBe('plugin-b');
+    });
+
+    it('should skip plugins without .mcp.json file', () => {
+      // Setup installed plugins
+      const installedPlugins = {
+        version: 2,
+        plugins: {
+          'plugin-with-mcp@marketplace': [
+            {
+              scope: 'user',
+              installPath: '/path/to/plugin-with-mcp',
+              version: '1.0.0',
+              installedAt: '2024-01-01T00:00:00.000Z',
+              lastUpdated: '2024-01-01T00:00:00.000Z',
+            },
+          ],
+          'plugin-without-mcp@marketplace': [
+            {
+              scope: 'user',
+              installPath: '/path/to/plugin-without-mcp',
+              version: '1.0.0',
+              installedAt: '2024-01-01T00:00:00.000Z',
+              lastUpdated: '2024-01-01T00:00:00.000Z',
+            },
+          ],
+        },
+      };
+
+      const pluginsPath = join(mockHomedir, '.claude', 'plugins', 'installed_plugins.json');
+      vol.mkdirSync(join(mockHomedir, '.claude', 'plugins'), { recursive: true });
+      vol.writeFileSync(pluginsPath, JSON.stringify(installedPlugins));
+
+      // Only setup MCP config for one plugin
+      vol.mkdirSync('/path/to/plugin-with-mcp', { recursive: true });
+      vol.writeFileSync(
+        join('/path/to/plugin-with-mcp', '.mcp.json'),
+        JSON.stringify({
+          mcpServers: {
+            'mcp-server': { command: 'npx', args: ['server'] },
+          },
+        })
+      );
+
+      // Create directory but no .mcp.json for the other plugin
+      vol.mkdirSync('/path/to/plugin-without-mcp', { recursive: true });
+
+      const servers = getPluginMcpServers();
+      expect(servers.size).toBe(1);
+      expect(servers.get('plugin:plugin-with-mcp:mcp-server')).toBe('plugin-with-mcp');
+    });
+
+    it('should handle invalid .mcp.json in plugins gracefully', () => {
+      // Setup installed plugins
+      const installedPlugins = {
+        version: 2,
+        plugins: {
+          'plugin-invalid@marketplace': [
+            {
+              scope: 'user',
+              installPath: '/path/to/plugin-invalid',
+              version: '1.0.0',
+              installedAt: '2024-01-01T00:00:00.000Z',
+              lastUpdated: '2024-01-01T00:00:00.000Z',
+            },
+          ],
+        },
+      };
+
+      const pluginsPath = join(mockHomedir, '.claude', 'plugins', 'installed_plugins.json');
+      vol.mkdirSync(join(mockHomedir, '.claude', 'plugins'), { recursive: true });
+      vol.writeFileSync(pluginsPath, JSON.stringify(installedPlugins));
+
+      // Setup invalid MCP config
+      vol.mkdirSync('/path/to/plugin-invalid', { recursive: true });
+      vol.writeFileSync(join('/path/to/plugin-invalid', '.mcp.json'), 'invalid json{');
+
+      const servers = getPluginMcpServers();
+      // Should return empty map - invalid JSON is silently ignored
+      expect(servers.size).toBe(0);
+    });
+
+    it('should register servers from different plugins with unique full qualified names', () => {
+      // Setup installed plugins
+      const installedPlugins = {
+        version: 2,
+        plugins: {
+          'plugin-first@marketplace': [
+            {
+              scope: 'user',
+              installPath: '/path/to/plugin-first',
+              version: '1.0.0',
+              installedAt: '2024-01-01T00:00:00.000Z',
+              lastUpdated: '2024-01-01T00:00:00.000Z',
+            },
+          ],
+          'plugin-second@marketplace': [
+            {
+              scope: 'user',
+              installPath: '/path/to/plugin-second',
+              version: '1.0.0',
+              installedAt: '2024-01-01T00:00:00.000Z',
+              lastUpdated: '2024-01-01T00:00:00.000Z',
+            },
+          ],
+        },
+      };
+
+      const pluginsPath = join(mockHomedir, '.claude', 'plugins', 'installed_plugins.json');
+      vol.mkdirSync(join(mockHomedir, '.claude', 'plugins'), { recursive: true });
+      vol.writeFileSync(pluginsPath, JSON.stringify(installedPlugins));
+
+      // Both plugins define same short server name, but they get unique full qualified names
+      vol.mkdirSync('/path/to/plugin-first', { recursive: true });
+      vol.writeFileSync(
+        join('/path/to/plugin-first', '.mcp.json'),
+        JSON.stringify({
+          mcpServers: {
+            'shared-server': { command: 'npx', args: ['first'] },
+          },
+        })
+      );
+
+      vol.mkdirSync('/path/to/plugin-second', { recursive: true });
+      vol.writeFileSync(
+        join('/path/to/plugin-second', '.mcp.json'),
+        JSON.stringify({
+          mcpServers: {
+            'shared-server': { command: 'npx', args: ['second'] },
+          },
+        })
+      );
+
+      const servers = getPluginMcpServers();
+      // Both servers should be registered with their unique full qualified names
+      expect(servers.size).toBe(2);
+      expect(servers.get('plugin:plugin-first:shared-server')).toBe('plugin-first');
+      expect(servers.get('plugin:plugin-second:shared-server')).toBe('plugin-second');
+    });
+
+    it('should extract plugin name from key format "pluginName@marketplace"', () => {
+      const installedPlugins = {
+        version: 2,
+        plugins: {
+          'my-awesome-plugin@some-marketplace': [
+            {
+              scope: 'user',
+              installPath: '/path/to/plugin',
+              version: '1.0.0',
+              installedAt: '2024-01-01T00:00:00.000Z',
+              lastUpdated: '2024-01-01T00:00:00.000Z',
+            },
+          ],
+        },
+      };
+
+      const pluginsPath = join(mockHomedir, '.claude', 'plugins', 'installed_plugins.json');
+      vol.mkdirSync(join(mockHomedir, '.claude', 'plugins'), { recursive: true });
+      vol.writeFileSync(pluginsPath, JSON.stringify(installedPlugins));
+
+      vol.mkdirSync('/path/to/plugin', { recursive: true });
+      vol.writeFileSync(
+        join('/path/to/plugin', '.mcp.json'),
+        JSON.stringify({
+          mcpServers: {
+            'test-server': { command: 'npx', args: ['test'] },
+          },
+        })
+      );
+
+      const servers = getPluginMcpServers();
+      // Plugin name should be extracted (without @marketplace suffix) and used in full qualified name
+      expect(servers.get('plugin:my-awesome-plugin:test-server')).toBe('my-awesome-plugin');
+    });
+
+    it('should skip plugins with empty installations array', () => {
+      const installedPlugins = {
+        version: 2,
+        plugins: {
+          'empty-plugin@marketplace': [],
+        },
+      };
+
+      const pluginsPath = join(mockHomedir, '.claude', 'plugins', 'installed_plugins.json');
+      vol.mkdirSync(join(mockHomedir, '.claude', 'plugins'), { recursive: true });
+      vol.writeFileSync(pluginsPath, JSON.stringify(installedPlugins));
+
+      const servers = getPluginMcpServers();
+      expect(servers.size).toBe(0);
+    });
+  });
+
+  describe('getServersWithOrigins', () => {
+    it('should return empty array when no servers configured', () => {
+      const servers = getServersWithOrigins();
+      expect(servers).toEqual([]);
+    });
+
+    it('should return servers with global origin', () => {
+      const globalConfig = {
+        mcpServers: {
+          github: { command: 'npx', args: ['github'] },
+          linear: { command: 'npx', args: ['linear'] },
+        },
+      };
+
+      vol.writeFileSync(join(mockHomedir, '.claude.json'), JSON.stringify(globalConfig));
+
+      const servers = getServersWithOrigins();
+      expect(servers).toHaveLength(2);
+      expect(servers).toContainEqual({ name: 'github', origin: { type: 'global' } });
+      expect(servers).toContainEqual({ name: 'linear', origin: { type: 'global' } });
+    });
+
+    it('should return servers with project origin', () => {
+      const globalConfig = {
+        projects: {
+          [mockCwd]: {
+            mcpServers: {
+              'project-server': { command: 'npx', args: ['project'] },
+            },
+          },
+        },
+      };
+
+      vol.writeFileSync(join(mockHomedir, '.claude.json'), JSON.stringify(globalConfig));
+
+      const servers = getServersWithOrigins();
+      expect(servers).toHaveLength(1);
+      expect(servers[0]).toEqual({ name: 'project-server', origin: { type: 'project' } });
+    });
+
+    it('should return servers with local origin from .mcp.json', () => {
+      const localConfig = {
+        mcpServers: {
+          'local-server': { command: 'node', args: ['local'] },
+        },
+      };
+
+      vol.writeFileSync(join(mockCwd, '.mcp.json'), JSON.stringify(localConfig));
+
+      const servers = getServersWithOrigins();
+      expect(servers).toHaveLength(1);
+      expect(servers[0]).toEqual({ name: 'local-server', origin: { type: 'local' } });
+    });
+
+    it('should return servers with plugin origin', () => {
+      // Setup installed plugins
+      const installedPlugins = {
+        version: 2,
+        plugins: {
+          'test-plugin@marketplace': [
+            {
+              scope: 'user',
+              installPath: '/path/to/test-plugin',
+              version: '1.0.0',
+              installedAt: '2024-01-01T00:00:00.000Z',
+              lastUpdated: '2024-01-01T00:00:00.000Z',
+            },
+          ],
+        },
+      };
+
+      const pluginsPath = join(mockHomedir, '.claude', 'plugins', 'installed_plugins.json');
+      vol.mkdirSync(join(mockHomedir, '.claude', 'plugins'), { recursive: true });
+      vol.writeFileSync(pluginsPath, JSON.stringify(installedPlugins));
+
+      // Setup plugin MCP config
+      vol.mkdirSync('/path/to/test-plugin', { recursive: true });
+      vol.writeFileSync(
+        join('/path/to/test-plugin', '.mcp.json'),
+        JSON.stringify({
+          mcpServers: {
+            'plugin-server': { command: 'npx', args: ['plugin'] },
+          },
+        })
+      );
+
+      const servers = getServersWithOrigins();
+      expect(servers).toHaveLength(1);
+      expect(servers[0]).toEqual({
+        name: 'plugin:test-plugin:plugin-server',
+        origin: { type: 'plugin', pluginName: 'test-plugin' },
+      });
+    });
+
+    it('should combine servers from all sources and deduplicate by first-seen origin', () => {
+      // Global config
+      const globalConfig = {
+        mcpServers: {
+          'global-server': { command: 'npx', args: ['global'] },
+          'shared-server': { command: 'npx', args: ['shared-global'] },
+        },
+        projects: {
+          [mockCwd]: {
+            mcpServers: {
+              'project-server': { command: 'npx', args: ['project'] },
+              'shared-server': { command: 'npx', args: ['shared-project'] }, // duplicate - should use global
+            },
+          },
+        },
+      };
+
+      vol.writeFileSync(join(mockHomedir, '.claude.json'), JSON.stringify(globalConfig));
+
+      // Local .mcp.json
+      vol.writeFileSync(
+        join(mockCwd, '.mcp.json'),
+        JSON.stringify({
+          mcpServers: {
+            'local-server': { command: 'node', args: ['local'] },
+            'shared-server': { command: 'node', args: ['shared-local'] }, // duplicate - should use global
+          },
+        })
+      );
+
+      const servers = getServersWithOrigins();
+
+      // Should have 4 unique servers
+      expect(servers).toHaveLength(4);
+
+      // Check that shared-server has global origin (first-seen)
+      const sharedServer = servers.find((s) => s.name === 'shared-server');
+      expect(sharedServer).toEqual({ name: 'shared-server', origin: { type: 'global' } });
+
+      // Check other servers have correct origins
+      expect(servers).toContainEqual({ name: 'global-server', origin: { type: 'global' } });
+      expect(servers).toContainEqual({ name: 'project-server', origin: { type: 'project' } });
+      expect(servers).toContainEqual({ name: 'local-server', origin: { type: 'local' } });
+    });
+
+    it('should return servers sorted alphabetically by name', () => {
+      const globalConfig = {
+        mcpServers: {
+          zebra: { command: 'npx', args: ['zebra'] },
+          apple: { command: 'npx', args: ['apple'] },
+          monkey: { command: 'npx', args: ['monkey'] },
+        },
+      };
+
+      vol.writeFileSync(join(mockHomedir, '.claude.json'), JSON.stringify(globalConfig));
+
+      const servers = getServersWithOrigins();
+      expect(servers.map((s) => s.name)).toEqual(['apple', 'monkey', 'zebra']);
+    });
+
+    it('should include plugin servers with other sources', () => {
+      // Global config
+      const globalConfig = {
+        mcpServers: {
+          'global-server': { command: 'npx', args: ['global'] },
+        },
+      };
+
+      vol.writeFileSync(join(mockHomedir, '.claude.json'), JSON.stringify(globalConfig));
+
+      // Local .mcp.json
+      vol.writeFileSync(
+        join(mockCwd, '.mcp.json'),
+        JSON.stringify({
+          mcpServers: {
+            'local-server': { command: 'node', args: ['local'] },
+          },
+        })
+      );
+
+      // Plugin setup
+      const installedPlugins = {
+        version: 2,
+        plugins: {
+          'my-plugin@marketplace': [
+            {
+              scope: 'user',
+              installPath: '/path/to/my-plugin',
+              version: '1.0.0',
+              installedAt: '2024-01-01T00:00:00.000Z',
+              lastUpdated: '2024-01-01T00:00:00.000Z',
+            },
+          ],
+        },
+      };
+
+      const pluginsPath = join(mockHomedir, '.claude', 'plugins', 'installed_plugins.json');
+      vol.mkdirSync(join(mockHomedir, '.claude', 'plugins'), { recursive: true });
+      vol.writeFileSync(pluginsPath, JSON.stringify(installedPlugins));
+
+      vol.mkdirSync('/path/to/my-plugin', { recursive: true });
+      vol.writeFileSync(
+        join('/path/to/my-plugin', '.mcp.json'),
+        JSON.stringify({
+          mcpServers: {
+            'plugin-server': { command: 'npx', args: ['plugin'] },
+          },
+        })
+      );
+
+      const servers = getServersWithOrigins();
+
+      expect(servers).toHaveLength(3);
+      expect(servers).toContainEqual({ name: 'global-server', origin: { type: 'global' } });
+      expect(servers).toContainEqual({ name: 'local-server', origin: { type: 'local' } });
+      expect(servers).toContainEqual({
+        name: 'plugin:my-plugin:plugin-server',
+        origin: { type: 'plugin', pluginName: 'my-plugin' },
+      });
+    });
+
+    it('should list both global and plugin servers with same short name as separate entries', () => {
+      // Global config with server name that matches plugin's short server name
+      const globalConfig = {
+        mcpServers: {
+          'overlapping-server': { command: 'npx', args: ['global-version'] },
+        },
+      };
+
+      vol.writeFileSync(join(mockHomedir, '.claude.json'), JSON.stringify(globalConfig));
+
+      // Plugin with same short server name (but full qualified name is different)
+      const installedPlugins = {
+        version: 2,
+        plugins: {
+          'my-plugin@marketplace': [
+            {
+              scope: 'user',
+              installPath: '/path/to/my-plugin',
+              version: '1.0.0',
+              installedAt: '2024-01-01T00:00:00.000Z',
+              lastUpdated: '2024-01-01T00:00:00.000Z',
+            },
+          ],
+        },
+      };
+
+      const pluginsPath = join(mockHomedir, '.claude', 'plugins', 'installed_plugins.json');
+      vol.mkdirSync(join(mockHomedir, '.claude', 'plugins'), { recursive: true });
+      vol.writeFileSync(pluginsPath, JSON.stringify(installedPlugins));
+
+      vol.mkdirSync('/path/to/my-plugin', { recursive: true });
+      vol.writeFileSync(
+        join('/path/to/my-plugin', '.mcp.json'),
+        JSON.stringify({
+          mcpServers: {
+            'overlapping-server': { command: 'npx', args: ['plugin-version'] },
+          },
+        })
+      );
+
+      const servers = getServersWithOrigins();
+
+      // Should have two entries: one for global 'overlapping-server' and one for plugin's full qualified name
+      expect(servers).toHaveLength(2);
+      expect(servers).toContainEqual({ name: 'overlapping-server', origin: { type: 'global' } });
+      expect(servers).toContainEqual({
+        name: 'plugin:my-plugin:overlapping-server',
+        origin: { type: 'plugin', pluginName: 'my-plugin' },
+      });
+    });
+  });
+
   describe('getAvailableServers', () => {
     it('should return empty array when no servers configured', () => {
       const servers = getAvailableServers();
@@ -219,10 +859,7 @@ describe('Configuration Reader', () => {
         },
       };
 
-      vol.writeFileSync(
-        join(mockHomedir, '.claude.json'),
-        JSON.stringify(mockConfig)
-      );
+      vol.writeFileSync(join(mockHomedir, '.claude.json'), JSON.stringify(mockConfig));
 
       const servers = getAvailableServers();
       expect(servers).toEqual(['github', 'linear']);
@@ -240,10 +877,7 @@ describe('Configuration Reader', () => {
         },
       };
 
-      vol.writeFileSync(
-        join(mockHomedir, '.claude.json'),
-        JSON.stringify(mockConfig)
-      );
+      vol.writeFileSync(join(mockHomedir, '.claude.json'), JSON.stringify(mockConfig));
 
       const servers = getAvailableServers();
       expect(servers).toEqual(['project1', 'project2']);
@@ -280,10 +914,7 @@ describe('Configuration Reader', () => {
         },
       };
 
-      vol.writeFileSync(
-        join(mockHomedir, '.claude.json'),
-        JSON.stringify(globalConfig)
-      );
+      vol.writeFileSync(join(mockHomedir, '.claude.json'), JSON.stringify(globalConfig));
 
       // Local .mcp.json
       const localConfig = {
@@ -293,10 +924,7 @@ describe('Configuration Reader', () => {
         },
       };
 
-      vol.writeFileSync(
-        join(mockCwd, '.mcp.json'),
-        JSON.stringify(localConfig)
-      );
+      vol.writeFileSync(join(mockCwd, '.mcp.json'), JSON.stringify(localConfig));
 
       const servers = getAvailableServers();
       // Should deduplicate and sort
@@ -312,10 +940,7 @@ describe('Configuration Reader', () => {
         },
       };
 
-      vol.writeFileSync(
-        join(mockHomedir, '.claude.json'),
-        JSON.stringify(mockConfig)
-      );
+      vol.writeFileSync(join(mockHomedir, '.claude.json'), JSON.stringify(mockConfig));
 
       const servers = getAvailableServers();
       expect(servers).toEqual(['apple', 'monkey', 'zebra']);
@@ -358,10 +983,7 @@ describe('Configuration Reader', () => {
         },
       };
 
-      vol.writeFileSync(
-        join(mockHomedir, '.claude.json'),
-        JSON.stringify(globalConfig)
-      );
+      vol.writeFileSync(join(mockHomedir, '.claude.json'), JSON.stringify(globalConfig));
 
       const status = getServerStatus('github');
       expect(status).toEqual({
@@ -381,10 +1003,7 @@ describe('Configuration Reader', () => {
         },
       };
 
-      vol.writeFileSync(
-        join(mockHomedir, '.claude.json'),
-        JSON.stringify(globalConfig)
-      );
+      vol.writeFileSync(join(mockHomedir, '.claude.json'), JSON.stringify(globalConfig));
 
       // Local config also says disabled (but local should be checked first)
       const localConfig = {
@@ -420,10 +1039,7 @@ describe('Configuration Reader', () => {
         },
       };
 
-      vol.writeFileSync(
-        join(mockHomedir, '.claude.json'),
-        JSON.stringify(globalConfig)
-      );
+      vol.writeFileSync(join(mockHomedir, '.claude.json'), JSON.stringify(globalConfig));
 
       const localConfig = {
         deniedMcpServers: [{ serverName: 'linear' }],
@@ -439,16 +1055,19 @@ describe('Configuration Reader', () => {
         name: 'github',
         enabled: true,
         source: 'none',
+        origin: { type: 'global' },
       });
       expect(statuses).toContainEqual({
         name: 'linear',
         enabled: false,
         source: 'local',
+        origin: { type: 'global' },
       });
       expect(statuses).toContainEqual({
         name: 'notion',
         enabled: true,
         source: 'none',
+        origin: { type: 'global' },
       });
     });
   });
@@ -466,10 +1085,7 @@ describe('Configuration Reader', () => {
         },
       };
 
-      vol.writeFileSync(
-        join(mockHomedir, '.claude.json'),
-        JSON.stringify(mockConfig)
-      );
+      vol.writeFileSync(join(mockHomedir, '.claude.json'), JSON.stringify(mockConfig));
 
       const result = hasMcpServers();
       expect(result).toBe(true);
@@ -486,10 +1102,7 @@ describe('Configuration Reader', () => {
         },
       };
 
-      vol.writeFileSync(
-        join(mockHomedir, '.claude.json'),
-        JSON.stringify(mockConfig)
-      );
+      vol.writeFileSync(join(mockHomedir, '.claude.json'), JSON.stringify(mockConfig));
 
       const result = hasMcpServers();
       expect(result).toBe(true);

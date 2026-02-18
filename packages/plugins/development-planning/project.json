@@ -1,0 +1,21 @@
+{
+  "name": "development-planning",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/plugins/development-planning",
+  "projectType": "library",
+  "tags": ["type:plugin", "scope:planning"],
+  "targets": {
+    "lint-markdown": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm exec markdownlint-cli2 -- 'packages/plugins/development-planning/**/*.md'"
+      }
+    },
+    "validate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node scripts/validate-plugin.cjs packages/plugins/development-planning"
+      }
+    }
+  }
+}

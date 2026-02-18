@@ -13,6 +13,13 @@ on:
   pull_request_review:
     types: [submitted]
 
+permissions:
+  id-token: write # Required for OIDC authentication in _claude-main.yml
+  contents: read
+  issues: write
+  pull-requests: write
+  actions: read # Required to read CI results on PRs in _claude-main.yml
+
 jobs:
   claude:
     # Only run when @claude is mentioned and the comment is not from a bot
@@ -25,9 +32,13 @@ jobs:
     uses: ./.github/workflows/_claude-main.yml
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
     with:
+      # Use 'next' branch for plugin configuration (testing pre-release)
+      plugin_ref: 'next'
+
       # Use default Sonnet 4.5 model
-      model: 'claude-sonnet-4-5-20250929'
+      model: 'claude-sonnet-4-5'
 
       # Repository-specific instructions
       custom_instructions: |

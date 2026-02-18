@@ -14,6 +14,7 @@
  * - in-progress: Posts a "review in progress" placeholder comment
  * - skipped: Preserves existing review content with a "still valid" status banner (cache hit)
  *            If no substantial review exists, posts a fallback "no review needed" message
+ * - too-large: Posts a message indicating the PR diff is too large for Claude review
  *
  * @usage
  *   # Full review mode (default)
@@ -35,6 +36,15 @@
  *     --owner "Uniswap" \
  *     --repo "ai-toolkit" \
  *     --pr-number 123
+ *
+ *   # Too large mode (PR diff exceeds threshold)
+ *   npx tsx .github/scripts/post-review.ts \
+ *     --mode too-large \
+ *     --owner "Uniswap" \
+ *     --repo "ai-toolkit" \
+ *     --pr-number 123 \
+ *     --line-count 2534 \
+ *     --max-diff-lines 2000
  *
  * @environment
  *   GITHUB_TOKEN - GitHub token for API authentication (required)
@@ -335,12 +345,14 @@ const STATUS_SKIPPED = `## 🤖 Claude Code Review
 >
 > <sub>💡 To force a fresh review, add a comment containing \`@request-claude-review\`.</sub>`;
 
-/** Status shown when review fails */
-const STATUS_FAILED = `## 🤖 Claude Code Review
+/** Function to generate status message when PR is too large for review */
+function STATUS_TOO_LARGE(lineCount: number, maxDiffLines: number): string {
+  return `## 🤖 Claude Code Review
 
-> ❌ **Review failed** — An error occurred during analysis. Check the workflow logs for details.
+> ⚠️ **PR too large for automated review** — This pull request contains ${lineCount.toLocaleString()} lines of diff, which exceeds the ${maxDiffLines.toLocaleString()} line threshold for Claude Code Review.
 >
-> <sub>💡 To retry, add a comment containing \`@request-claude-review\`.</sub>`;
+> <sub>💡 Consider breaking this PR into smaller, more focused changes for better reviewability.</sub>`;
+}
 
 // -----------------------------------------------------------------------------
 // Content Templates
@@ -349,8 +361,15 @@ const STATUS_FAILED = `## 🤖 Claude Code Review
 /** Placeholder content shown before first review completes */
 const CONTENT_PLACEHOLDER = `*Waiting for review to complete...*`;
 
-/** Content shown when no review exists and cache hit (first PR with no changes) */
-const CONTENT_NO_REVIEW_NEEDED = `This PR has no code changes that require review.`;
+/** Content shown when PR is too large for Claude review */
+const CONTENT_TOO_LARGE = `Claude Code Review has been skipped for this PR because the diff is too large. Large PRs are harder to review thoroughly and increase the risk of bugs slipping through.
+
+**Recommendations:**
+- Break this PR into smaller, focused changes
+- Each PR should ideally address a single concern or feature
+- Smaller PRs are easier to review, test, and merge safely
+
+Once you've split this into smaller PRs, Claude will be able to provide detailed automated reviews for each one.`;
 
 // =============================================================================
 // Comment Structure Helpers
@@ -955,6 +974,67 @@ function dismissPreviousBotReviews(owner: string, repo: string, prNumber: number
   }
 }
 
+/**
+ * Deletes any pending (not yet submitted) bot reviews on a PR.
+ *
+ * GitHub only allows one pending review per user per PR. If a previous workflow
+ * run crashed or failed before submitting its review, a stale PENDING review
+ * may block future reviews with error:
+ *   "User can only have one pending review per pull request" (HTTP 422)
+ *
+ * This function finds and deletes any such pending reviews before creating a new one.
+ */
+function deletePendingBotReviews(owner: string, repo: string, prNumber: number): void {
+  log('Checking for pending bot reviews to delete...');
+
+  const result = gh([
+    'api',
+    `repos/${owner}/${repo}/pulls/${prNumber}/reviews`,
+    '--jq',
+    '[.[] | select(.user.login == "github-actions[bot]" and .state == "PENDING")]',
+  ]);
+
+  if (!result) {
+    log('No pending bot reviews found');
+    return;
+  }
+
+  try {
+    const reviews = JSON.parse(result) as Array<{ id: number }>;
+
+    if (reviews.length === 0) {
+      log('No pending bot reviews to delete');
+      return;
+    }
+
+    log(`Found ${reviews.length} pending bot review(s) to delete`);
+
+    for (const review of reviews) {
+      try {
+        // Pending reviews must be deleted, not dismissed (dismiss only works on submitted reviews)
+        gh([
+          'api',
+          '--method',
+          'DELETE',
+          `repos/${owner}/${repo}/pulls/${prNumber}/reviews/${review.id}`,
+        ]);
+        log(`Deleted pending review ${review.id}`);
+      } catch (error) {
+        const errorMsg = (error as Error).message || '';
+        if (errorMsg.includes('404')) {
+          log(`Pending review ${review.id} already deleted or does not exist`);
+        } else if (errorMsg.includes('403')) {
+          log(`Could not delete pending review ${review.id} (insufficient permissions)`);
+        } else {
+          log(`Could not delete pending review ${review.id}: ${errorMsg}`);
+        }
+      }
+    }
+  } catch {
+    log('No pending reviews to delete');
+  }
+}
+
 // =============================================================================
 // Diff Validation
 // =============================================================================
@@ -1152,7 +1232,9 @@ async function main(): Promise<void> {
       'pr-number': { type: 'string' },
       'review-json': { type: 'string' },
       'dry-run': { type: 'boolean', default: false },
-      mode: { type: 'string', default: 'review' }, // 'review' | 'in-progress' | 'skipped'
+      mode: { type: 'string', default: 'review' }, // 'review' | 'in-progress' | 'skipped' | 'too-large'
+      'line-count': { type: 'string' },
+      'max-diff-lines': { type: 'string' }, // Maximum diff lines threshold (for too-large mode message)
     },
     strict: true,
   });
@@ -1161,7 +1243,9 @@ async function main(): Promise<void> {
   const repo = values.repo;
   const prNumber = parseInt(values['pr-number'] || '', 10);
   const dryRun = values['dry-run'];
-  const mode = values.mode as 'review' | 'in-progress' | 'skipped';
+  const mode = values.mode as 'review' | 'in-progress' | 'skipped' | 'too-large';
+  const lineCount = values['line-count'] ? parseInt(values['line-count'], 10) : undefined;
+  const maxDiffLines = values['max-diff-lines'] ? parseInt(values['max-diff-lines'], 10) : 2000;
 
   // Validate required inputs
   if (!owner || !repo || isNaN(prNumber)) {
@@ -1223,6 +1307,38 @@ async function main(): Promise<void> {
     }
   }
 
+  // Handle too-large mode - post message that PR is too large for review
+  if (mode === 'too-large') {
+    log(`Running in too-large mode for ${owner}/${repo}#${prNumber}`);
+
+    if (lineCount === undefined || isNaN(lineCount)) {
+      logError('Missing or invalid --line-count argument for too-large mode');
+      process.exit(1);
+    }
+
+    if (dryRun) {
+      log(
+        `DRY RUN - Would post too-large message (${lineCount} lines, threshold: ${maxDiffLines})`
+      );
+      console.log(buildReviewComment(STATUS_TOO_LARGE(lineCount, maxDiffLines), CONTENT_TOO_LARGE));
+      process.exit(0);
+    }
+
+    try {
+      const result = upsertReviewComment(owner, repo, prNumber, {
+        status: STATUS_TOO_LARGE(lineCount, maxDiffLines),
+        content: CONTENT_TOO_LARGE,
+      });
+      log(`Too-large message posted: ${result.html_url}`);
+      console.log(`comment_url=${result.html_url}`);
+      console.log(`comment_id=${result.id}`);
+      process.exit(0);
+    } catch (error) {
+      logError(`Failed to post too-large message: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  }
+
   // Get review JSON from sources (priority order):
   // 1. REVIEW_JSON_FILE env var (preferred - file path from workflow)
   // 2. --review-json CLI flag
@@ -1272,7 +1388,11 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  // Dismiss previous bot reviews
+  // Delete any pending bot reviews (required before creating a new review)
+  // GitHub only allows one pending review per user per PR
+  deletePendingBotReviews(owner, repo, prNumber);
+
+  // Dismiss previous submitted bot reviews
   dismissPreviousBotReviews(owner, repo, prNumber);
 
   // Process responses to existing comments first

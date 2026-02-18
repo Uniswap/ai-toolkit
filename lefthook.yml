@@ -54,11 +54,12 @@ pre-commit:
       fail_text: 'Markdown linting failed. Please fix the issues before committing.'
     # Update CLAUDE.md files based on changed files
     # Skip with: SKIP_CLAUDE=1 git commit -m "message"
-    update-claude-docs:
-      run: sh scripts/lefthook/update-claude-docs.sh
-      tags: claude-docs
-      skip:
-        - merge
-        - rebase
-        - run: '[ "$SKIP_CLAUDE" = "1" ]'
-      fail_text: 'Failed to update CLAUDE.md files. Please run `claude -p "/update-claude-md"` manually.'
+    # Also skips automatically when CLAUDE_CODE=1 (set by Claude Code sessions)
+    # update-claude-docs:
+    #   run: sh scripts/lefthook/update-claude-docs.sh
+    #   tags: claude-docs
+    #   skip:
+    #     - merge
+    #     - rebase
+    #     - run: '[ "$SKIP_CLAUDE" = "1" ] || [ "$CLAUDE_CODE" = "1" ]'
+    #   fail_text: 'Failed to update CLAUDE.md files. Please run `claude -p "/update-claude-md"` manually.'

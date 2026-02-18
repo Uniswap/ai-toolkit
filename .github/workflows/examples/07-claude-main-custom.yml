@@ -41,14 +41,16 @@ jobs:
 
     uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
     secrets:
+      # At least one of these authentication methods is required
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
     with:
       # MODEL SELECTION
       # Choose the Claude model based on your needs:
-      # - claude-sonnet-4-5-20250929: Latest, best balance (RECOMMENDED)
-      # - claude-opus-4-5-20251101: Most capable, slower, higher cost
-      # - claude-haiku-4-5@20251001: Fast, cost-effective for simpler tasks
-      model: "claude-opus-4-5-20251101"
+      # - claude-sonnet-4-5: Latest, best balance (RECOMMENDED)
+      # - claude-opus-4-6: Most capable, slower, higher cost
+      # - claude-haiku-4-5: Fast, cost-effective for simpler tasks
+      model: "claude-opus-4-6"
 
       # TIMEOUT CONFIGURATION
       # Set maximum execution time in minutes
@@ -147,7 +149,7 @@ jobs:
 # Use when you trust Claude to make direct code changes:
 #
 #     with:
-#       model: 'claude-sonnet-4-5-20250929'
+#       model: 'claude-sonnet-4-5'
 #       timeout_minutes: '10'
 #       allowed_tools: |
 #         # File operations (read AND write)
@@ -169,7 +171,7 @@ jobs:
 # Allow file edits but restrict bash commands:
 #
 #     with:
-#       model: 'claude-sonnet-4-5-20250929'
+#       model: 'claude-sonnet-4-5'
 #       timeout_minutes: '10'
 #       allowed_tools: |
 #         # File operations (read and write)
@@ -194,7 +196,7 @@ jobs:
 # Minimal permissions for pure code review assistance:
 #
 #     with:
-#       model: 'claude-sonnet-4-5-20250929'
+#       model: 'claude-sonnet-4-5'
 #       timeout_minutes: '10'
 #       custom_instructions: |
 #         You are in READ-ONLY mode for code review.
@@ -218,7 +220,7 @@ jobs:
 #       ANTHROPIC_API_KEY: ${{ secrets.MY_CUSTOM_CLAUDE_KEY }}
 #     with:
 #       anthropic_api_key_secret_name: 'MY_CUSTOM_CLAUDE_KEY'
-#       model: 'claude-sonnet-4-5-20250929'
+#       model: 'claude-sonnet-4-5'
 #
 
 # -----------------------------------------------------------------------------
@@ -241,7 +243,7 @@ jobs:
 #     secrets:
 #       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 #     with:
-#       model: 'claude-sonnet-4-5-20250929'  # Fast for questions
+#       model: 'claude-sonnet-4-5'  # Fast for questions
 #       timeout_minutes: '5'
 #
 #   claude-pr-reviews:
@@ -254,7 +256,7 @@ jobs:
 #     secrets:
 #       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 #     with:
-#       model: 'claude-opus-4-5-20251101'  # Thorough for code review
+#       model: 'claude-opus-4-6'  # Thorough for code review
 #       timeout_minutes: '15'
 #
 # -------------------
@@ -287,7 +289,7 @@ jobs:
 #     secrets:
 #       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 #     with:
-#       model: 'claude-opus-4-5-20251101'
+#       model: 'claude-opus-4-6'
 #       timeout_minutes: '30'
 #       custom_instructions: |
 #         Perform a comprehensive codebase audit focusing on:
@@ -365,9 +367,9 @@ jobs:
 # Problem: Custom model not available or failing
 # Solution:
 #   1. Verify model name exactly matches available models:
-#      - claude-sonnet-4-5-20250929
-#      - claude-opus-4-5-20251101
-#      - claude-haiku-4-5@20251001
+#      - claude-sonnet-4-5
+#      - claude-opus-4-6
+#      - claude-haiku-4-5
 #   2. Check Anthropic API key has access to requested model
 #   3. Review Anthropic console for API limits or restrictions
 #

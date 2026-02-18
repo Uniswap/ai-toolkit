@@ -1,6 +1,6 @@
 {
   "name": "@uniswap/ai-toolkit-claude-mcp-helper",
-  "version": "1.0.11",
+  "version": "1.0.21",
   "private": false,
   "description": "CLI tool for managing MCP servers in Claude Code workspaces",
   "keywords": [
@@ -13,7 +13,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/uniswap/ai-toolkit.git",
+    "url": "https://github.com/Uniswap/ai-toolkit.git",
     "directory": "packages/claude-mcp-helper"
   },
   "publishConfig": {

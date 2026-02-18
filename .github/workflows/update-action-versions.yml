@@ -42,11 +42,11 @@ on:
       model:
         description: 'Claude model to use'
         required: false
-        default: 'claude-sonnet-4-5-20250929'
+        default: 'claude-sonnet-4-5'
         type: choice
         options:
-          - 'claude-sonnet-4-5-20250929'
-          - 'claude-opus-4-5-20251101'
+          - 'claude-sonnet-4-5'
+          - 'claude-opus-4-6'
       target_branch:
         description: 'Base branch for the PR'
         required: false
@@ -58,10 +58,14 @@ concurrency:
   group: update-action-versions
   cancel-in-progress: false
 
+permissions: {}
+
 jobs:
   prepare:
     name: Prepare update branch
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     outputs:
       branch_name: ${{ steps.create-branch.outputs.branch_name }}
       target_branch: ${{ steps.config.outputs.target_branch }}
@@ -91,7 +95,7 @@ jobs:
           fi
 
           if [ -z "$INPUT_MODEL" ]; then
-            echo "model=claude-sonnet-4-5-20250929" >> $GITHUB_OUTPUT
+            echo "model=claude-sonnet-4-5" >> $GITHUB_OUTPUT
           else
             echo "model=$INPUT_MODEL" >> $GITHUB_OUTPUT
           fi
@@ -109,6 +113,13 @@ jobs:
           ref: ${{ steps.config.outputs.target_branch }}
           fetch-depth: 1
           token: ${{ secrets.WORKFLOW_PAT || github.token }}
+          persist-credentials: false
+
+      - name: Configure git credentials for push
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
       # Create and push the update branch
       - name: Create update branch
@@ -139,6 +150,11 @@ jobs:
   update:
     name: Update action versions
     needs: prepare
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+      actions: read
     uses: ./.github/workflows/_update-action-versions-worker.yml
     with:
       branch_name: ${{ needs.prepare.outputs.branch_name }}
@@ -147,6 +163,9 @@ jobs:
       model: ${{ needs.prepare.outputs.model }}
       timeout_minutes: 30
       debug_mode: true
+      # Use 'next' branch for plugin configuration (testing pre-release)
+      plugin_ref: 'next'
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}

@@ -52,34 +52,39 @@ graph TD
         CLI[ai-toolkit-nx-claude<br/>CLI & Generators]
     end
 
-    subgraph "Content Layer"
-        AGENTS[agents-agnostic]
-        COMMANDS[commands-agnostic]
-        COMMANDS_TS[commands-typescript]
+    subgraph "Plugin Layer"
+        DEV_PLAN[development-planning<br/>Planning & Execution]
+        DEV_PR[development-pr-workflow<br/>PR & Graphite]
+        DEV_CODE[development-codebase-tools<br/>Code Analysis]
+        DEV_PROD[development-productivity<br/>Docs & Research]
+        UNI_INT[uniswap-integrations<br/>External Services]
     end
 
     subgraph "Utility Layer"
-        UTILS[utils]
+        NOTION[notion-publisher]
+        LINEAR[linear-task-utils]
+        MCP[claude-mcp-helper]
     end
 
-    CLI --> AGENTS
-    CLI --> COMMANDS
-    CLI --> COMMANDS_TS
-    CLI --> UTILS
-
-    COMMANDS --> AGENTS
-    COMMANDS_TS --> COMMANDS
+    CLI --> DEV_PLAN
+    CLI --> DEV_PR
+    CLI --> DEV_CODE
+    CLI --> DEV_PROD
+    CLI --> UNI_INT
+    UNI_INT --> NOTION
+    UNI_INT --> LINEAR
+    CLI --> MCP
 ```
 
 ## Package Structure
 
 ### Package Types
 
-| Type             | Purpose             | Publishing       | Examples                        |
-| ---------------- | ------------------- | ---------------- | ------------------------------- |
-| **Applications** | User-facing tools   | Published        | `@uniswap/ai-toolkit-nx-claude` |
-| **Libraries**    | Shared code         | May be published | `@ai-toolkit/utils`             |
-| **Content**      | Templates & configs | Private          | `@ai-toolkit/agents-agnostic`   |
+| Type             | Purpose             | Publishing       | Examples                                |
+| ---------------- | ------------------- | ---------------- | --------------------------------------- |
+| **Applications** | User-facing tools   | Published        | `@uniswap/ai-toolkit-nx-claude`         |
+| **Libraries**    | Shared code         | May be published | `@uniswap/ai-toolkit-linear-task-utils` |
+| **Plugins**      | Claude Code plugins | Private          | `packages/plugins/*`                    |
 
 ### Package Anatomy
 
@@ -273,8 +278,8 @@ Each package versions independently based on its changes:
     "projectsRelationship": "independent",
     "projects": [
       "@uniswap/ai-toolkit-nx-claude", // 1.2.3
-      "@ai-toolkit/utils", // 2.0.1
-      "@ai-toolkit/agents-agnostic" // 0.5.0
+      "@uniswap/ai-toolkit-claude-mcp-helper", // 0.1.0
+      "@uniswap/ai-toolkit-linear-task-utils" // 0.2.0
     ]
   }
 }
@@ -382,11 +387,8 @@ npx nx serve package-name --watch
 # Build the generator package
 npx nx build ai-toolkit-nx-claude
 
-# Test generator with dry-run
-npx nx generate @uniswap/ai-toolkit-nx-claude:init --dry-run
-
-# Test with local changes
-node ./dist/packages/ai-toolkit-nx-claude/src/generators/init/generator.js
+# Test addons generator with dry-run
+npx nx generate @uniswap/ai-toolkit-nx-claude:addons --dry-run
 ```
 
 #### Test Packages Before Publishing

@@ -24,6 +24,11 @@ concurrency:
   group: pr-metadata-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
 jobs:
   generate-metadata:
     # Extended skip conditions for common PR types that don't need auto-generation
@@ -42,7 +47,7 @@ jobs:
       base_ref: ${{ github.base_ref }}
 
       # Use a faster model for quick generation
-      model: 'claude-sonnet-4-5-20250929'
+      model: 'claude-sonnet-4-5'
 
       # Increase timeout for complex PRs
       timeout_minutes: 20
@@ -57,3 +62,4 @@ jobs:
 
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

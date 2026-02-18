@@ -3,10 +3,10 @@
   "version": "0.0.0",
   "license": "MIT",
   "type": "module",
-  "packageManager": "npm@11.6.2",
+  "packageManager": "npm@11.7.0",
   "engines": {
     "node": "22.x",
-    "npm": "11.6.2"
+    "npm": "11.7.0"
   },
   "scripts": {
     "start": "nx run @uniswap/ai-toolkit-nx-claude:nx-claude:exec",
@@ -15,8 +15,7 @@
     "format": "nx format:write",
     "format:check": "nx format:check",
     "prepare": "node scripts/prepare.cjs",
-    "lefthook": "npx lefthook run pre-commit",
-    "claude:init": "nx generate @uniswap/ai-toolkit-nx-claude:init"
+    "lefthook": "npx lefthook run pre-commit"
   },
   "private": true,
   "dependencies": {
@@ -61,7 +60,7 @@
     "jest-util": "^30.0.2",
     "jsonc-eslint-parser": "^2.1.0",
     "lefthook": "^1.12.3",
-    "markdownlint-cli2": "^0.18.1",
+    "markdownlint-cli2": "^0.20.0",
     "nx": "22.0.2",
     "prettier": "^2.6.2",
     "supertest": "^7.1.4",
@@ -78,8 +77,7 @@
   },
   "workspaces": [
     "packages/*",
-    "packages/commands/*",
-    "packages/agents/*",
+    "packages/plugins/*",
     "apps/*"
   ],
   "overrides": {

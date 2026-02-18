@@ -66,10 +66,24 @@ export async function runMcpSelector(verbose?: boolean): Promise<void>;
 
 **Behavior**:
 
-1. Attempts to run `npx -y @uniswap/ai-toolkit-claude-mcp-helper@latest interactive`
-2. Falls back to direct `claude-mcp-helper` command if npx fails
-3. Gracefully handles missing tool (warns and continues)
-4. Non-zero exit codes are treated as user cancellation (not failure)
+1. Determines npm tag based on this package's version:
+   - Prerelease versions (containing `-next`, `-alpha`, `-beta`, `-rc`) use `@next` tag
+   - Stable versions use `@latest` tag
+2. Attempts to run `npx -y @uniswap/ai-toolkit-claude-mcp-helper@{tag} interactive`
+3. Falls back to direct `claude-mcp-helper` command if npx fails
+4. Gracefully handles missing tool (warns and continues)
+5. Non-zero exit codes are treated as user cancellation (not failure)
+
+**Tag Selection Logic**:
+
+```typescript
+function getMcpHelperTag(): string {
+  const isPrerelease = /-/.test(packageVersion);
+  return isPrerelease ? 'next' : 'latest';
+}
+```
+
+This ensures that `@next` releases of `ai-toolkit-nx-claude` use the matching `@next` release of `claude-mcp-helper`.
 
 **Key Pattern**: Uses `spawn` with `stdio: 'inherit'` to allow interactive terminal control.
 
@@ -97,13 +111,39 @@ function updateRefreshToken(newRefreshToken: string, verbose?: boolean): void;
 
 **Configuration Sources**:
 
-1. Environment variables: `SLACK_REFRESH_URL`, `SLACK_REFRESH_TOKEN`
+1. Environment variables: `CLAUDE_CONFIG_DIR`, `SLACK_REFRESH_URL`, `SLACK_REFRESH_TOKEN`
 2. File: `~/.config/claude-code/slack-env.sh` (parsed for export statements)
 
 **Token Storage**:
 
-- Access token: `~/.claude.json` → `mcpServers["slack"].env.SLACK_BOT_TOKEN`
+- Access token: `$CLAUDE_CONFIG_DIR/claude.json` → `mcpServers["slack"].env.SLACK_BOT_TOKEN` (defaults to `~/.claude.json` for backward compatibility)
 - Refresh token: `~/.config/claude-code/slack-env.sh` (updated in-place)
+
+**CLAUDE_CONFIG_DIR Support**:
+
+The config path utilities are centralized in `config-paths.ts`:
+
+```typescript
+// config-paths.ts - shared utility module
+
+export function getClaudeConfigDir(): string {
+  return process.env.CLAUDE_CONFIG_DIR || os.homedir();
+}
+
+export function getClaudeConfigPath(): string {
+  if (process.env.CLAUDE_CONFIG_DIR) {
+    return path.join(process.env.CLAUDE_CONFIG_DIR, 'claude.json');
+  }
+  // Backward compatible: use ~/.claude.json when env var is not set
+  return path.join(os.homedir(), '.claude.json');
+}
+
+export function isUsingCustomConfigDir(): boolean {
+  return !!process.env.CLAUDE_CONFIG_DIR;
+}
+```
+
+This allows users to use personal Claude Code authentication on work computers or maintain separate configurations while maintaining backward compatibility with existing `~/.claude.json` configurations.
 
 **API Endpoints**:
 

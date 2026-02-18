@@ -1,0 +1,1072 @@
+name: "[claude] PR Documentation Validator"
+
+# Reusable workflow for validating PR documentation is properly updated
+#
+# This workflow analyzes PR changes and validates that:
+# - CLAUDE.md files are updated when code in their scope changes
+# - README.md files reflect current state
+# - Plugin versions are bumped when plugin code changes
+# - Changelog entries exist for significant changes
+#
+# FEATURES:
+# - Inline commit suggestions via GitHub's suggestion syntax
+# - Optional fixup branch creation for larger changes
+# - Pass/fail verdict for CI integration
+# - Configurable strictness levels
+#
+# SUGGESTION MODES:
+# - suggest: Post inline commit suggestions (user clicks "Commit suggestion")
+# - branch: Create a fixup branch with all suggested changes
+# - auto: Use suggest for ≤3 changes, branch for >3 changes
+# - check: Just analyze and report (no suggestions posted)
+#
+# AUTO-COMMIT:
+# - When auto_commit is true, suggestions are applied directly to the PR branch
+# - Changes are committed and pushed automatically by the workflow
+#
+# VERDICT LOGIC:
+# - PASS: No issues found OR only info/minor severity suggestions
+# - FAIL: Any error-level issues (e.g., missing plugin version bump)
+#
+# PERMISSIONS REQUIRED (calling workflow must grant these):
+#   contents: write (for branch creation)
+#   pull-requests: write (for comments and suggestions)
+#   id-token: write (for OIDC if needed)
+
+on:
+  workflow_call:
+    inputs:
+      pr_number:
+        description: "Pull request number to validate"
+        required: true
+        type: string
+
+      base_ref:
+        description: "Base branch name (e.g., main). Optional - fetched via API if not provided."
+        required: false
+        type: string
+        default: ""
+
+      suggestion_mode:
+        description: |
+          How to provide documentation fix suggestions:
+          - suggest: Post inline commit suggestions (default)
+          - branch: Create a fixup branch with all changes
+          - auto: Use suggest for ≤3 suggestions, branch for >3
+          - check: Just analyze and report (no suggestions posted)
+        required: false
+        type: string
+        default: "suggest"
+
+      auto_commit:
+        description: |
+          When true, automatically commit and push all suggestions directly to the PR branch.
+          This bypasses suggestion_mode - changes are applied immediately without user interaction.
+          Requires WORKFLOW_PAT secret for push access.
+        required: false
+        type: boolean
+        default: false
+
+      fail_on_missing_docs:
+        description: "Whether missing documentation should cause workflow to fail"
+        required: false
+        type: boolean
+        default: true
+
+      fail_on_missing_version:
+        description: "Whether missing plugin version bumps should cause workflow to fail"
+        required: false
+        type: boolean
+        default: true
+
+      model:
+        description: "Claude model to use"
+        required: false
+        type: string
+        default: "claude-sonnet-4-5"
+
+      max_turns:
+        description: "Maximum conversation turns for Claude"
+        required: false
+        type: number
+
+      timeout_minutes:
+        description: "Job timeout in minutes"
+        required: false
+        type: number
+        default: 15
+
+      toolkit_ref:
+        description: "Git ref of ai-toolkit to use for scripts. Defaults to 'main'."
+        required: false
+        type: string
+        default: "main"
+
+      install_uniswap_plugins:
+        description: "Whether to install uniswap-ai-toolkit plugins"
+        required: false
+        type: boolean
+        default: true
+
+      plugin_ref:
+        description: "Git ref for build-plugin-config action ('main' or 'next')"
+        required: false
+        type: string
+        default: "main"
+
+      auto_fix:
+        description: |
+          When enabled, if the docs check finds issues (FAIL verdict),
+          Claude will automatically attempt to fix them and push the changes
+          to the PR branch. This triggers a new push event, which will run a
+          fresh docs check of the fixed code.
+
+          Requires WORKFLOW_PAT secret with repo scope for pushing commits.
+
+          Default: false (backwards compatible)
+        required: false
+        type: boolean
+        default: false
+
+      auto_fix_model:
+        description: |
+          Claude model to use for auto-fixing issues. If not specified, uses
+          the same model as the check. You may want to use a more capable
+          model (e.g., Opus) for complex fixes.
+        required: false
+        type: string
+        default: ""
+
+    secrets:
+      ANTHROPIC_API_KEY:
+        description: "Anthropic API key for Claude access. Required unless CLAUDE_CODE_OAUTH_TOKEN is provided."
+        required: false
+      CLAUDE_CODE_OAUTH_TOKEN:
+        description: "Claude Code OAuth token for authentication. Alternative to ANTHROPIC_API_KEY."
+        required: false
+      WORKFLOW_PAT:
+        description: "Personal Access Token with repo scope. Needed for branch creation."
+        required: false
+
+    outputs:
+      verdict:
+        description: "PASS or FAIL"
+        value: ${{ jobs.docs-check.outputs.verdict }}
+      suggestion_count:
+        description: "Number of suggestions made"
+        value: ${{ jobs.docs-check.outputs.suggestion_count }}
+      branch_name:
+        description: "Name of fixup branch if created"
+        value: ${{ jobs.docs-check.outputs.branch_name }}
+      branch_url:
+        description: "URL to fixup branch if created"
+        value: ${{ jobs.docs-check.outputs.branch_url }}
+      commits_pushed:
+        description: "Number of commits pushed when auto_commit is enabled"
+        value: ${{ jobs.docs-check.outputs.commits_pushed }}
+
+jobs:
+  docs-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+      issues: read
+      actions: read
+
+    outputs:
+      verdict: ${{ steps.process-results.outputs.verdict }}
+      suggestion_count: ${{ steps.process-results.outputs.suggestion_count }}
+      branch_name: ${{ steps.process-results.outputs.branch_name }}
+      branch_url: ${{ steps.process-results.outputs.branch_url }}
+      commits_pushed: ${{ steps.process-results.outputs.commits_pushed }}
+
+    steps:
+      # Security scanning
+      - name: Security Scan
+        uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+        with:
+          egress-policy: audit
+
+      # Initial checkout
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 50
+
+      # Download validate-claude-auth action if needed
+      - name: Ensure validate-claude-auth action exists
+        env:
+          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ACTION_FILE=".github/actions/validate-claude-auth/action.yml"
+
+          if [ -f "$ACTION_FILE" ]; then
+            echo "Using local validate-claude-auth action"
+          else
+            echo "Downloading validate-claude-auth action from ai-toolkit@${TOOLKIT_REF}..."
+            mkdir -p .github/actions/validate-claude-auth
+
+            if ! curl -fSs --max-time 30 --max-redirs 3 \
+                      -H "Accept: application/vnd.github.v4.raw" \
+                      -H "Authorization: Bearer $GITHUB_TOKEN" \
+                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/actions/validate-claude-auth/action.yml?ref=${TOOLKIT_REF}" \
+                      -o "$ACTION_FILE" 2>&1 | tee /tmp/curl-error.log; then
+              echo "::error::Failed to download validate-claude-auth action"
+              cat /tmp/curl-error.log
+              exit 1
+            fi
+
+            if [ ! -s "$ACTION_FILE" ] || ! grep -q "^runs:" "$ACTION_FILE"; then
+              echo "::error::Downloaded action.yml is invalid"
+              exit 1
+            fi
+
+            echo "Successfully downloaded validate-claude-auth action"
+          fi
+
+      - name: Validate Authentication
+        uses: ./.github/actions/validate-claude-auth
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+      # Get PR info
+      - name: Get PR Info
+        id: pr-info
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          INPUT_BASE_REF: ${{ inputs.base_ref }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          echo "ℹ️  Fetching PR #$PR_NUMBER info..."
+
+          PR_DATA=$(gh api repos/${GITHUB_REPOSITORY}/pulls/$PR_NUMBER)
+
+          HEAD_SHA=$(echo "$PR_DATA" | jq -r '.head.sha')
+          echo "head_sha=$HEAD_SHA" >> $GITHUB_OUTPUT
+          echo "📍 PR head SHA: $HEAD_SHA"
+
+          if [ -n "$INPUT_BASE_REF" ]; then
+            BASE_REF="$INPUT_BASE_REF"
+          else
+            BASE_REF=$(echo "$PR_DATA" | jq -r '.base.ref')
+          fi
+          echo "base_ref=$BASE_REF" >> $GITHUB_OUTPUT
+          echo "📍 Base ref: $BASE_REF"
+
+          # Get merge base
+          COMPARE_DATA=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${BASE_REF}...${HEAD_SHA}")
+          MERGE_BASE_SHA=$(echo "$COMPARE_DATA" | jq -r '.merge_base_commit.sha')
+          echo "merge_base_sha=$MERGE_BASE_SHA" >> $GITHUB_OUTPUT
+          echo "📍 Merge base SHA: $MERGE_BASE_SHA"
+
+          # Get head branch name for fixup branch creation
+          HEAD_REF=$(echo "$PR_DATA" | jq -r '.head.ref')
+          echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
+          echo "📍 Head ref: $HEAD_REF"
+
+      # Setup Node.js and install tsx BEFORE checking out PR code.
+      # Security: PR checkout may contain a malicious .npmrc that redirects
+      # the npm registry, so all npm operations must complete first.
+      - name: Setup Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: "22"
+
+      - name: Install tsx globally (security)
+        run: |
+          npm install -g tsx
+          TSX_BIN=$(which tsx)
+          echo "TSX_BIN=$TSX_BIN" >> "$GITHUB_ENV"
+          echo "✅ Installed tsx globally at: $TSX_BIN"
+
+      # Checkout PR head
+      - name: Checkout PR Head
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          ref: ${{ steps.pr-info.outputs.head_sha }}
+          fetch-depth: 0
+
+      # Defense-in-depth: remove any attacker-supplied binaries from PR checkout
+      - name: Remove untrusted node_modules binaries
+        run: |
+          if [ -d "node_modules/.bin" ]; then
+            rm -rf node_modules/.bin
+            echo "🗑️  Removed node_modules/.bin from PR checkout"
+          fi
+
+      # Generate PR diff
+      - name: Generate PR Diff
+        id: pr-diff
+        env:
+          MERGE_BASE_SHA: ${{ steps.pr-info.outputs.merge_base_sha }}
+        run: |
+          set -euo pipefail
+
+          echo "ℹ️  Generating PR diff..."
+
+          # Get changed files
+          CHANGED_FILES=$(git diff --name-only ${MERGE_BASE_SHA}..HEAD)
+          echo "$CHANGED_FILES" > /tmp/changed-files.txt
+
+          FILE_COUNT=$(echo "$CHANGED_FILES" | grep -c . || echo "0")
+          echo "📁 Files changed: $FILE_COUNT"
+
+          # Generate diff
+          git diff ${MERGE_BASE_SHA}..HEAD > /tmp/pr-diff.txt
+
+          DIFF_SIZE=$(wc -c < /tmp/pr-diff.txt)
+          echo "📊 Diff size: $DIFF_SIZE bytes"
+
+          # Count lines changed
+          STATS=$(git diff --shortstat ${MERGE_BASE_SHA}..HEAD)
+          INSERTIONS=$(echo "$STATS" | grep -oP '\d+(?= insertion)' || echo "0")
+          DELETIONS=$(echo "$STATS" | grep -oP '\d+(?= deletion)' || echo "0")
+          TOTAL_CHANGES=$((INSERTIONS + DELETIONS))
+          echo "lines_changed=$TOTAL_CHANGES" >> $GITHUB_OUTPUT
+          echo "📊 Lines changed: $TOTAL_CHANGES"
+
+      # Download post-docs-check script from trusted ref (never use PR checkout files)
+      # Security: Always fetch from a trusted ref to prevent script tampering via PR
+      - name: Setup Post Docs Check Script
+        id: setup-script
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
+        run: |
+          set -euo pipefail
+
+          echo "ℹ️  Downloading post-docs-check.ts from Uniswap/ai-toolkit@${TOOLKIT_REF}"
+
+          # Always download from trusted ref - never use local files from PR checkout
+          # This prevents attackers from modifying scripts in their PR
+          if ! curl -fSs \
+                    -H "Accept: application/vnd.github.v4.raw" \
+                    -H "Authorization: Bearer $GITHUB_TOKEN" \
+                    -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/scripts/post-docs-check.ts?ref=${TOOLKIT_REF}" \
+                    -o /tmp/post-docs-check.ts 2>&1 | tee /tmp/curl-error.log; then
+            echo "❌ Failed to download post-docs-check.ts from Uniswap/ai-toolkit@${TOOLKIT_REF}"
+            echo "   Error details:"
+            cat /tmp/curl-error.log | head -5
+            exit 1
+          fi
+
+          echo "✅ Downloaded post-docs-check.ts from ref: $TOOLKIT_REF"
+          echo "script_path=/tmp/post-docs-check.ts" >> $GITHUB_OUTPUT
+
+      # Build prompt
+      - name: Build Docs Check Prompt
+        id: build-prompt
+        env:
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          BASE_REF: ${{ steps.pr-info.outputs.base_ref }}
+          MERGE_BASE_SHA: ${{ steps.pr-info.outputs.merge_base_sha }}
+          LINES_CHANGED: ${{ steps.pr-diff.outputs.lines_changed }}
+          FAIL_ON_MISSING_DOCS: ${{ inputs.fail_on_missing_docs }}
+          FAIL_ON_MISSING_VERSION: ${{ inputs.fail_on_missing_version }}
+          SUGGESTION_MODE: ${{ inputs.suggestion_mode }}
+        run: |
+          set -euo pipefail
+
+          REPO_OWNER=$(echo "$REPO" | cut -d'/' -f1)
+          REPO_NAME=$(echo "$REPO" | cut -d'/' -f2)
+
+          # Read changed files and diff
+          CHANGED_FILES=$(cat /tmp/changed-files.txt)
+          PR_DIFF=$(cat /tmp/pr-diff.txt)
+
+          # Build the prompt
+          cat > /tmp/docs-check-prompt.txt << 'PROMPT_EOF'
+          # PR Documentation Validator
+
+          You are reviewing a pull request to ensure documentation is properly updated.
+
+          ## PR Context
+
+          - **Repository**: ${REPO_OWNER}/${REPO_NAME}
+          - **PR Number**: #${PR_NUMBER}
+          - **Base Branch**: ${BASE_REF}
+          - **Lines Changed**: ${LINES_CHANGED}
+
+          ## Changed Files
+
+          ```
+          ${CHANGED_FILES}
+          ```
+
+          ## PR Diff
+
+          ```diff
+          ${PR_DIFF}
+          ```
+
+          ## Your Task
+
+          Analyze the PR changes and determine if documentation updates are needed. Check for:
+
+          ### 1. CLAUDE.md Files
+          - If code in a package/directory was modified, check if there's a CLAUDE.md in that directory or a parent
+          - If CLAUDE.md exists and describes the modified code, it may need updating
+          - Focus on structural changes, new functions/classes, changed APIs, not minor tweaks
+
+          ### 2. README.md Files
+          - If package structure, APIs, or usage patterns changed, README may need updating
+          - New features should be documented
+          - Removed features should be noted
+
+          ### 3. Plugin Version Bumps (CRITICAL for packages/plugins/)
+          - If ANY file in `packages/plugins/<plugin-name>/` was modified:
+            - The plugin's `.claude-plugin/plugin.json` MUST have its version bumped
+            - Patch bump for bug fixes
+            - Minor bump for new features
+            - Major bump for breaking changes
+          - This is a BLOCKING issue if not done
+
+          ### 4. Changelog Entries
+          - Significant changes should have changelog entries
+          - This is informational, not blocking
+
+          ## Suggestion Guidelines
+
+          When suggesting changes:
+
+          1. **For small, localized fixes**: Use inline commit suggestions with GitHub's suggestion syntax
+          2. **For new files or large changes**: Describe what should be created/changed
+          3. **Be specific**: Include exact file paths and content
+
+          ### GitHub Suggestion Syntax
+
+          For inline suggestions that users can commit directly, use this format in your suggestions:
+
+          \`\`\`suggestion
+          corrected content here
+          \`\`\`
+
+          ## Verdict Rules
+
+          - **PASS**: All required documentation is present OR only minor suggestions (info level)
+          - **FAIL**: Missing required updates (plugin version not bumped, critical docs missing)
+
+          Configuration:
+          - fail_on_missing_docs: ${FAIL_ON_MISSING_DOCS}
+          - fail_on_missing_version: ${FAIL_ON_MISSING_VERSION}
+
+          If fail_on_missing_version is true and a plugin was modified without a version bump, verdict MUST be FAIL.
+
+          ## Output Format
+
+          Return a JSON object matching the schema provided. Your response will be parsed as JSON.
+
+          PROMPT_EOF
+
+          # Substitute variables
+          sed -i "s|\${REPO_OWNER}|$REPO_OWNER|g" /tmp/docs-check-prompt.txt
+          sed -i "s|\${REPO_NAME}|$REPO_NAME|g" /tmp/docs-check-prompt.txt
+          sed -i "s|\${PR_NUMBER}|$PR_NUMBER|g" /tmp/docs-check-prompt.txt
+          sed -i "s|\${BASE_REF}|$BASE_REF|g" /tmp/docs-check-prompt.txt
+          sed -i "s|\${LINES_CHANGED}|$LINES_CHANGED|g" /tmp/docs-check-prompt.txt
+          sed -i "s|\${FAIL_ON_MISSING_DOCS}|$FAIL_ON_MISSING_DOCS|g" /tmp/docs-check-prompt.txt
+          sed -i "s|\${FAIL_ON_MISSING_VERSION}|$FAIL_ON_MISSING_VERSION|g" /tmp/docs-check-prompt.txt
+
+          # Insert changed files (escape for sed)
+          CHANGED_FILES_ESCAPED=$(printf '%s\n' "$CHANGED_FILES" | sed 's/[&/\]/\\&/g; s/$/\\n/' | tr -d '\n')
+          sed -i "s|\${CHANGED_FILES}|$CHANGED_FILES_ESCAPED|g" /tmp/docs-check-prompt.txt
+
+          # For the diff, we'll append it separately due to size
+          echo "" >> /tmp/docs-check-prompt.txt
+          echo "## Full Diff Content" >> /tmp/docs-check-prompt.txt
+          echo "" >> /tmp/docs-check-prompt.txt
+          echo '```diff' >> /tmp/docs-check-prompt.txt
+          # Limit diff to first 50000 chars to avoid token limits
+          head -c 50000 /tmp/pr-diff.txt >> /tmp/docs-check-prompt.txt
+          echo '```' >> /tmp/docs-check-prompt.txt
+
+          echo "prompt_file_path=/tmp/docs-check-prompt.txt" >> $GITHUB_OUTPUT
+
+          PROMPT_SIZE=$(wc -c < /tmp/docs-check-prompt.txt)
+          echo "📊 Prompt size: $PROMPT_SIZE bytes"
+
+      # Build Claude arguments
+      - name: Build Claude Arguments
+        id: build-args
+        env:
+          INPUT_MAX_TURNS: ${{ inputs.max_turns }}
+          INPUT_MODEL: ${{ inputs.model }}
+        run: |
+          # JSON schema for structured output
+          JSON_SCHEMA='{
+            "type": "object",
+            "properties": {
+              "verdict": {
+                "type": "string",
+                "enum": ["PASS", "FAIL"],
+                "description": "Overall pass/fail verdict"
+              },
+              "verdict_reason": {
+                "type": "string",
+                "description": "Brief explanation of the verdict"
+              },
+              "summary": {
+                "type": "string",
+                "description": "Markdown summary of findings"
+              },
+              "suggestions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["commit_suggestion", "file_creation", "file_modification"],
+                      "description": "Type of suggestion"
+                    },
+                    "severity": {
+                      "type": "string",
+                      "enum": ["info", "warning", "error"],
+                      "description": "Severity level"
+                    },
+                    "file_path": { "type": "string", "description": "File path" },
+                    "line_start": { "type": ["integer", "null"], "description": "Start line for inline suggestion" },
+                    "line_end": { "type": ["integer", "null"], "description": "End line for inline suggestion" },
+                    "current_content": { "type": "string", "description": "Current content to replace" },
+                    "suggested_content": { "type": "string", "description": "Suggested new content" },
+                    "explanation": { "type": "string", "description": "Why this change is needed" }
+                  },
+                  "required": ["type", "severity", "file_path", "suggested_content", "explanation"]
+                },
+                "description": "List of suggested changes"
+              },
+              "missing_updates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["claude_md", "readme", "version_bump", "changelog"],
+                      "description": "Type of missing update"
+                    },
+                    "file_path": { "type": "string", "description": "File that needs updating" },
+                    "reason": { "type": "string", "description": "Why update is needed" },
+                    "severity": {
+                      "type": "string",
+                      "enum": ["info", "warning", "error"],
+                      "description": "Severity level"
+                    }
+                  },
+                  "required": ["type", "file_path", "reason", "severity"]
+                },
+                "description": "List of missing documentation updates"
+              },
+              "files_analyzed": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Files that were analyzed"
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Confidence level (0.0-1.0)"
+              }
+            },
+            "required": ["verdict", "verdict_reason", "summary", "suggestions", "missing_updates"]
+          }'
+
+          # Build args
+          CLAUDE_ARGS="--model $INPUT_MODEL"
+
+          if [ -n "$INPUT_MAX_TURNS" ] && [ "$INPUT_MAX_TURNS" != "0" ]; then
+            CLAUDE_ARGS="$CLAUDE_ARGS --max-turns $INPUT_MAX_TURNS"
+          fi
+
+          # Add JSON schema
+          COMPACT_SCHEMA=$(echo "$JSON_SCHEMA" | jq -c .)
+          CLAUDE_ARGS="$CLAUDE_ARGS --json-schema '$COMPACT_SCHEMA'"
+
+          # Read-only tools
+          CLAUDE_ARGS="$CLAUDE_ARGS --allowedTools Read,Grep,Glob,Bash(git log:*),Bash(git diff:*),Bash(git show:*)"
+
+          echo "claude_args<<CLAUDE_ARGS_EOF" >> $GITHUB_OUTPUT
+          echo "$CLAUDE_ARGS" >> $GITHUB_OUTPUT
+          echo "CLAUDE_ARGS_EOF" >> $GITHUB_OUTPUT
+
+      # Build plugin configuration
+      - name: Build plugin configuration (main)
+        if: inputs.plugin_ref == 'main' || inputs.plugin_ref == ''
+        id: build-plugins-main
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main # zizmor: ignore[unpinned-uses]
+        with:
+          install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+
+      - name: Build plugin configuration (next)
+        if: inputs.plugin_ref == 'next'
+        id: build-plugins-next
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next # zizmor: ignore[unpinned-uses]
+        with:
+          install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+
+      # Run Claude
+      - name: Run Claude Docs Check
+        id: claude
+        uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71 # v1.0.29
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: "Read and act upon the prompt at @${{ steps.build-prompt.outputs.prompt_file_path }}"
+          track_progress: false
+          show_full_output: false
+          claude_args: ${{ steps.build-args.outputs.claude_args }}
+          plugin_marketplaces: ${{ steps.build-plugins-main.outputs.plugin_marketplaces || steps.build-plugins-next.outputs.plugin_marketplaces }}
+          plugins: ${{ steps.build-plugins-main.outputs.plugins || steps.build-plugins-next.outputs.plugins }}
+
+      # Extract and process results
+      - name: Process Results
+        id: process-results
+        env:
+          STRUCTURED_OUTPUT: ${{ steps.claude.outputs.structured_output }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          HEAD_REF: ${{ steps.pr-info.outputs.head_ref }}
+          SUGGESTION_MODE: ${{ inputs.suggestion_mode }}
+          AUTO_COMMIT: ${{ inputs.auto_commit }}
+          POST_SCRIPT: ${{ steps.setup-script.outputs.script_path }}
+        run: |
+          set -euo pipefail
+
+          echo "ℹ️  Processing Claude's docs check output..."
+
+          if [ -z "$STRUCTURED_OUTPUT" ]; then
+            echo "❌ No structured output from Claude"
+            echo "verdict=FAIL" >> $GITHUB_OUTPUT
+            echo "suggestion_count=0" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          # Save output for processing
+          echo "$STRUCTURED_OUTPUT" > /tmp/docs-check-response.json
+
+          # Extract verdict
+          VERDICT=$(echo "$STRUCTURED_OUTPUT" | jq -r '.verdict // "FAIL"')
+          echo "verdict=$VERDICT" >> $GITHUB_OUTPUT
+          echo "📋 Verdict: $VERDICT"
+
+          # Count suggestions
+          SUGGESTION_COUNT=$(echo "$STRUCTURED_OUTPUT" | jq -r '.suggestions | length')
+          echo "suggestion_count=$SUGGESTION_COUNT" >> $GITHUB_OUTPUT
+          echo "📋 Suggestions: $SUGGESTION_COUNT"
+
+          # Parse owner and repo
+          REPO_OWNER=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)
+          REPO_NAME=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
+
+          # Build script arguments
+          SCRIPT_ARGS="--owner $REPO_OWNER --repo $REPO_NAME --pr-number $PR_NUMBER --head-ref $HEAD_REF --mode $SUGGESTION_MODE --response-file /tmp/docs-check-response.json"
+
+          # Add auto-commit flag if enabled
+          if [ "$AUTO_COMMIT" = "true" ]; then
+            echo "ℹ️  Auto-commit mode enabled"
+            SCRIPT_ARGS="$SCRIPT_ARGS --auto-commit"
+          fi
+
+          # Run post-processing script (use globally installed tsx, not npx)
+          "$TSX_BIN" "$POST_SCRIPT" $SCRIPT_ARGS
+
+          # Check if branch was created
+          if [ -f /tmp/fixup-branch-name.txt ]; then
+            BRANCH_NAME=$(cat /tmp/fixup-branch-name.txt)
+            echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+            echo "branch_url=https://github.com/$GITHUB_REPOSITORY/tree/$BRANCH_NAME" >> $GITHUB_OUTPUT
+            echo "📋 Fixup branch created: $BRANCH_NAME"
+          fi
+
+          # Check if commits were pushed (auto-commit mode)
+          if [ -f /tmp/commits-pushed.txt ]; then
+            COMMITS_PUSHED=$(cat /tmp/commits-pushed.txt)
+            echo "commits_pushed=$COMMITS_PUSHED" >> $GITHUB_OUTPUT
+            echo "📋 Commits pushed: $COMMITS_PUSHED"
+          fi
+
+          echo "✅ Results processed successfully"
+
+      # Upload artifacts
+      - name: Upload Docs Check Artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: docs-check-pr${{ inputs.pr_number }}
+          path: |
+            /tmp/docs-check-prompt.txt
+            /tmp/docs-check-response.json
+            /tmp/changed-files.txt
+          retention-days: 7
+          if-no-files-found: warn
+
+      # ============================================================================
+      # AUTO-FIX SECTION
+      # When auto_fix is enabled and docs check found issues, attempt to fix them
+      # ============================================================================
+
+      # Check if we should attempt auto-fix
+      - name: Check Auto-Fix Conditions
+        id: auto-fix-check
+        if: |
+          inputs.auto_fix == true &&
+          success()
+        env:
+          STRUCTURED_OUTPUT_FILE: /tmp/docs-check-response.json
+          VERDICT: ${{ steps.process-results.outputs.verdict }}
+        run: |
+          set -euo pipefail
+
+          echo "🔧 Checking if auto-fix should run..."
+
+          # Guard against infinite auto-fix loops: if the latest commit was
+          # already an auto-fix commit, skip to prevent push→check→fix→push cycles
+          LATEST_COMMIT_MSG=$(git log -1 --format='%s')
+          if echo "$LATEST_COMMIT_MSG" | grep -q "(auto-fix)"; then
+            echo "ℹ️  Latest commit is already an auto-fix commit — skipping to prevent loop"
+            echo "   Commit: $LATEST_COMMIT_MSG"
+            echo "should_fix=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if [ ! -f "$STRUCTURED_OUTPUT_FILE" ]; then
+            echo "❌ No structured output file found"
+            echo "should_fix=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          SUGGESTION_COUNT=$(jq -r '.suggestions | length' < "$STRUCTURED_OUTPUT_FILE")
+          MISSING_COUNT=$(jq -r '.missing_updates | length' < "$STRUCTURED_OUTPUT_FILE")
+
+          echo "📋 Verdict: $VERDICT"
+          echo "📋 Suggestions: $SUGGESTION_COUNT"
+          echo "📋 Missing updates: $MISSING_COUNT"
+
+          if [ "$VERDICT" = "FAIL" ]; then
+            echo "✅ Auto-fix will run (FAIL verdict)"
+            echo "should_fix=true" >> $GITHUB_OUTPUT
+          elif [ "$SUGGESTION_COUNT" -gt 0 ] || [ "$MISSING_COUNT" -gt 0 ]; then
+            echo "✅ Auto-fix will run (suggestions or missing updates found)"
+            echo "should_fix=true" >> $GITHUB_OUTPUT
+          else
+            echo "ℹ️  Skipping auto-fix (no issues found)"
+            echo "should_fix=false" >> $GITHUB_OUTPUT
+          fi
+
+      # Get PR branch info for checkout
+      - name: Get PR Branch Info
+        id: pr-branch
+        if: steps.auto-fix-check.outputs.should_fix == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          echo "📍 Getting PR branch information..."
+
+          PR_DATA=$(gh api repos/${GITHUB_REPOSITORY}/pulls/$PR_NUMBER)
+          BRANCH_NAME=$(echo "$PR_DATA" | jq -r '.head.ref')
+          REPO_FULL_NAME=$(echo "$PR_DATA" | jq -r '.head.repo.full_name')
+
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "repo_full_name=$REPO_FULL_NAME" >> $GITHUB_OUTPUT
+          echo "📍 PR branch: $BRANCH_NAME"
+          echo "📍 PR repo: $REPO_FULL_NAME"
+
+      # Checkout with write access for auto-fix
+      # Security: Only allow auto-fix for same-repo PRs (not forks)
+      - name: Checkout for Auto-Fix
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: ${{ steps.pr-branch.outputs.repo_full_name }}
+          ref: ${{ steps.pr-branch.outputs.branch_name }}
+          token: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Configure git credentials for push (auto-fix)
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+      # Defense-in-depth: remove any attacker-supplied binaries from auto-fix checkout
+      - name: Remove potentially compromised bin directory (auto-fix)
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
+        run: |
+          if [ -d "node_modules/.bin" ]; then
+            rm -rf node_modules/.bin
+            echo "Removed node_modules/.bin after auto-fix checkout"
+          fi
+
+      # Build auto-fix prompt from docs check results
+      - name: Build Auto-Fix Prompt
+        id: build-fix-prompt
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
+        env:
+          STRUCTURED_OUTPUT_FILE: /tmp/docs-check-response.json
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          echo "📝 Building auto-fix prompt from docs check results..."
+
+          # Extract findings from structured output
+          VERDICT_REASON=$(jq -r '.verdict_reason // "No reason"' < "$STRUCTURED_OUTPUT_FILE")
+          SUMMARY=$(jq -r '.summary // "No summary"' < "$STRUCTURED_OUTPUT_FILE")
+          SUGGESTIONS=$(jq -r '.suggestions // []' < "$STRUCTURED_OUTPUT_FILE")
+          MISSING_UPDATES=$(jq -r '.missing_updates // []' < "$STRUCTURED_OUTPUT_FILE")
+
+          # Build the fix prompt
+          cat > /tmp/auto-fix-prompt.txt << 'PROMPT_EOF'
+          # Auto-Fix Task: Documentation Updates
+
+          You are fixing documentation issues identified by the PR Documentation Validator.
+
+          ## Instructions
+
+          1. **Read the findings below** to understand what documentation is missing or incorrect
+          2. **Fix ONLY the issues mentioned** - don't make unrelated changes
+          3. **Make minimal, focused fixes** - address each issue directly
+          4. **Do NOT create new commits** - just make the file changes (the workflow will commit)
+
+          ## Verdict
+
+          PROMPT_EOF
+
+          # Add verdict reason
+          echo "$VERDICT_REASON" >> /tmp/auto-fix-prompt.txt
+
+          echo "" >> /tmp/auto-fix-prompt.txt
+          echo "## Summary" >> /tmp/auto-fix-prompt.txt
+          echo "" >> /tmp/auto-fix-prompt.txt
+          echo "$SUMMARY" >> /tmp/auto-fix-prompt.txt
+
+          # Add suggestions if any
+          SUGGESTION_COUNT=$(echo "$SUGGESTIONS" | jq 'length')
+          if [ "$SUGGESTION_COUNT" -gt 0 ]; then
+            echo "" >> /tmp/auto-fix-prompt.txt
+            echo "## Suggestions to Apply" >> /tmp/auto-fix-prompt.txt
+            echo "" >> /tmp/auto-fix-prompt.txt
+            echo "$SUGGESTIONS" | jq -r '.[] | "### \(.file_path)\n\n**Severity:** \(.severity)\n**Type:** \(.type)\n**Explanation:** \(.explanation)\n\n**Suggested content:**\n```\n\(.suggested_content)\n```\n"' >> /tmp/auto-fix-prompt.txt
+          fi
+
+          # Add missing updates if any
+          MISSING_COUNT=$(echo "$MISSING_UPDATES" | jq 'length')
+          if [ "$MISSING_COUNT" -gt 0 ]; then
+            echo "" >> /tmp/auto-fix-prompt.txt
+            echo "## Missing Updates to Address" >> /tmp/auto-fix-prompt.txt
+            echo "" >> /tmp/auto-fix-prompt.txt
+            echo "$MISSING_UPDATES" | jq -r '.[] | "### \(.file_path)\n\n**Type:** \(.type)\n**Severity:** \(.severity)\n**Reason:** \(.reason)\n"' >> /tmp/auto-fix-prompt.txt
+          fi
+
+          # Add final instructions
+          cat >> /tmp/auto-fix-prompt.txt << 'PROMPT_EOF'
+
+          ## Important
+
+          - Focus on fixing the identified documentation issues
+          - For CLAUDE.md updates: update content to reflect the current state of the code
+          - For README updates: ensure documentation accurately describes current functionality
+          - For plugin version bumps: update the version in .claude-plugin/plugin.json
+          - If a fix is unclear or risky, skip it rather than making a potentially wrong change
+          PROMPT_EOF
+
+          echo "prompt_file=/tmp/auto-fix-prompt.txt" >> $GITHUB_OUTPUT
+          echo "✅ Auto-fix prompt built ($(wc -l < /tmp/auto-fix-prompt.txt) lines)"
+
+      # Run Claude to fix the documentation issues
+      - name: Run Claude Auto-Fix
+        id: claude-fix
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
+        uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71 # v1.0.29
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: "Read and execute the instructions at @${{ steps.build-fix-prompt.outputs.prompt_file }}"
+          track_progress: false
+          show_full_output: true
+          # --allowedTools grants specific permissions for auto-fix
+          # without using the blanket --dangerously-skip-permissions flag
+          # Bash is scoped to git commands only — docs fixes don't need arbitrary
+          # shell access (Edit/Write/Read handle file operations)
+          claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }} --allowedTools Read,Edit,Write,Grep,Glob,Bash(git:*),WebSearch,WebFetch"
+          # Note: plugin_marketplaces and plugins are intentionally omitted here.
+          # The marketplace and plugins were already installed by the "Run Claude
+          # Docs Check" step earlier in this job. Both steps share the same runner
+          # and ~/.claude/ directory, so re-installing would cause a fatal
+          # "Marketplace already installed" error.
+
+      # Check for changes and commit
+      - name: Commit and Push Fixes
+        id: commit-fixes
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          BRANCH_NAME: ${{ steps.pr-branch.outputs.branch_name }}
+          SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          WORKFLOW_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          echo "📦 Checking for changes to commit..."
+
+          # Check if there are any changes (including untracked new files)
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "ℹ️  No changes made by auto-fix"
+            echo "changes_pushed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Stage all changes
+          git add -A
+
+          # Show what changed
+          echo "📋 Changes to commit:"
+          git diff --staged --stat
+
+          # Commit with descriptive message
+          git commit -m "docs(claude): fix documentation issues (auto-fix)
+
+          Automated documentation fixes applied by PR Documentation Validator.
+
+          PR: #$PR_NUMBER
+          Workflow run: ${SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${WORKFLOW_RUN_ID}"
+
+          # Push the changes
+          echo "🚀 Pushing fixes to branch: $BRANCH_NAME"
+          git push origin HEAD:"$BRANCH_NAME"
+
+          echo "changes_pushed=true" >> $GITHUB_OUTPUT
+          echo "✅ Fixes committed and pushed"
+          echo ""
+          echo "ℹ️  This push will trigger a new docs check of the fixed code"
+
+      # Post auto-fix status comment
+      - name: Post Auto-Fix Status
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          CHANGES_PUSHED: ${{ steps.commit-fixes.outputs.changes_pushed }}
+          CLAUDE_FIX_OUTCOME: ${{ steps.claude-fix.outcome }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          COMMENT_MARKER="<!-- claude-docs-auto-fix-status -->"
+          JOB_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          if [ "$CHANGES_PUSHED" = "true" ]; then
+            COMMENT_BODY=$(cat <<EOF
+          ${COMMENT_MARKER}
+          ## 🔧 Documentation Auto-Fix Applied
+
+          Claude automatically fixed documentation issues and pushed the changes.
+
+          **Status:** ✅ Fixes pushed
+          **Job:** [View workflow run](${JOB_URL})
+
+          A new docs check will run automatically on the updated code.
+
+          ---
+          *This is an automated fix. Please review the changes to ensure they are correct.*
+          EOF
+          )
+          elif [ "$CLAUDE_FIX_OUTCOME" = "failure" ]; then
+            COMMENT_BODY=$(cat <<EOF
+          ${COMMENT_MARKER}
+          ## 🔧 Documentation Auto-Fix Failed
+
+          Claude encountered an error while attempting to fix documentation issues.
+
+          **Status:** ❌ Auto-fix failed
+          **Job:** [View workflow run](${JOB_URL})
+
+          Please review the workflow logs and fix the issues manually.
+
+          ---
+          *The auto-fix step failed. Manual intervention is required.*
+          EOF
+          )
+          else
+            COMMENT_BODY=$(cat <<EOF
+          ${COMMENT_MARKER}
+          ## 🔧 Documentation Auto-Fix Attempted
+
+          Claude attempted to fix documentation issues but no changes were made.
+
+          **Status:** ℹ️ No changes
+          **Job:** [View workflow run](${JOB_URL})
+
+          This may mean the issues require manual intervention or Claude couldn't determine safe fixes.
+
+          ---
+          *Please review the issues manually.*
+          EOF
+          )
+          fi
+
+          # Find and update existing auto-fix comment, or create new one
+          EXISTING_COMMENT=$(gh api "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+            --jq ".[] | select(.body | contains(\"$COMMENT_MARKER\")) | .id" | head -1 || true)
+
+          if [ -n "$EXISTING_COMMENT" ]; then
+            gh api "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT}" \
+              -X PATCH \
+              -f body="$COMMENT_BODY" > /dev/null
+            echo "✅ Updated existing auto-fix status comment"
+          else
+            gh api "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              -X POST \
+              -f body="$COMMENT_BODY" > /dev/null
+            echo "✅ Posted auto-fix status comment"
+          fi
+
+      # Set final exit code based on verdict
+      - name: Set Exit Code
+        if: always()
+        env:
+          VERDICT: ${{ steps.process-results.outputs.verdict }}
+          AUTO_FIX_ENABLED: ${{ inputs.auto_fix }}
+          CHANGES_PUSHED: ${{ steps.commit-fixes.outputs.changes_pushed }}
+        run: |
+          if [ "$VERDICT" = "FAIL" ]; then
+            if [ "$AUTO_FIX_ENABLED" = "true" ] && [ "$CHANGES_PUSHED" = "true" ]; then
+              echo "ℹ️  Documentation check found issues, but auto-fix pushed changes"
+              echo "   A new check will run automatically on the updated code"
+              exit 0
+            else
+              echo "❌ Documentation check failed"
+              exit 1
+            fi
+          else
+            echo "✅ Documentation check passed"
+            exit 0
+          fi

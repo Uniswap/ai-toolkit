@@ -1,0 +1,445 @@
+---
+description: Take local changes, create a Linear task, create a branch (optionally in a worktree), commit, and publish a PR
+argument-hint: [--team <id>] [--trunk <branch>] [--create-worktree] [--use-graphite true/false]
+allowed-tools: Bash(*), Read(*), Write(*), AskUserQuestion(*), mcp__graphite__run_gt_cmd(*), mcp__github__create_pull_request(*), mcp__linear__create_issue(*), mcp__linear__get_user(*), mcp__linear__list_teams(*), mcp__linear__list_projects(*), mcp__linear__list_issue_labels(*)
+---
+
+# Changes to PR Workflow
+
+This command automates the full workflow of taking local changes and turning them into a properly tracked, reviewed PR. It supports two modes:
+
+## Inputs
+
+Parse arguments from `$ARGUMENTS`:
+
+| Argument              | Type    | Required | Description                                                                     |
+| --------------------- | ------- | -------- | ------------------------------------------------------------------------------- |
+| `--team`              | string  | No       | Linear team identifier (e.g., "DEV", "ENG"). Prompted if not provided.          |
+| `--label`             | string  | No       | Linear label to apply. Prompted if not provided.                                |
+| `--due-date`          | string  | No       | Due date for the Linear task (e.g., "2024-01-15", "next friday").               |
+| `--project`           | string  | No       | Linear project name. Prompted if not provided.                                  |
+| `--priority`          | string  | No       | Priority level (urgent, high, normal, low, none). Prompted if not provided.     |
+| `--title`             | string  | No       | Title for the Linear task. Auto-generated from change analysis if not provided. |
+| `--trunk`             | string  | No       | Base branch for the PR (e.g., "main", "develop"). Prompted if not provided.     |
+| `--create-worktree`   | boolean | No       | Create an isolated git worktree for the changes. Prompted if not provided.      |
+| `--setup`             | string  | No       | (Worktree mode only) Setup script to run after creating the worktree.           |
+| `--skip-setup`        | boolean | No       | (Worktree mode only) Skip running any setup script.                             |
+| `--branch-prefix`     | string  | No       | Custom branch prefix (e.g., "feature", "fix"). Prompted if not provided.        |
+| `--include-signature` | boolean | No       | Include Claude Code signature in commit message. Default: false.                |
+| `--use-graphite`      | boolean | No       | Use Graphite (true) or standard git (false). Prompted if not set.               |
+
+## Workflow Overview
+
+**All prompts happen upfront in Step 2.** Once configuration is collected, the rest of the workflow executes automatically without further user interaction.
+
+**Common Steps (both modes):**
+
+1. **Analyze Changes**: Reads and contextualizes your local uncommitted changes
+2. **Collect Configuration**: Prompts for ALL missing options upfront (may be two phases if project selection depends on team)
+3. **Create Linear Task**: Creates a Linear issue to track the work (with optional project)
+4. **Create Branch**: Creates a new branch (method depends on mode)
+5. **Generate Commit**: Creates a conventional commit message and commits changes
+6. **Publish PR**: Uses GitHub CLI (default) or Graphite to create and publish the PR
+
+**Worktree Mode** (`--create-worktree`):
+
+- Creates an isolated git worktree in a sibling directory
+- Copies Claude settings to the new worktree
+- Runs setup scripts (auto-detects package manager)
+- Best for parallel development and larger features
+
+**Simple Mode** (default):
+
+- Creates a branch directly in the current repository
+- No worktree overhead, faster setup
+- Best for quick, self-contained changes
+
+---
+
+## Step 1: Gather Local Changes
+
+First, analyze the current state of the repository:
+
+```bash
+# Get current branch and repository info
+git rev-parse --show-toplevel
+git branch --show-current
+git status --porcelain
+
+# Get detailed diff of all changes (staged and unstaged)
+git diff HEAD
+```
+
+Summarize what the changes do:
+
+- What files are modified/added/deleted
+- What is the nature of the changes (feature, fix, refactor, etc.)
+- What problem do these changes solve
+
+---
+
+## Step 1.5: Auto-Generate Linear Task Description
+
+Based on the change analysis, automatically generate a **product-focused** Linear task description written from a product perspective. **Do NOT prompt the user for this** - generate it entirely by inferring the user value from the code changes.
+
+**Description Structure (User Story Format):**
+
+```markdown
+## User Story
+
+As a [user type], I want [goal/capability] so that [benefit/value].
+
+## Background
+
+<1-2 sentences explaining the context or problem being solved from the user's perspective>
+
+## Acceptance Criteria
+
+- [ ] <Criterion 1 - what the user should be able to do>
+- [ ] <Criterion 2 - expected behavior>
+- [ ] <Criterion 3 - edge cases handled>
+      ...
+
+## Out of Scope
+
+<Optional: What this change intentionally does NOT address>
+```
+
+**Guidelines for Description Generation:**
+
+- **Write from the product/user perspective**, not the developer perspective
+- Focus on **user value and outcomes**, not implementation details
+- **Do NOT include**: file names, technical implementation details, code changes, or developer-focused notes
+- Infer the user type from context (e.g., "end user", "admin", "developer using the API")
+- Acceptance criteria should be testable from the user's perspective
+- Keep language accessible to non-technical stakeholders
+- If the change is purely technical (refactor, performance), frame it in terms of user impact (e.g., "faster load times", "more reliable experience")
+
+---
+
+## Step 2: Collect ALL Configuration Upfront
+
+**IMPORTANT: Collect all missing information in a SINGLE prompt at the beginning.** Do not prompt the user at multiple steps throughout the workflow.
+
+### Phase 1: Fetch Linear User and Teams (REQUIRED)
+
+**CRITICAL: Before presenting ANY prompts, you MUST fetch the Linear user to get the username for branch prefix options.**
+
+```
+# Get current Linear user (for assignee and username prefix)
+linear_user = mcp__linear__get_user(query="me")
+LINEAR_USER_ID = linear_user.id
+LINEAR_USERNAME = linear_user.displayName.lower().replace(" ", "").replace("-", "")
+# Example: "Nick Koutrelakos" → "nickkoutrelakos"
+
+# Get available teams
+teams = mcp__linear__list_teams()
+```
+
+### Phase 2: Collect Configuration
+
+Follow the shared configuration collection instructions in `@../shared/linear-task-config.md`.
+
+**Pre-set these variables from command-line arguments before the shared config:**
+
+- `TEAM` from `--team` (if provided)
+- `PROJECT` from `--project` (if provided)
+- `PRIORITY` from `--priority` (if provided)
+- `LABEL` from `--label` (if provided)
+- `BRANCH_PREFIX` from `--branch-prefix` (if provided)
+- `TRUNK_BRANCH` from `--trunk` (if provided)
+- `DUE_DATE` from `--due-date` (if provided)
+
+**IMPORTANT: When prompting for branch prefix, the first option MUST be the user's personal namespace:**
+
+```
+Branch Prefix options:
+1. "{LINEAR_USERNAME}/" (Recommended) - e.g., "nickkoutrelakos/"
+2. "feature/" - Standard feature convention
+3. "fix/" - For bug fixes
+4. "chore/" - For maintenance tasks
+5. "Custom" - Enter a custom prefix
+```
+
+**Additional fields specific to this command:**
+
+| Field           | Required | Default        | Notes                                                     |
+| --------------- | -------- | -------------- | --------------------------------------------------------- |
+| Title           | Yes      | Auto-generated | From change analysis (Step 1) if not provided via --title |
+| Create Worktree | Yes      | -              | true = isolated worktree, false = branch in current repo  |
+
+Include these additional questions in the Phase 1 prompt from the shared config:
+
+- **Title**: Only prompt if `--title` not provided AND you want user confirmation of auto-generated title
+- **Create Worktree**: "Create isolated worktree?" (Yes/No)
+
+**Auto-applied (never prompt):**
+
+- **Assignee**: Current authenticated user (via `mcp__linear__get_user` with "me")
+- **Description**: Auto-generated **user story** inferred from code changes (Step 1.5)
+
+---
+
+## Step 3: Create Linear Task
+
+Use the Linear MCP to create the task with the **auto-generated user story description** from Step 1.5:
+
+```
+mcp__linear__create_issue with:
+- team: <selected team>
+- title: <task title - auto-generated or user-provided>
+- description: <AUTO-GENERATED user story from Step 1.5>
+- priority: <selected priority as number: 0=none, 1=urgent, 2=high, 3=normal, 4=low>
+- assignee: "me"
+- labels: [<selected labels>]
+- project: <selected project from Phase 2, or null if "None" selected>
+- dueDate: <parsed due date>
+```
+
+Capture the created issue identifier (e.g., "DEV-123") for branch naming.
+
+---
+
+## Step 4: Create Branch
+
+First, derive the branch name using the selected prefix and task:
+
+```bash
+BRANCH_PREFIX="<selected-prefix>"
+TASK_ID="<task-identifier>"  # e.g., "DEV-123"
+SLUG="<slug-from-title>"     # e.g., "add-user-auth"
+BRANCH_NAME="${BRANCH_PREFIX}/${TASK_ID}-${SLUG}"
+```
+
+---
+
+### If `--create-worktree` — Worktree Mode
+
+Set configuration variables and follow the shared worktree setup instructions in `@../shared/setup-worktree-core.md`:
+
+```bash
+# Configuration for shared worktree setup
+BRANCH_NAME="${BRANCH_NAME}"
+SETUP_SCRIPT="${setup:-}"
+SKIP_SETUP="${skip_setup:-}"
+USE_GRAPHITE="${use_graphite:-false}"  # Default to standard git
+TRUNK_BRANCH="${trunk}"
+WORKTREE_BASE="${trunk}"  # For worktree mode, base from trunk
+SKIP_INDEX_RESET=""
+```
+
+Follow the complete worktree setup workflow defined in `@../shared/setup-worktree-core.md`. The shared setup handles:
+
+- Worktrees directory detection and creation
+- Git worktree creation with proper branch setup
+- Claude settings copying (`.claude/` directory)
+- Branch tracking configuration (Graphite if `USE_GRAPHITE=true`, otherwise standard git)
+- Auto-detection and execution of setup scripts (npm, yarn, pnpm, bun)
+- Git index reset for corruption prevention
+
+**Move Changes to Worktree:**
+
+```bash
+# Stash changes in current directory (including untracked files)
+git stash push -u -m "changes-to-pr: temporary stash for $BRANCH_NAME"
+
+# Apply stash to new worktree
+cd "$WORKTREES_DIR/$BRANCH_NAME"
+git stash pop
+```
+
+---
+
+### If Simple Mode (default)
+
+Create a new branch in the current repository:
+
+```bash
+WORKING_DIR=$(pwd)
+
+# Create and checkout new branch from trunk
+git fetch origin "$TRUNK_BRANCH"
+git checkout -b "$BRANCH_NAME" "origin/$TRUNK_BRANCH"
+
+# Track with Graphite if enabled
+if [[ "${USE_GRAPHITE:-}" == "true" ]]; then
+  if command -v gt >/dev/null 2>&1; then
+    echo "Tracking branch '$BRANCH_NAME' with Graphite (parent: '$TRUNK_BRANCH')..."
+    gt track --branch "$BRANCH_NAME" --parent "$TRUNK_BRANCH"
+  else
+    echo "Warning: 'gt' (Graphite CLI) not found. Skipping Graphite setup."
+  fi
+else
+  # Standard git - no additional tracking needed
+  echo "Branch '$BRANCH_NAME' created. PR target: '$TRUNK_BRANCH'"
+fi
+```
+
+---
+
+## Step 5: Generate Commit Message
+
+Analyze the changes and generate a conventional commit message:
+
+**Format:**
+
+```
+<type>(<scope>): <description>
+
+<body explaining WHAT and WHY>
+
+Resolves: <LINEAR-ISSUE-ID>
+```
+
+**Optional signature** (only if `--include-signature`):
+
+```
+🤖 Generated with [Claude Code](https://claude.ai/code)
+```
+
+**Types:** feat, fix, docs, style, refactor, perf, test, build, ci, chore
+
+---
+
+## Step 6: Commit Changes
+
+```bash
+cd "$WORKING_DIR"
+git add -A
+SKIP_CLAUDE=1 git commit -m "<generated commit message>"
+```
+
+---
+
+## Step 7: Create and Publish PR
+
+**If using standard Git + GitHub CLI (default):**
+
+```bash
+cd "$WORKING_DIR"
+git push -u origin "$BRANCH_NAME"
+gh pr create --base "$TRUNK_BRANCH" --title "<PR title>" --body "<PR description>"
+```
+
+**If using Graphite (`--use-graphite`):**
+
+```bash
+cd "$WORKING_DIR"
+gt submit --publish --no-edit --no-interactive
+
+PR_URL=$(gt pr --show-url 2>/dev/null || gh pr view --json url -q '.url')
+gh pr edit "$PR_URL" --title "<PR title>" --body "<PR description>"
+```
+
+---
+
+## Output
+
+### Worktree Mode Output
+
+```
+✅ Workflow Complete!
+
+📋 Linear Task: DEV-123 - <title>
+   https://linear.app/team/issue/DEV-123
+
+📁 Worktree: /path/to/repo.worktrees/johndoe/DEV-123-task-slug
+
+🌿 Branch: johndoe/DEV-123-task-slug → main
+
+⚙️  Worktree Configuration:
+   ✓ Claude settings copied
+   ✓ Branch tracking: Standard git (PR target: main)
+   ✓ Setup script completed (auto-detected: npm ci)
+   ✓ Git index reset (corruption prevention)
+
+🔗 PR: https://github.com/org/repo/pull/456
+
+To continue working:
+  cd "/path/to/repo.worktrees/johndoe/DEV-123-task-slug"
+```
+
+### Simple Mode Output
+
+```
+✅ Workflow Complete!
+
+📋 Linear Task: DEV-123 - <title>
+   https://linear.app/team/issue/DEV-123
+
+🌿 Branch: johndoe/DEV-123-task-slug → main
+   ✓ Standard git (PR target: main)
+
+🔗 PR: https://github.com/org/repo/pull/456
+
+You are now on branch: johndoe/DEV-123-task-slug
+```
+
+---
+
+## Error Handling
+
+**Common to Both Modes:**
+
+- **No changes detected**: Inform user there are no changes to process
+- **Linear MCP not available**: Provide instructions for setting up Linear MCP
+- **Graphite not installed**: Use GitHub CLI instead (default), or install Graphite if `--use-graphite` is desired
+- **Graphite tracking fails**: Log warning and provide manual command (only applies when `--use-graphite` is set)
+- **Commit fails**: Report the error and suggest resolution
+
+**Worktree Mode Only:**
+
+- **Worktree creation fails**: Clean up and provide manual instructions
+- **Target directory already exists**: Prompt user to reuse existing worktree or abort
+- **Setup script fails**: Log warning with exit code and continue (non-blocking)
+- **Git index corruption**: Reset the index by deleting `$GIT_DIR/index` and running `git reset HEAD`
+
+**Simple Mode Only:**
+
+- **Branch already exists**: Prompt user to checkout existing branch or create with different name
+- **Uncommitted changes conflict**: Stash changes first or resolve conflicts
+
+---
+
+## Usage Examples
+
+### Basic Usage (will prompt for all required details)
+
+```
+/linear-task-and-pr-from-changes
+```
+
+### Quick PR with Simple Branch (no worktree)
+
+```
+/linear-task-and-pr-from-changes --trunk main
+```
+
+### Full Worktree Setup for Parallel Development
+
+```
+/linear-task-and-pr-from-changes --create-worktree --trunk main
+```
+
+### With Team and Priority Specified
+
+```
+/linear-task-and-pr-from-changes --team DEV --priority high
+```
+
+### Using Graphite Instead of Standard Git
+
+```
+/linear-task-and-pr-from-changes --team DEV --use-graphite --trunk main
+```
+
+---
+
+## Prerequisites
+
+- **git** (2.5+ for worktree support)
+- **gh** (GitHub CLI) - required for standard git workflow (default)
+- **gt** (Graphite CLI) - optional, only required if using `--use-graphite true`
+- **Linear MCP** (configured for Linear API access)
+
+Arguments: $ARGUMENTS

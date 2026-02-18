@@ -3,9 +3,11 @@ import { join } from 'path';
 import { homedir } from 'os';
 import type {
   ClaudeConfig,
+  InstalledPluginsConfig,
   McpConfig,
-  SettingsLocal,
+  ServerOrigin,
   ServerStatus,
+  SettingsLocal,
 } from './types';
 
 /**
@@ -27,6 +29,13 @@ export function getLocalConfigPath(): string {
  */
 export function getMcpJsonConfigPath(): string {
   return join(process.cwd(), '.mcp.json');
+}
+
+/**
+ * Path to installed plugins configuration
+ */
+export function getInstalledPluginsPath(): string {
+  return join(homedir(), '.claude', 'plugins', 'installed_plugins.json');
 }
 
 /**
@@ -87,10 +96,183 @@ export function readMcpJsonConfig(): McpConfig {
 }
 
 /**
+ * Read installed plugins configuration from ~/.claude/plugins/installed_plugins.json
+ */
+export function readInstalledPlugins(): InstalledPluginsConfig {
+  const configPath = getInstalledPluginsPath();
+
+  if (!existsSync(configPath)) {
+    return { version: 2, plugins: {} };
+  }
+
+  try {
+    const content = readFileSync(configPath, 'utf-8');
+    return JSON.parse(content) as InstalledPluginsConfig;
+  } catch (error) {
+    console.error(`Failed to read installed plugins: ${error}`);
+    return { version: 2, plugins: {} };
+  }
+}
+
+/**
+ * Server info with its origin for grouping in UI
+ */
+export interface ServerInfo {
+  name: string;
+  origin: ServerOrigin;
+}
+
+/**
+ * Read MCP configuration from a specific plugin install path
+ */
+function readPluginMcpConfig(installPath: string): McpConfig {
+  const mcpJsonPath = join(installPath, '.mcp.json');
+
+  if (!existsSync(mcpJsonPath)) {
+    return {};
+  }
+
+  try {
+    const content = readFileSync(mcpJsonPath, 'utf-8');
+    return JSON.parse(content) as McpConfig;
+  } catch {
+    // Silently ignore plugin MCP config read errors
+    return {};
+  }
+}
+
+/**
+ * Extract plugin name from the plugin key in installed_plugins.json
+ * Format: "pluginName@marketplaceName" -> "pluginName"
+ */
+function extractPluginName(pluginKey: string): string {
+  const atIndex = pluginKey.indexOf('@');
+  return atIndex > 0 ? pluginKey.substring(0, atIndex) : pluginKey;
+}
+
+/**
+ * Build the full qualified name for a plugin MCP server
+ * Format: "plugin:pluginName:serverName"
+ */
+export function buildPluginServerName(pluginName: string, serverName: string): string {
+  return `plugin:${pluginName}:${serverName}`;
+}
+
+/**
+ * Parse a full qualified plugin server name back into components
+ * Returns null if the name is not a plugin server name
+ */
+export function parsePluginServerName(
+  fullName: string
+): { pluginName: string; serverName: string } | null {
+  if (!fullName.startsWith('plugin:')) {
+    return null;
+  }
+  const parts = fullName.split(':');
+  if (parts.length !== 3) {
+    return null;
+  }
+  return { pluginName: parts[1], serverName: parts[2] };
+}
+
+/**
+ * Check if a server name is a plugin server (starts with "plugin:")
+ */
+export function isPluginServerName(name: string): boolean {
+  return name.startsWith('plugin:');
+}
+
+/**
+ * Get all MCP servers from installed plugins
+ * Returns a map of full qualified server name (plugin:pluginName:serverName) to plugin name
+ */
+export function getPluginMcpServers(): Map<string, string> {
+  const serverToPlugin = new Map<string, string>();
+  const installedPlugins = readInstalledPlugins();
+
+  for (const [pluginKey, installations] of Object.entries(installedPlugins.plugins)) {
+    // Use the first installation (typically there's only one)
+    const installation = installations[0];
+    if (!installation?.installPath) continue;
+
+    const pluginName = extractPluginName(pluginKey);
+    const mcpConfig = readPluginMcpConfig(installation.installPath);
+
+    if (mcpConfig.mcpServers) {
+      for (const serverName of Object.keys(mcpConfig.mcpServers)) {
+        // Build full qualified name: plugin:pluginName:serverName
+        const fullName = buildPluginServerName(pluginName, serverName);
+        // Don't overwrite if already registered by another plugin
+        if (!serverToPlugin.has(fullName)) {
+          serverToPlugin.set(fullName, pluginName);
+        }
+      }
+    }
+  }
+
+  return serverToPlugin;
+}
+
+/**
+ * Get all servers with their origin information for UI grouping
+ * This function tracks where each server was discovered from
+ */
+export function getServersWithOrigins(): ServerInfo[] {
+  const servers: ServerInfo[] = [];
+  const seenServers = new Set<string>();
+  const cwd = process.cwd();
+
+  // 1. Global MCP servers from ~/.claude.json
+  const globalConfig = readGlobalConfig();
+  if (globalConfig.mcpServers) {
+    for (const name of Object.keys(globalConfig.mcpServers)) {
+      if (!seenServers.has(name)) {
+        seenServers.add(name);
+        servers.push({ name, origin: { type: 'global' } });
+      }
+    }
+  }
+
+  // 2. Project-specific MCP servers from ~/.claude.json projects[cwd].mcpServers
+  if (globalConfig.projects?.[cwd]?.mcpServers) {
+    for (const name of Object.keys(globalConfig.projects[cwd].mcpServers!)) {
+      if (!seenServers.has(name)) {
+        seenServers.add(name);
+        servers.push({ name, origin: { type: 'project' } });
+      }
+    }
+  }
+
+  // 3. Project-local MCP servers from ./.mcp.json
+  const mcpConfig = readMcpJsonConfig();
+  if (mcpConfig.mcpServers) {
+    for (const name of Object.keys(mcpConfig.mcpServers)) {
+      if (!seenServers.has(name)) {
+        seenServers.add(name);
+        servers.push({ name, origin: { type: 'local' } });
+      }
+    }
+  }
+
+  // 4. Plugin MCP servers from installed plugins
+  const pluginServers = getPluginMcpServers();
+  for (const [serverName, pluginName] of pluginServers) {
+    if (!seenServers.has(serverName)) {
+      seenServers.add(serverName);
+      servers.push({ name: serverName, origin: { type: 'plugin', pluginName } });
+    }
+  }
+
+  // Sort alphabetically by name
+  return servers.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
  * Get all available MCP server names from all sources:
  * 1. Global ~/.claude.json mcpServers
  * 2. Project-specific ~/.claude.json projects[cwd].mcpServers
  * 3. Project-local ./.mcp.json
+ * 4. Installed plugins' .mcp.json files
  */
 export function getAvailableServers(): string[] {
   const servers = new Set<string>();
@@ -104,15 +286,19 @@ export function getAvailableServers(): string[] {
 
   // 2. Project-specific MCP servers from ~/.claude.json projects[cwd].mcpServers
   if (globalConfig.projects?.[cwd]?.mcpServers) {
-    Object.keys(globalConfig.projects[cwd].mcpServers!).forEach((name) =>
-      servers.add(name)
-    );
+    Object.keys(globalConfig.projects[cwd].mcpServers!).forEach((name) => servers.add(name));
   }
 
   // 3. Project-local MCP servers from ./.mcp.json
   const mcpConfig = readMcpJsonConfig();
   if (mcpConfig.mcpServers) {
     Object.keys(mcpConfig.mcpServers).forEach((name) => servers.add(name));
+  }
+
+  // 4. Plugin MCP servers from installed plugins
+  const pluginServers = getPluginMcpServers();
+  for (const serverName of pluginServers.keys()) {
+    servers.add(serverName);
   }
 
   return Array.from(servers).sort();
@@ -128,9 +314,7 @@ function isServerDeniedLocally(serverName: string): boolean {
     return false;
   }
 
-  return localConfig.deniedMcpServers.some(
-    (denied) => denied.serverName === serverName
-  );
+  return localConfig.deniedMcpServers.some((denied) => denied.serverName === serverName);
 }
 
 /**
@@ -181,11 +365,18 @@ export function getServerStatus(serverName: string): ServerStatus {
 }
 
 /**
- * Get status for all available servers
+ * Get status for all available servers with their origins
  */
 export function getAllServerStatuses(): ServerStatus[] {
-  const servers = getAvailableServers();
-  return servers.map((name) => getServerStatus(name));
+  const serversWithOrigins = getServersWithOrigins();
+
+  return serversWithOrigins.map((serverInfo) => {
+    const status = getServerStatus(serverInfo.name);
+    return {
+      ...status,
+      origin: serverInfo.origin,
+    };
+  });
 }
 
 /**

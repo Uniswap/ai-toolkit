@@ -1,6 +1,7 @@
 name: "Check PR Title"
 
 on:
+  # zizmor: ignore[dangerous-triggers] -- title validation only, no PR code checkout
   pull_request_target:
     types:
       - opened
@@ -9,6 +10,10 @@ on:
   workflow_run:
     workflows: ["Claude: Generate PR Title & Description"]
     types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -35,21 +40,31 @@ jobs:
           # The egress policy to enforce. Valid values are `audit` and `block`.
           # Default: audit
           egress-policy: block
-      - name: Check if branch has gtmq prefix
-        id: check-prefix
-        env:
-          BRANCH_NAME: ${{ github.head_ref }}
-        run: |
-          if [[ "$BRANCH_NAME" == gtmq* ]]; then
-            echo "isGtmqPrefix=true" >> $GITHUB_OUTPUT
-          fi
+      - name: Checkout repository (for composite action)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/actions
+          sparse-checkout-cone-mode: false
+
+      - name: Check for automated PR
+        id: check-automated
+        uses: ./.github/actions/check-automated-pr
+        with:
+          branch_name: ${{ github.head_ref }}
+          pr_title: ${{ github.event.pull_request.title }}
+
       - name: Conditional semantic PR check
-        if: steps.check-prefix.outputs.isGtmqPrefix != 'true'
+        if: ${{ steps.check-automated.outputs.is_automated != 'true' }}
         uses: amannn/action-semantic-pull-request@536f681e2c60d973396eb60457d42ced8cd3f61a
         with:
           requireScope: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Pass check for gtmq prefix branches
-        if: steps.check-prefix.outputs.isGtmqPrefix == 'true'
-        run: echo "Branch with 'gtmq' prefix detected. This check is automatically passed."
+
+      - name: Pass check for automated PRs
+        if: ${{ steps.check-automated.outputs.is_automated == 'true' }}
+        env:
+          SKIP_REASON: ${{ steps.check-automated.outputs.skip_reason }}
+        run: |
+          echo "Automated PR detected: $SKIP_REASON. This check is automatically passed."

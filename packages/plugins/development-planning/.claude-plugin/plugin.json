@@ -1,0 +1,27 @@
+{
+  "name": "development-planning",
+  "version": "2.0.1",
+  "description": "Implementation planning, execution, and PR creation workflows with multi-agent collaboration",
+  "author": {
+    "name": "Uniswap Labs",
+    "email": "ai-services@uniswap.org"
+  },
+  "homepage": "https://github.com/Uniswap/ai-toolkit",
+  "keywords": ["planning", "implementation", "workflow", "multi-agent"],
+  "license": "MIT",
+  "skills": [
+    "./skills/create-pr",
+    "./skills/execute-plan",
+    "./skills/generate-commit-message",
+    "./skills/plan-implementation",
+    "./skills/plan-swarm",
+    "./skills/review-plan"
+  ],
+  "agents": [
+    "./agents/commit-message-generator.md",
+    "./agents/execute-plan.md",
+    "./agents/plan-reviewer.md",
+    "./agents/planner.md",
+    "./agents/pr-creator.md"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "name": "spec-workflow",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/plugins/spec-workflow",
+  "projectType": "library",
+  "tags": ["type:plugin", "scope:spec-workflow"],
+  "targets": {
+    "lint-markdown": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm exec markdownlint-cli2 -- 'packages/plugins/spec-workflow/**/*.md'"
+      }
+    },
+    "validate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node scripts/validate-plugin.cjs packages/plugins/spec-workflow"
+      }
+    }
+  }
+}

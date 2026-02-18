@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Nx generator for installing optional add-on components to the AI Toolkit. Add-ons provide extended functionality like MCP servers, workflows, and integrations.
+Nx generator for installing optional MCP server add-ons to the AI Toolkit. These are MCP servers that are NOT bundled via plugins and require manual installation.
 
 ## Usage
 
@@ -11,51 +11,49 @@ Nx generator for installing optional add-on components to the AI Toolkit. Add-on
 npx nx generate @uniswap/ai-toolkit-nx-claude:addons
 
 # Install all addons
-npx nx generate @uniswap/ai-toolkit-nx-claude:addons --install-mode=all
+npx nx generate @uniswap/ai-toolkit-nx-claude:addons --selection-mode=all
 
 # Install specific addon
 npx nx generate @uniswap/ai-toolkit-nx-claude:addons \
-  --install-mode=specific \
-  --addon=spec-mcp-workflow
+  --selection-mode=specific \
+  --addons=slack-mcp
 ```
 
 ## Options
 
 ### Installation Control
 
-- `installMode` - Installation mode:
-  - `all` - Install all available addons
+- `selectionMode` - Selection mode for which addons to install:
+  - `all` - Install all available addons (2 MCP servers)
   - `specific` - Choose specific addons to install
-- `addon` - Specific addon to install (when `installMode=specific`)
+- `addons` - Specific addons to install (when `selectionMode=specific`)
+- `installationType` - Installation location for MCP servers:
+  - `global` - Install to `~/.claude` (available in all projects)
+  - `local` - Install to `./.claude` (project-specific configuration)
 
 ### Integration Options
 
-- `installMode` (hidden) - Set to "default" or "custom" when called from init generator to prevent duplicate prompts
+- `installMode` (hidden) - Set to "default" or "custom" when called from init generator to control prompting behavior:
+  - When `installMode === 'default'`: Skips all prompts, uses `installationType` from parent or defaults to 'global'
+  - When undefined (standalone execution): Shows full interactive prompts including `installationType` selection
 
 ## Available Addons
 
-Registered in `addon-registry.ts`:
+Registered in `addon-registry.ts`. These 2 MCP servers are available for manual installation:
 
-### 1. spec-mcp-workflow
+### 1. slack-mcp
 
-**Purpose**: MCP server for spec-driven development workflows
+**Purpose**: Slack workspace integration for Claude Code
 
 **Features**:
 
-- Spec document management
-- Task orchestration
-- Approval workflows
-- Steering document integration
+- Send and receive Slack messages
+- Search channels and conversations
+- Manage workspace interactions
 
-**Setup File**: `spec-workflow-setup.ts`
+**Requires**: Slack Bot Token authentication
 
-**Installation**:
-
-- Adds MCP server configuration to Claude config
-- Creates `.spec-workflow/` directory structure
-- Installs necessary dependencies
-
-### 2. aws-log-analyzer
+### 2. aws-log-analyzer-mcp
 
 **Purpose**: MCP server for AWS CloudWatch log analysis
 
@@ -70,35 +68,35 @@ Registered in `addon-registry.ts`:
 
 **Installation**:
 
+- Clones the AWS Log Analyzer repository
+- Installs Python dependencies with uv
 - Adds MCP server configuration
-- Prompts for AWS credentials
-- Creates necessary configuration files
 
-### 3. claude-mcp-installer
+**Requires**: AWS credentials with CloudWatchLogsReadOnlyAccess
 
-**Purpose**: Universal MCP server installer
+## Note on Plugin-Bundled MCP Servers
 
-**Features**:
+The following MCP servers are **NOT** available via this addons generator because they are bundled via plugins:
 
-- Discover available MCP servers
-- Install from Claude MCP registry
-- Manage MCP server configurations
-- Auto-detect and configure servers
+- **spec-workflow-mcp** - Available via spec-workflow plugin
+- **graphite-mcp** - Available via development-pr-workflow plugin
+- **nx-mcp** - Available via uniswap-integrations plugin
+- **notion-mcp** - Available via uniswap-integrations plugin
+- **linear-mcp** - Available via uniswap-integrations plugin
+- **chrome-devtools-mcp** - Available via uniswap-integrations plugin
+- **github-mcp** - Available via uniswap-integrations plugin
+- **pulumi-mcp** - Available via uniswap-integrations plugin
+- **figma-mcp** - Available via uniswap-integrations plugin
+- **vercel-mcp** - Available via uniswap-integrations plugin
 
-**Setup File**: `claude-mcp-installer.ts`
-
-**Installation**:
-
-- Interactive server selection
-- Auto-configuration with sensible defaults
-- Integration with existing Claude config
+To access these, install the corresponding plugin from the Claude Code Plugin Marketplace.
 
 ## Generator Flow
 
-1. **Mode Selection** (if not from init):
+1. **Mode Selection** (if running standalone):
 
-   - All addons
-   - Specific addon
+   - Selection mode: All addons vs Specific addons
+   - Installation location: Global (`~/.claude`) vs Local (`./.claude`)
 
 2. **Addon Selection** (if specific mode):
 
@@ -109,8 +107,10 @@ Registered in `addon-registry.ts`:
 3. **Installation**:
 
    - For each selected addon:
-     - Run addon's setup function
-     - Update Claude configuration
+     - Run addon's setup function (if any)
+     - Install MCP server using `claude mcp add` with appropriate scope:
+       - `--scope user` for global installation
+       - `--scope project` for local installation
      - Create necessary files/directories
      - Install dependencies if needed
 
@@ -125,86 +125,68 @@ Registered in `addon-registry.ts`:
 - `schema.json` - Configuration schema with conditional prompting
 - `schema.d.ts` - TypeScript interface
 - `addon-registry.ts` - Registry of available addons
-- `*-setup.ts` - Individual addon setup implementations
+- `aws-log-analyzer-setup.ts` - AWS Log Analyzer setup implementation
+- `claude-mcp-installer.ts` - MCP server installation utilities
 
 ## Addon Registry
 
 The registry (`addon-registry.ts`) defines available addons:
 
 ```typescript
-export interface AddonDefinition {
+export interface McpServerAddon {
   id: string;
   name: string;
   description: string;
-  setupFunction: (tree: Tree, options: any) => Promise<void>;
-  dependencies?: string[];
+  mcp: {
+    command: string;
+    args: string[];
+    env?: Record<string, string>;
+  };
+  requirements?: string[];
 }
 
-export const addons: AddonDefinition[] = [
-  {
-    id: 'spec-mcp-workflow',
-    name: 'Spec MCP Workflow',
-    description: 'Spec-driven development with MCP server',
-    setupFunction: setupSpecWorkflow,
-  },
-  // ... more addons
-];
-```
-
-## Creating New Addons
-
-### Step 1: Create Setup File
-
-Create `{addon-name}-setup.ts`:
-
-```typescript
-export async function setupMyAddon(tree: Tree, options: AddonsGeneratorSchema): Promise<void> {
-  // 1. Validate prerequisites
-  // 2. Create configuration files
-  // 3. Update Claude config
-  // 4. Install dependencies
-  // 5. Provide usage instructions
+export function getAvailableAddons(): McpServerAddon[] {
+  return [
+    {
+      id: 'slack-mcp',
+      name: 'Slack MCP',
+      description: 'Slack workspace integration',
+      mcp: { command: 'npx', args: ['-y', '@anthropic/slack-mcp'] },
+    },
+    // ... more addons
+  ];
 }
-```
-
-### Step 2: Register in addon-registry.ts
-
-```typescript
-{
-  id: 'my-addon',
-  name: 'My Addon',
-  description: 'Description of what it does',
-  setupFunction: setupMyAddon,
-  dependencies: ['optional-deps']
-}
-```
-
-### Step 3: Test
-
-```bash
-npx nx generate @uniswap/ai-toolkit-nx-claude:addons \
-  --install-mode=specific \
-  --addon=my-addon \
-  --dry-run
 ```
 
 ## Integration with Init Generator
 
-The addons generator supports the `installMode` pattern:
+The addons generator supports the `installMode` pattern for programmatic invocation:
 
 ```typescript
 // From init generator
 await addonsGenerator(tree, {
-  installMode: normalizedOptions.installMode, // 'default' or 'custom'
-  addon: 'spec-mcp-workflow', // Pre-selected addon
+  installMode: 'default', // or 'custom'
+  selectionMode: 'all', // or 'specific'
+  installationType: normalizedOptions.installationType, // 'global' or 'local'
+  force: false,
+  skipVerification: false,
 });
 ```
 
-When `installMode === 'default'`:
+**Behavior by installMode**:
 
-- Skips installation mode prompt
-- Uses provided addon selection
-- No user interaction required
+- `installMode === 'default'`:
+
+  - Skips all interactive prompts
+  - Uses `installationType` from init generator (or defaults to 'global')
+  - Uses provided `selectionMode` and other options
+  - No user interaction required
+
+- `installMode` undefined (standalone execution):
+  - Shows `selectionMode` prompt (all vs specific)
+  - Shows `installationType` prompt (global vs local)
+  - Shows addon selection for 'specific' mode
+  - Full interactive experience
 
 ## Configuration Updates
 
@@ -213,11 +195,11 @@ Addons update `~/.claude/claude.json` (global) or `./.claude/claude.json` (local
 ```json
 {
   "mcpServers": {
-    "spec-workflow": {
-      "command": "node",
-      "args": ["/path/to/spec-workflow-server.js"],
+    "slack": {
+      "command": "npx",
+      "args": ["-y", "@anthropic/slack-mcp"],
       "env": {
-        "WORKSPACE_ROOT": "${workspaceFolder}"
+        "SLACK_BOT_TOKEN": "xoxb-..."
       }
     }
   }
@@ -228,7 +210,7 @@ Addons update `~/.claude/claude.json` (global) or `./.claude/claude.json` (local
 
 ### Addon Setup Functions
 
-All setup functions follow this pattern:
+For addons that require special setup (like aws-log-analyzer-mcp), create a setup file:
 
 1. **Validate Prerequisites**:
 
@@ -239,8 +221,8 @@ All setup functions follow this pattern:
 2. **File Operations**:
 
    - Create directories
-   - Generate configuration files
-   - Copy templates
+   - Clone repositories
+   - Install dependencies
 
 3. **Configuration Updates**:
 
@@ -269,7 +251,6 @@ try {
 ## Related Documentation
 
 - Parent package: `../../CLAUDE.md`
-- Init generator (caller): `../init/CLAUDE.md`
 - MCP server documentation: External links per addon
 
 ## Auto-Update Instructions

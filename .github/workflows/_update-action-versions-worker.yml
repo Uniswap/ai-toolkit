@@ -21,12 +21,13 @@
 #   - branch_name: Branch to work on (required)
 #   - target_branch: Base branch for PR (default: main)
 #   - dry_run: Skip PR creation, report only (default: false)
-#   - model: Claude model to use (default: claude-sonnet-4-5-20250929)
+#   - model: Claude model to use (default: claude-sonnet-4-5)
 #   - timeout_minutes: Execution timeout (default: 30)
 #   - debug_mode: Show full Claude output (default: true)
 #
 # SECRETS REQUIRED:
-#   - ANTHROPIC_API_KEY: Claude API key
+#   - ANTHROPIC_API_KEY: Claude API key (required unless CLAUDE_CODE_OAUTH_TOKEN is set)
+#   - CLAUDE_CODE_OAUTH_TOKEN: (optional) OAuth token for Claude Code (alternative to API key)
 #   - WORKFLOW_PAT: (optional) PAT for pushing branches
 
 name: "[internal] Update Action Versions Worker"
@@ -55,7 +56,7 @@ on:
         description: "Claude model to use"
         required: false
         type: string
-        default: "claude-sonnet-4-5-20250929"
+        default: "claude-sonnet-4-5"
 
       timeout_minutes:
         description: "Maximum execution time in minutes"
@@ -69,10 +70,46 @@ on:
         type: boolean
         default: true
 
+      toolkit_ref:
+        description: "Git ref (branch, tag, or SHA) of ai-toolkit to use for downloading the validate-claude-auth action. Defaults to 'main'. Use 'next' or a specific SHA to test unreleased changes."
+        required: false
+        type: string
+        default: "main"
+
+      install_uniswap_plugins:
+        description: |
+          Whether to install the uniswap-ai-toolkit plugins automatically.
+
+          When true (default): All 5 uniswap-ai-toolkit plugins are installed:
+          - development-planning
+          - development-pr-workflow
+          - development-codebase-tools
+          - development-productivity
+          - uniswap-integrations
+
+          When false: No uniswap plugins are installed. Use this if you want to
+          use only your own plugins via plugin_marketplaces and plugins inputs.
+        required: false
+        type: boolean
+        default: true
+
+      plugin_ref:
+        description: |
+          Git ref of ai-toolkit to use for the build-plugin-config composite
+          action. Must be 'main' (stable) or 'next' (pre-release). Defaults to
+          'main'.
+        required: false
+        type: string
+        default: "main"
+
     secrets:
       ANTHROPIC_API_KEY:
-        description: "Anthropic API key for Claude Code"
-        required: true
+        description: "Anthropic API key for Claude Code (required unless CLAUDE_CODE_OAUTH_TOKEN is set)"
+        required: false
+
+      CLAUDE_CODE_OAUTH_TOKEN:
+        description: "OAuth token for Claude Code (alternative to ANTHROPIC_API_KEY, takes precedence if both set). Generate with 'claude setup-token'."
+        required: false
 
       WORKFLOW_PAT:
         description: "PAT for pushing branches (optional)"
@@ -97,12 +134,70 @@ jobs:
           egress-policy: audit
 
       # Checkout the update branch
+      # Must come before validate-claude-auth (local composite action)
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           ref: ${{ inputs.branch_name }}
           fetch-depth: 50
           token: ${{ secrets.WORKFLOW_PAT || github.token }}
+          persist-credentials: false
+
+      - name: Configure git credentials for push
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+      # Download validate-claude-auth action if caller repo doesn't have it
+      # This allows external repos to use this reusable workflow without copying the action
+      - name: Ensure validate-claude-auth action exists
+        env:
+          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ACTION_FILE=".github/actions/validate-claude-auth/action.yml"
+
+          if [ -f "$ACTION_FILE" ]; then
+            echo "Using local validate-claude-auth action"
+          else
+            echo "Downloading validate-claude-auth action from ai-toolkit@${TOOLKIT_REF}..."
+            mkdir -p .github/actions/validate-claude-auth
+
+            # Use GitHub API (same pattern as other reusable workflows)
+            # Authentication required to avoid GitHub API rate limits on shared runner IPs
+            if ! curl -fSs --max-time 30 --max-redirs 3 \
+                      -H "Accept: application/vnd.github.v4.raw" \
+                      -H "Authorization: Bearer $GITHUB_TOKEN" \
+                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/actions/validate-claude-auth/action.yml?ref=${TOOLKIT_REF}" \
+                      -o "$ACTION_FILE" 2>&1 | tee /tmp/curl-error.log; then
+              echo "::error::Failed to download validate-claude-auth action from ai-toolkit@${TOOLKIT_REF}"
+              cat /tmp/curl-error.log
+              exit 1
+            fi
+
+            # Verify the file was downloaded and has content
+            if [ ! -s "$ACTION_FILE" ]; then
+              echo "::error::Downloaded action.yml is empty"
+              exit 1
+            fi
+
+            # Verify it's a valid action file (has 'runs:' section)
+            if ! grep -q "^runs:" "$ACTION_FILE"; then
+              echo "::error::Downloaded action.yml is invalid (missing 'runs:' section)"
+              echo "File contents:"
+              cat "$ACTION_FILE"
+              exit 1
+            fi
+
+            echo "Successfully downloaded validate-claude-auth action from ai-toolkit@${TOOLKIT_REF}"
+          fi
+
+      - name: Validate authentication
+        uses: ./.github/actions/validate-claude-auth
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
       # Configure git
       - name: Configure git
@@ -113,17 +208,25 @@ jobs:
       # Build the prompt
       - name: Build prompt
         id: build-prompt
+        env:
+          INPUT_BRANCH_NAME: ${{ inputs.branch_name }}
+          INPUT_TARGET_BRANCH: ${{ inputs.target_branch }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          PROMPT=$(cat << 'PROMPT_EOF'
+          # Note: Using a quoted heredoc ('PROMPT_EOF') to prevent shell expansion,
+          # then using envsubst to safely substitute environment variables.
+          # This avoids needing to escape backticks, $, and \ throughout the prompt.
+          export INPUT_BRANCH_NAME INPUT_TARGET_BRANCH INPUT_DRY_RUN
+          PROMPT=$(envsubst << 'PROMPT_EOF'
           # GitHub Actions Version Update Task
 
           You are tasked with updating all external GitHub Actions in this repository to their latest versions.
 
           ## Context
 
-          - **Branch:** `${{ inputs.branch_name }}`
-          - **Target Branch:** `${{ inputs.target_branch }}`
-          - **Dry Run:** ${{ inputs.dry_run }}
+          - **Branch:** `${INPUT_BRANCH_NAME}`
+          - **Target Branch:** `${INPUT_TARGET_BRANCH}`
+          - **Dry Run:** ${INPUT_DRY_RUN}
 
           ## Your Workflow
 
@@ -211,7 +314,7 @@ jobs:
 
           3. Push the branch:
           ```bash
-          git push origin ${{ inputs.branch_name }}
+          git push origin ${INPUT_BRANCH_NAME}
           ```
 
           4. Create the PR using gh CLI:
@@ -235,8 +338,8 @@ jobs:
 
           ---
           *Automated by Claude Code on $(date +%Y-%m-%d)*" \
-            --base "${{ inputs.target_branch }}" \
-            --head "${{ inputs.branch_name }}"
+            --base "${INPUT_TARGET_BRANCH}" \
+            --head "${INPUT_BRANCH_NAME}"
           ```
 
           ### If Dry Run Mode
@@ -291,18 +394,40 @@ jobs:
           echo "$PROMPT" >> $GITHUB_OUTPUT
           echo "PROMPT_DELIM" >> $GITHUB_OUTPUT
 
+      # Build plugin configuration using shared composite action
+      # Note: GitHub Actions requires static refs in 'uses:', so we use conditional
+      # steps instead of dynamic interpolation for security and predictability.
+      - name: Build plugin configuration (main)
+        if: inputs.plugin_ref == 'main' || inputs.plugin_ref == ''
+        id: build-plugins-main
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main # zizmor: ignore[unpinned-uses]
+        with:
+          install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+
+      - name: Build plugin configuration (next)
+        if: inputs.plugin_ref == 'next'
+        id: build-plugins-next
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next # zizmor: ignore[unpinned-uses]
+        with:
+          install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+
       # Run Claude Code
+      # Supports both API key and OAuth token authentication (OAuth takes precedence)
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@8a1c4371755898f67cd97006ba7c97702d5fc4bf # v1.0.16
+        uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71 # v1.0.29
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: ${{ steps.build-prompt.outputs.prompt }}
           show_full_output: ${{ inputs.debug_mode }}
           claude_args: |
             --model ${{ inputs.model }}
             --max-turns 80
             --dangerously-skip-permissions
+          # Coalesce outputs from conditional steps (only one will have run)
+          plugin_marketplaces: ${{ steps.build-plugins-main.outputs.plugin_marketplaces || steps.build-plugins-next.outputs.plugin_marketplaces }}
+          plugins: ${{ steps.build-plugins-main.outputs.plugins || steps.build-plugins-next.outputs.plugins }}
 
       # Check if a PR was created
       - name: Check for PR
