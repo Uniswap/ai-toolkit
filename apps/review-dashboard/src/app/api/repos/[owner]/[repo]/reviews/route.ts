@@ -4,6 +4,7 @@ import type { NextRequest } from 'next/server';
 
 import { getSession } from '@/lib/auth';
 import { createDb, schema } from '@/lib/db';
+import { verifyRepoAccess } from '@/lib/github';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,11 @@ export async function GET(request: NextRequest, { params }: RouteParams): Promis
   }
 
   const { owner, repo } = await params;
+
+  const hasAccess = await verifyRepoAccess(session.accessToken, owner, repo);
+  if (!hasAccess) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   const { searchParams } = new URL(request.url);
   const page = Math.max(1, Number(searchParams.get('page')) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(searchParams.get('pageSize')) || 25));

@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import crypto from 'node:crypto';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
@@ -41,7 +42,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const storedState = cookieStore.get('oauth_state')?.value;
   cookieStore.delete('oauth_state');
 
-  if (!storedState || storedState !== state) {
+  if (
+    !storedState ||
+    storedState.length !== state.length ||
+    !crypto.timingSafeEqual(Buffer.from(storedState), Buffer.from(state))
+  ) {
     return NextResponse.redirect(`${appUrl}?error=invalid_state`);
   }
 

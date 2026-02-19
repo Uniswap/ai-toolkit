@@ -1,6 +1,9 @@
 import { desc, eq, sql } from 'drizzle-orm';
+import { redirect } from 'next/navigation';
 
+import { getSession } from '@/lib/auth';
 import { createDb, schema } from '@/lib/db';
+import { filterAccessibleRepos } from '@/lib/github';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,10 +18,15 @@ interface RepoRow {
 }
 
 export default async function DashboardPage() {
+  const session = await getSession();
+  if (!session) {
+    redirect('/');
+  }
+
   const db = createDb();
 
   // Query repositories with review stats
-  const repos = await db
+  const allRepos = await db
     .select({
       id: schema.repositories.id,
       owner: schema.repositories.owner,
@@ -32,6 +40,8 @@ export default async function DashboardPage() {
     .leftJoin(schema.reviews, eq(schema.reviews.repositoryId, schema.repositories.id))
     .groupBy(schema.repositories.id)
     .orderBy(desc(sql`max(${schema.reviews.createdAt})`));
+
+  const repos = await filterAccessibleRepos(session.accessToken, allRepos);
 
   return (
     <div>

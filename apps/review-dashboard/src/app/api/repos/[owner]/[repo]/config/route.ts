@@ -1,12 +1,46 @@
 import { and, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { z } from 'zod';
 
 import { upsertOverride } from '@review-bot/db/queries';
 import { getSession } from '@/lib/auth';
 import { createDb, schema } from '@/lib/db';
+import { verifyRepoAccess } from '@/lib/github';
 
 export const dynamic = 'force-dynamic';
+
+const ALLOWED_MODELS = [
+  'claude-sonnet-4-20250514',
+  'claude-opus-4-20250514',
+  'claude-haiku-4-5-20251001',
+] as const;
+
+const VALID_SECTION_KEYS = [
+  'system_prompt',
+  'review_instructions',
+  'file_analysis',
+  'summary_format',
+] as const;
+
+const configPayloadSchema = z.object({
+  config: z
+    .object({
+      model: z.enum(ALLOWED_MODELS).optional(),
+      maxDiffLines: z.number().int().min(100).max(50000).optional(),
+      fileExclusions: z.string().max(5000).optional(),
+    })
+    .optional(),
+  overrides: z
+    .array(
+      z.object({
+        sectionKey: z.enum(VALID_SECTION_KEYS),
+        content: z.string().max(50000),
+      })
+    )
+    .max(VALID_SECTION_KEYS.length)
+    .optional(),
+});
 
 interface RouteParams {
   params: Promise<{ owner: string; repo: string }>;
@@ -19,6 +53,11 @@ export async function GET(_request: NextRequest, { params }: RouteParams): Promi
   }
 
   const { owner, repo } = await params;
+
+  const hasAccess = await verifyRepoAccess(session.accessToken, owner, repo);
+  if (!hasAccess) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   const db = createDb();
 
   const [repository] = await db
@@ -46,18 +85,6 @@ export async function GET(_request: NextRequest, { params }: RouteParams): Promi
   });
 }
 
-interface ConfigPayload {
-  config: {
-    model?: string;
-    maxDiffLines?: number;
-    fileExclusions?: string;
-  };
-  overrides: Array<{
-    sectionKey: string;
-    content: string;
-  }>;
-}
-
 export async function PUT(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const session = await getSession();
   if (!session) {
@@ -65,6 +92,13 @@ export async function PUT(request: NextRequest, { params }: RouteParams): Promis
   }
 
   const { owner, repo } = await params;
+
+  // Config changes require write access
+  const hasAccess = await verifyRepoAccess(session.accessToken, owner, repo, 'write');
+  if (!hasAccess) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   const db = createDb();
 
   const [repository] = await db
@@ -77,7 +111,16 @@ export async function PUT(request: NextRequest, { params }: RouteParams): Promis
     return NextResponse.json({ error: 'Repository not found' }, { status: 404 });
   }
 
-  const body = (await request.json()) as ConfigPayload;
+  const raw: unknown = await request.json();
+  const parsed = configPayloadSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Invalid request body', details: parsed.error.issues },
+      { status: 400 }
+    );
+  }
+
+  const body = parsed.data;
 
   // Update repository config
   if (body.config) {

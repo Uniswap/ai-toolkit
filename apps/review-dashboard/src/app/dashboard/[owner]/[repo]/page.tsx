@@ -1,7 +1,9 @@
 import { and, desc, eq } from 'drizzle-orm';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 
+import { getSession } from '@/lib/auth';
 import { createDb, schema } from '@/lib/db';
+import { verifyRepoAccess } from '@/lib/github';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,7 +48,18 @@ function formatDuration(ms: number | null): string {
 }
 
 export default async function RepoReviewsPage({ params, searchParams }: PageProps) {
+  const session = await getSession();
+  if (!session) {
+    redirect('/');
+  }
+
   const { owner, repo } = await params;
+
+  const hasAccess = await verifyRepoAccess(session.accessToken, owner, repo);
+  if (!hasAccess) {
+    notFound();
+  }
+
   const { page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
   const pageSize = 25;

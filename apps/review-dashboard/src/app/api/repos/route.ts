@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 
 import { getSession } from '@/lib/auth';
 import { createDb, schema } from '@/lib/db';
+import { filterAccessibleRepos } from '@/lib/github';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,5 +30,7 @@ export async function GET(): Promise<NextResponse> {
     .groupBy(schema.repositories.id)
     .orderBy(desc(sql`max(${schema.reviews.createdAt})`));
 
-  return NextResponse.json({ repositories: repos });
+  const accessibleRepos = await filterAccessibleRepos(session.accessToken, repos);
+
+  return NextResponse.json({ repositories: accessibleRepos });
 }

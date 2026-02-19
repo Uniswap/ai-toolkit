@@ -1,7 +1,9 @@
 import { and, eq } from 'drizzle-orm';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 
+import { getSession } from '@/lib/auth';
 import { createDb, schema } from '@/lib/db';
+import { verifyRepoAccess } from '@/lib/github';
 
 import { ConfigForm } from './config-form';
 
@@ -34,7 +36,19 @@ export interface PromptOverride {
 }
 
 export default async function ConfigPage({ params }: PageProps) {
+  const session = await getSession();
+  if (!session) {
+    redirect('/');
+  }
+
   const { owner, repo } = await params;
+
+  // Config page requires write access
+  const hasAccess = await verifyRepoAccess(session.accessToken, owner, repo, 'write');
+  if (!hasAccess) {
+    notFound();
+  }
+
   const db = createDb();
 
   const [repository] = await db
