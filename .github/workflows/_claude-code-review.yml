@@ -219,6 +219,20 @@ on:
         type: boolean
         default: false
 
+      max_auto_fix_cycles:
+        description: |
+          Maximum number of consecutive auto-fix cycles allowed before stopping.
+          Each cycle is: review finds issues → auto-fix pushes changes → re-review.
+          The count resets when a human pushes a commit.
+
+          Set to 1 for a single fix attempt (default), or higher to allow
+          multiple rounds of review→fix→re-review.
+
+          Default: 1
+        required: false
+        type: number
+        default: 1
+
       auto_fix_model:
         description: |
           Claude model to use for auto-fixing issues. If not specified, uses
@@ -1391,13 +1405,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ inputs.pr_number }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          MAX_AUTO_FIX_CYCLES: ${{ inputs.max_auto_fix_cycles }}
         run: |
           set -euo pipefail
 
           echo "🔧 Checking if auto-fix should run..."
+          echo "📊 Max auto-fix cycles allowed: $MAX_AUTO_FIX_CYCLES"
 
-          # Guard against infinite auto-fix loops: if the PR head commit was
-          # already an auto-fix commit, skip to prevent push→review→fix→push cycles.
+          # Guard against infinite auto-fix loops by counting consecutive
+          # auto-fix commits from HEAD. A human commit resets the count.
           #
           # Security: Uses the GitHub API to verify the commit AUTHOR identity
           # (not spoofable via commit message) as the primary guard. The commit
@@ -1408,21 +1424,36 @@ jobs:
           # to .commit.author.name (user-controlled git metadata). If .author.login
           # is null (e.g., unlinked email), the guard won't trigger — fail open
           # means auto-fix runs, which is the safe default.
-          HEAD_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')
-          COMMIT_DATA=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}")
-          LATEST_COMMIT_AUTHOR=$(echo "$COMMIT_DATA" | jq -r '.author.login // empty')
-          LATEST_COMMIT_MSG=$(echo "$COMMIT_DATA" | jq -r '.commit.message | split("\n")[0]')
 
-          if [ "$LATEST_COMMIT_AUTHOR" = "github-actions[bot]" ]; then
-            # Author is the bot — now verify the commit message pattern (defense in depth)
-            if echo "$LATEST_COMMIT_MSG" | grep -qE '^\w+\(claude\):.*\(auto-fix\)$'; then
-              echo "ℹ️  Latest commit is an auto-fix commit by github-actions[bot] — skipping to prevent loop"
-              echo "   Author: $LATEST_COMMIT_AUTHOR"
-              echo "   Commit ($HEAD_SHA): $LATEST_COMMIT_MSG"
-              echo "should_fix=false" >> $GITHUB_OUTPUT
-              exit 0
-            fi
+          # Fetch PR commits in chronological order, then reverse to walk from HEAD backward
+          COMMITS=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/commits" \
+            --paginate \
+            --jq '[.[] | {author_login: (.author.login // empty), message: (.commit.message | split("\n")[0])}]')
+
+          # Count consecutive auto-fix commits from HEAD (most recent first).
+          # Walk backwards through the commit array; stop at the first non-auto-fix commit.
+          CONSECUTIVE_COUNT=$(echo "$COMMITS" | jq '
+            . as $commits |
+            ($commits | length) as $len |
+            {count: 0, done: false} |
+            reduce range($len - 1; -1; -1) as $i (.;
+              if .done then .
+              elif $commits[$i].author_login == "github-actions[bot]"
+                   and ($commits[$i].message | test("^\\w+\\(claude\\):.*\\(auto-fix\\)$"))
+              then .count += 1
+              else .done = true
+              end
+            ) | .count')
+
+          echo "📊 Consecutive auto-fix commits from HEAD: $CONSECUTIVE_COUNT"
+
+          if [ "$CONSECUTIVE_COUNT" -ge "$MAX_AUTO_FIX_CYCLES" ]; then
+            echo "ℹ️  Auto-fix cycle limit reached ($CONSECUTIVE_COUNT >= $MAX_AUTO_FIX_CYCLES) — skipping to prevent loop"
+            echo "should_fix=false" >> $GITHUB_OUTPUT
+            exit 0
           fi
+
+          echo "✅ Auto-fix cycles remaining: $(( MAX_AUTO_FIX_CYCLES - CONSECUTIVE_COUNT ))"
 
           # Read the review outcome
           if [ ! -f "$REVIEW_JSON_FILE" ]; then
