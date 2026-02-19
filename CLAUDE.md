@@ -1,4 +1,4 @@
-F# CLAUDE.md - AI Toolkit Project Guidelines
+# CLAUDE.md - AI Toolkit Project Guidelines
 
 ## Core Requirements
 
@@ -607,6 +607,65 @@ Inline scripts are acceptable when they are:
 - Not candidates for reuse across workflows
 
 **This policy is mandatory and should be enforced during code review.**
+
+## Claude Code Hooks
+
+### PostToolUse Hook: Lint and Typecheck
+
+This project includes a Claude Code hook that automatically lints and typechecks files after Claude modifies them using the Write or Edit tools. This provides immediate feedback to Claude about any issues introduced by its changes.
+
+#### How It Works
+
+1. When Claude uses the `Write` or `Edit` tool to modify a file, the PostToolUse hook is triggered
+2. The hook script (`.github/scripts/lint-and-typecheck-hook.ts`) runs:
+   - **ESLint** on the modified file (for `.ts`, `.tsx`, `.js`, `.jsx`, `.mts`, `.cts`, `.mjs`, `.cjs` files)
+   - **TypeScript typecheck** via the affected Nx project (for TypeScript files)
+3. If issues are found, the hook exits with code 2 and provides error details to Claude
+4. Claude receives this feedback and can fix the issues before continuing
+
+#### Configuration
+
+The hook is configured in `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx tsx .github/scripts/lint-and-typecheck-hook.ts",
+            "timeout": 60000
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+#### Benefits
+
+- **Immediate feedback**: Claude learns about issues right after making changes
+- **Focused checking**: Only the modified file is linted, not the entire codebase
+- **Project-aware**: Uses Nx to find and typecheck the affected project
+- **Non-blocking for non-code**: Files that don't need linting (markdown, JSON, etc.) pass through without delay
+
+#### Troubleshooting
+
+If the hook is causing issues:
+
+1. Check that `tsx` is available: `npx tsx --version`
+2. Verify ESLint is configured: `npx eslint --version`
+3. Check the hook script exists: `ls -la .github/scripts/lint-and-typecheck-hook.ts`
+4. Run the hook manually to debug:
+
+   ```bash
+   echo '{"tool_name":"Write","tool_input":{"file_path":"path/to/file.ts"}}' | \
+     npx tsx .github/scripts/lint-and-typecheck-hook.ts
+   ```
 
 <!-- nx configuration start-->
 <!-- Leave the start & end comments to automatically receive updates. -->

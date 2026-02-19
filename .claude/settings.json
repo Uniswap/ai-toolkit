@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/post-edit-lint.sh",
+            "command": "npx tsx .github/scripts/lint-and-typecheck-hook.ts",
             "timeout": 60000
           }
         ]
