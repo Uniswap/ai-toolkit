@@ -1428,7 +1428,8 @@ jobs:
           # Fetch PR commits in chronological order, then reverse to walk from HEAD backward
           COMMITS=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/commits" \
             --paginate \
-            --jq '[.[] | {author_login: (.author.login // empty), message: (.commit.message | split("\n")[0])}]')
+            --jq '[.[] | {author_login: (.author.login // empty), message: (.commit.message | split("\n")[0])}]' \
+            | jq -s 'add // []')
 
           # Count consecutive auto-fix commits from HEAD (most recent first).
           # Walk backwards through the commit array; stop at the first non-auto-fix commit.
