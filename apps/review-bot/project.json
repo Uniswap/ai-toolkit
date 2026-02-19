@@ -1,0 +1,112 @@
+{
+  "name": "review-bot",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "tags": ["scope:backend", "type:api", "backend", "api", "review"],
+  "targets": {
+    "build": {
+      "executor": "@nx/esbuild:esbuild",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "apps/review-bot/dist",
+        "main": "apps/review-bot/src/main.ts",
+        "additionalEntryPoints": ["apps/review-bot/src/index.ts"],
+        "tsConfig": "apps/review-bot/tsconfig.app.json",
+        "format": ["esm"],
+        "bundle": true,
+        "thirdParty": true,
+        "platform": "node",
+        "target": "node22"
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "dependsOn": ["build"],
+      "options": {
+        "buildTarget": "review-bot:build",
+        "runBuildTargetDependencies": false,
+        "watch": false
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "review-bot:build"
+        },
+        "production": {
+          "buildTarget": "review-bot:build"
+        }
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/apps/review-bot/test-output"],
+      "options": {
+        "passWithNoTests": true,
+        "jestConfig": "apps/review-bot/jest.config.ts",
+        "coverage": false
+      },
+      "configurations": {
+        "ci": {
+          "ci": true,
+          "coverage": true,
+          "codeCoverage": true,
+          "coverageReporters": ["text", "lcov", "html"],
+          "collectCoverageFrom": [
+            "apps/review-bot/src/**/*.ts",
+            "!apps/review-bot/src/**/*.spec.ts",
+            "!apps/review-bot/src/**/*.test.ts",
+            "!apps/review-bot/src/**/index.ts"
+          ]
+        },
+        "watch": {
+          "watch": true
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["apps/review-bot/**/*.ts"],
+        "fix": false,
+        "cache": true,
+        "quiet": false
+      },
+      "configurations": {
+        "fix": {
+          "fix": true
+        },
+        "ci": {
+          "quiet": true,
+          "cache": false
+        }
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["tsc --noEmit -p apps/review-bot/tsconfig.app.json"]
+      }
+    },
+    "db:generate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["npx drizzle-kit generate --config apps/review-bot/drizzle.config.ts"]
+      }
+    },
+    "db:migrate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["npx drizzle-kit migrate --config apps/review-bot/drizzle.config.ts"]
+      }
+    },
+    "db:push": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["npx drizzle-kit push --config apps/review-bot/drizzle.config.ts"]
+      }
+    }
+  },
+  "sourceRoot": "apps/review-bot/src",
+  "projectType": "application"
+}

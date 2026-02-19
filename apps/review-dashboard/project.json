@@ -1,0 +1,41 @@
+{
+  "name": "review-dashboard",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "tags": ["scope:frontend", "type:app", "frontend", "dashboard"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["next build"],
+        "cwd": "apps/review-dashboard"
+      },
+      "outputs": ["{workspaceRoot}/apps/review-dashboard/.next"]
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["next dev --port 3001"],
+        "cwd": "apps/review-dashboard"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["apps/review-dashboard/**/*.{ts,tsx}"],
+        "fix": false,
+        "cache": true
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["tsc --noEmit -p apps/review-dashboard/tsconfig.json"],
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  },
+  "sourceRoot": "apps/review-dashboard/src",
+  "projectType": "application"
+}

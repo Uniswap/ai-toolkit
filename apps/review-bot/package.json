@@ -1,0 +1,30 @@
+{
+  "name": "@ai-toolkit/review-bot",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22.x",
+    "npm": "11.7.0"
+  },
+  "main": "./dist/main.js",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@fastify/cors": "^11.0.0",
+    "@neondatabase/serverless": "^0.10.4",
+    "@octokit/app": "^15.1.2",
+    "@octokit/rest": "^21.1.1",
+    "@octokit/webhooks": "^13.4.2",
+    "dotenv": "^17.2.1",
+    "drizzle-orm": "^0.39.0",
+    "fastify": "^5.3.0",
+    "inngest": "^3.29.0",
+    "tslib": "^2.3.0",
+    "zod": "^3.24.0",
+    "zod-to-json-schema": "^3.25.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.29",
+    "drizzle-kit": "^0.30.0"
+  }
+}

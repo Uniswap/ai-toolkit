@@ -17,6 +17,12 @@
     },
     {
       "path": "./packages/linear-task-utils"
+    },
+    {
+      "path": "./apps/review-bot"
+    },
+    {
+      "path": "./apps/review-dashboard"
     }
   ]
 }
