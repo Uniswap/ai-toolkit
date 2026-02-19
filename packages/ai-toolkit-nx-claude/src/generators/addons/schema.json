@@ -16,7 +16,7 @@
         "items": [
           {
             "value": "all",
-            "label": "All recommended MCP servers (2 servers)"
+            "label": "All recommended MCP servers (1 server)"
           },
           {
             "value": "specific",
@@ -30,7 +30,7 @@
       "description": "The addons to install",
       "items": {
         "type": "string",
-        "enum": ["slack-mcp", "aws-log-analyzer-mcp"]
+        "enum": ["aws-log-analyzer-mcp"]
       },
       "prompt-when": "selectionMode === 'specific'",
       "prompt-type": "multiselect",

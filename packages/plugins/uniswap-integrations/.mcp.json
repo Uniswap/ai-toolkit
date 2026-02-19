@@ -38,6 +38,15 @@
     "vercel": {
       "type": "http",
       "url": "https://mcp.vercel.com"
+    },
+    "slack": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "-p", "@anthropic/slack-mcp@latest", "slack-mcp"],
+      "env": {
+        "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}",
+        "SLACK_TEAM_ID": "TKZBCKUJJ"
+      }
     }
   }
 }

@@ -1,8 +1,8 @@
 export interface AddonsGeneratorSchema {
   /** Selection mode for which addons to install */
   selectionMode?: 'all' | 'specific';
-  /** The addons to install */
-  addons?: Array<'slack-mcp' | 'aws-log-analyzer-mcp'>;
+  /** The addons to install (note: slack-mcp is now available via uniswap-integrations plugin) */
+  addons?: Array<'aws-log-analyzer-mcp'>;
   /** Force installation even if already exists */
   force?: boolean;
   /** Skip installation verification */
