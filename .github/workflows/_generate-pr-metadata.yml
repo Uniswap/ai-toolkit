@@ -644,16 +644,18 @@ jobs:
           PROMPT_LENGTH=$(wc -c < /tmp/final-prompt.txt)
           echo "✅ Built final prompt: $PROMPT_LENGTH characters"
 
-          # Export as output for next step
-          {
-            echo "final_prompt<<PROMPT_DELIMITER_EOF"
-            cat /tmp/final-prompt.txt
-            echo "PROMPT_DELIMITER_EOF"
-          } >> $GITHUB_OUTPUT
+          # Output the file path (not content) to avoid "Argument list too long" errors.
+          # Large PR histories (e.g., dependabot PRs with huge changelogs) can push
+          # the prompt past Linux's ARG_MAX limit when passed through GitHub Actions
+          # outputs. Claude Code reads the file via the @path reference in the prompt.
+          echo "prompt_file_path=/tmp/final-prompt.txt" >> $GITHUB_OUTPUT
 
-          # Show first few lines for debugging
+          # Show prompt size and preview for debugging
           echo ""
-          echo "Prompt preview (first 20 lines):"
+          PROMPT_LINES=$(wc -l < /tmp/final-prompt.txt)
+          echo "📊 Prompt size: $PROMPT_LENGTH bytes, $PROMPT_LINES lines"
+          echo ""
+          echo "📄 Prompt preview (first 20 lines):"
           head -n 20 /tmp/final-prompt.txt
 
       # Build Claude arguments with proper escaping for tool specifications
@@ -736,6 +738,10 @@ jobs:
 
       # Run Claude Code Action to generate the metadata
       # Supports both API key and OAuth token authentication (OAuth takes precedence)
+      # NOTE: We use a file reference (@path) instead of passing prompt content directly
+      # to avoid "Argument list too long" errors when PR history contains large descriptions
+      # (e.g., dependabot PRs with huge changelogs). This matches the pattern used in
+      # _claude-code-review.yml.
       - name: Run Claude Code Generation
         if: steps.cache-check.outputs.cache-hit != 'true'
         id: claude
@@ -743,7 +749,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt: ${{ steps.build-prompt.outputs.final_prompt }}
+          prompt: "Read and act upon the prompt at @${{ steps.build-prompt.outputs.prompt_file_path }}"
           track_progress: false # Disable to avoid PR comments
           allowed_bots: dependabot
           claude_args: ${{ steps.build-args.outputs.claude_args }}
