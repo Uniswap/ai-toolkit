@@ -113,6 +113,8 @@ The review body is free-form text. Parse it into discrete items:
 
 If an inline comment author is a known bot (e.g., `github-actions[bot]`, `codecov-commenter`, `renovate[bot]`) AND the content overlaps with a CI check failure on the same file/line, merge into one item. Use the inline comment as the canonical item (it has location context).
 
+**Exception**: Do NOT deduplicate when the inline bot comment is stale or resolved (`is_resolved: true`). In that case, keep the CI failure as a separate item — a stale bot comment does not mean the underlying CI failure is resolved.
+
 ## Phase 3: Triage
 
 For each normalized item, classify:
@@ -225,16 +227,17 @@ No action. Log in final report.
 
 1. **Collect results** from each agent's Task completion output (agents return structured reports when their Task completes)
 2. **Aggregate**: changes made per comment, unresolved issues, all files modified
-3. **Detect project tooling** before running verification:
+3. **Detect cross-agent file conflicts**: Compare the "files modified" lists from each agent. If two or more agents modified the same file, flag the overlap. Read the file to check for inconsistencies or lost edits. If conflicts exist, re-run the affected changes sequentially to resolve them.
+4. **Detect project tooling** before running verification:
    - Check for `nx.json` → Nx commands
    - Check `package.json` scripts → npm scripts
    - Do NOT assume specific commands exist
-4. **Run verification** using detected tooling:
+5. **Run verification** using detected tooling (use the PR's base branch for comparison to match CI behavior):
    - Format (e.g., `npx nx format:write --uncommitted`)
-   - Lint (e.g., `npx nx affected --target=lint --base=HEAD`)
-   - Typecheck (e.g., `npx nx affected --target=typecheck --base=HEAD`)
-   - Tests if relevant (e.g., `npx nx affected --target=test --base=HEAD`)
-5. **On failure**: Identify which changes caused the failure. Fix directly or re-dispatch. Re-verify.
+   - Lint (e.g., `npx nx affected --target=lint --base=origin/next`)
+   - Typecheck (e.g., `npx nx affected --target=typecheck --base=origin/next`)
+   - Tests if relevant (e.g., `npx nx affected --target=test --base=origin/next`)
+6. **On failure**: Identify which changes caused the failure. Fix directly or re-dispatch. Re-verify.
 
 ## Phase 6: Commit & Report
 

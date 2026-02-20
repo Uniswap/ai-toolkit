@@ -191,6 +191,8 @@ Merge into one item when ALL of:
 
 Use the inline comment as the canonical item (it has file/line context). Discard the duplicate CI failure entry.
 
+**Exception**: Do NOT deduplicate when the inline bot comment is stale or resolved. A stale bot comment does not mean the underlying CI failure is resolved. Keep both items — the stale bot comment will be filtered as `NO_ACTION` in triage, and the CI failure will proceed as `ACTION_REQUIRED`.
+
 ## Subagent Dispatch Reference
 
 ### Agent Selection

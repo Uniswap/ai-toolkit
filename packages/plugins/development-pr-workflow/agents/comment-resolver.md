@@ -67,7 +67,7 @@ You receive a set of review comments that have already been triaged as needing c
 6. **Report Results**:
    - For each comment, report what was done
    - Flag any uncertainties or conflicts
-   - List all files modified
+   - **List ALL files modified** — including any files outside the assigned group. The orchestrator uses this to detect cross-agent file conflicts before verification
 
 ### Output Format
 
