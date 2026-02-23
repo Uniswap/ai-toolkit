@@ -317,6 +317,7 @@ You must enable GitHub Actions to create and approve pull requests:
 | `toolkit_ref`                         | No       | `main`              | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
 | `install_uniswap_plugins`             | No       | `true`              | Auto-install uniswap-ai-toolkit plugins. Set to false to opt out and use only custom plugins.                                  |
 | `auto_fix`                            | No       | `false`             | When enabled, auto-fix issues found in review and push changes (triggers re-review). Requires `WORKFLOW_PAT`.                  |
+| `max_auto_fix_cycles`                 | No       | `1`                 | Max consecutive auto-fix cycles before stopping. A human commit resets the count. Set higher for multiple review→fix rounds.   |
 | `auto_fix_model`                      | No       | (same as `model`)   | Model to use for auto-fixing. Use a more capable model (e.g., Opus) for complex fixes.                                         |
 
 **Section Overrides (Granular Prompt Customization):**
@@ -448,7 +449,7 @@ secrets:
 | `COMMENT` (w/issues) | Claude attempts to fix issues mentioned in inline comments |
 | `APPROVE`            | No auto-fix needed (no issues found)                       |
 
-After pushing fixes, a new workflow run is triggered automatically, which will re-review the updated code. This creates a feedback loop until the code passes review or requires manual intervention.
+After pushing fixes, a new workflow run is triggered automatically, which will re-review the updated code. The `max_auto_fix_cycles` input controls how many consecutive review→fix rounds are allowed (default: 1). The count tracks consecutive auto-fix commits from HEAD, so a human commit resets the counter and allows fresh auto-fix cycles.
 
 **Triggering a New Review Without Code Changes:**
 
