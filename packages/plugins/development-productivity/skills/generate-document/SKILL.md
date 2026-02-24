@@ -1,6 +1,6 @@
 ---
 description: Generate professional documents in multiple formats (PDF, DOCX, HTML, ODT, EPUB, RTF). Use when the user says "make a PDF", "generate a report", "create a document", "export to Word", "make a Word doc", "convert to PDF", "export findings", "create documentation", or wants to save analysis results as a formatted document.
-allowed-tools: Read, Write, Bash(pandoc:*), Bash(which:*), Bash(rm:*), Bash(open:*), Bash(xdg-open:*), Glob, Grep
+allowed-tools: Read, Write, Bash(pandoc:*), Bash(which:*), Bash(rm:/tmp/document_*:*), Bash(mkdir:*), Bash(open:*), Bash(xdg-open:*), Glob, Grep
 ---
 
 # Document Generator
@@ -9,15 +9,15 @@ Generate professional documents in multiple formats from markdown content using 
 
 ## Supported Output Formats
 
-| Format | Extension | Use Case |
-|--------|-----------|----------|
-| PDF | `.pdf` | Final reports, printable documents |
-| Word | `.docx` | Editable documents, collaboration |
-| HTML | `.html` | Web viewing, email attachments |
-| OpenDocument | `.odt` | LibreOffice compatibility |
-| EPUB | `.epub` | E-book readers |
-| RTF | `.rtf` | Legacy compatibility |
-| Plain Text | `.txt` | Maximum compatibility |
+| Format       | Extension | Use Case                           |
+| ------------ | --------- | ---------------------------------- |
+| PDF          | `.pdf`    | Final reports, printable documents |
+| Word         | `.docx`   | Editable documents, collaboration  |
+| HTML         | `.html`   | Web viewing, email attachments     |
+| OpenDocument | `.odt`    | LibreOffice compatibility          |
+| EPUB         | `.epub`   | E-book readers                     |
+| RTF          | `.rtf`    | Legacy compatibility               |
+| Plain Text   | `.txt`    | Maximum compatibility              |
 
 ## Prerequisites
 
@@ -56,12 +56,14 @@ sudo apt-get install texlive-xetex
 2. **Collect content**: Gather the content to include from the conversation (security findings, code reviews, research summaries, meeting notes, etc.) or from files the user points to.
 
 3. **Determine format**: Ask the user which format they want, or infer from context:
+
    - "PDF" or "report" -> PDF
    - "Word" or "doc" or "docx" -> DOCX
    - "HTML" or "web" -> HTML
    - Default to PDF if unspecified
 
 4. **Structure the document**: Organize content into well-formatted markdown:
+
    - Title and metadata (YAML frontmatter)
    - Executive summary or abstract
    - Main sections with clear headings
@@ -81,7 +83,7 @@ sudo apt-get install texlive-xetex
 ### PDF (via LaTeX)
 
 ```bash
-pandoc /tmp/document.md -o ~/dev/report.pdf \
+pandoc /tmp/document.md -o ./report.pdf \
   --pdf-engine=xelatex \
   -V geometry:margin=1in \
   -V fontsize=11pt \
@@ -92,7 +94,7 @@ pandoc /tmp/document.md -o ~/dev/report.pdf \
 ### PDF (via wkhtmltopdf - fallback if no LaTeX)
 
 ```bash
-pandoc /tmp/document.md -o ~/dev/report.pdf \
+pandoc /tmp/document.md -o ./report.pdf \
   --pdf-engine=wkhtmltopdf \
   --css=/tmp/style.css
 ```
@@ -100,7 +102,7 @@ pandoc /tmp/document.md -o ~/dev/report.pdf \
 ### Word (DOCX)
 
 ```bash
-pandoc /tmp/document.md -o ~/dev/report.docx \
+pandoc /tmp/document.md -o ./report.docx \
   --toc \
   --highlight-style=tango
 ```
@@ -108,7 +110,7 @@ pandoc /tmp/document.md -o ~/dev/report.docx \
 ### HTML (standalone)
 
 ```bash
-pandoc /tmp/document.md -o ~/dev/report.html \
+pandoc /tmp/document.md -o ./report.html \
   --standalone \
   --toc \
   --highlight-style=tango \
@@ -118,14 +120,14 @@ pandoc /tmp/document.md -o ~/dev/report.html \
 ### OpenDocument (ODT)
 
 ```bash
-pandoc /tmp/document.md -o ~/dev/report.odt \
+pandoc /tmp/document.md -o ./report.odt \
   --toc
 ```
 
 ### EPUB
 
 ```bash
-pandoc /tmp/document.md -o ~/dev/report.epub \
+pandoc /tmp/document.md -o ./report.epub \
   --toc \
   --epub-chapter-level=2
 ```
@@ -133,13 +135,13 @@ pandoc /tmp/document.md -o ~/dev/report.epub \
 ### RTF
 
 ```bash
-pandoc /tmp/document.md -o ~/dev/report.rtf
+pandoc /tmp/document.md -o ./report.rtf
 ```
 
 ### Plain Text
 
 ```bash
-pandoc /tmp/document.md -o ~/dev/report.txt \
+pandoc /tmp/document.md -o ./report.txt \
   --wrap=auto
 ```
 
@@ -147,12 +149,12 @@ pandoc /tmp/document.md -o ~/dev/report.txt \
 
 Structure the markdown content following this template. Adapt sections based on the content type.
 
-```markdown
+````markdown
 ---
-title: "Document Title"
-subtitle: "Optional Subtitle"
-author: "Author Name"
-date: "2024-01-15"
+title: 'Document Title'
+subtitle: 'Optional Subtitle'
+author: 'Author Name'
+date: '2024-01-15'
 abstract: |
   Brief summary of the document contents.
   Can span multiple lines.
@@ -166,7 +168,7 @@ High-level overview of findings or content.
 
 ## Subsection 1.1
 
-Content with **bold**, *italic*, and `inline code`.
+Content with **bold**, _italic_, and `inline code`.
 
 ### Finding ID-001: Finding Title
 
@@ -189,7 +191,7 @@ More content here.
 # Section 2: Data Tables
 
 | Column A | Column B | Column C |
-|----------|----------|----------|
+| -------- | -------- | -------- |
 | Value 1  | Value 2  | Value 3  |
 | Value 4  | Value 5  | Value 6  |
 
@@ -197,16 +199,17 @@ More content here.
 
 ```typescript
 function example(): void {
-  console.log("Code block with syntax highlighting");
+  console.log('Code block with syntax highlighting');
 }
 ```
+````
 
 # Appendix A: References
 
 1. Reference One - <https://example.com>
 2. Reference Two - <https://example.com>
 
-```
+````
 
 ## Content Type Templates
 
@@ -252,7 +255,7 @@ Description of assessment methodology.
 # Scope
 
 What was included/excluded.
-```
+````
 
 <!-- markdownlint-disable MD001 -->
 
@@ -260,9 +263,9 @@ What was included/excluded.
 
 ```markdown
 ---
-title: "Code Review Report"
-subtitle: "PR #XXX - Feature Name"
-date: "YYYY-MM-DD"
+title: 'Code Review Report'
+subtitle: 'PR #XXX - Feature Name'
+date: 'YYYY-MM-DD'
 ---
 
 # Summary
@@ -297,9 +300,9 @@ Prioritized list of recommended actions.
 
 ```markdown
 ---
-title: "Research Summary"
-subtitle: "Topic Name"
-date: "YYYY-MM-DD"
+title: 'Research Summary'
+subtitle: 'Topic Name'
+date: 'YYYY-MM-DD'
 ---
 
 # Overview
@@ -327,7 +330,9 @@ Cited sources.
 
 ## Output Path Convention
 
-Default output location: `~/dev/<descriptive-name>.<ext>`
+Default output location: `./<descriptive-name>.<ext>` (current working directory)
+
+If the user specifies a custom output directory, ensure it exists first by running `mkdir -p <directory>` before invoking pandoc.
 
 Use descriptive names derived from content:
 
