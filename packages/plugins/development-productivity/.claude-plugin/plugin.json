@@ -1,6 +1,6 @@
 {
   "name": "development-productivity",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Documentation, research, test generation, and prompt optimization tools",
   "author": {
     "name": "Uniswap Labs",
@@ -10,6 +10,7 @@
   "keywords": ["documentation", "research", "testing", "prompt-engineering"],
   "license": "MIT",
   "skills": [
+    "./skills/generate-pdf-report",
     "./skills/generate-tests",
     "./skills/optimize-prompt",
     "./skills/research-topic",

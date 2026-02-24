@@ -8,6 +8,7 @@ This plugin provides documentation, research, test generation, and prompt optimi
 
 ### Skills (./skills/)
 
+- **generate-pdf-report**: Generate professional PDF reports from structured findings using fpdf2
 - **generate-tests**: Generate comprehensive tests with advanced testing strategies
 - **optimize-prompt**: Optimize AI prompts for better model performance
 - **research-topic**: Research topics combining web search with codebase analysis
@@ -42,6 +43,7 @@ development-productivity/
 ├── .claude-plugin/
 │   └── plugin.json
 ├── skills/
+│   ├── generate-pdf-report/
 │   ├── generate-tests/
 │   ├── optimize-prompt/
 │   ├── research-topic/

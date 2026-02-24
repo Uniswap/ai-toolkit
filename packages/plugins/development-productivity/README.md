@@ -14,12 +14,13 @@ claude /plugin install development-productivity
 
 ## Skills
 
-| Skill                  | Description                                                    |
-| ---------------------- | -------------------------------------------------------------- |
-| **generate-tests**     | Generate comprehensive tests with advanced testing strategies  |
-| **optimize-prompt**    | Optimize AI prompts for better model performance               |
-| **research-topic**     | Research topics by combining web search with codebase analysis |
-| **update-claude-docs** | Update CLAUDE.md documentation files after code changes        |
+| Skill                   | Description                                                    |
+| ----------------------- | -------------------------------------------------------------- |
+| **generate-pdf-report** | Generate professional PDF reports from structured findings     |
+| **generate-tests**      | Generate comprehensive tests with advanced testing strategies  |
+| **optimize-prompt**     | Optimize AI prompts for better model performance               |
+| **research-topic**      | Research topics by combining web search with codebase analysis |
+| **update-claude-docs**  | Update CLAUDE.md documentation files after code changes        |
 
 ## Commands
 
@@ -53,6 +54,8 @@ claude /plugin install development-productivity
 "Research best practices for React hooks"       # triggers research-topic
 "Improve this prompt for better results"        # triggers optimize-prompt
 "Generate tests for this module"                # triggers generate-tests
+"Generate a PDF report from the findings"       # triggers generate-pdf-report
+"Export the security review to PDF"             # triggers generate-pdf-report
 ```
 
 ## License
