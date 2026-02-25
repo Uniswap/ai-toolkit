@@ -1,6 +1,6 @@
 # @uniswap/development-productivity
 
-Documentation, research, test generation, and prompt optimization tools for Claude Code.
+Documentation, research, test generation, document generation, and prompt optimization tools for Claude Code.
 
 ## Installation
 
@@ -14,12 +14,13 @@ claude /plugin install development-productivity
 
 ## Skills
 
-| Skill                  | Description                                                    |
-| ---------------------- | -------------------------------------------------------------- |
-| **generate-tests**     | Generate comprehensive tests with advanced testing strategies  |
-| **optimize-prompt**    | Optimize AI prompts for better model performance               |
-| **research-topic**     | Research topics by combining web search with codebase analysis |
-| **update-claude-docs** | Update CLAUDE.md documentation files after code changes        |
+| Skill                  | Description                                                                     |
+| ---------------------- | ------------------------------------------------------------------------------- |
+| **generate-document**  | Generate professional documents (PDF, DOCX, HTML, ODT, EPUB, RTF) using pandoc  |
+| **generate-tests**     | Generate comprehensive tests with advanced testing strategies                   |
+| **optimize-prompt**    | Optimize AI prompts for better model performance                                |
+| **research-topic**     | Research topics by combining web search with codebase analysis                  |
+| **update-claude-docs** | Update CLAUDE.md documentation files after code changes                         |
 
 ## Commands
 
@@ -53,6 +54,9 @@ claude /plugin install development-productivity
 "Research best practices for React hooks"       # triggers research-topic
 "Improve this prompt for better results"        # triggers optimize-prompt
 "Generate tests for this module"                # triggers generate-tests
+"Export this analysis to PDF"                   # triggers generate-document
+"Create a Word doc from these findings"         # triggers generate-document
+"Generate an HTML report"                       # triggers generate-document
 ```
 
 ## License
