@@ -1,6 +1,6 @@
 ---
 description: Fix PR issues including review comments and CI failures. Use when user says "fix the failing CI on my PR", "address the review comments on PR #123", "my PR has failing checks", "help me resolve the feedback on my pull request", "the build is failing on my PR", or "make my PR merge-ready".
-allowed-tools: Bash, Read, Write, Edit, Grep, Glob, WebFetch, WebSearch, Task, mcp__github__pull_request_read, mcp__github__get_file_contents, mcp__github__pull_request_review_write, mcp__github__add_issue_comment
+allowed-tools: Bash, Read, Write, Edit, Grep, Glob, WebFetch, WebSearch, Task, mcp__plugin_github_github__pull_request_read, mcp__plugin_github_github__get_file_contents, mcp__plugin_github_github__pull_request_review_write, mcp__plugin_github_github__add_issue_comment, mcp__plugin_uniswap-integrations_github__pull_request_read, mcp__plugin_uniswap-integrations_github__get_file_contents, mcp__plugin_uniswap-integrations_github__pull_request_review_write, mcp__plugin_uniswap-integrations_github__add_issue_comment
 model: opus
 ---
 
@@ -45,13 +45,14 @@ Extract from the user's request:
 - **`owner`** (optional): Infer via `gh repo view --json owner --jq '.owner.login'`
 - **`repo`** (optional): Infer via `gh repo view --json name --jq '.name'`
 
-**Validate access** before proceeding:
+**Validate access and state** before proceeding:
 
 ```bash
-gh pr view {pr_number} --json number,title,state --jq '.number'
+gh pr view {pr_number} --json number,title,state --jq '{number, state}'
 ```
 
-If validation fails, surface the error to the user. Do not continue.
+- If the command fails (access error, PR not found), surface the error to the user. Do not continue.
+- If `state` is `MERGED` or `CLOSED`, warn the user: "PR #{number} is {state}. Do you still want to proceed?" Require explicit confirmation before continuing — resolving comments on a merged/closed PR is almost never what the user intended.
 
 ## Phase 1: Gather
 
@@ -66,9 +67,13 @@ Fetch all PR data in parallel:
 | PR diff         | `pull_request_read(method: "get_diff")`              | `gh pr diff {number}`                                 |
 | Changed files   | `pull_request_read(method: "get_files")`             | `gh pr view {number} --json files`                    |
 
+> **Note**: The changed files list is used in Phase 4 to scope agent work — agents should only modify files in this list (plus cross-file references). It also helps validate that inline comment file paths actually exist in the PR diff.
+
 ### Error Handling
 
-If `gh api` for review bodies fails (auth, rate limit, network), **surface the error to the user** before proceeding. The workflow may continue with inline comments and CI items, but the user must know review bodies were not fetched. Do not silently skip them.
+- **Inline comments**: If both `pull_request_read` MCP and `gh api` fallback fail for inline comments, **stop and surface the error immediately**. Inline comments are the primary input — do not proceed with an empty comment list. The user must resolve the access issue before the workflow can continue.
+- **Review bodies**: If `gh api` for review bodies fails (auth, rate limit, network), **surface the error to the user** before proceeding. The workflow may continue with inline comments and CI items, but the user must know review bodies were not fetched. Do not silently skip them.
+- **CI status / diff / changed files**: If these fail, surface the error but allow the workflow to continue with reduced functionality. Note the missing data in the triage summary.
 
 ## Phase 2: Normalize
 
@@ -97,8 +102,8 @@ Parse all feedback into a **unified item list**. Each item has:
 
 - `CHANGES_REQUESTED` review state → default `blocking: true`
 - `COMMENTED` or `APPROVED` review state → default `blocking: false`
-- Language overrides: "must", "required", "blocking", "critical" → `blocking: true`
-- Language overrides: "nit", "optional", "consider", "suggestion" → `blocking: false`
+- Language overrides: "must", "required", "blocking", "critical", "security", "vulnerability" → `blocking: true`
+- Language overrides: "nit", "optional", "consider", "suggestion", "minor", "nice to have" → `blocking: false`
 - CI failures → always `blocking: true`
 
 ### Review Body Parsing
@@ -134,8 +139,11 @@ Apply in order — first match wins:
 3. Is it a bot comment with specific errors? → `ACTION_REQUIRED`
 4. Does it suggest a specific code change? → `ACTION_REQUIRED`
 5. Does it report a bug or incorrect behavior? → `ACTION_REQUIRED`
-6. Does it ask a question or raise a concern without a specific fix? → `RESPOND_ONLY`
-7. Is it praise, acknowledgment, or informational? → `NO_ACTION`
+6. Does it raise a potential bug concern without a specific fix (e.g., "this looks wrong", "this seems buggy")? → `RESPOND_ONLY`, but **flag for user review** in the triage summary — the user may want to promote it to `ACTION_REQUIRED`
+7. Does it ask a question or raise a non-bug concern without a specific fix? → `RESPOND_ONLY`
+8. Is it praise, acknowledgment, or informational? → `NO_ACTION`
+
+See [pr-guide.md](pr-guide.md) § Triage Examples for classification examples and edge cases.
 
 ### Output
 
@@ -191,9 +199,9 @@ Report per comment: ID, what changed, files modified, any issues.",
 )
 ```
 
-**Review body items without file location**: Each gets its own agent instance. Provide the full PR diff so the agent can identify relevant file(s).
+**Review body items without file location**: Batch up to 3 items per agent instance. Provide the full PR diff so the agent can identify relevant file(s). If there are more than 5 unlocated review body items, process in batches of 3 to avoid spawning excessive agents.
 
-**CI failures without a specific file**: Each gets its own agent instance with CI logs and failure context.
+**CI failures without a specific file**: Each gets its own agent instance with CI logs and failure context. Cap at 3 concurrent CI failure agents — process additional failures sequentially after earlier agents complete.
 
 ### RESPOND_ONLY Items
 
@@ -202,15 +210,29 @@ The orchestrator handles these directly — no subagent needed.
 **For inline comments** — reply to the comment thread:
 
 ```bash
+# Write reply to unique temp file, then send as JSON field via -F
+REPLY_FILE=$(mktemp /tmp/pr-reply-XXXXXX.md)
+cat > "$REPLY_FILE" << 'REPLY_EOF'
+{explanation}
+REPLY_EOF
 gh api repos/{owner}/{repo}/pulls/{pr_number}/comments/{comment_id}/replies \
-  -f body="{explanation}"
+  -F body=@"$REPLY_FILE"
+rm -f "$REPLY_FILE"
 ```
 
 **For review body items** — post a general PR comment:
 
 ```bash
-gh pr comment {pr_number} --body "{response}"
+# Write reply to unique temp file to avoid shell injection
+REPLY_FILE=$(mktemp /tmp/pr-reply-XXXXXX.md)
+cat > "$REPLY_FILE" << 'REPLY_EOF'
+{response}
+REPLY_EOF
+gh pr comment {pr_number} --body-file "$REPLY_FILE"
+rm -f "$REPLY_FILE"
 ```
+
+> **Security note**: Never interpolate reply text directly into shell command arguments. Reply content may echo untrusted PR comment text. Always write to a unique temp file (via `mktemp`), then pass via `-F body=@file` (for `gh api`) or `--body-file` (for `gh pr comment`). The `-F` flag sends the file content as a proper JSON field — do NOT use `--input`, which sends raw bytes and will cause a 422 from the GitHub API.
 
 Reply content must:
 
@@ -227,16 +249,27 @@ No action. Log in final report.
 
 1. **Collect results** from each agent's Task completion output (agents return structured reports when their Task completes)
 2. **Aggregate**: changes made per comment, unresolved issues, all files modified
-3. **Detect cross-agent file conflicts**: Compare the "files modified" lists from each agent. If two or more agents modified the same file, flag the overlap. Read the file to check for inconsistencies or lost edits. If conflicts exist, re-run the affected changes sequentially to resolve them.
+3. **Detect cross-agent file conflicts**: Compare the "files modified" lists from each agent. If two or more agents modified the same file:
+   - Run `git diff {file}` to see the combined changes
+   - If agents modified **different line ranges** (non-overlapping functions/blocks), this is not a conflict — no action needed
+   - If agents modified the **same logical code region** (overlapping lines or the same function), flag as a conflict. Re-run the affected changes sequentially: apply the higher-priority (blocking) agent's changes first, then layer the other agent's changes on top, verifying each step
 4. **Detect project tooling** before running verification:
    - Check for `nx.json` → Nx commands
    - Check `package.json` scripts → npm scripts
    - Do NOT assume specific commands exist
-5. **Run verification** using detected tooling (use the PR's base branch for comparison to match CI behavior):
+5. **Run verification** using detected tooling. Resolve the PR's base branch dynamically to match CI behavior:
+
+   ```bash
+   PR_BASE=$(gh pr view {pr_number} --json baseRefName --jq '.baseRefName')
+   ```
+
+   Then run:
+
    - Format (e.g., `npx nx format:write --uncommitted`)
-   - Lint (e.g., `npx nx affected --target=lint --base=origin/next`)
-   - Typecheck (e.g., `npx nx affected --target=typecheck --base=origin/next`)
-   - Tests if relevant (e.g., `npx nx affected --target=test --base=origin/next`)
+   - Lint (e.g., `npx nx affected --target=lint --base=origin/$PR_BASE`)
+   - Typecheck (e.g., `npx nx affected --target=typecheck --base=origin/$PR_BASE`)
+   - Tests if relevant (e.g., `npx nx affected --target=test --base=origin/$PR_BASE`)
+
 6. **On failure**: Identify which changes caused the failure. Fix directly or re-dispatch. Re-verify.
 
 ## Phase 6: Commit & Report

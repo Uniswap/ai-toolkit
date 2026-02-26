@@ -77,8 +77,9 @@ gh pr view {number} --json files
 3. **Is it a bot comment with specific errors?** → `ACTION_REQUIRED`
 4. **Does it suggest a specific code change?** → `ACTION_REQUIRED`
 5. **Does it report a bug or incorrect behavior?** → `ACTION_REQUIRED`
-6. **Does it ask a question or raise a concern without a fix?** → `RESPOND_ONLY`
-7. **Is it praise, acknowledgment, or informational?** → `NO_ACTION`
+6. **Does it raise a potential bug concern without a specific fix?** (e.g., "this looks wrong", "this seems buggy") → `RESPOND_ONLY`, but **flag for user review** in the triage summary — the user may want to promote it to `ACTION_REQUIRED`
+7. **Does it ask a question or raise a non-bug concern without a fix?** → `RESPOND_ONLY`
+8. **Is it praise, acknowledgment, or informational?** → `NO_ACTION`
 
 ### Triage Examples
 
@@ -91,6 +92,7 @@ gh pr view {number} --json files
 
 **RESPOND_ONLY examples:**
 
+- "This looks wrong to me" → potential bug concern without specific fix (flagged for user review)
 - "Why did you choose this approach over X?" → design question
 - "Have you considered the performance implications?" → concern without fix
 - "This might cause issues with concurrent access" → architectural concern
@@ -197,13 +199,13 @@ Use the inline comment as the canonical item (it has file/line context). Discard
 
 ### Agent Selection
 
-| Item Type                              | Agent                                            | Notes                                     |
-| -------------------------------------- | ------------------------------------------------ | ----------------------------------------- |
-| Inline comments (grouped by file)      | `development-pr-workflow:comment-resolver-agent` | One agent per file group                  |
-| Review body items (with file location) | `development-pr-workflow:comment-resolver-agent` | Grouped with that file's inline comments  |
-| Review body items (no file location)   | `development-pr-workflow:comment-resolver-agent` | One agent per item, receives full PR diff |
-| CI failures (specific file)            | `development-pr-workflow:comment-resolver-agent` | Include CI logs in prompt                 |
-| CI failures (no specific file)         | `development-pr-workflow:comment-resolver-agent` | One agent per failure, include full logs  |
+| Item Type                              | Agent                                            | Notes                                                                |
+| -------------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------- |
+| Inline comments (grouped by file)      | `development-pr-workflow:comment-resolver-agent` | One agent per file group                                             |
+| Review body items (with file location) | `development-pr-workflow:comment-resolver-agent` | Grouped with that file's inline comments                             |
+| Review body items (no file location)   | `development-pr-workflow:comment-resolver-agent` | Batch up to 3 items per agent; receives full PR diff                 |
+| CI failures (specific file)            | `development-pr-workflow:comment-resolver-agent` | Include CI logs in prompt                                            |
+| CI failures (no specific file)         | `development-pr-workflow:comment-resolver-agent` | One agent per failure, include full logs; cap at 3 concurrent agents |
 
 ### Prompt Construction
 
@@ -233,15 +235,29 @@ Post replies for `RESPOND_ONLY` items. The orchestrator handles this directly �
 **For inline comments** (thread reply):
 
 ```bash
+# Write reply to unique temp file, then send as JSON field via -F
+REPLY_FILE=$(mktemp /tmp/pr-reply-XXXXXX.md)
+cat > "$REPLY_FILE" << 'REPLY_EOF'
+{reply text}
+REPLY_EOF
 gh api repos/{owner}/{repo}/pulls/{pr_number}/comments/{comment_id}/replies \
-  -f body="{reply text}"
+  -F body=@"$REPLY_FILE"
+rm -f "$REPLY_FILE"
 ```
 
 **For review body items** (general PR comment):
 
 ```bash
-gh pr comment {pr_number} --body "{reply text}"
+# Write reply to unique temp file to avoid shell injection
+REPLY_FILE=$(mktemp /tmp/pr-reply-XXXXXX.md)
+cat > "$REPLY_FILE" << 'REPLY_EOF'
+{reply text}
+REPLY_EOF
+gh pr comment {pr_number} --body-file "$REPLY_FILE"
+rm -f "$REPLY_FILE"
 ```
+
+> **Security note**: Never interpolate reply text directly into shell arguments. Reply content may echo untrusted PR comment text. Always use `mktemp` for unique temp files, then `-F body=@file` for `gh api` (sends as JSON field) or `--body-file` for `gh pr comment`. Do NOT use `--input` — it sends raw bytes, not JSON.
 
 ### Reply Templates
 
@@ -315,14 +331,7 @@ When dispatching agents for CI failures:
 
 ## Local Verification
 
-Before reporting completion:
-
-1. **Detect project tooling** by checking for `nx.json` (Nx workspace) or `package.json` scripts
-2. **Run available validation** — check what lint/typecheck/test targets or scripts exist, then run them
-3. Verify no regressions
-4. Check changes compile
-
-> **Note**: Do not assume specific commands exist. First discover what's available (e.g., `nx show project <name> --json` for Nx, or inspect `package.json` scripts), then run appropriate validation.
+See SKILL.md Phase 5 (Collect & Verify) for the full verification workflow, including dynamic base branch resolution and tooling detection. The orchestrator handles verification — agents do NOT run full verification suites.
 
 ## Commit Strategy
 
