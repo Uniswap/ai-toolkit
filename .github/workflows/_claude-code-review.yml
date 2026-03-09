@@ -403,7 +403,18 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ steps.pr-info.outputs.head_sha }}
-          fetch-depth: 0 # Full history needed for accurate diff calculation
+          fetch-depth: 1 # Shallow clone - merge base fetched separately
+
+      # Fetch just the merge base commit tree for diff computation.
+      # Full history is unnecessary — git diff only needs the two commit trees.
+      - name: Fetch merge base for diff
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MERGE_BASE_SHA: ${{ steps.pr-info.outputs.merge_base_sha }}
+        run: |
+          git -c http.extraheader="Authorization: basic $(echo -n "x-access-token:${GITHUB_TOKEN}" | base64)" \
+            fetch --depth=1 origin "$MERGE_BASE_SHA"
+          echo "✅ Fetched merge base: ${MERGE_BASE_SHA:0:12}"
 
       # Defense-in-depth: remove any attacker-supplied binaries from PR checkout
       - name: Remove untrusted node_modules binaries

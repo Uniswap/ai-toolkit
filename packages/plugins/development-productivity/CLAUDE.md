@@ -2,12 +2,13 @@
 
 ## Overview
 
-This plugin provides documentation, research, test generation, and prompt optimization tools for Claude Code.
+This plugin provides documentation, research, test generation, document generation, and prompt optimization tools for Claude Code.
 
 ## Plugin Components
 
 ### Skills (./skills/)
 
+- **generate-document**: Generate professional documents in multiple formats (PDF, DOCX, HTML, ODT, EPUB, RTF) using pandoc
 - **generate-tests**: Generate comprehensive tests with advanced testing strategies
 - **optimize-prompt**: Optimize AI prompts for better model performance
 - **research-topic**: Research topics combining web search with codebase analysis
@@ -42,6 +43,7 @@ development-productivity/
 ├── .claude-plugin/
 │   └── plugin.json
 ├── skills/
+│   ├── generate-document/
 │   ├── generate-tests/
 │   ├── optimize-prompt/
 │   ├── research-topic/
