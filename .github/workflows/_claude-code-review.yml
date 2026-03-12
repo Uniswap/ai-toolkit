@@ -634,25 +634,27 @@ jobs:
           # This ensures we compare against exactly what GitHub shows in the PR diff view
           echo "📍 Using merge base SHA: $MERGE_BASE_SHA"
 
-          # Define lockfile pattern for grep filtering
+          # Define pattern for package manifests and lockfiles to exclude from review.
+          # These are auto-generated or declarative dependency files that inflate diff
+          # size without adding meaningful review content.
           # Note: We use grep -v instead of git pathspec exclusions because pathspec
           # exclusions have inconsistent behavior across different shell environments.
           # The grep approach is more portable and reliable.
-          LOCKFILE_PATTERN='(^|/)(package-lock\.json|bun\.lock[b]?|yarn\.lock|pnpm-lock\.yaml|Podfile\.lock|composer\.lock|Gemfile\.lock|Cargo\.lock|poetry\.lock|go\.sum)$'
+          PACKAGE_AND_LOCK_PATTERN='(^|/)(package\.json|package-lock\.json|bun\.lock[b]?|yarn\.lock|pnpm-lock\.yaml|Podfile\.lock|composer\.json|composer\.lock|Gemfile|Gemfile\.lock|Cargo\.toml|Cargo\.lock|poetry\.lock|go\.mod|go\.sum|pyproject\.toml|requirements\.txt|Pipfile)$'
 
-          # Generate the list of changed files (excluding lockfiles)
+          # Generate the list of changed files (excluding package and lock files)
           ALL_CHANGED_FILES=$(git diff --name-only ${MERGE_BASE_SHA}..HEAD)
-          CHANGED_FILES=$(echo "$ALL_CHANGED_FILES" | grep -vE "$LOCKFILE_PATTERN" || true)
+          CHANGED_FILES=$(echo "$ALL_CHANGED_FILES" | grep -vE "$PACKAGE_AND_LOCK_PATTERN" || true)
           FILE_COUNT=$(echo "$CHANGED_FILES" | grep -c . || echo "0")
-          echo "📁 Files changed (excluding lockfiles): $FILE_COUNT"
+          echo "📁 Files changed (excluding package and lock files): $FILE_COUNT"
 
-          # Generate the full diff (excluding lockfiles)
+          # Generate the full diff (excluding package and lock files)
           # This is the ONLY diff Claude should review - it contains exactly the PR's changes
           # Pass the filtered file list to git diff to generate diff for only those files
           if [ -n "$CHANGED_FILES" ]; then
             echo "$CHANGED_FILES" | tr '\n' '\0' | xargs -0 git diff ${MERGE_BASE_SHA}..HEAD -- > /tmp/pr-diff.txt
           else
-            # No non-lockfile changes - create empty diff
+            # No non-package/lock changes - create empty diff
             touch /tmp/pr-diff.txt
           fi
 
@@ -683,7 +685,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Count lines in the diff
+          # Count lines in the diff (package and lock files already excluded upstream)
           DIFF_LINES=$(wc -l < /tmp/pr-diff.txt)
           echo "📊 Diff line count: $DIFF_LINES"
 
