@@ -603,14 +603,14 @@ jobs:
       - name: Build plugin configuration (main)
         if: inputs.plugin_ref == 'main' || inputs.plugin_ref == ''
         id: build-plugins-main
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main # zizmor: ignore[unpinned-uses]
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@db515d00e9e2b6c6efed887473e24db9800b003c # main
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
 
       - name: Build plugin configuration (next)
         if: inputs.plugin_ref == 'next'
         id: build-plugins-next
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next # zizmor: ignore[unpinned-uses]
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@5551a05100852bf27a7e8df8201fba7d69d00b01 # next
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
 
