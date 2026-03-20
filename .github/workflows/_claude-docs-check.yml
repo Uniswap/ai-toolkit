@@ -114,7 +114,9 @@ on:
           Defaults to 'uniswap-integrations'.
         required: false
         type: string
-        default: "uniswap-integrations"
+        default: |
+          uniswap-integrations
+          spec-workflow
 
       plugin_ref:
         description: "Git ref for build-plugin-config action ('main' or 'next')"

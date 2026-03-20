@@ -42,9 +42,11 @@ inputs:
   exclude_plugins:
     description: |
       Newline-separated list of plugin names to exclude from auto-installation.
-      Defaults to 'uniswap-integrations'.
+      Defaults to 'uniswap-integrations' and 'spec-workflow'.
     required: false
-    default: 'uniswap-integrations'
+    default: |
+      uniswap-integrations
+      spec-workflow
 
   plugin_marketplaces:
     description: |
