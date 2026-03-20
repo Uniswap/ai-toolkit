@@ -242,18 +242,22 @@ on:
         description: |
           Whether to install the uniswap-ai-toolkit plugins automatically.
 
-          When true (default): All 5 uniswap-ai-toolkit plugins are installed:
-          - development-planning
-          - development-pr-workflow
-          - development-codebase-tools
-          - development-productivity
-          - uniswap-integrations
+          When true (default): Plugins are discovered dynamically from marketplace.json
+          (minus any excluded via exclude_plugins).
 
           When false: No uniswap plugins are installed. Use this if you want to
           use only your own plugins via plugin_marketplaces and plugins inputs.
         required: false
         type: boolean
         default: true
+
+      exclude_plugins:
+        description: |
+          Newline-separated list of plugin names to exclude from auto-installation.
+          Defaults to 'uniswap-integrations'.
+        required: false
+        type: string
+        default: "uniswap-integrations"
 
       plugin_ref:
         description: |
@@ -412,6 +416,8 @@ jobs:
         uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main # zizmor: ignore[unpinned-uses]
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+          ref: main
+          exclude_plugins: ${{ inputs.exclude_plugins }}
           plugin_marketplaces: ${{ inputs.plugin_marketplaces }}
           plugins: ${{ inputs.plugins }}
 
@@ -421,6 +427,8 @@ jobs:
         uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next # zizmor: ignore[unpinned-uses]
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+          ref: next
+          exclude_plugins: ${{ inputs.exclude_plugins }}
           plugin_marketplaces: ${{ inputs.plugin_marketplaces }}
           plugins: ${{ inputs.plugins }}
 
