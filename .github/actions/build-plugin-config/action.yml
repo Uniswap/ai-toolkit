@@ -9,9 +9,10 @@
 #   id: build-plugins
 #   with:
 #     install_uniswap_plugins: true
-#     ref: main                    # must match the branch this action was pinned from
-#     exclude_plugins: |           # plugins to skip (default: uniswap-integrations)
+#     exclude_plugins: |           # plugins to skip (defaults: uniswap-integrations, spec-workflow, claude-setup)
 #       uniswap-integrations
+#       spec-workflow
+#       claude-setup
 #     plugin_marketplaces: |
 #       https://github.com/my-org/my-marketplace.git
 #     plugins: |
@@ -32,21 +33,15 @@ inputs:
     required: false
     default: 'true'
 
-  ref:
-    description: |
-      Git ref (branch) of ai-toolkit to fetch marketplace.json from.
-      Should match the branch this action itself was pinned from ('main' or 'next').
-    required: false
-    default: 'main'
-
   exclude_plugins:
     description: |
       Newline-separated list of plugin names to exclude from auto-installation.
-      Defaults to 'uniswap-integrations' and 'spec-workflow'.
+      Defaults to 'uniswap-integrations', 'spec-workflow', and 'claude-setup'.
     required: false
     default: |
       uniswap-integrations
       spec-workflow
+      claude-setup
 
   plugin_marketplaces:
     description: |
@@ -87,7 +82,6 @@ runs:
       shell: bash
       env:
         INSTALL_UNISWAP_PLUGINS: ${{ inputs.install_uniswap_plugins }}
-        REF: ${{ inputs.ref }}
         EXCLUDE_PLUGINS: ${{ inputs.exclude_plugins }}
         EXTRA_MARKETPLACES: ${{ inputs.plugin_marketplaces }}
         EXTRA_PLUGINS: ${{ inputs.plugins }}
@@ -96,9 +90,11 @@ runs:
         PLUGINS=""
 
         # Dynamically discover plugins from marketplace.json (unless opt-out is set)
+        # Always fetch from the marketplace's default ref (main) so discovery and
+        # installation are always consistent with the same branch.
         if [[ "$INSTALL_UNISWAP_PLUGINS" != "false" ]]; then
-          echo "Fetching plugin list from marketplace.json (ref: ${REF})"
-          MARKETPLACE_URL="https://raw.githubusercontent.com/Uniswap/ai-toolkit/${REF}/.claude-plugin/marketplace.json"
+          MARKETPLACE_URL="https://raw.githubusercontent.com/Uniswap/ai-toolkit/main/.claude-plugin/marketplace.json"
+          echo "Fetching plugin list from marketplace.json"
           MARKETPLACE_JSON=$(curl -fsSL "$MARKETPLACE_URL")
 
           if [[ -z "$MARKETPLACE_JSON" ]]; then
@@ -112,11 +108,6 @@ runs:
             exit 1
           fi
 
-          if [[ -z "$MARKETPLACE_JSON" ]]; then
-            echo "Error: Failed to fetch marketplace.json from $MARKETPLACE_URL" >&2
-            exit 1
-          fi
-
           MARKETPLACES="https://github.com/Uniswap/ai-toolkit.git"$'\n'
 
           while IFS= read -r plugin_name; do
@@ -125,7 +116,7 @@ runs:
               continue
             fi
             PLUGINS="${PLUGINS}${plugin_name}@uniswap-ai-toolkit"$'\n'
-          done < <(echo "$MARKETPLACE_JSON" | jq -r '.plugins[].name')
+          done < <(echo "$PLUGIN_NAMES")
         else
           echo "Skipping uniswap-ai-toolkit plugins (install_uniswap_plugins=false)"
         fi

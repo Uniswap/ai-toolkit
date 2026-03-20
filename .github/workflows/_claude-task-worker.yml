@@ -146,6 +146,7 @@ on:
         default: |
           uniswap-integrations
           spec-workflow
+          claude-setup
 
       plugin_ref:
         description: |
@@ -505,7 +506,6 @@ jobs:
         uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main # zizmor: ignore[unpinned-uses]
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
-          ref: main
           exclude_plugins: ${{ inputs.exclude_plugins }}
 
       - name: Build plugin configuration (next)
@@ -514,7 +514,6 @@ jobs:
         uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next # zizmor: ignore[unpinned-uses]
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
-          ref: next
           exclude_plugins: ${{ inputs.exclude_plugins }}
 
       # Run Claude Code with Linear MCP configured

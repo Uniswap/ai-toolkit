@@ -122,17 +122,17 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 | `plugin_marketplaces`           | No       | `""`                   | Additional marketplace paths (newline-separated, local or Git URLs) |
 | `plugins`                       | No       | `""`                   | Additional plugins to install (newline-separated)                   |
 | `install_uniswap_plugins`       | No       | `true`                 | Auto-install uniswap-ai-toolkit plugins (false to opt out)          |
-| `exclude_plugins`               | No       | `uniswap-integrations`, `spec-workflow` | Newline-separated plugin names to exclude from auto-installation    |
+| `exclude_plugins`               | No       | `uniswap-integrations`, `spec-workflow`, `claude-setup` | Newline-separated plugin names to exclude from auto-installation    |
 
 **Plugin Configuration:**
 
 All Uniswap AI Toolkit plugins are **automatically installed** by default for every workflow invocation. Plugins are discovered dynamically from `marketplace.json` at runtime — no action update needed when new plugins are added to the marketplace.
 
-**Default exclusions:** `uniswap-integrations` and `spec-workflow` are excluded by default. Set `exclude_plugins: ""` to install all marketplace plugins.
+**Default exclusions:** `uniswap-integrations`, `spec-workflow`, and `claude-setup` are excluded by default (these are optional/specialized plugins not needed by most callers). Set `exclude_plugins: ""` to install all marketplace plugins.
 
 **How it works:**
 
-The `build-plugin-config` action fetches `.claude-plugin/marketplace.json` from the ai-toolkit repo at the configured `ref` (main or next), then installs all plugins except those listed in `exclude_plugins`. The Git URL `https://github.com/Uniswap/ai-toolkit.git` is registered as the marketplace source.
+The `build-plugin-config` action fetches `.claude-plugin/marketplace.json` from the ai-toolkit repo (always from the default `main` branch), then installs all plugins except those listed in `exclude_plugins`. The Git URL `https://github.com/Uniswap/ai-toolkit.git` is registered as the marketplace source.
 
 **Opt-out:** Set `install_uniswap_plugins: false` to disable automatic plugin installation. Use this when you want to use only your own plugins.
 
@@ -313,7 +313,7 @@ You must enable GitHub Actions to create and approve pull requests:
 | `allowed_tools`                       | No       | `""`                | Comma-separated list of allowed tools for Claude                                                                               |
 | `toolkit_ref`                         | No       | `main`              | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
 | `install_uniswap_plugins`             | No       | `true`              | Auto-install uniswap-ai-toolkit plugins. Set to false to opt out and use only custom plugins.                                  |
-| `exclude_plugins`                     | No       | `uniswap-integrations`, `spec-workflow` | Newline-separated plugin names to exclude from auto-installation.                                                           |
+| `exclude_plugins`                     | No       | `uniswap-integrations`, `spec-workflow`, `claude-setup` | Newline-separated plugin names to exclude from auto-installation.                                                           |
 | `auto_fix`                            | No       | `false`             | When enabled, auto-fix issues found in review and push changes (triggers re-review). Requires `WORKFLOW_PAT`.                  |
 | `max_auto_fix_cycles`                 | No       | `1`                 | Max consecutive auto-fix cycles before stopping. A human commit resets the count. Set higher for multiple review→fix rounds.   |
 | `auto_fix_model`                      | No       | (same as `model`)   | Model to use for auto-fixing. Use a more capable model (e.g., Opus) for complex fixes.                                         |
@@ -565,7 +565,7 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 | `timeout_minutes`         | No       | `15`                | Job timeout in minutes                                                                             |
 | `toolkit_ref`             | No       | `main`              | Git ref of ai-toolkit to use for scripts                                                           |
 | `install_uniswap_plugins` | No       | `true`              | Auto-install uniswap-ai-toolkit plugins                                                            |
-| `exclude_plugins`         | No       | `uniswap-integrations`, `spec-workflow` | Newline-separated plugin names to exclude from auto-installation.                               |
+| `exclude_plugins`         | No       | `uniswap-integrations`, `spec-workflow`, `claude-setup` | Newline-separated plugin names to exclude from auto-installation.                               |
 | `plugin_ref`              | No       | `main`              | Git ref for build-plugin-config action ('main' or 'next')                                          |
 | `auto_fix`                | No       | `false`             | When enabled, auto-fix issues found and push changes (triggers re-check). Requires `WORKFLOW_PAT`. |
 | `auto_fix_model`          | No       | (same as `model`)   | Model to use for auto-fixing. Use a more capable model (e.g., Opus) for complex fixes.             |
