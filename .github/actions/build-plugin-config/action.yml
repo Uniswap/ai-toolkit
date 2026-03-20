@@ -104,6 +104,17 @@ runs:
             exit 1
           fi
 
+          PLUGIN_NAMES=$(echo "$MARKETPLACE_JSON" | jq -r '.plugins[].name')
+          if [[ $? -ne 0 || -z "$PLUGIN_NAMES" ]]; then
+            echo "Error: Failed to parse plugins from marketplace.json" >&2
+            exit 1
+          fi
+
+          if [[ -z "$MARKETPLACE_JSON" ]]; then
+            echo "Error: Failed to fetch marketplace.json from $MARKETPLACE_URL" >&2
+            exit 1
+          fi
+
           MARKETPLACES="https://github.com/Uniswap/ai-toolkit.git"$'\n'
 
           while IFS= read -r plugin_name; do
