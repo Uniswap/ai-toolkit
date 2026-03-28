@@ -28,6 +28,10 @@ This plugin provides documentation, research, test generation, document generati
 - **test-writer-agent**: Generates comprehensive tests with edge case identification
 - **agent-tester-agent**: Validates agent behaviors and runs automated agent tests (tests agents, not code)
 
+### Hooks (./hooks/)
+
+- **claude-md-maintenance.sh**: Stop hook that reminds Claude to run `/update-claude-md` after significant structural changes. Opt-in via `.claude/development-productivity.local.md` with `enabled: true`.
+
 ## Integration Notes
 
 - Skills are the primary interface for all workflows
@@ -58,8 +62,23 @@ development-productivity/
 │   ├── prompt-engineer.md
 │   ├── test-writer.md
 │   └── agent-tester.md
+├── hooks/
+│   ├── hooks.json
+│   └── claude-md-maintenance.sh
 ├── project.json
 ├── package.json
 ├── CLAUDE.md
 └── README.md
 ```
+
+## Hook Configuration (Opt-In)
+
+The `claude-md-maintenance` hook is disabled by default. To enable it per project, create:
+
+```markdown
+## <!-- .claude/development-productivity.local.md -->
+
+## enabled: true
+```
+
+Add `.claude/*.local.md` to your project's `.gitignore` to keep the setting local.

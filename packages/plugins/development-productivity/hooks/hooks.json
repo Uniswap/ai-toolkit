@@ -1,0 +1,16 @@
+{
+  "description": "Stop hook that reminds Claude to update CLAUDE.md when significant files were modified",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/claude-md-maintenance.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
