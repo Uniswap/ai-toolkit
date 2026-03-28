@@ -140,6 +140,17 @@ on:
         type: string
         default: "main"
 
+      skip_if_description_adequate:
+        description: |
+          When true (default), skip generation if the existing PR description
+          is deemed adequate by a lightweight heuristic (sufficient length and
+          structural elements). Saves API costs when descriptions are already
+          well-written (e.g., via local Claude Code). Set to false to always
+          regenerate regardless of existing description quality.
+        required: false
+        type: boolean
+        default: true
+
     secrets:
       ANTHROPIC_API_KEY:
         description: "Anthropic API key for Claude access. Required unless CLAUDE_CODE_OAUTH_TOKEN is provided."
@@ -361,9 +372,121 @@ jobs:
           # Save current body to file
           echo "$CURRENT_BODY" > /tmp/current-pr-body.txt
 
+      # Quality gate: use Claude (Haiku) to evaluate if existing PR description
+      # accurately reflects the code changes. Saves full generation costs when
+      # descriptions are already well-written (e.g., via local Claude Code).
+      # Three-step process: prep → evaluate (Haiku) → parse verdict
+      - name: Prepare Quality Gate Evaluation
+        if: steps.cache-check.outputs.cache-hit != 'true' && inputs.skip_if_description_adequate
+        id: quality-gate-prep
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          BODY=$(cat /tmp/current-pr-body.txt)
+
+          # Strip previously generated content between Claude markers
+          USER_CONTENT=$(echo "$BODY" | sed '/<!-- claude-pr-description-start -->/,/<!-- claude-pr-description-end -->/d')
+          # Trim whitespace and blank lines
+          USER_CONTENT=$(echo "$USER_CONTENT" | sed -e '/^[[:space:]]*$/d' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+
+          if [ -z "$USER_CONTENT" ]; then
+            echo "has_user_content=false" >> $GITHUB_OUTPUT
+            echo "📝 No user-written PR description found — generation will proceed"
+            exit 0
+          fi
+
+          echo "has_user_content=true" >> $GITHUB_OUTPUT
+          echo "Found user-written PR description (${#USER_CONTENT} chars)"
+
+          # Save user content for evaluation
+          echo "$USER_CONTENT" > /tmp/pr-description-user.txt
+
+          # Get PR diff (truncated to keep quality gate fast and cheap)
+          if gh pr diff "$PR_NUMBER" --patch 2>/dev/null | head -500 > /tmp/quality-gate-diff.txt; then
+            DIFF_LINES=$(wc -l < /tmp/quality-gate-diff.txt)
+            echo "Saved PR diff for evaluation ($DIFF_LINES lines)"
+          else
+            echo "⚠️ Could not fetch PR diff — skipping quality gate"
+            echo "has_user_content=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run Quality Gate Evaluation
+        if: |
+          steps.cache-check.outputs.cache-hit != 'true' &&
+          inputs.skip_if_description_adequate &&
+          steps.quality-gate-prep.outputs.has_user_content == 'true'
+        id: quality-gate-eval
+        continue-on-error: true
+        uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71 # v1.0.29
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            You are evaluating whether a pull request description adequately
+            describes the code changes.
+
+            Read the user-written PR description from /tmp/pr-description-user.txt.
+            Read the code diff from /tmp/quality-gate-diff.txt.
+
+            A description is ADEQUATE (PASS) if it:
+            - Mentions the key changes shown in the diff
+            - Is factually accurate (doesn't contradict the actual code)
+            - Provides useful context for a code reviewer
+
+            A description is INADEQUATE (FAIL) if it:
+            - Is empty or trivially short (e.g., just "fixes stuff")
+            - Contradicts or misrepresents the actual code changes
+            - Misses major changes visible in the diff
+            - Is clearly a placeholder or auto-generated boilerplate
+
+            Be LENIENT — err on the side of PASS. If the description is reasonable
+            and mostly accurate, even if not perfect, it should PASS.
+
+            Write ONLY the single word "PASS" or "FAIL" to /tmp/quality-gate-verdict.txt.
+            No explanation, no other text — just the verdict word.
+          allowed_tools: |
+            Read
+            Write
+          claude_args: '--model claude-haiku-4-5 --max-turns 3'
+          track_progress: false
+
+      - name: Parse Quality Gate Verdict
+        if: steps.cache-check.outputs.cache-hit != 'true' && inputs.skip_if_description_adequate
+        id: quality-gate
+        env:
+          HAS_USER_CONTENT: ${{ steps.quality-gate-prep.outputs.has_user_content }}
+        run: |
+          set -euo pipefail
+
+          # If no user content was found, proceed with generation
+          if [ "$HAS_USER_CONTENT" != "true" ]; then
+            echo "should_skip=false" >> $GITHUB_OUTPUT
+            echo "📝 No user-written description — generation will proceed"
+            exit 0
+          fi
+
+          # Read verdict file (defaults to FAIL if eval step failed or file missing)
+          if [ -f /tmp/quality-gate-verdict.txt ]; then
+            VERDICT=$(cat /tmp/quality-gate-verdict.txt | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')
+          else
+            VERDICT="FAIL"
+            echo "⚠️ No verdict file found — defaulting to generation"
+          fi
+
+          if [ "$VERDICT" = "PASS" ]; then
+            echo "should_skip=true" >> $GITHUB_OUTPUT
+            echo "✅ Existing PR description is adequate — skipping generation"
+          else
+            echo "should_skip=false" >> $GITHUB_OUTPUT
+            echo "📝 PR description needs improvement — generation will proceed"
+          fi
+
       # Build final prompt with context and output injection
       - name: Build Generation Prompt
-        if: steps.cache-check.outputs.cache-hit != 'true'
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.quality-gate.outputs.should_skip != 'true'
         id: build-prompt
         env:
           CUSTOM_PROMPT_INPUT: ${{ inputs.custom_prompt }}
@@ -660,7 +783,7 @@ jobs:
 
       # Build Claude arguments with proper escaping for tool specifications
       - name: Build Claude Arguments
-        if: steps.cache-check.outputs.cache-hit != 'true'
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.quality-gate.outputs.should_skip != 'true'
         id: build-args
         env:
           INPUT_ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
@@ -723,14 +846,20 @@ jobs:
       # Note: GitHub Actions requires static refs in 'uses:', so we use conditional
       # steps instead of dynamic interpolation for security and predictability.
       - name: Build plugin configuration (main)
-        if: steps.cache-check.outputs.cache-hit != 'true' && (inputs.plugin_ref == 'main' || inputs.plugin_ref == '')
+        if: |
+          steps.cache-check.outputs.cache-hit != 'true' &&
+          steps.quality-gate.outputs.should_skip != 'true' &&
+          (inputs.plugin_ref == 'main' || inputs.plugin_ref == '')
         id: build-plugins-main
         uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main # zizmor: ignore[unpinned-uses]
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
 
       - name: Build plugin configuration (next)
-        if: steps.cache-check.outputs.cache-hit != 'true' && inputs.plugin_ref == 'next'
+        if: |
+          steps.cache-check.outputs.cache-hit != 'true' &&
+          steps.quality-gate.outputs.should_skip != 'true' &&
+          inputs.plugin_ref == 'next'
         id: build-plugins-next
         uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next # zizmor: ignore[unpinned-uses]
         with:
@@ -743,9 +872,9 @@ jobs:
       # (e.g., dependabot PRs with huge changelogs). This matches the pattern used in
       # _claude-code-review.yml.
       - name: Run Claude Code Generation
-        if: steps.cache-check.outputs.cache-hit != 'true'
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.quality-gate.outputs.should_skip != 'true'
         id: claude
-        uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6 # v1.0.75
+        uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71 # v1.0.29
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -759,7 +888,7 @@ jobs:
 
       # Update PR title and description using generated files
       - name: Update PR Metadata
-        if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.quality-gate.outputs.should_skip != 'true' && success()
         env:
           PR_NUMBER: ${{ inputs.pr_number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -898,8 +1027,8 @@ jobs:
 
               # Add preserved content before markers (if any)
               if [ -n "$CONTENT_BEFORE" ]; then
-                # Strip trailing --- if it exists (our separator from previous runs)
-                # We always re-add it below, so strip to avoid duplicates
+                # Strip trailing --- from old-format runs (pre-details wrapper)
+                # so it doesn't appear above the collapsible section
                 CONTENT_BEFORE=$(echo "$CONTENT_BEFORE" | sed -E 's/[[:space:]]*---[[:space:]]*$//')
                 # Only add content if there's something left after stripping
                 if [ -n "$CONTENT_BEFORE" ]; then
@@ -907,11 +1036,12 @@ jobs:
                 fi
               fi
 
-              # Add the start marker, then horizontal rule separator inside it
+              # Add the start marker with collapsible details wrapper
               NEW_DESCRIPTION="${NEW_DESCRIPTION}${START_MARKER}"$'\n'
-              NEW_DESCRIPTION="${NEW_DESCRIPTION}---"$'\n'
-              NEW_DESCRIPTION="${NEW_DESCRIPTION}## :sparkles: Claude-Generated Content"$'\n\n'
-              NEW_DESCRIPTION="${NEW_DESCRIPTION}${GENERATED_DESCRIPTION}"$'\n'
+              NEW_DESCRIPTION="${NEW_DESCRIPTION}<details>"$'\n'
+              NEW_DESCRIPTION="${NEW_DESCRIPTION}<summary>AI-Generated Description</summary>"$'\n\n'
+              NEW_DESCRIPTION="${NEW_DESCRIPTION}${GENERATED_DESCRIPTION}"$'\n\n'
+              NEW_DESCRIPTION="${NEW_DESCRIPTION}</details>"$'\n'
               NEW_DESCRIPTION="${NEW_DESCRIPTION}${END_MARKER}"
 
               # Add preserved content after markers (if any)
@@ -957,7 +1087,7 @@ jobs:
 
       # Save successful generation to cache
       - name: Save Generation Cache Marker
-        if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.quality-gate.outputs.should_skip != 'true' && success()
         env:
           PATCH_ID: ${{ steps.patch-id.outputs.patch_id }}
         run: |
@@ -967,7 +1097,7 @@ jobs:
 
       # Persist cache for future rebase detection
       - name: Cache Generation State
-        if: steps.cache-check.outputs.cache-hit != 'true' && success()
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.quality-gate.outputs.should_skip != 'true' && success()
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .pr-metadata-cache
