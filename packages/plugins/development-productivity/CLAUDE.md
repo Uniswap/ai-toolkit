@@ -29,6 +29,10 @@ optimization tools for Claude Code.
 - **test-writer-agent**: Generates comprehensive tests with edge case identification
 - **agent-tester-agent**: Validates agent behaviors and runs automated agent tests
 
+### Hooks (./hooks/)
+
+- **claude-md-maintenance.sh**: Stop hook that reminds Claude to run `/update-claude-md` after significant structural changes. Opt-in via `.claude/development-productivity.local.md` with `enabled: true`.
+
 ## CLAUDE.md Content Model (v2.2.0)
 
 As of v2.2.0, all commands, skills, and agents in this plugin follow Anthropic's progressive
@@ -70,8 +74,23 @@ development-productivity/
 │   ├── prompt-engineer.md
 │   ├── test-writer.md
 │   └── agent-tester.md
+├── hooks/
+│   ├── hooks.json
+│   └── claude-md-maintenance.sh
 ├── project.json
 ├── package.json
 ├── CLAUDE.md
 └── README.md
 ```
+
+## Hook Configuration (Opt-In)
+
+The `claude-md-maintenance` hook is disabled by default. To enable it per project, create:
+
+```markdown
+---
+enabled: true
+---
+```
+
+Add `.claude/*.local.md` to your project's `.gitignore` to keep the setting local.
