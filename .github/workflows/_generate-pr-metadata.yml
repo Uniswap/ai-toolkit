@@ -382,8 +382,18 @@ jobs:
         env:
           PR_NUMBER: ${{ inputs.pr_number }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GENERATION_MODE: ${{ inputs.generation_mode }}
         run: |
           set -euo pipefail
+
+          # Quality gate only applies when description generation is requested.
+          # Skip for title-only or deferred-title-only modes to avoid blocking
+          # title updates based on description quality.
+          if [[ ! "$GENERATION_MODE" == *"description"* ]]; then
+            echo "has_user_content=false" >> $GITHUB_OUTPUT
+            echo "📝 Description not in generation mode ($GENERATION_MODE) — quality gate not applicable"
+            exit 0
+          fi
 
           BODY=$(cat /tmp/current-pr-body.txt)
 
@@ -404,8 +414,11 @@ jobs:
           # Save user content for evaluation
           echo "$USER_CONTENT" > /tmp/pr-description-user.txt
 
-          # Get PR diff (truncated to keep quality gate fast and cheap)
-          if gh pr diff "$PR_NUMBER" --patch 2>/dev/null | head -500 > /tmp/quality-gate-diff.txt; then
+          # Get PR diff — fetch fully first, then truncate to avoid SIGPIPE
+          # under set -euo pipefail (head closing the pipe kills gh)
+          if gh pr diff "$PR_NUMBER" --patch > /tmp/quality-gate-diff-full.txt 2>/dev/null; then
+            head -500 /tmp/quality-gate-diff-full.txt > /tmp/quality-gate-diff.txt
+            rm -f /tmp/quality-gate-diff-full.txt
             DIFF_LINES=$(wc -l < /tmp/quality-gate-diff.txt)
             echo "Saved PR diff for evaluation ($DIFF_LINES lines)"
           else
@@ -874,7 +887,7 @@ jobs:
       - name: Run Claude Code Generation
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.quality-gate.outputs.should_skip != 'true'
         id: claude
-        uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71 # v1.0.29
+        uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6 # v1.0.75
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
