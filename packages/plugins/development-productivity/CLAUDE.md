@@ -18,7 +18,7 @@ optimization tools for Claude Code.
 ### Commands (./commands/)
 
 - **claude-init-plus**: Initialize CLAUDE.md files at all core nodes in a workspace (run once to bootstrap)
-- **update-claude-md**: Sync CLAUDE.md files based on staged git changes (run after each significant commit)
+- **update-claude-md**: Sync CLAUDE.md files based on staged git changes (run before committing)
 
 ### Agents (./agents/)
 
