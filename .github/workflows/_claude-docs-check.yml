@@ -119,12 +119,6 @@ on:
           spec-workflow
           claude-setup
 
-      plugin_ref:
-        description: "Git ref for build-plugin-config action ('main' or 'next')"
-        required: false
-        type: string
-        default: "main"
-
       auto_fix:
         description: |
           When enabled, if the docs check finds issues (FAIL verdict),
@@ -611,18 +605,9 @@ jobs:
           echo "CLAUDE_ARGS_EOF" >> $GITHUB_OUTPUT
 
       # Build plugin configuration
-      - name: Build plugin configuration (main)
-        if: inputs.plugin_ref == 'main' || inputs.plugin_ref == ''
-        id: build-plugins-main
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main # zizmor: ignore[unpinned-uses]
-        with:
-          install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
-          exclude_plugins: ${{ inputs.exclude_plugins }}
-
-      - name: Build plugin configuration (next)
-        if: inputs.plugin_ref == 'next'
-        id: build-plugins-next
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next # zizmor: ignore[unpinned-uses]
+      - name: Build plugin configuration
+        id: build-plugins
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@bc20d5cb11941235a629ccd7e296eb6d8a4a2028 # pinned to next
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
           exclude_plugins: ${{ inputs.exclude_plugins }}
@@ -639,8 +624,8 @@ jobs:
           track_progress: false
           show_full_output: false
           claude_args: ${{ steps.build-args.outputs.claude_args }}
-          plugin_marketplaces: ${{ steps.build-plugins-main.outputs.plugin_marketplaces || steps.build-plugins-next.outputs.plugin_marketplaces }}
-          plugins: ${{ steps.build-plugins-main.outputs.plugins || steps.build-plugins-next.outputs.plugins }}
+          plugin_marketplaces: ${{ steps.build-plugins.outputs.plugin_marketplaces }}
+          plugins: ${{ steps.build-plugins.outputs.plugins }}
 
       # Extract and process results
       - name: Process Results

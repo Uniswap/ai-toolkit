@@ -100,15 +100,6 @@ on:
           spec-workflow
           claude-setup
 
-      plugin_ref:
-        description: |
-          Git ref of ai-toolkit to use for the build-plugin-config composite
-          action. Must be 'main' (stable) or 'next' (pre-release). Defaults to
-          'main'.
-        required: false
-        type: string
-        default: "main"
-
     secrets:
       ANTHROPIC_API_KEY:
         description: "Anthropic API key for Claude Code (required unless CLAUDE_CODE_OAUTH_TOKEN is set)"
@@ -402,20 +393,9 @@ jobs:
           echo "PROMPT_DELIM" >> $GITHUB_OUTPUT
 
       # Build plugin configuration using shared composite action
-      # Note: GitHub Actions requires static refs in 'uses:', so we use conditional
-      # steps instead of dynamic interpolation for security and predictability.
-      - name: Build plugin configuration (main)
-        if: inputs.plugin_ref == 'main' || inputs.plugin_ref == ''
-        id: build-plugins-main
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main # zizmor: ignore[unpinned-uses]
-        with:
-          install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
-          exclude_plugins: ${{ inputs.exclude_plugins }}
-
-      - name: Build plugin configuration (next)
-        if: inputs.plugin_ref == 'next'
-        id: build-plugins-next
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next # zizmor: ignore[unpinned-uses]
+      - name: Build plugin configuration
+        id: build-plugins
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@bc20d5cb11941235a629ccd7e296eb6d8a4a2028 # pinned to next
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
           exclude_plugins: ${{ inputs.exclude_plugins }}
@@ -434,9 +414,8 @@ jobs:
             --model ${{ inputs.model }}
             --max-turns 80
             --dangerously-skip-permissions
-          # Coalesce outputs from conditional steps (only one will have run)
-          plugin_marketplaces: ${{ steps.build-plugins-main.outputs.plugin_marketplaces || steps.build-plugins-next.outputs.plugin_marketplaces }}
-          plugins: ${{ steps.build-plugins-main.outputs.plugins || steps.build-plugins-next.outputs.plugins }}
+          plugin_marketplaces: ${{ steps.build-plugins.outputs.plugin_marketplaces }}
+          plugins: ${{ steps.build-plugins.outputs.plugins }}
 
       # Check if a PR was created
       - name: Check for PR

@@ -107,21 +107,21 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 
 **Configuration Inputs:**
 
-| Input                           | Required | Default                | Description                                                         |
-| ------------------------------- | -------- | ---------------------- | ------------------------------------------------------------------- |
-| `prompt`                        | No       | `""`                   | Direct automation prompt (enables automation mode)                  |
-| `model`                         | No       | `claude-sonnet-4-6`    | Claude model to use                                                 |
-| `allowed_tools`                 | No       | `""`                   | Comma-separated list of allowed tools                               |
-| `disallowed_tools`              | No       | `""`                   | Comma-separated list of disallowed tools                            |
-| `custom_instructions`           | No       | CLAUDE.md instructions | Additional system prompt instructions                               |
-| `max_turns`                     | No       | unlimited              | Maximum conversation turns                                          |
-| `mcp_config`                    | No       | `""`                   | MCP server configuration (JSON)                                     |
-| `settings`                      | No       | `""`                   | Additional settings including env vars (JSON)                       |
-| `timeout_minutes`               | No       | `10`                   | Job timeout in minutes                                              |
-| `anthropic_api_key_secret_name` | No       | `ANTHROPIC_API_KEY`    | Name of the secret containing the Anthropic API key                 |
-| `plugin_marketplaces`           | No       | `""`                   | Additional marketplace paths (newline-separated, local or Git URLs) |
-| `plugins`                       | No       | `""`                   | Additional plugins to install (newline-separated)                   |
-| `install_uniswap_plugins`       | No       | `true`                 | Auto-install uniswap-ai-toolkit plugins (false to opt out)          |
+| Input                           | Required | Default                                                 | Description                                                         |
+| ------------------------------- | -------- | ------------------------------------------------------- | ------------------------------------------------------------------- |
+| `prompt`                        | No       | `""`                                                    | Direct automation prompt (enables automation mode)                  |
+| `model`                         | No       | `claude-sonnet-4-6`                                     | Claude model to use                                                 |
+| `allowed_tools`                 | No       | `""`                                                    | Comma-separated list of allowed tools                               |
+| `disallowed_tools`              | No       | `""`                                                    | Comma-separated list of disallowed tools                            |
+| `custom_instructions`           | No       | CLAUDE.md instructions                                  | Additional system prompt instructions                               |
+| `max_turns`                     | No       | unlimited                                               | Maximum conversation turns                                          |
+| `mcp_config`                    | No       | `""`                                                    | MCP server configuration (JSON)                                     |
+| `settings`                      | No       | `""`                                                    | Additional settings including env vars (JSON)                       |
+| `timeout_minutes`               | No       | `10`                                                    | Job timeout in minutes                                              |
+| `anthropic_api_key_secret_name` | No       | `ANTHROPIC_API_KEY`                                     | Name of the secret containing the Anthropic API key                 |
+| `plugin_marketplaces`           | No       | `""`                                                    | Additional marketplace paths (newline-separated, local or Git URLs) |
+| `plugins`                       | No       | `""`                                                    | Additional plugins to install (newline-separated)                   |
+| `install_uniswap_plugins`       | No       | `true`                                                  | Auto-install uniswap-ai-toolkit plugins (false to opt out)          |
 | `exclude_plugins`               | No       | `uniswap-integrations`, `spec-workflow`, `claude-setup` | Newline-separated plugin names to exclude from auto-installation    |
 
 **Plugin Configuration:**
@@ -297,26 +297,26 @@ You must enable GitHub Actions to create and approve pull requests:
 
 **Configuration Inputs:**
 
-| Input                                 | Required | Default             | Description                                                                                                                    |
-| ------------------------------------- | -------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `pr_number`                           | Yes      | -                   | Pull request number to review                                                                                                  |
-| `base_ref`                            | No       | -                   | Base branch name (e.g., main, master). If not provided, fetched via GitHub API.                                                |
-| `force_review`                        | No       | `false`             | Force a full review even if the code hasn't changed (bypasses patch-ID cache)                                                  |
-| `model`                               | No       | `claude-sonnet-4-6` | Claude model to use for review                                                                                                 |
-| `max_turns`                           | No       | unlimited           | Maximum conversation turns for Claude                                                                                          |
-| `prompt_override_files_to_skip`       | No       | `""`                | Path to markdown file overriding "Files to Skip" section                                                                       |
-| `prompt_override_review_priorities`   | No       | `""`                | Path to markdown file overriding "Review Priorities" section                                                                   |
-| `prompt_override_communication_style` | No       | `""`                | Path to markdown file overriding "Communication Style" section                                                                 |
-| `prompt_override_pattern_recognition` | No       | `""`                | Path to markdown file overriding "Pattern Recognition" section                                                                 |
-| `timeout_minutes`                     | No       | `30`                | Job timeout in minutes                                                                                                         |
-| `max_diff_lines`                      | No       | `5000`              | Maximum diff lines before skipping Claude review (PR considered too large)                                                     |
-| `allowed_tools`                       | No       | `""`                | Comma-separated list of allowed tools for Claude                                                                               |
-| `toolkit_ref`                         | No       | `main`              | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
-| `install_uniswap_plugins`             | No       | `true`              | Auto-install uniswap-ai-toolkit plugins. Set to false to opt out and use only custom plugins.                                  |
-| `exclude_plugins`                     | No       | `uniswap-integrations`, `spec-workflow`, `claude-setup` | Newline-separated plugin names to exclude from auto-installation.                                                           |
-| `auto_fix`                            | No       | `false`             | When enabled, auto-fix issues found in review and push changes (triggers re-review). Requires `WORKFLOW_PAT`.                  |
-| `max_auto_fix_cycles`                 | No       | `1`                 | Max consecutive auto-fix cycles before stopping. A human commit resets the count. Set higher for multiple review→fix rounds.   |
-| `auto_fix_model`                      | No       | (same as `model`)   | Model to use for auto-fixing. Use a more capable model (e.g., Opus) for complex fixes.                                         |
+| Input                                 | Required | Default                                                 | Description                                                                                                                    |
+| ------------------------------------- | -------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `pr_number`                           | Yes      | -                                                       | Pull request number to review                                                                                                  |
+| `base_ref`                            | No       | -                                                       | Base branch name (e.g., main, master). If not provided, fetched via GitHub API.                                                |
+| `force_review`                        | No       | `false`                                                 | Force a full review even if the code hasn't changed (bypasses patch-ID cache)                                                  |
+| `model`                               | No       | `claude-sonnet-4-6`                                     | Claude model to use for review                                                                                                 |
+| `max_turns`                           | No       | unlimited                                               | Maximum conversation turns for Claude                                                                                          |
+| `prompt_override_files_to_skip`       | No       | `""`                                                    | Path to markdown file overriding "Files to Skip" section                                                                       |
+| `prompt_override_review_priorities`   | No       | `""`                                                    | Path to markdown file overriding "Review Priorities" section                                                                   |
+| `prompt_override_communication_style` | No       | `""`                                                    | Path to markdown file overriding "Communication Style" section                                                                 |
+| `prompt_override_pattern_recognition` | No       | `""`                                                    | Path to markdown file overriding "Pattern Recognition" section                                                                 |
+| `timeout_minutes`                     | No       | `30`                                                    | Job timeout in minutes                                                                                                         |
+| `max_diff_lines`                      | No       | `5000`                                                  | Maximum diff lines before skipping Claude review (PR considered too large)                                                     |
+| `allowed_tools`                       | No       | `""`                                                    | Comma-separated list of allowed tools for Claude                                                                               |
+| `toolkit_ref`                         | No       | `main`                                                  | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
+| `install_uniswap_plugins`             | No       | `true`                                                  | Auto-install uniswap-ai-toolkit plugins. Set to false to opt out and use only custom plugins.                                  |
+| `exclude_plugins`                     | No       | `uniswap-integrations`, `spec-workflow`, `claude-setup` | Newline-separated plugin names to exclude from auto-installation.                                                              |
+| `auto_fix`                            | No       | `false`                                                 | When enabled, auto-fix issues found in review and push changes (triggers re-review). Requires `WORKFLOW_PAT`.                  |
+| `max_auto_fix_cycles`                 | No       | `1`                                                     | Max consecutive auto-fix cycles before stopping. A human commit resets the count. Set higher for multiple review→fix rounds.   |
+| `auto_fix_model`                      | No       | (same as `model`)                                       | Model to use for auto-fixing. Use a more capable model (e.g., Opus) for complex fixes.                                         |
 
 **Section Overrides (Granular Prompt Customization):**
 
@@ -552,23 +552,22 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 
 **Configuration Inputs:**
 
-| Input                     | Required | Default             | Description                                                                                        |
-| ------------------------- | -------- | ------------------- | -------------------------------------------------------------------------------------------------- |
-| `pr_number`               | Yes      | -                   | Pull request number to validate                                                                    |
-| `base_ref`                | No       | -                   | Base branch name (e.g., main). If not provided, fetched via GitHub API.                            |
-| `suggestion_mode`         | No       | `suggest`           | How to provide fix suggestions: suggest, branch, auto, or check                                    |
-| `auto_commit`             | No       | `false`             | Auto-commit and push suggestions to PR branch (bypasses suggestion_mode)                           |
-| `fail_on_missing_docs`    | No       | `true`              | Whether missing documentation should cause workflow to fail                                        |
-| `fail_on_missing_version` | No       | `true`              | Whether missing plugin version bumps should cause workflow to fail                                 |
-| `model`                   | No       | `claude-sonnet-4-6` | Claude model to use                                                                                |
-| `max_turns`               | No       | unlimited           | Maximum conversation turns for Claude                                                              |
-| `timeout_minutes`         | No       | `15`                | Job timeout in minutes                                                                             |
-| `toolkit_ref`             | No       | `main`              | Git ref of ai-toolkit to use for scripts                                                           |
-| `install_uniswap_plugins` | No       | `true`              | Auto-install uniswap-ai-toolkit plugins                                                            |
-| `exclude_plugins`         | No       | `uniswap-integrations`, `spec-workflow`, `claude-setup` | Newline-separated plugin names to exclude from auto-installation.                               |
-| `plugin_ref`              | No       | `main`              | Git ref for build-plugin-config action ('main' or 'next')                                          |
-| `auto_fix`                | No       | `false`             | When enabled, auto-fix issues found and push changes (triggers re-check). Requires `WORKFLOW_PAT`. |
-| `auto_fix_model`          | No       | (same as `model`)   | Model to use for auto-fixing. Use a more capable model (e.g., Opus) for complex fixes.             |
+| Input                     | Required | Default                                                 | Description                                                                                        |
+| ------------------------- | -------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `pr_number`               | Yes      | -                                                       | Pull request number to validate                                                                    |
+| `base_ref`                | No       | -                                                       | Base branch name (e.g., main). If not provided, fetched via GitHub API.                            |
+| `suggestion_mode`         | No       | `suggest`                                               | How to provide fix suggestions: suggest, branch, auto, or check                                    |
+| `auto_commit`             | No       | `false`                                                 | Auto-commit and push suggestions to PR branch (bypasses suggestion_mode)                           |
+| `fail_on_missing_docs`    | No       | `true`                                                  | Whether missing documentation should cause workflow to fail                                        |
+| `fail_on_missing_version` | No       | `true`                                                  | Whether missing plugin version bumps should cause workflow to fail                                 |
+| `model`                   | No       | `claude-sonnet-4-6`                                     | Claude model to use                                                                                |
+| `max_turns`               | No       | unlimited                                               | Maximum conversation turns for Claude                                                              |
+| `timeout_minutes`         | No       | `15`                                                    | Job timeout in minutes                                                                             |
+| `toolkit_ref`             | No       | `main`                                                  | Git ref of ai-toolkit to use for scripts                                                           |
+| `install_uniswap_plugins` | No       | `true`                                                  | Auto-install uniswap-ai-toolkit plugins                                                            |
+| `exclude_plugins`         | No       | `uniswap-integrations`, `spec-workflow`, `claude-setup` | Newline-separated plugin names to exclude from auto-installation.                                  |
+| `auto_fix`                | No       | `false`                                                 | When enabled, auto-fix issues found and push changes (triggers re-check). Requires `WORKFLOW_PAT`. |
+| `auto_fix_model`          | No       | (same as `model`)                                       | Model to use for auto-fixing. Use a more capable model (e.g., Opus) for complex fixes.             |
 
 **Outputs:**
 
@@ -1628,44 +1627,25 @@ Dynamic interpolation via `${{ inputs.* }}`, `${{ github.* }}`, or environment v
 
 ```yaml
 # This looks like it would work, but GitHub Actions rejects it at parse time
-- uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@${{ inputs.plugin_ref }}
+- uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@${{ inputs.some_ref }}
 ```
 
-**✅ CORRECT - Use conditional steps with static refs:**
+**✅ CORRECT - Pin to a full SHA:**
 
 ```yaml
-# Use two steps with if conditions instead
-- name: Build plugin configuration (main)
-  if: inputs.plugin_ref == 'main' || inputs.plugin_ref == ''
-  id: build-plugins-main
-  uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main
+- name: Build plugin configuration
+  id: build-plugins
+  uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@bc20d5cb11941235a629ccd7e296eb6d8a4a2028 # pinned to next
   with:
     install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
-    ref: main
-    exclude_plugins: ${{ inputs.exclude_plugins }}
-
-- name: Build plugin configuration (next)
-  if: inputs.plugin_ref == 'next'
-  id: build-plugins-next
-  uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next
-  with:
-    install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
-    ref: next
     exclude_plugins: ${{ inputs.exclude_plugins }}
 ```
 
 **Why this constraint exists:**
 
-- **Security**: Prevents injection attacks where malicious input could change which action is executed
+- **Security**: Prevents injection attacks where malicious input could change which action is executed; full SHAs satisfy org-level pinning policies
 - **Predictability**: GitHub validates the action reference exists before running any workflow code
 - **Caching**: GitHub can pre-fetch actions before job execution begins
-
-**Pattern for handling multiple refs:**
-
-1. Define a limited set of supported refs (e.g., `main` and `next`)
-2. Create separate conditional steps for each ref with static `uses:` values
-3. Use `if:` conditions to select which step runs
-4. Coalesce outputs with `||` operator: `${{ steps.main.outputs.foo || steps.next.outputs.foo }}`
 
 **This constraint applies to:**
 
