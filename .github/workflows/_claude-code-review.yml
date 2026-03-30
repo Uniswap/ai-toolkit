@@ -1118,7 +1118,7 @@ jobs:
       - name: Build plugin configuration
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
         id: build-plugins
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@bc20d5cb11941235a629ccd7e296eb6d8a4a2028 # next (dynamic discovery)
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@bc20d5cb11941235a629ccd7e296eb6d8a4a2028 # pinned to next
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
           exclude_plugins: ${{ inputs.exclude_plugins }}

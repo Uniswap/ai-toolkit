@@ -1635,7 +1635,7 @@ Dynamic interpolation via `${{ inputs.* }}`, `${{ github.* }}`, or environment v
 ```yaml
 - name: Build plugin configuration
   id: build-plugins
-  uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@bc20d5cb11941235a629ccd7e296eb6d8a4a2028 # next (dynamic discovery)
+  uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@bc20d5cb11941235a629ccd7e296eb6d8a4a2028 # pinned to next
   with:
     install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
     exclude_plugins: ${{ inputs.exclude_plugins }}
