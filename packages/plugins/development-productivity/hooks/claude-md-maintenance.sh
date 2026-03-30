@@ -73,14 +73,15 @@ if ! git -C "$CWD" rev-parse --git-dir >/dev/null 2>&1; then
 fi
 
 # =============================================================================
-# DETECT CHANGED FILES: Check what changed since the last commit
+# DETECT CHANGED FILES: Check what changed in this session (staged + unstaged)
 # =============================================================================
-# Try git diff against HEAD~1 first (last commit context), fall back to
-# comparing working tree against HEAD (uncommitted changes in session)
-CHANGED_FILES=$(git -C "$CWD" diff HEAD~1 --name-status 2>/dev/null || git -C "$CWD" diff HEAD --name-status 2>/dev/null || true)
+# Get unstaged and staged changes against HEAD (current session changes)
+CHANGED_FILES=$(git -C "$CWD" diff HEAD --name-status 2>/dev/null || true)
 
-# Also include untracked files and staged-but-not-committed files
+# Also include staged-but-not-committed files
 STAGED_FILES=$(git -C "$CWD" diff --cached --name-status 2>/dev/null || true)
+
+# Include untracked files from git status
 STATUS_FILES=$(git -C "$CWD" status --short 2>/dev/null || true)
 
 # Combine for a complete picture of what changed in this session
@@ -118,7 +119,7 @@ fi
 # =============================================================================
 IS_NON_TRIVIAL=false
 
-# Signal 1: New files added (git status 'A' or '?' untracked)
+# Signal 1: New files added or untracked (git status 'A' or '?' untracked)
 if printf '%s' "$ALL_CHANGED" | grep -qE '^[[:space:]]*[A?][[:space:]]'; then
   echo "[claude-md-maintenance] Signal: new/untracked files detected" >&2
   IS_NON_TRIVIAL=true
@@ -132,8 +133,8 @@ fi
 
 # Signal 3: Significant line count changes (>50 lines)
 if [ "$IS_NON_TRIVIAL" = "false" ]; then
-  # Get shortstat for line count — try HEAD~1 first, fall back to HEAD
-  SHORTSTAT=$(git -C "$CWD" diff HEAD~1 --shortstat 2>/dev/null || git -C "$CWD" diff HEAD --shortstat 2>/dev/null || true)
+  # Get shortstat for line count from working tree changes against HEAD
+  SHORTSTAT=$(git -C "$CWD" diff HEAD --shortstat 2>/dev/null || true)
   if [ -n "$SHORTSTAT" ]; then
     # Extract insertions and deletions counts
     INSERTIONS=$(printf '%s' "$SHORTSTAT" | grep -o '[0-9]* insertion' | grep -o '[0-9]*' || echo "0")

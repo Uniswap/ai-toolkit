@@ -76,9 +76,10 @@ development-productivity/
 The `claude-md-maintenance` hook is disabled by default. To enable it per project, create:
 
 ```markdown
-## <!-- .claude/development-productivity.local.md -->
-
-## enabled: true
+.claude/development-productivity.local.md
+---
+enabled: true
+---
 ```
 
 Add `.claude/*.local.md` to your project's `.gitignore` to keep the setting local.
