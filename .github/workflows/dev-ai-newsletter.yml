@@ -77,10 +77,9 @@
 name: Dev AI Newsletter
 
 on:
-  # Run weekly on Monday at 9:00 AM EST (14:00 UTC)
-
-  schedule:
-    - cron: "0 14 * * 1"
+  # DISABLED: Scheduled runs temporarily paused
+  # schedule:
+  #   - cron: "0 14 * * 1"
 
   # Manual trigger with inputs
 
@@ -387,7 +386,7 @@ jobs:
       # Run Claude Code with MCP servers
       - name: Generate newsletter with Claude
         id: claude
-        uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71 # v1.0.29
+        uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6 # v1.0.75
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
