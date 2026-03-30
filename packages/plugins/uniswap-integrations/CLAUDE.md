@@ -12,6 +12,7 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 - **github-setup**: Configure GitHub Personal Access Token for the GitHub MCP server
 - **orchestrate-deployment**: Orchestrate deployment pipelines with CI/CD configuration
 - **refine-linear-task**: Refine and enhance Linear task descriptions
+- **use-datadog**: Directs the agent to use the `pup` CLI for all Datadog observability tasks (monitors, logs, metrics, APM, incidents, etc.)
 
 ### Agents (./agents/)
 
@@ -75,7 +76,8 @@ uniswap-integrations/
 │   ├── daily-standup/
 │   ├── github-setup/
 │   ├── orchestrate-deployment/
-│   └── refine-linear-task/
+│   ├── refine-linear-task/
+│   └── use-datadog/
 ├── agents/
 │   ├── cicd-agent.md
 │   ├── infrastructure-agent.md
