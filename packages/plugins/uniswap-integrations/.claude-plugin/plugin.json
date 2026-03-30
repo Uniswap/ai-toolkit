@@ -1,7 +1,7 @@
 {
   "name": "uniswap-integrations",
-  "version": "2.0.1",
-  "description": "External service integrations (Linear, Notion, Nx, Chrome DevTools, GitHub) and deployment orchestration",
+  "version": "2.1.0",
+  "description": "External service integrations (Linear, Notion, Nx, Chrome DevTools, GitHub, Slack) and deployment orchestration",
   "author": {
     "name": "Uniswap Labs",
     "email": "ai-services@uniswap.org"
