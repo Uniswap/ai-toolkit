@@ -55,8 +55,8 @@ jobs:
     with:
       # All inputs are optional - sensible defaults are provided
 
-      # OPTIONAL: Claude model to use (default: claude-sonnet-4-5)
-      # model: 'claude-sonnet-4-5'
+      # OPTIONAL: Claude model to use (default: claude-sonnet-4-6)
+      # model: 'claude-sonnet-4-6'
 
       # OPTIONAL: Maximum execution time in minutes (default: 10)
       # timeout_minutes: '10'
@@ -190,7 +190,7 @@ jobs:
 #     secrets:
 #       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 #     with:
-#       model: 'claude-sonnet-4-5'
+#       model: 'claude-sonnet-4-6'
 #
 #   # Claude Opus for thorough reviews (when 'claude-opus' label is present)
 #   claude-opus:
@@ -234,7 +234,7 @@ jobs:
 #
 # Problem: API rate limit or cost concerns
 # Solution:
-#   - Use claude-sonnet-4-5 (default) instead of Opus for most tasks
+#   - Use claude-sonnet-4-6 (default) instead of Opus for most tasks
 #   - Reduce timeout_minutes to limit execution time
 #   - Add rate limiting via GitHub Actions concurrency groups (already included)
 #
@@ -254,7 +254,7 @@ jobs:
 #
 # Before deploying this workflow:
 # ☐ Configure ANTHROPIC_API_KEY secret in repository settings
-# ☐ Choose appropriate model (Sonnet 4.5 for most cases, Opus for complex analysis)
+# ☐ Choose appropriate model (Sonnet 4.6 for most cases, Opus for complex analysis)
 # ☐ Set timeout_minutes based on repository size and expected tasks
 # ☐ Decide on tool permissions (default permissive vs restricted read-only)
 # ☐ Add custom_instructions if you have specific coding standards
@@ -270,14 +270,14 @@ jobs:
 # If you're migrating from the universe repository's claude.yml workflow:
 # 1. Replace the old workflow file with this one
 # 2. Update the secret name if different (default: ANTHROPIC_API_KEY)
-# 3. The model has been updated to claude-sonnet-4-5 (latest)
+# 3. The model has been updated to claude-sonnet-4-6 (latest)
 # 4. allowed_tools now defaults to a more permissive set (read + write)
 # 5. Security settings (bullfrog, permissions) are now fixed and cannot be overridden
 # 6. Test the new workflow with a @claude mention
 #
 # Key differences from universe:
 # - Reusable workflow pattern (uses: instead of inline)
-# - Updated default model (Sonnet 4.5 by default)
+# - Updated default model (Sonnet 4.6 by default)
 # - More permissive default tools (includes write_file, edit_file)
 # - Fixed security and permission settings
 # - Centralized in ai-toolkit for organization-wide consistency

@@ -64,7 +64,7 @@ jobs:
       suggestion_mode: ${{ github.event.inputs.suggestion_mode || 'suggest' }}
       auto_commit: ${{ github.event.inputs.auto_commit == 'true' }}
       # Use sonnet for faster, cheaper checks
-      model: "claude-sonnet-4-5"
+      model: "claude-sonnet-4-6"
       # Fail if plugin versions aren't bumped
       fail_on_missing_version: true
       # Don't fail on missing docs (just warn)

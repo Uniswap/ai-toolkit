@@ -927,7 +927,7 @@ function dismissPreviousBotReviews(owner: string, repo: string, prNumber: number
     'api',
     `repos/${owner}/${repo}/pulls/${prNumber}/reviews`,
     '--jq',
-    '[.[] | select(.user.login == "github-actions[bot]" and (.state == "APPROVED" or .state == "CHANGES_REQUESTED" or .state == "COMMENTED"))]',
+    '[.[] | select(.user.login == "github-actions[bot]" and (.state == "APPROVED" or .state == "CHANGES_REQUESTED"))]',
   ]);
 
   if (!result) {
