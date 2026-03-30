@@ -11,7 +11,8 @@ allowed-tools: Bash(git:*), Read(*), Write(*), Edit(*), Glob(*), Grep(*)
 
 Update CLAUDE.md files based on staged git changes. The goal is to capture **conventions,
 gotchas, and team preferences** that Claude cannot infer by reading code — not to inventory
-files or list dependencies. Run this after any commit that reveals a non-obvious pattern,
+files or list dependencies. Run this **before committing** whenever staged changes reveal a non-obvious
+pattern, constraint, or workflow decision.
 constraint, or workflow decision.
 
 ## Usage
