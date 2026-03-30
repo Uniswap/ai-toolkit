@@ -9,6 +9,10 @@
 #   id: build-plugins
 #   with:
 #     install_uniswap_plugins: true
+#     exclude_plugins: |           # plugins to skip (defaults: uniswap-integrations, spec-workflow, claude-setup)
+#       uniswap-integrations
+#       spec-workflow
+#       claude-setup
 #     plugin_marketplaces: |
 #       https://github.com/my-org/my-marketplace.git
 #     plugins: |
@@ -22,16 +26,22 @@ inputs:
     description: |
       Whether to install the uniswap-ai-toolkit plugins automatically.
 
-      When 'true' (default): All 5 uniswap-ai-toolkit plugins are installed:
-      - development-planning
-      - development-pr-workflow
-      - development-codebase-tools
-      - development-productivity
-      - uniswap-integrations
+      When 'true' (default): Plugins are discovered dynamically from marketplace.json
+      (minus any excluded via exclude_plugins).
 
       When 'false': No uniswap plugins are installed.
     required: false
     default: 'true'
+
+  exclude_plugins:
+    description: |
+      Newline-separated list of plugin names to exclude from auto-installation.
+      Defaults to 'uniswap-integrations', 'spec-workflow', and 'claude-setup'.
+    required: false
+    default: |
+      uniswap-integrations
+      spec-workflow
+      claude-setup
 
   plugin_marketplaces:
     description: |
@@ -72,21 +82,41 @@ runs:
       shell: bash
       env:
         INSTALL_UNISWAP_PLUGINS: ${{ inputs.install_uniswap_plugins }}
+        EXCLUDE_PLUGINS: ${{ inputs.exclude_plugins }}
         EXTRA_MARKETPLACES: ${{ inputs.plugin_marketplaces }}
         EXTRA_PLUGINS: ${{ inputs.plugins }}
       run: |
         MARKETPLACES=""
         PLUGINS=""
 
-        # Include uniswap-ai-toolkit marketplace via Git URL (unless opt-out is set)
+        # Dynamically discover plugins from marketplace.json (unless opt-out is set)
+        # Always fetch from the marketplace's default ref (main) so discovery and
+        # installation are always consistent with the same branch.
         if [[ "$INSTALL_UNISWAP_PLUGINS" != "false" ]]; then
-          echo "Including uniswap-ai-toolkit plugins from Git"
+          MARKETPLACE_URL="https://raw.githubusercontent.com/Uniswap/ai-toolkit/main/.claude-plugin/marketplace.json"
+          echo "Fetching plugin list from marketplace.json"
+          MARKETPLACE_JSON=$(curl -fsSL "$MARKETPLACE_URL")
+
+          if [[ -z "$MARKETPLACE_JSON" ]]; then
+            echo "Error: Failed to fetch marketplace.json from $MARKETPLACE_URL" >&2
+            exit 1
+          fi
+
+          PLUGIN_NAMES=$(echo "$MARKETPLACE_JSON" | jq -r '.plugins[].name')
+          if [[ $? -ne 0 || -z "$PLUGIN_NAMES" ]]; then
+            echo "Error: Failed to parse plugins from marketplace.json" >&2
+            exit 1
+          fi
+
           MARKETPLACES="https://github.com/Uniswap/ai-toolkit.git"$'\n'
-          PLUGINS="development-planning@uniswap-ai-toolkit
-        development-pr-workflow@uniswap-ai-toolkit
-        development-codebase-tools@uniswap-ai-toolkit
-        development-productivity@uniswap-ai-toolkit
-        uniswap-integrations@uniswap-ai-toolkit"$'\n'
+
+          while IFS= read -r plugin_name; do
+            if echo "$EXCLUDE_PLUGINS" | grep -qxF "$plugin_name"; then
+              echo "Excluding plugin: $plugin_name"
+              continue
+            fi
+            PLUGINS="${PLUGINS}${plugin_name}@uniswap-ai-toolkit"$'\n'
+          done < <(echo "$PLUGIN_NAMES")
         else
           echo "Skipping uniswap-ai-toolkit plugins (install_uniswap_plugins=false)"
         fi
