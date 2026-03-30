@@ -22,6 +22,10 @@ Markdown prompt templates used by GitHub Actions workflows to customize Claude A
 - **production-release-changelog.md** - Production release notes with stakeholder focus
 - **hotfix-changelog.md** - Hotfix-specific changelog format
 
+### Digest & Reporting
+
+- **weekly-digest.md** - Weekly activity digest format
+
 ## Usage
 
 ### In Workflows
