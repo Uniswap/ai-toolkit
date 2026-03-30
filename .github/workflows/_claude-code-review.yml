@@ -68,7 +68,7 @@ on:
         description: "Claude model to use for review"
         required: false
         type: string
-        default: "claude-sonnet-4-5"
+        default: "claude-sonnet-4-6"
 
       max_turns:
         description: "Maximum conversation turns for Claude. Omit to use unlimited turns."
@@ -219,6 +219,20 @@ on:
         type: boolean
         default: false
 
+      max_auto_fix_cycles:
+        description: |
+          Maximum number of consecutive auto-fix cycles allowed before stopping.
+          Each cycle is: review finds issues → auto-fix pushes changes → re-review.
+          The count resets when a human pushes a commit.
+
+          Set to 1 for a single fix attempt (default), or higher to allow
+          multiple rounds of review→fix→re-review.
+
+          Default: 1
+        required: false
+        type: number
+        default: 1
+
       auto_fix_model:
         description: |
           Claude model to use for auto-fixing issues. If not specified, uses
@@ -236,7 +250,7 @@ on:
         description: "Claude Code OAuth token for authentication. Alternative to ANTHROPIC_API_KEY. When provided, takes precedence over API key."
         required: false
       WORKFLOW_PAT:
-        description: "Personal Access Token with repo scope. Only needed for resolving review threads via GraphQL API (falls back to GITHUB_TOKEN if not provided)."
+        description: "Personal Access Token with repo scope. Required for: (1) resolving review threads via GraphQL API, and (2) auto-fix pushes that trigger subsequent workflow runs. Falls back to GITHUB_TOKEN if not provided, but auto-fix pushes with GITHUB_TOKEN will NOT trigger new workflow runs."
         required: false
 
 jobs:
@@ -389,7 +403,18 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ steps.pr-info.outputs.head_sha }}
-          fetch-depth: 0 # Full history needed for accurate diff calculation
+          fetch-depth: 1 # Shallow clone - merge base fetched separately
+
+      # Fetch just the merge base commit tree for diff computation.
+      # Full history is unnecessary — git diff only needs the two commit trees.
+      - name: Fetch merge base for diff
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MERGE_BASE_SHA: ${{ steps.pr-info.outputs.merge_base_sha }}
+        run: |
+          git -c http.extraheader="Authorization: basic $(echo -n "x-access-token:${GITHUB_TOKEN}" | base64)" \
+            fetch --depth=1 origin "$MERGE_BASE_SHA"
+          echo "✅ Fetched merge base: ${MERGE_BASE_SHA:0:12}"
 
       # Defense-in-depth: remove any attacker-supplied binaries from PR checkout
       - name: Remove untrusted node_modules binaries
@@ -1115,7 +1140,7 @@ jobs:
       - name: Run Claude Code Review
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
         id: claude
-        uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71 # v1.0.29
+        uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6 # v1.0.75
         with:
           # Authentication: provide either API key or OAuth token (validated in earlier step)
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -1388,20 +1413,59 @@ jobs:
           success()
         env:
           REVIEW_JSON_FILE: /tmp/claude-review-response.txt
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          MAX_AUTO_FIX_CYCLES: ${{ inputs.max_auto_fix_cycles }}
         run: |
           set -euo pipefail
 
           echo "🔧 Checking if auto-fix should run..."
+          echo "📊 Max auto-fix cycles allowed: $MAX_AUTO_FIX_CYCLES"
 
-          # Guard against infinite auto-fix loops: if the latest commit was
-          # already an auto-fix commit, skip to prevent push→review→fix→push cycles
-          LATEST_COMMIT_MSG=$(git log -1 --format='%s')
-          if echo "$LATEST_COMMIT_MSG" | grep -q "(auto-fix)"; then
-            echo "ℹ️  Latest commit is already an auto-fix commit — skipping to prevent loop"
-            echo "   Commit: $LATEST_COMMIT_MSG"
+          # Guard against infinite auto-fix loops by counting consecutive
+          # auto-fix commits from HEAD. A human commit resets the count.
+          #
+          # Security: Uses the GitHub API to verify the commit AUTHOR identity
+          # (not spoofable via commit message) as the primary guard. The commit
+          # message pattern is checked as defense in depth with an anchored regex
+          # to avoid false positives from reverts or commits that mention "auto-fix".
+          #
+          # We use .author.login (GitHub-verified identity) without falling back
+          # to .commit.author.name (user-controlled git metadata). If .author.login
+          # is null (e.g., unlinked email), the guard won't trigger — fail open
+          # means auto-fix runs, which is the safe default.
+
+          # Fetch PR commits in chronological order, then reverse to walk from HEAD backward
+          COMMITS=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/commits" \
+            --paginate \
+            --jq '[.[] | {author_login: (.author.login // empty), message: (.commit.message | split("\n")[0])}]' \
+            | jq -s 'add // []')
+
+          # Count consecutive auto-fix commits from HEAD (most recent first).
+          # Walk backwards through the commit array; stop at the first non-auto-fix commit.
+          CONSECUTIVE_COUNT=$(echo "$COMMITS" | jq '
+            . as $commits |
+            ($commits | length) as $len |
+            {count: 0, done: false} |
+            reduce range($len - 1; -1; -1) as $i (.;
+              if .done then .
+              elif $commits[$i].author_login == "github-actions[bot]"
+                   and ($commits[$i].message | test("^\\w+\\(claude\\):.*\\(auto-fix\\)$"))
+              then .count += 1
+              else .done = true
+              end
+            ) | .count')
+
+          echo "📊 Consecutive auto-fix commits from HEAD: $CONSECUTIVE_COUNT"
+
+          if [ "$CONSECUTIVE_COUNT" -ge "$MAX_AUTO_FIX_CYCLES" ]; then
+            echo "ℹ️  Auto-fix cycle limit reached ($CONSECUTIVE_COUNT >= $MAX_AUTO_FIX_CYCLES) — skipping to prevent loop"
             echo "should_fix=false" >> $GITHUB_OUTPUT
             exit 0
           fi
+
+          echo "✅ Auto-fix cycles remaining: $(( MAX_AUTO_FIX_CYCLES - CONSECUTIVE_COUNT ))"
 
           # Read the review outcome
           if [ ! -f "$REVIEW_JSON_FILE" ]; then
@@ -1466,9 +1530,18 @@ jobs:
       - name: Configure git credentials for push (auto-fix)
         if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
         env:
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          # Use WORKFLOW_PAT for push so the commit triggers subsequent workflow runs.
+          # Pushes with GITHUB_TOKEN do NOT trigger workflows (GitHub's loop prevention).
+          PUSH_TOKEN: ${{ secrets.WORKFLOW_PAT || github.token }}
+          HAS_WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT && 'true' || 'false' }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+        run: |
+          if [ "$HAS_WORKFLOW_PAT" != "true" ]; then
+            echo "⚠️  WORKFLOW_PAT not set — falling back to GITHUB_TOKEN."
+            echo "   Auto-fix push will NOT trigger subsequent workflow runs."
+            echo "   Set the WORKFLOW_PAT secret to enable re-triggering."
+          fi
+          git remote set-url origin "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
       # Defense-in-depth: remove any attacker-supplied binaries from auto-fix checkout
       - name: Remove potentially compromised bin directory (auto-fix)
@@ -1546,7 +1619,7 @@ jobs:
       - name: Run Claude Auto-Fix
         id: claude-fix
         if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
-        uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71 # v1.0.29
+        uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6 # v1.0.75
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -1572,7 +1645,10 @@ jobs:
         id: commit-fixes
         if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
         env:
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          # Use WORKFLOW_PAT for push so the commit triggers subsequent workflow runs.
+          # Pushes with GITHUB_TOKEN do NOT trigger workflows (GitHub's loop prevention).
+          PUSH_TOKEN: ${{ secrets.WORKFLOW_PAT || github.token }}
+          HAS_WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT && 'true' || 'false' }}
           PR_NUMBER: ${{ inputs.pr_number }}
           BRANCH_NAME: ${{ steps.pr-branch.outputs.branch_name }}
           SERVER_URL: ${{ github.server_url }}
@@ -1593,6 +1669,10 @@ jobs:
           # Configure git
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Defensive: re-configure remote URL with push token in case an
+          # earlier step (e.g., claude-code-action) reset git credentials.
+          git remote set-url origin "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
           # Stage all changes
           git add -A
@@ -1615,8 +1695,13 @@ jobs:
 
           echo "changes_pushed=true" >> $GITHUB_OUTPUT
           echo "✅ Fixes committed and pushed"
-          echo ""
-          echo "ℹ️  This push will trigger a new review of the fixed code"
+
+          if [ "$HAS_WORKFLOW_PAT" = "true" ]; then
+            echo "ℹ️  Pushed with WORKFLOW_PAT — this will trigger a new review of the fixed code"
+          else
+            echo "⚠️  Pushed with GITHUB_TOKEN — this will NOT trigger a new review"
+            echo "   Set the WORKFLOW_PAT secret to enable automatic re-review after auto-fix"
+          fi
 
       # Post auto-fix status comment
       - name: Post Auto-Fix Status
@@ -1626,6 +1711,7 @@ jobs:
           PR_NUMBER: ${{ inputs.pr_number }}
           CHANGES_PUSHED: ${{ steps.commit-fixes.outputs.changes_pushed }}
           CLAUDE_FIX_OUTCOME: ${{ steps.claude-fix.outcome }}
+          HAS_WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT && 'true' || 'false' }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
@@ -1635,6 +1721,11 @@ jobs:
           JOB_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
           if [ "$CHANGES_PUSHED" = "true" ]; then
+            if [ "$HAS_WORKFLOW_PAT" = "true" ]; then
+              RETRIGGER_NOTE="A new review will run automatically on the updated code."
+            else
+              RETRIGGER_NOTE="⚠️ \`WORKFLOW_PAT\` is not configured — this push will **not** trigger a new review automatically. Set the \`WORKFLOW_PAT\` secret to enable re-triggering."
+            fi
             COMMENT_BODY=$(cat <<EOF
           ${COMMENT_MARKER}
           ## 🔧 Auto-Fix Applied
@@ -1644,7 +1735,7 @@ jobs:
           **Status:** ✅ Fixes pushed
           **Job:** [View workflow run](${JOB_URL})
 
-          A new review will run automatically on the updated code.
+          ${RETRIGGER_NOTE}
 
           ---
           *This is an automated fix. Please review the changes to ensure they are correct.*

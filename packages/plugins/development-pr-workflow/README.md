@@ -35,10 +35,11 @@ claude /plugin install development-pr-workflow
 
 ## Agents
 
-| Agent                     | Description                                        |
-| ------------------------- | -------------------------------------------------- |
-| **review-executor-agent** | Executes code review tasks and implements feedback |
-| **stack-splitter-agent**  | Splits monolithic branches into logical PR stacks  |
+| Agent                      | Description                                                  |
+| -------------------------- | ------------------------------------------------------------ |
+| **review-executor-agent**  | Executes code review tasks and implements feedback           |
+| **comment-resolver-agent** | Resolves triaged PR review comments by applying code changes |
+| **stack-splitter-agent**   | Splits monolithic branches into logical PR stacks            |
 
 ## MCP Integration
 

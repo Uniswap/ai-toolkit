@@ -110,7 +110,7 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 | Input                           | Required | Default                | Description                                                         |
 | ------------------------------- | -------- | ---------------------- | ------------------------------------------------------------------- |
 | `prompt`                        | No       | `""`                   | Direct automation prompt (enables automation mode)                  |
-| `model`                         | No       | `claude-sonnet-4-5`    | Claude model to use                                                 |
+| `model`                         | No       | `claude-sonnet-4-6`    | Claude model to use                                                 |
 | `allowed_tools`                 | No       | `""`                   | Comma-separated list of allowed tools                               |
 | `disallowed_tools`              | No       | `""`                   | Comma-separated list of disallowed tools                            |
 | `custom_instructions`           | No       | CLAUDE.md instructions | Additional system prompt instructions                               |
@@ -148,7 +148,7 @@ You can use the `plugin_marketplaces` and `plugins` inputs to install **addition
 ```yaml
 uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
 with:
-  model: 'claude-sonnet-4-5'
+  model: 'claude-sonnet-4-6'
   custom_instructions: |
     Focus on code quality and security.
     Follow CLAUDE.md guidelines.
@@ -161,7 +161,7 @@ secrets:
 ```yaml
 uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
 with:
-  model: 'claude-sonnet-4-5'
+  model: 'claude-sonnet-4-6'
 secrets:
   CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
@@ -171,7 +171,7 @@ secrets:
 ```yaml
 uses: Uniswap/ai-toolkit/.github/workflows/_claude-main.yml@main
 with:
-  model: 'claude-sonnet-4-5'
+  model: 'claude-sonnet-4-6'
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
   CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -305,7 +305,7 @@ You must enable GitHub Actions to create and approve pull requests:
 | `pr_number`                           | Yes      | -                   | Pull request number to review                                                                                                  |
 | `base_ref`                            | No       | -                   | Base branch name (e.g., main, master). If not provided, fetched via GitHub API.                                                |
 | `force_review`                        | No       | `false`             | Force a full review even if the code hasn't changed (bypasses patch-ID cache)                                                  |
-| `model`                               | No       | `claude-sonnet-4-5` | Claude model to use for review                                                                                                 |
+| `model`                               | No       | `claude-sonnet-4-6` | Claude model to use for review                                                                                                 |
 | `max_turns`                           | No       | unlimited           | Maximum conversation turns for Claude                                                                                          |
 | `prompt_override_files_to_skip`       | No       | `""`                | Path to markdown file overriding "Files to Skip" section                                                                       |
 | `prompt_override_review_priorities`   | No       | `""`                | Path to markdown file overriding "Review Priorities" section                                                                   |
@@ -317,6 +317,7 @@ You must enable GitHub Actions to create and approve pull requests:
 | `toolkit_ref`                         | No       | `main`              | Git ref (branch, tag, or SHA) of ai-toolkit to use for the post-review script. Use `next` or a SHA to test unreleased changes. |
 | `install_uniswap_plugins`             | No       | `true`              | Auto-install uniswap-ai-toolkit plugins. Set to false to opt out and use only custom plugins.                                  |
 | `auto_fix`                            | No       | `false`             | When enabled, auto-fix issues found in review and push changes (triggers re-review). Requires `WORKFLOW_PAT`.                  |
+| `max_auto_fix_cycles`                 | No       | `1`                 | Max consecutive auto-fix cycles before stopping. A human commit resets the count. Set higher for multiple review→fix rounds.   |
 | `auto_fix_model`                      | No       | (same as `model`)   | Model to use for auto-fixing. Use a more capable model (e.g., Opus) for complex fixes.                                         |
 
 **Section Overrides (Granular Prompt Customization):**
@@ -388,7 +389,7 @@ uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
 with:
   pr_number: ${{ github.event.pull_request.number }}
   base_ref: ${{ github.base_ref }}
-  model: 'claude-sonnet-4-5'
+  model: 'claude-sonnet-4-6'
   toolkit_ref: 'main' # or 'next' to test unreleased changes
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -402,7 +403,7 @@ uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
 with:
   pr_number: ${{ github.event.pull_request.number }}
   base_ref: ${{ github.base_ref }}
-  model: 'claude-sonnet-4-5'
+  model: 'claude-sonnet-4-6'
 secrets:
   CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
   WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
@@ -448,7 +449,7 @@ secrets:
 | `COMMENT` (w/issues) | Claude attempts to fix issues mentioned in inline comments |
 | `APPROVE`            | No auto-fix needed (no issues found)                       |
 
-After pushing fixes, a new workflow run is triggered automatically, which will re-review the updated code. This creates a feedback loop until the code passes review or requires manual intervention.
+After pushing fixes, a new workflow run is triggered automatically, which will re-review the updated code. The `max_auto_fix_cycles` input controls how many consecutive review→fix rounds are allowed (default: 1). The count tracks consecutive auto-fix commits from HEAD, so a human commit resets the counter and allows fresh auto-fix cycles.
 
 **Triggering a New Review Without Code Changes:**
 
@@ -561,7 +562,7 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 | `auto_commit`             | No       | `false`             | Auto-commit and push suggestions to PR branch (bypasses suggestion_mode)                           |
 | `fail_on_missing_docs`    | No       | `true`              | Whether missing documentation should cause workflow to fail                                        |
 | `fail_on_missing_version` | No       | `true`              | Whether missing plugin version bumps should cause workflow to fail                                 |
-| `model`                   | No       | `claude-sonnet-4-5` | Claude model to use                                                                                |
+| `model`                   | No       | `claude-sonnet-4-6` | Claude model to use                                                                                |
 | `max_turns`               | No       | unlimited           | Maximum conversation turns for Claude                                                              |
 | `timeout_minutes`         | No       | `15`                | Job timeout in minutes                                                                             |
 | `toolkit_ref`             | No       | `main`              | Git ref of ai-toolkit to use for scripts                                                           |
@@ -1073,7 +1074,7 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 | `branch_name`             | required            | Branch to work on                               |
 | `target_branch`           | `main`              | Base branch for PR                              |
 | `dry_run`                 | `false`             | Analyze only, skip PR creation                  |
-| `model`                   | `claude-sonnet-4-5` | Claude model to use                             |
+| `model`                   | `claude-sonnet-4-6` | Claude model to use                             |
 | `timeout_minutes`         | `30`                | Maximum execution time                          |
 | `debug_mode`              | `true`              | Show full Claude output                         |
 | `install_uniswap_plugins` | `true`              | Auto-install uniswap plugins (false to opt out) |
@@ -1220,7 +1221,7 @@ The Notion integration needs access to:
 | Input                    | Default             | Description                                                                                       |
 | ------------------------ | ------------------- | ------------------------------------------------------------------------------------------------- |
 | `days_back`              | `7`                 | Number of days to look back for content                                                           |
-| `model`                  | `claude-sonnet-4-5` | Claude model to use                                                                               |
+| `model`                  | `claude-sonnet-4-6` | Claude model to use                                                                               |
 | `dry_run`                | `false`             | Generate but don't publish to Notion                                                              |
 | `debug_mode`             | `true`              | Enable full Claude output for debugging                                                           |
 | `slack_post_channel_ids` | `C091XE1DNP2`       | Comma-separated Slack channel IDs to post newsletter announcement (e.g., C091XE1DNP2,C094URH6C13) |
@@ -1357,7 +1358,7 @@ jobs:
   call-claude:
     uses: ./.github/workflows/_claude-main.yml
     with:
-      model: 'claude-sonnet-4-5'
+      model: 'claude-sonnet-4-6'
       allowed_tools: 'read-write'
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -1715,7 +1716,7 @@ Many workflows support manual triggering via GitHub UI or CLI:
 ```bash
 gh workflow run claude-code-review.yml \
   -f pr_number=123 \
-  -f model="claude-sonnet-4-5"
+  -f model="claude-sonnet-4-6"
 ```
 
 ## Troubleshooting
