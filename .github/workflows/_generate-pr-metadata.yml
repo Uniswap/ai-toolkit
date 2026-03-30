@@ -498,6 +498,10 @@ jobs:
           fi
 
       # Build final prompt with context and output injection
+      # Note: when skip_if_description_adequate is false, the quality-gate step
+      # is skipped entirely and should_skip is empty string — which satisfies
+      # != 'true', so generation proceeds. This relies on GitHub Actions'
+      # implicit empty-string behavior for skipped step outputs.
       - name: Build Generation Prompt
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.quality-gate.outputs.should_skip != 'true'
         id: build-prompt
