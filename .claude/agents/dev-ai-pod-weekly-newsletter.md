@@ -219,7 +219,7 @@ Use the `slackReadChannelIds` parameter (comma-separated string of channel IDs).
 
 **Default channel reference (for documentation purposes):**
 
-- `C094URH6C13` = `#pod-dev-ai` - Official channel of the Dev AI Pod
+- `C094URH6C13` = `#eng-guild-ai` - Official channel of the Dev AI Pod
 - `C08J4JPQ3AM` = `#ai-achieved-internally` - AI wins and success stories
 
 **Processing Multiple Channels:**
@@ -408,7 +408,7 @@ Below is an example output (note: this example MUST be followed exactly):
 **Join the Conversation**
 
 - 🎉 [**#ai-achieved-internally**](slackChannel://uniswapteam.enterprise.slack.com/C08J4JPQ3AM) - Share your AI wins and success stories
-- 🛠️ [**#pod-dev-ai**](slackChannel://uniswapteam.enterprise.slack.com/C094URH6C13) - Provide feedback on this newsletter
+- 🛠️ [**#eng-guild-ai**](slackChannel://uniswapteam.enterprise.slack.com/C094URH6C13) - Provide feedback on this newsletter
   **Want Some Help With AI?**
 - [Schedule office hours with us!](https://www.notion.so/uniswaplabs/27ac52b2548b80018562f41eacf07f74?v=27ac52b2548b8041a52e000c69551fa1)
 

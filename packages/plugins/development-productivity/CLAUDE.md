@@ -2,12 +2,14 @@
 
 ## Overview
 
-This plugin provides documentation, research, test generation, and prompt optimization tools for Claude Code.
+This plugin provides documentation, research, test generation, document generation, and prompt
+optimization tools for Claude Code.
 
 ## Plugin Components
 
 ### Skills (./skills/)
 
+- **generate-document**: Generate professional documents in multiple formats (PDF, DOCX, HTML, ODT, EPUB, RTF) using pandoc
 - **generate-tests**: Generate comprehensive tests with advanced testing strategies
 - **optimize-prompt**: Optimize AI prompts for better model performance
 - **research-topic**: Research topics combining web search with codebase analysis
@@ -15,25 +17,36 @@ This plugin provides documentation, research, test generation, and prompt optimi
 
 ### Commands (./commands/)
 
-- **claude-init-plus**: Initialize/update CLAUDE.md files at all core nodes in workspace
-- **update-claude-md**: Fast CLAUDE.md sync based on staged git changes
+- **claude-init-plus**: Initialize CLAUDE.md files at all core nodes in a workspace (run once to bootstrap)
+- **update-claude-md**: Sync CLAUDE.md files based on staged git changes (run before committing)
 
 ### Agents (./agents/)
 
-- **documentation**: Comprehensive documentation agent (API docs, READMEs, architecture docs, CLAUDE.md management, quality verification)
-- **claude-docs-initializer**: Initializes CLAUDE.md files for new projects via deep repo analysis
-- **researcher**: Conducts thorough research on topics
-- **prompt-engineer**: Optimizes prompts for AI models
-- **test-writer**: Generates comprehensive tests with edge case identification
-- **agent-tester**: Validates agent behaviors and runs automated agent tests (tests agents, not code)
+- **documentation-agent**: Comprehensive documentation agent (API docs, READMEs, architecture docs, CLAUDE.md management, quality verification)
+- **claude-docs-initializer-agent**: Initializes CLAUDE.md files for new projects via deep repo analysis
+- **researcher-agent**: Conducts thorough research on topics
+- **prompt-engineer-agent**: Optimizes prompts for AI models
+- **test-writer-agent**: Generates comprehensive tests with edge case identification
+- **agent-tester-agent**: Validates agent behaviors and runs automated agent tests
 
-## Integration Notes
+## CLAUDE.md Content Model (v2.2.0)
 
-- Skills are the primary interface for all workflows
-- Agents are auto-discovered from the `agents/` directory
-- Skills invoke agents via `Task(subagent_type:agent-name)`
-- generate-tests skill supports multiple frameworks (jest, vitest, pytest, cypress, playwright)
-- The `documentation` agent consolidates previous doc-writer, claude-docs-manager, and claude-docs-fact-checker agents
+As of v2.2.0, all commands, skills, and agents in this plugin follow Anthropic's progressive
+disclosure best practices for CLAUDE.md content:
+
+- **Target**: under 200 lines per CLAUDE.md (not 500 tokens/2000 characters)
+- **Content**: conventions, gotchas, and team preferences — not structural inventory
+- **Excluded**: file listings, dependency tables, `[TODO]` placeholders, standard idioms
+- **Factoring**: topic-specific rules go in `.claude/rules/<topic>.md` with optional `paths`
+  frontmatter; external docs are referenced via `@path` imports
+- **Deduplication**: subdirectory CLAUDE.md files complement, not repeat, ancestor files
+
+## Conventions
+
+- Skills are the primary interface; agents are invoked via `Task(subagent_type:agent-name)`
+- `claude-init-plus` runs once (bootstraps); `update-claude-md` runs on each significant change
+- The `documentation-agent` consolidates doc-writer, claude-docs-manager, and fact-checker agents
+- `generate-tests` supports: jest, vitest, pytest, cypress, playwright
 
 ## File Structure
 
@@ -42,6 +55,7 @@ development-productivity/
 ├── .claude-plugin/
 │   └── plugin.json
 ├── skills/
+│   ├── generate-document/
 │   ├── generate-tests/
 │   ├── optimize-prompt/
 │   ├── research-topic/

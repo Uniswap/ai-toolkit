@@ -1,5 +1,5 @@
 ---
-name: plan-reviewer
+name: plan-reviewer-agent
 description: Critically analyze implementation plans for completeness, feasibility, and alignment with codebase patterns
 ---
 

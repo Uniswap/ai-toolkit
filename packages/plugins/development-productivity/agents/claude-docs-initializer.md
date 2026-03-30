@@ -1,5 +1,5 @@
 ---
-name: claude-docs-initializer
+name: claude-docs-initializer-agent
 description: Discover repository structure and create initial CLAUDE.md documentation at all appropriate levels
 ---
 
@@ -9,7 +9,7 @@ description: Discover repository structure and create initial CLAUDE.md document
 
 Perform deep repository analysis to understand structure, patterns, and architecture, then create comprehensive CLAUDE.md documentation files at all appropriate levels using a batched approach with human approval checkpoints. This agent initializes documentation for repositories that don't have existing CLAUDE.md files.
 
-**Batching Strategy**: To prevent overwhelming PRs and enable review, this agent creates documentation in small batches (1-2 files per batch) with approval checkpoints between batches. **YOU MUST ENSURE that each batch's content is verified by the claude-docs-fact-checker agent before presentation to the user.** This is done by returning output with `requires_verification: true` flag so the main Claude Code agent automatically invokes the fact-checker.
+**Batching Strategy**: To prevent overwhelming PRs and enable review, this agent creates documentation in small batches (1-2 files per batch) with approval checkpoints between batches. **YOU MUST ENSURE that each batch's content is verified by the documentation-agent before presentation to the user.** This is done by returning output with `requires_verification: true` flag so the main Claude Code agent automatically invokes the fact-checker.
 
 ## Inputs
 
@@ -187,59 +187,56 @@ For each directory that will get a CLAUDE.md:
 
 ### 4. Content Generation
 
-Generate CLAUDE.md content based on analysis depth and directory level:
+Generate CLAUDE.md content based on verified facts from the analysis phase. Follow
+**progressive disclosure**: under 200 lines per file, focused on what Claude cannot infer
+by reading the code.
 
-**⚠️ CRITICAL: Timestamp Header**
+**Content model — include only:**
 
-Every CLAUDE.md file MUST start with a timestamp header as the very first line:
+- Non-obvious bash commands (env vars required, non-standard behavior, ordering constraints)
+- Code style rules that differ from language defaults or tool configuration
+- Testing instructions — preferred runner, non-standard patterns
+- Repository etiquette (branch naming, PR conventions)
+- Architectural decisions specific to this project (reasoning, not just description)
+- Developer environment quirks (required env vars, local service dependencies)
+- Common gotchas — behaviors that regularly surprise contributors
+
+**Exclude:**
+
+- File-by-file directory listings (Claude can use `git ls-files`)
+- Dependency version tables (Claude can read package.json)
+- Standard language or framework conventions Claude already knows
+- `[TODO]` placeholder entries
+- Structural overviews derivable from code
+
+**Per-entry test**: Would removing this entry cause Claude to make a mistake? If not, omit it.
+
+**Length constraint**: Target under 200 lines per CLAUDE.md. If more detail is needed for a
+specific topic, propose a `.claude/rules/<topic>.md` file with optional `paths` frontmatter
+so the rule only activates when Claude works with relevant files.
+
+#### For Root CLAUDE.md
 
 ```markdown
-> **Last Updated:** YYYY-MM-DD
-```
+# [Project Name]
 
-- Use current date in ISO format (e.g., 2025-10-02)
-- Place immediately at the top, before any other content
-- Update this timestamp whenever the file is modified
-- This ensures users can immediately see documentation freshness
+[1-2 sentence description of the project and its purpose]
 
-### For Root CLAUDE.md
+## Essential Commands
 
-```markdown
-> **Last Updated:** YYYY-MM-DD
+[Only commands that are non-obvious, require env vars, or have important constraints]
+[Skip commands that are self-evident from package.json scripts]
 
-# CLAUDE.md - [Project Name]
+## Conventions and Gotchas
 
-## Project Overview
-
-[Purpose, description, and key goals]
-
-## Tech Stack
-
-[Languages, frameworks, tools, package manager]
+[Non-obvious patterns, constraints, or behaviors specific to this project]
+[Each entry answers: "what would trip up a new contributor?"]
+[Derived from actual patterns found during code analysis — never invented]
 
 ## Repository Structure
 
-[Tree view of major directories with brief descriptions]
-
-## Key Modules
-
-[List of major modules/packages with brief descriptions]
-
-## Development Workflow
-
-[Commands, scripts, testing, deployment processes]
-
-## Code Quality
-
-[Linting, formatting, testing setup and requirements]
-
-## Conventions and Patterns
-
-[Coding standards, naming conventions, project-wide patterns]
-
-## Documentation Management
-
-[CLAUDE.md management rules - ALWAYS INCLUDE]
+[Only if the structure has conventions that affect how to work in it]
+[Skip if the layout is self-evident]
 
 <!-- CUSTOM:START -->
 <!-- User additions preserved during updates -->
@@ -249,37 +246,24 @@ Every CLAUDE.md file MUST start with a timestamp header as the very first line:
 #### For Package/Module CLAUDE.md
 
 ```markdown
-> **Last Updated:** YYYY-MM-DD
+# [Package/Module Name]
 
-# CLAUDE.md - [Package/Module Name]
+[1-2 sentence description of this package's purpose and role in the larger system]
 
-## Overview
+## Non-Obvious Commands
 
-[Purpose discovered from code analysis]
+[Package-specific commands with gotchas, required env vars, or non-standard behavior]
+[Skip commands that behave exactly as the name suggests]
 
-## Architecture
+## Conventions
 
-[Internal structure based on analysis]
+[Package-specific patterns not visible from reading the code]
+[Derived from actual code analysis — e.g., "all public functions must be registered in src/index.ts"]
 
-## Key Components
+## Gotchas
 
-[Major files/classes/components found]
-
-## API/Exports
-
-[Public API discovered from exports]
-
-## Dependencies
-
-[Both internal and external]
-
-## Usage Patterns
-
-[Common patterns, examples, best practices]
-
-## Development Guidelines
-
-[Package-specific conventions, testing approach, contribution notes]
+[Known surprising behaviors, footguns, or non-obvious constraints]
+[e.g., "This package must not import from @myapp/core — creates a circular dependency"]
 
 <!-- CUSTOM:START -->
 <!-- User additions preserved during updates -->
@@ -289,31 +273,18 @@ Every CLAUDE.md file MUST start with a timestamp header as the very first line:
 #### For Feature/Component CLAUDE.md
 
 ```markdown
-# CLAUDE.md - [Feature/Component Name]
+# [Feature/Component Name]
 
-## Purpose
+[1 sentence on what this feature/component does]
 
-[Inferred from code structure and naming]
+## Conventions
 
-## Components
+[Non-obvious constraints or patterns for this feature]
+[e.g., "All event handlers in this component must be prefixed with 'handle'"]
 
-[List of sub-components with descriptions]
+## Gotchas
 
-## API
-
-[Props, methods, exports, interfaces]
-
-## Implementation Details
-
-[Key implementation decisions, patterns used]
-
-## Integration Points
-
-[How it connects with other parts of the system]
-
-## Usage Examples
-
-[Code examples showing common use cases]
+[Surprising behaviors or integration constraints specific to this component]
 
 <!-- CUSTOM:START -->
 <!-- User additions preserved during updates -->
@@ -471,9 +442,9 @@ directory_facts:
 
 - **Do NOT write files yet**
 - **REQUIRED**: Return batch content with `requires_verification: true` flag
-- **CRITICAL**: The main Claude Code agent MUST invoke the claude-docs-fact-checker agent automatically when it sees this flag
+- **CRITICAL**: The main Claude Code agent MUST invoke the documentation-agent automatically when it sees this flag
 - Include batch metadata (batch number, total batches, files in batch)
-- The fact-checker will verify accuracy before user approval
+- The documentation-agent will verify accuracy before user approval
 
 **Step 3: Await Approval** (handled by main agent)
 
@@ -763,7 +734,7 @@ For repositories with 1000+ files:
 
 ## Critical Constraints
 
-**MANDATORY FACT-CHECKER INVOCATION**: YOU MUST ensure the main Claude Code agent invokes the claude-docs-fact-checker agent for EVERY batch by returning `requires_verification: true` in your output. The fact-checker MUST verify documentation accuracy before files are written. This is not optional.
+**MANDATORY VERIFICATION**: YOU MUST ensure the main Claude Code agent invokes the documentation-agent for EVERY batch by returning `requires_verification: true` in your output. The documentation-agent MUST verify documentation accuracy before files are written. This is not optional.
 
 **HIERARCHICAL AWARENESS**: This agent operates at different levels based on target:
 

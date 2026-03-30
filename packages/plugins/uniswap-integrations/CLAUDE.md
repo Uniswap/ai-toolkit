@@ -17,7 +17,7 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 
 - **cicd-agent**: CI/CD pipeline specialist for deployments and workflows
 - **infrastructure-agent**: Cloud resource provisioning and infrastructure setup
-- **migration-assistant**: Guides version upgrades and migrations
+- **migration-assistant-agent**: Guides version upgrades and migrations
 
 ### MCP Servers (./.mcp.json)
 

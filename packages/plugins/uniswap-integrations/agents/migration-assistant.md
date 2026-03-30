@@ -1,5 +1,5 @@
 ---
-name: migration-assistant
+name: migration-assistant-agent
 description: Migration specialist for guiding version upgrades, compatibility checking, rollback strategies, and validation steps
 ---
 

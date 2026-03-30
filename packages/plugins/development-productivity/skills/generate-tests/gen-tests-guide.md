@@ -1,7 +1,7 @@
 ---
 description: Generate comprehensive tests with advanced testing strategies, scenario generation, and edge case identification using the enhanced test-writer agent.
 argument-hint: [paths...] [--framework jest|vitest|pytest|cypress|playwright] [--type unit|integration|e2e|all] [--strategy standard|scenario|property|mutation|accessibility] [--requirements "user stories"]
-allowed-tools: Read(*), Grep(*), Task(subagent_type:test-writer), Task(subagent_type:context-loader)
+allowed-tools: Read(*), Grep(*), Task(subagent_type:test-writer-agent), Task(subagent_type:context-loader-agent)
 ---
 
 ## Inputs
@@ -25,7 +25,7 @@ Examples:
 
 ## Task
 
-Generate comprehensive tests leveraging the enhanced test-writer agent's advanced capabilities:
+Generate comprehensive tests leveraging the enhanced test-writer-agent's advanced capabilities:
 
 1. **Context Analysis**: First understand the code structure and dependencies
 2. **Test Generation**: Create tests based on the specified strategy
@@ -39,17 +39,17 @@ For complex test generation (multiple files or --type all), use orchestration:
 
 1. **Context Loading Phase**:
 
-   - Invoke **context-loader** to understand the codebase area
+   - Invoke **context-loader-agent** to understand the codebase area
    - Identify dependencies and integration points
    - Gather existing test patterns
 
 2. **Test Generation Phase**:
 
-   - For unit tests: Direct delegation to **test-writer**
+   - For unit tests: Direct delegation to **test-writer-agent**
    - For integration/e2e: Coordinate multiple agents:
-     - **test-writer** for test scenarios
-     - **context-loader** for API/database schemas
-     - **security-analyzer** for security test cases (if applicable)
+     - **test-writer-agent** for test scenarios
+     - **context-loader-agent** for API/database schemas
+     - **security-analyzer-agent** for security test cases (if applicable)
 
 3. **Quality Assurance Phase**:
    - Validate test coverage completeness
@@ -60,7 +60,7 @@ For complex test generation (multiple files or --type all), use orchestration:
 
 ### Simple Case (single file, unit tests)
 
-Invoke **test-writer** with:
+Invoke **test-writer-agent** with:
 
 - `paths`: parsed file paths
 - `framework`: from `--framework` or auto-detected
@@ -71,22 +71,22 @@ Invoke **test-writer** with:
 
 ### Complex Case (multiple files or integration/e2e)
 
-**If agent-orchestrator is available** (from development-codebase-tools plugin):
+**If agent-orchestrator-agent is available** (from development-codebase-tools plugin):
 
 Invoke it to coordinate:
 
-- **context-loader**: Build comprehensive understanding
-- **test-writer**: Generate test scenarios and implementations
-- **security-analyzer**: Add security test cases (for APIs)
-- **performance-analyzer**: Add performance benchmarks (for critical paths)
+- **context-loader-agent**: Build comprehensive understanding
+- **test-writer-agent**: Generate test scenarios and implementations
+- **security-analyzer-agent**: Add security test cases (for APIs)
+- **performance-analyzer-agent**: Add performance benchmarks (for critical paths)
 
-**Fallback (if agent-orchestrator is not available)**:
+**Fallback (if agent-orchestrator-agent is not available)**:
 
 Execute agents sequentially:
 
-1. First invoke **context-loader** to gather context
-2. Then invoke **test-writer** with the gathered context
-3. Optionally invoke **security-analyzer** for API endpoints
+1. First invoke **context-loader-agent** to gather context
+2. Then invoke **test-writer-agent** with the gathered context
+3. Optionally invoke **security-analyzer-agent** for API endpoints
 4. Aggregate results manually
 
 ## Output Format

@@ -1,5 +1,5 @@
 ---
-name: agent-orchestrator
+name: agent-orchestrator-agent
 description: Intelligent orchestrator that coordinates other AI agents for complex software development workflows, matching tasks to specialists based on capabilities
 tools: *
 ---

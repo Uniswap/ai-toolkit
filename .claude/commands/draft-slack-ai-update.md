@@ -53,7 +53,7 @@ Using the gathered content, draft a Slack message following the tone and structu
 > - :claude: use Claude to generate a changelog between any 2 refs! Use our default prompt, or customize to whatever you'd like
 > - :rocket: take the changelog and send it to a Slack channel and/or a Notion database of your choosing
 >
-> Respond in this thread or drop by #pod-dev-ai with any questions/comments/feedback!
+> Respond in this thread or drop by #eng-guild-ai with any questions/comments/feedback!
 
 ---
 
@@ -118,7 +118,7 @@ Based on the reference examples, your message should follow this structure:
 
 4. **TLDR Section** (if applicable): A bolded "TLDR:" followed by bullet points with emojis summarizing key features/benefits
 
-5. **Call to Action**: End with an invitation to engage - respond in thread or visit #pod-dev-ai for questions/feedback
+5. **Call to Action**: End with an invitation to engage - respond in thread or visit #eng-guild-ai for questions/feedback
 
 6. **Footer (Required)**: Always include a link to the entrypoint doc for newcomers:
 

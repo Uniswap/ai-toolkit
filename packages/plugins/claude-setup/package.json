@@ -1,0 +1,19 @@
+{
+  "name": "@uniswap/claude-setup",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Interactive setup wizard for configuring any repository with Claude Code best practices",
+  "author": "Uniswap Labs <ai-services@uniswap.org>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Uniswap/ai-toolkit",
+    "directory": "packages/plugins/claude-setup"
+  },
+  "keywords": [
+    "claude-code",
+    "setup",
+    "configuration",
+    "ai-coding"
+  ]
+}

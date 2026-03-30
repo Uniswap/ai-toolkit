@@ -341,7 +341,7 @@ When complete, summarize what was implemented and any remaining work.
    - **Analyze the codebase** to understand existing patterns and conventions
    - **Plan the implementation** using the planning workflow
    - **Implement the task** following codebase patterns
-   - **Run tests and linting** to ensure quality (`nx affected -t lint test`)
+   - **Run tests and linting** to ensure quality (detect available scripts/targets from package.json or project.json)
    - **Commit changes** with a conventional commit message
 
 3. **Report completion** with a summary of:

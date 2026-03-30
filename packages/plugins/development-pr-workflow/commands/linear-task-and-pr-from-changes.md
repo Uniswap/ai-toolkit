@@ -240,8 +240,8 @@ Follow the complete worktree setup workflow defined in `@../shared/setup-worktre
 **Move Changes to Worktree:**
 
 ```bash
-# Stash changes in current directory
-git stash push -m "changes-to-pr: temporary stash for $BRANCH_NAME"
+# Stash changes in current directory (including untracked files)
+git stash push -u -m "changes-to-pr: temporary stash for $BRANCH_NAME"
 
 # Apply stash to new worktree
 cd "$WORKTREES_DIR/$BRANCH_NAME"

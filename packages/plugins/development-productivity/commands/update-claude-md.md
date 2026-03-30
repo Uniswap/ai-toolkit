@@ -9,7 +9,11 @@ allowed-tools: Bash(git:*), Read(*), Write(*), Edit(*), Glob(*), Grep(*)
 
 ## Purpose
 
-Quickly update CLAUDE.md files based on staged git changes. Optimized for speed and simplicity.
+Update CLAUDE.md files based on staged git changes. The goal is to capture **conventions,
+gotchas, and team preferences** that Claude cannot infer by reading code — not to inventory
+files or list dependencies. Run this **before committing** whenever staged changes reveal a non-obvious
+pattern, constraint, or workflow decision.
+constraint, or workflow decision.
 
 ## Usage
 
@@ -30,370 +34,215 @@ Analyzes staged changes and updates affected CLAUDE.md files.
 
 Updates CLAUDE.md for a specific path.
 
+## Content Model
+
+### What belongs in CLAUDE.md
+
+Include only information Claude cannot reliably infer from reading the code:
+
+- Non-obvious **bash commands** (env vars required, non-standard scripts, order-dependent steps)
+- **Code style rules** that differ from language defaults or tool configuration
+- **Testing instructions** — preferred runner, patterns, known flaky suites
+- **Repository etiquette** — branch naming, PR conventions, required reviewers
+- **Architectural decisions** specific to this project (why, not just what)
+- **Developer environment quirks** — required env vars, local service dependencies
+- **Common gotchas** — behaviors that regularly surprise contributors
+- **Non-obvious relationships** between modules that aren't visible from imports
+
+### What does NOT belong in CLAUDE.md
+
+Omit anything Claude can figure out by reading code or standard docs:
+
+- File-by-file directory listings
+- Dependency version tables (Claude can read package.json)
+- Standard language or framework conventions Claude already knows
+- Long tutorials or explanations
+- Structural overviews Claude can derive from `git ls-files`
+- `[TODO]` placeholder entries
+- Information that changes frequently (version numbers, deploy states)
+
+**Per-line test**: Would removing this line cause Claude to make a mistake? If not, cut it.
+
+## Length Constraint
+
+**Target: under 200 lines per CLAUDE.md file.**
+
+Files over 200 lines consume disproportionate context and reduce adherence to the instructions
+they contain. If a topic requires extended explanation, factor it into a `.claude/rules/<topic>.md`
+file (see below) and reference it from CLAUDE.md.
+
 ## Implementation
 
-### Step 1: Check Git Availability
+### Step 1: Check Mode (Interactive vs Automated)
 
-```typescript
-// Verify we're in a git repository
-const isGitRepo = await checkGitRepo();
-if (!isGitRepo) {
-  return error('Not a git repository. Cannot detect changes.');
-}
-```
+Determine whether a human is present:
 
-### Step 2: Get Staged Files (Single Git Command)
+- **Interactive mode** (human in the loop): Full analysis, propose additions, ask for confirmation
+- **Automated mode** (e.g. running via lefthook pre-commit hook): Conservative — only append
+  if there is clearly missing, high-value information that cannot wait. Prefer a no-op over
+  a low-quality update. Do not ask questions.
+
+### Step 2: Check Git Availability
+
+Verify we are in a git repository. If not and no explicit path was given, report the error
+and exit. If an explicit path was given, fall back to analyzing that directory's files directly.
+
+### Step 3: Get Staged Files
 
 ```bash
 # Get all staged files with their status
 git diff --cached --name-status
-
-# Output format:
-# M    apps/slack-oauth-backend/app/api/route.ts
-# A    libs/data-access/src/new-file.ts
-# D    old-file.ts
 ```
 
-This single command replaces multiple git operations and provides all needed information.
+If no staged files are found, check whether an explicit path was provided. If so, analyze
+that path's files without requiring staged changes.
 
-### Step 3: Group Files by Nearest CLAUDE.md
+### Step 4: Group Files by Nearest CLAUDE.md
 
-For each staged file:
+For each staged file, walk up the directory tree to find the nearest ancestor `CLAUDE.md`.
+Group files by their nearest CLAUDE.md. Files with no CLAUDE.md ancestor are noted but
+not processed (suggest running `/claude-init-plus` to create one).
 
-```typescript
-function findNearestClaudeMd(filePath: string): string | null {
-  let currentDir = path.dirname(filePath);
-  const workspaceRoot = process.cwd();
+### Step 5: Read and Analyze Each Affected CLAUDE.md
 
-  // Walk up directories
-  while (currentDir !== workspaceRoot) {
-    const claudeMdPath = path.join(currentDir, 'CLAUDE.md');
-    if (fs.existsSync(claudeMdPath)) {
-      return claudeMdPath;
-    }
-    currentDir = path.dirname(currentDir);
-  }
+For each CLAUDE.md with associated staged changes:
 
-  // Check workspace root
-  const rootClaudeMd = path.join(workspaceRoot, 'CLAUDE.md');
-  return fs.existsSync(rootClaudeMd) ? rootClaudeMd : null;
-}
+1. Read the current CLAUDE.md content
+2. Read the git diff for each associated file: `git diff --cached -- "<file>"`
+3. Scan any ancestor CLAUDE.md files to understand what is already documented at higher
+   levels (root → subdirectory chain)
+4. Ask: **What does this change reveal that a new contributor would not be able to infer
+   from reading the code?**
+
+Focus your analysis on:
+
+- New non-obvious patterns or conventions introduced
+- Gotchas or constraints made visible by the change (e.g. "this module must not import from X")
+- New commands, env vars, or setup steps that are not self-evident
+- Architectural decisions encoded in the change (and the reasoning behind them)
+- Breaking or surprising behavior changes
+
+**Triggers for an update** (any one is sufficient):
+
+- A new pattern, convention, or gotcha is introduced that is not currently documented
+- A new non-obvious command, env var, or setup step is added
+- An existing documented behavior changes in a way that would surprise a developer
+- A new package with cross-cutting concerns is added
+- Significant architectural changes (>50 lines) that introduce non-obvious constraints
+
+**Skip the update if:**
+
+- Changes are purely mechanical (formatting, typos, renaming with no behavior change)
+- Everything introduced is standard language/framework convention
+- All relevant information already exists in an ancestor CLAUDE.md
+
+### Step 6: Deduplication Check
+
+Before writing any new content to a subdirectory CLAUDE.md, check whether the same
+information already exists in any ancestor CLAUDE.md in the hierarchy. If it does,
+skip that item or add a cross-reference instead of duplicating. Each CLAUDE.md in
+the hierarchy should **complement**, not repeat, its ancestors.
+
+### Step 7: Propose `.claude/rules/` Factoring (Interactive Mode Only)
+
+When a topic-specific rule is identified that:
+
+- Applies to a subset of files (e.g., only `src/api/**/*.ts`)
+- Is detailed enough to warrant its own reference file
+- Would push the CLAUDE.md over 200 lines if inlined
+
+Propose creating `.claude/rules/<topic>.md` instead of inlining. Rules files support
+optional `paths` frontmatter to activate only when Claude works with matching files:
+
+```markdown
+---
+paths:
+  - src/api/**/*.ts
+---
+
+# API Design Rules
+
+[Topic-specific conventions here]
 ```
 
-Group files by their nearest CLAUDE.md:
+Rules without `paths` frontmatter are loaded at every session (same priority as CLAUDE.md).
+Rules with `paths` frontmatter are scoped and only loaded when relevant — use these for
+language-specific or domain-specific conventions that don't apply everywhere.
 
-```typescript
-const groups = new Map<string, string[]>();
-for (const file of stagedFiles) {
-  const claudeMd = findNearestClaudeMd(file);
-  if (claudeMd) {
-    if (!groups.has(claudeMd)) groups.set(claudeMd, []);
-    groups.get(claudeMd).push(file);
-  }
-}
+### Step 8: Propose `@path` Imports for External Docs (Interactive Mode Only)
+
+When the change references or introduces external documentation (README, architecture ADR,
+design doc), prefer referencing it via `@path` import syntax rather than inlining the content:
+
+```markdown
+@docs/architecture/auth-flow.md
 ```
 
-### Step 4: Analyze Each Group
+This keeps CLAUDE.md concise and ensures referenced docs stay in sync with their source.
 
-For each CLAUDE.md with changed files:
+### Step 9: Show Summary and Confirm (Interactive Mode)
 
-```typescript
-async function analyzeChanges(claudeMdPath: string, files: string[]): Promise<UpdatePlan> {
-  // Read current CLAUDE.md
-  const currentContent = await readFile(claudeMdPath);
+Show what will be added or changed for each CLAUDE.md, including:
 
-  // Get diffs for all files in group
-  const diffs = await Promise.all(files.map((f) => execAsync(`git diff --cached -- "${f}"`)));
+- Proposed new content (conventions, gotchas, commands)
+- Whether new `.claude/rules/` files will be created
+- Whether any `@path` imports will be added
+- Current line count and projected line count after update
 
-  // Determine if update needed based on simple heuristics
-  const needsUpdate = determineIfUpdateNeeded(files, diffs, currentContent);
+Ask for confirmation once before applying any changes.
 
-  if (!needsUpdate) return null;
+In **automated mode**, skip confirmation and apply only if the proposed update passes the
+"high-value, clearly missing" bar. Log what was added (or that no update was made).
 
-  // Generate update suggestions
-  return generateUpdateSuggestions(files, diffs, currentContent);
-}
+### Step 10: Apply Updates
 
-function determineIfUpdateNeeded(files: string[], diffs: string[], claudeContent: string): boolean {
-  // Update if:
-  // 1. New files added (status 'A')
-  // 2. package.json modified
-  // 3. project.json modified
-  // 4. Significant code changes (>50 lines)
-  // 5. New exports added
+Write the updated CLAUDE.md content. For new `.claude/rules/` files, create them at the
+nearest `.claude/` directory in the ancestry tree (or at the repository root if none exists).
 
-  const hasNewFiles = files.some((f) => f.startsWith('A\t'));
-  const hasPackageJson = files.some((f) => f.includes('package.json'));
-  const hasProjectJson = files.some((f) => f.includes('project.json'));
-  const hasSignificantChanges = diffs.some((d) => d.split('\n').length > 50);
+After writing, verify:
 
-  return hasNewFiles || hasPackageJson || hasProjectJson || hasSignificantChanges;
-}
+- Line count is under 200 for each modified CLAUDE.md
+- No content duplicated from ancestor CLAUDE.md files
+- No `[TODO]` placeholder entries
+
+### Step 11: Show Completion
+
+Report which files were updated and their final line counts. Remind the user to review
+with `git diff **/*CLAUDE.md` before committing.
+
+## Nx Workspace Support
+
+If `nx.json` exists at the repository root, this command recognizes `project.json` changes
+as a trigger for documenting new Nx targets. Document targets only when they are non-standard
+or have non-obvious behavior — standard `build`, `test`, `lint` targets do not need entries.
+
+```bash
+# Only if nx.json exists at repo root
+if [ -f "nx.json" ]; then
+  # Process project.json changes for non-obvious targets
+fi
 ```
-
-### Step 5: Show Summary and Get Confirmation
-
-```typescript
-console.log('Will update the following CLAUDE.md files:\n');
-for (const [claudeMd, files] of updates) {
-  console.log(`📝 ${claudeMd}`);
-  console.log(`   ${files.length} changed file(s)`);
-}
-
-const proceed = await askUser('\nProceed with updates? (y/n): ');
-if (proceed !== 'y') {
-  console.log('Cancelled.');
-  return;
-}
-```
-
-### Step 6: Apply Updates
-
-```typescript
-async function applyUpdates(updates: Map<string, UpdatePlan>): Promise<void> {
-  for (const [claudeMdPath, plan] of updates) {
-    // Read current content
-    const content = await readFile(claudeMdPath);
-
-    // Apply updates (append or smart insert)
-    const newContent = applyUpdatePlan(content, plan);
-
-    // Write back
-    await writeFile(claudeMdPath, newContent);
-
-    console.log(`✅ Updated ${claudeMdPath}`);
-  }
-}
-
-function applyUpdatePlan(content: string, plan: UpdatePlan): string {
-  // Simple strategies:
-  // - New files: Add to "Project Structure" or "Key Files" section
-  // - Dependencies: Add to "Dependencies" section
-  // - Commands: Add to "Key Commands" section
-  // - Otherwise: Add note to "Recent Changes" section
-
-  let updated = content;
-
-  for (const suggestion of plan.suggestions) {
-    const section = findSection(updated, suggestion.targetSection);
-    if (section) {
-      updated = insertIntoSection(updated, section, suggestion.text);
-    } else {
-      // Append to end if section not found
-      updated += `\n\n${suggestion.text}`;
-    }
-  }
-
-  return updated;
-}
-```
-
-### Step 7: Show Completion
-
-```typescript
-console.log(`\n✅ Updated ${updates.size} CLAUDE.md file(s)`);
-console.log('\nRun "git diff **/*CLAUDE.md" to review changes.');
-```
-
-## Length Constraints
-
-**CRITICAL: All updated CLAUDE.md files MUST remain concise and focused.**
-
-- **Token Limit**: 500 tokens or less (~2000 characters in English)
-- **Why**: Keeps documentation scannable and focused on essentials
-- **How to achieve**:
-  - Use bullet points instead of paragraphs
-  - Include only essential commands/dependencies
-  - Avoid verbose descriptions (5-10 words max per item)
-  - Skip redundant sections
-  - Use `[TODO]` placeholders instead of long explanations
-
-**When adding updates:**
-
-1. Check current CLAUDE.md size before adding content
-2. If approaching 2000 characters, trim before adding:
-   - Remove outdated sections
-   - Consolidate similar items
-   - Shorten verbose descriptions
-3. After updates, verify file is ≤2000 characters
-4. If exceeded, remove least important content until within limit
-
-**Priority for content retention (when trimming):**
-
-1. Overview/Purpose (always keep)
-2. Commands/Scripts (essential)
-3. Recent changes (current updates)
-4. Key dependencies (top 5-10)
-5. Structure/additional notes (remove first)
-
-## Update Strategies
-
-### New Files Added
-
-```typescript
-if (file.status === 'A') {
-  return {
-    targetSection: 'Project Structure',
-    text: `- \`${file.path}\` - [TODO: Add description]`,
-  };
-}
-```
-
-### package.json Modified
-
-```typescript
-if (file.path.endsWith('package.json')) {
-  const diff = await getDiff(file.path);
-  const addedDeps = parseAddedDependencies(diff);
-
-  return {
-    targetSection: 'Dependencies',
-    text: addedDeps.map((d) => `- **${d.name}** (${d.version})`).join('\n'),
-  };
-}
-```
-
-### project.json Modified (if it is an Nx workspace)
-
-```typescript
-if (file.path.endsWith('project.json')) {
-  const diff = await getDiff(file.path);
-  const addedTargets = parseAddedTargets(diff);
-
-  return {
-    targetSection: 'Key Commands',
-    text: addedTargets
-      .map(
-        (t) => `- \`nx ${t.name} ${projectName}\` - ${t.description || '[TODO: Add description]'}`
-      )
-      .join('\n'),
-  };
-}
-```
-
-### Significant Code Changes
-
-```typescript
-if (linesChanged > 50) {
-  return {
-    targetSection: 'Recent Changes',
-    text: `- Modified \`${file.path}\` (${linesChanged} lines changed)`,
-  };
-}
-```
-
-## Performance Characteristics
-
-- **Single git command:** `git diff --cached --name-status`
-- **No external tools:** No jq, comm, markdown-lint
-- **Simple algorithms:** O(n) file traversal, no complex parsing
-- **Minimal user interaction:** Single confirmation prompt
-- **Fast writes:** Direct file operations, no verification overhead
-
-**Expected Performance:**
-
-- Small changes (1-5 files): < 1 second
-- Medium changes (5-20 files): 1-2 seconds
-- Large changes (20+ files): 2-3 seconds
-
-**95% faster than previous implementation.**
 
 ## Error Handling
 
-```typescript
-// Not a git repository
-if (!isGitRepo) {
-  console.error('❌ Not a git repository');
-  console.log('Use explicit mode: /update-claude-md <path>');
-  return;
-}
-
-// No staged changes
-if (stagedFiles.length === 0) {
-  console.log('No staged changes detected.');
-  return;
-}
-
-// No CLAUDE.md files found
-if (groups.size === 0) {
-  console.log('⚠️  No CLAUDE.md files found for changed files');
-  console.log('Recommendation: Run /claude-init-plus to create documentation');
-  return;
-}
-
-// Write failed
-try {
-  await writeFile(claudeMdPath, newContent);
-} catch (error) {
-  console.error(`❌ Failed to write ${claudeMdPath}: ${error.message}`);
-  continue;
-}
-```
-
-## Explicit Mode Implementation
-
-When path is specified:
-
-```typescript
-async function updateExplicitPath(targetPath: string): Promise<void> {
-  // Find CLAUDE.md in target path
-  const claudeMdPath = path.join(targetPath, 'CLAUDE.md');
-
-  if (!fs.existsSync(claudeMdPath)) {
-    console.error(`❌ No CLAUDE.md found at ${targetPath}`);
-    console.log('Run /claude-init-plus to create one');
-    return;
-  }
-
-  // Get all staged files under this path
-  const stagedFiles = await getStagedFiles();
-  const relevantFiles = stagedFiles.filter((f) => f.startsWith(targetPath));
-
-  if (relevantFiles.length === 0) {
-    console.log('No staged changes in this path.');
-    return;
-  }
-
-  // Analyze and update
-  const plan = await analyzeChanges(claudeMdPath, relevantFiles);
-
-  if (!plan) {
-    console.log('No updates needed.');
-    return;
-  }
-
-  console.log(`Will update: ${claudeMdPath}`);
-  const proceed = await askUser('Proceed? (y/n): ');
-
-  if (proceed === 'y') {
-    await applyUpdate(claudeMdPath, plan);
-    console.log('✅ Updated successfully');
-  }
-}
-```
+- **Not a git repository**: Report error; fall back to explicit mode if a path was given
+- **No staged changes**: Exit cleanly; suggest staging changes first
+- **No CLAUDE.md found**: Suggest running `/claude-init-plus` to create one
+- **Write failed**: Report the error and the file path; do not silently continue
+- **CLAUDE.md over 200 lines after update**: Warn and suggest factoring content into
+  `.claude/rules/` files
 
 ## Best Practices
 
-1. **Stage changes first:** Run `git add` before `/update-claude-md`
-2. **Review updates:** Use `git diff **/*CLAUDE.md` to review
-3. **Commit together:** Commit CLAUDE.md with related code changes
-4. **Run frequently:** After significant changes
-5. **Add context:** Auto-updates add structure, you add "why"
+1. Stage changes first (`git add`) before running in auto-detect mode
+2. Review updates with `git diff **/*CLAUDE.md` before committing
+3. Commit CLAUDE.md changes in the same commit as the code they document
+4. Treat each CLAUDE.md as a living document — prune outdated entries when reviewing
+5. Prefer one accurate, specific entry over multiple vague ones
 
-## Safety
+## Relationship to `/claude-init-plus`
 
-- **Git provides rollback:** If you don't like changes, run `git restore CLAUDE.md`
-- **Single confirmation:** You control what gets updated
-- **Non-destructive:** Only adds/appends, doesn't remove content
-- **Review before commit:** Check `git diff` before committing
-
-## Comparison to Previous Implementation
-
-| Aspect         | Old                     | New  | Improvement    |
-| -------------- | ----------------------- | ---- | -------------- |
-| Git commands   | 10-15                   | 1    | 90% fewer      |
-| Lines of code  | ~630                    | ~100 | 84% less code  |
-| External tools | jq, comm, markdown-lint | None | 100% reduction |
-| User prompts   | 3-5                     | 1    | 80% fewer      |
-| Performance    | 10-60s                  | 1-3s | 85-95% faster  |
-| Complexity     | Very high               | Low  | 95% simpler    |
+`/claude-init-plus` runs **once** to initialize CLAUDE.md files across the workspace.
+`/update-claude-md` runs **on each significant change** to keep them current. They are
+complementary: init creates the foundation, update maintains it. If a CLAUDE.md does not
+exist for the relevant path, run `/claude-init-plus` first.

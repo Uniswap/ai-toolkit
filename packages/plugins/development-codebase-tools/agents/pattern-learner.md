@@ -1,5 +1,5 @@
 ---
-name: pattern-learner
+name: pattern-learner-agent
 description: Specializes in learning from agent executions, extracting reusable patterns, and providing recommendations for pattern application across different contexts
 version: 1.0.0
 capabilities:

@@ -17,7 +17,7 @@ name: Update Production
 # WORKFLOW BEHAVIOR:
 # - Creates a temporary release branch from `next`
 # - Opens PR to `main` with AI-generated categorized changelog
-# - Assigns reviewers: @wkoutre and @Melvillian
+# - Assigns reviewers: @wkoutre
 # - Automatically merges PR if there are no merge conflicts
 # - Sends notification to #ai-internal Slack channel with merge status
 # - After merge, publish-packages workflow runs automatically
@@ -35,17 +35,22 @@ on:
     - cron: "0 17 * * 1"
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
   validate-branch:
     runs-on: ubuntu-24.04
+    permissions: {}
     steps:
       - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
 
       - name: Validate workflow is running from next branch
+        env:
+          GIT_REF: ${{ github.ref }}
         run: |
-          if [ "${{ github.ref }}" != "refs/heads/next" ]; then
+          if [ "$GIT_REF" != "refs/heads/next" ]; then
             echo "❌ ERROR: This workflow can only be run from the 'next' branch"
-            echo "Current branch: ${{ github.ref }}"
+            echo "Current branch: $GIT_REF"
             echo "Expected branch: refs/heads/next"
             exit 1
           fi
@@ -74,8 +79,14 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
-          # Use PAT if available to allow triggering downstream workflows, fallback to GITHUB_TOKEN
           token: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          persist-credentials: false
+
+      - name: Configure git credentials for push
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
       - name: Install GitHub CLI
         run: |
@@ -209,6 +220,8 @@ jobs:
   generate-changelog:
     needs: create-pr
     if: needs.create-pr.outputs.pr_created == 'true'
+    permissions:
+      contents: read
     uses: ./.github/workflows/_generate-changelog.yml
     with:
       from_ref: ${{ needs.create-pr.outputs.before_sha }}
@@ -236,33 +249,35 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          persist-credentials: false
+
+      - name: Configure git credentials for push
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
       - name: Update PR with AI-generated changelog
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.create-pr.outputs.pr_number }}
+          CHANGELOG_MARKDOWN: ${{ needs.generate-changelog.outputs.changelog_markdown }}
+          BEFORE_SHA: ${{ needs.create-pr.outputs.before_sha }}
+          AFTER_SHA: ${{ needs.create-pr.outputs.after_sha }}
+          COMMIT_COUNT: ${{ needs.create-pr.outputs.commit_count }}
+          TEMP_BRANCH: ${{ needs.create-pr.outputs.temp_branch }}
+          GENERATION_METHOD: ${{ needs.generate-changelog.outputs.generation_method }}
         run: |
-          PR_NUMBER=${{ needs.create-pr.outputs.pr_number }}
-
           echo "Updating PR #$PR_NUMBER with AI-generated changelog..."
 
-          # Get the AI-generated changelog
-          # Use heredoc to safely capture content with special characters (backticks, etc.)
-          CHANGELOG=$(cat <<'CHANGELOG_EOF'
-          ${{ needs.generate-changelog.outputs.changelog_markdown }}
-          CHANGELOG_EOF
-          )
+          # Get the AI-generated changelog from environment variable
+          CHANGELOG="$CHANGELOG_MARKDOWN"
 
           if [ -z "$CHANGELOG" ]; then
             echo "Warning: No changelog generated, skipping PR update"
             exit 0
           fi
 
-          # Get the current PR body directly from git
-          # We use git log to reconstruct what we know was in the PR
-          BEFORE_SHA="${{ needs.create-pr.outputs.before_sha }}"
-          AFTER_SHA="${{ needs.create-pr.outputs.after_sha }}"
-          COMMIT_COUNT="${{ needs.create-pr.outputs.commit_count }}"
-          TEMP_BRANCH="${{ needs.create-pr.outputs.temp_branch }}"
           DATE=$(date +'%Y-%m-%d')
 
           # Capture git log output first to avoid bash parsing issues with special characters
@@ -296,45 +311,41 @@ jobs:
 
           # Use a temporary file to avoid issues with special characters
           echo "$NEW_BODY" > /tmp/pr_body.txt
-          gh pr edit $PR_NUMBER --body-file /tmp/pr_body.txt
+          gh pr edit "$PR_NUMBER" --body-file /tmp/pr_body.txt
 
           echo "✅ AI-generated changelog added to PR #$PR_NUMBER"
-          echo "📊 Changelog generation method: ${{ needs.generate-changelog.outputs.generation_method }}"
+          echo "📊 Changelog generation method: $GENERATION_METHOD"
 
       - name: Add reviewers
         id: add-reviewers
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.create-pr.outputs.pr_number }}
         run: |
-          PR_NUMBER=${{ needs.create-pr.outputs.pr_number }}
-
           echo "Adding reviewers to PR #$PR_NUMBER..."
 
           # Add reviewers
           # Note: This may fail if GITHUB_TOKEN lacks organization permissions
           # Reviewers can be added manually if this step fails
-          gh pr edit $PR_NUMBER --add-reviewer wkoutre,Melvillian
-
-          echo "✅ Added reviewers: @wkoutre, @Melvillian"
+          gh pr edit "$PR_NUMBER" --add-reviewer wkoutre
+          echo "✅ Added reviewers: @wkoutre"
 
       - name: Comment on PR if reviewers couldn't be added
         if: steps.add-reviewers.outcome == 'failure'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.create-pr.outputs.pr_number }}
         run: |
-          PR_NUMBER=${{ needs.create-pr.outputs.pr_number }}
-
-          gh pr comment $PR_NUMBER --body "⚠️ **Note**: Automatic reviewer assignment failed. Please manually add reviewers: @wkoutre @Melvillian"
+          gh pr comment "$PR_NUMBER" --body "⚠️ **Note**: Automatic reviewer assignment failed. Please manually add reviewers: @wkoutre"
 
       - name: Check PR mergeability
         id: check-mergeable
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.create-pr.outputs.pr_number }}
         run: |
-          PR_NUMBER=${{ needs.create-pr.outputs.pr_number }}
-
           echo "Checking if PR #$PR_NUMBER is mergeable..."
 
           # Wait a bit for GitHub to compute mergeability
@@ -367,14 +378,13 @@ jobs:
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.create-pr.outputs.pr_number }}
         run: |
-          PR_NUMBER=${{ needs.create-pr.outputs.pr_number }}
-
           echo "Attempting to auto-merge PR #$PR_NUMBER..."
 
           # Use merge commit strategy and merge immediately (no --auto flag)
           # This bypasses waiting for status checks
-          gh pr merge $PR_NUMBER --merge
+          gh pr merge "$PR_NUMBER" --merge
 
           if [ $? -eq 0 ]; then
             echo "✅ PR #$PR_NUMBER successfully merged"
@@ -408,7 +418,7 @@ jobs:
               - type: "section"
                 fields:
                   - type: "mrkdwn"
-                    text: "${{ steps.auto-merge.outputs.merged == 'true' && '*Status:*\nMerged ✅' || format('*Reviewers:*\n{0}', steps.add-reviewers.outcome == 'success' && '@wkoutre @Melvillian' || 'Manual assignment needed ⚠️') }}"
+                    text: "${{ steps.auto-merge.outputs.merged == 'true' && '*Status:*\nMerged ✅' || format('*Reviewers:*\n{0}', steps.add-reviewers.outcome == 'success' && '@wkoutre' || 'Manual assignment needed ⚠️') }}"
                   - type: "mrkdwn"
                     text: "*Changelog:*\n${{ needs.generate-changelog.outputs.generation_method == 'ai' && 'AI-generated ✨' || 'Fallback (commit list) ⚠️' }}"
               - type: "actions"
@@ -457,17 +467,16 @@ jobs:
         if: failure() && needs.create-pr.outputs.temp_branch != '' && steps.check-mergeable.outputs.has_conflicts != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TEMP_BRANCH: ${{ needs.create-pr.outputs.temp_branch }}
+          PR_NUMBER: ${{ needs.create-pr.outputs.pr_number }}
         run: |
-          TEMP_BRANCH="${{ needs.create-pr.outputs.temp_branch }}"
-          PR_NUMBER="${{ needs.create-pr.outputs.pr_number }}"
-
           echo "Workflow failed for non-conflict reason. Cleaning up..."
           echo "Temporary branch: $TEMP_BRANCH"
 
           # Only close the PR and cleanup if the failure was NOT due to merge conflicts
           # (merge conflicts should keep the PR open for manual resolution)
           if [ -n "$PR_NUMBER" ]; then
-            gh pr close $PR_NUMBER --comment "Workflow failed or was cancelled. Closing PR and cleaning up temporary branch." || true
+            gh pr close "$PR_NUMBER" --comment "Workflow failed or was cancelled. Closing PR and cleaning up temporary branch." || true
           fi
 
           # Delete the temporary branch
@@ -475,32 +484,39 @@ jobs:
 
       - name: Summary
         if: always()
+        env:
+          AUTO_MERGED: ${{ steps.auto-merge.outputs.merged }}
+          PR_NUMBER: ${{ needs.create-pr.outputs.pr_number }}
+          PR_URL: ${{ needs.create-pr.outputs.pr_url }}
+          TEMP_BRANCH: ${{ needs.create-pr.outputs.temp_branch }}
+          CHANGELOG_METHOD: ${{ needs.generate-changelog.outputs.generation_method }}
+          ADD_REVIEWERS_OUTCOME: ${{ steps.add-reviewers.outcome }}
         run: |
-          if [ "${{ steps.auto-merge.outputs.merged }}" = "true" ]; then
+          if [ "$AUTO_MERGED" = "true" ]; then
             echo "## ✅ Production Release Auto-Merged" >> $GITHUB_STEP_SUMMARY
           else
             echo "## 📦 Production Release PR Created" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **PR Number**: #${{ needs.create-pr.outputs.pr_number }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **PR URL**: ${{ needs.create-pr.outputs.pr_url }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Temporary Branch**: ${{ needs.create-pr.outputs.temp_branch }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Changelog Method**: ${{ needs.generate-changelog.outputs.generation_method }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **PR Number**: #$PR_NUMBER" >> $GITHUB_STEP_SUMMARY
+          echo "- **PR URL**: $PR_URL" >> $GITHUB_STEP_SUMMARY
+          echo "- **Temporary Branch**: $TEMP_BRANCH" >> $GITHUB_STEP_SUMMARY
+          echo "- **Changelog Method**: $CHANGELOG_METHOD" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ steps.auto-merge.outputs.merged }}" = "true" ]; then
+          if [ "$AUTO_MERGED" = "true" ]; then
             echo "- **Status**: ✅ Automatically merged to main" >> $GITHUB_STEP_SUMMARY
           else
-            if [ "${{ steps.add-reviewers.outcome }}" = "success" ]; then
-              echo "- **Reviewers**: @wkoutre, @Melvillian (automatically assigned)" >> $GITHUB_STEP_SUMMARY
+            if [ "$ADD_REVIEWERS_OUTCOME" = "success" ]; then
+              echo "- **Reviewers**: @wkoutre (automatically assigned)" >> $GITHUB_STEP_SUMMARY
             else
-              echo "- **Reviewers**: ⚠️ Automatic assignment failed - please add manually (@wkoutre, @Melvillian)" >> $GITHUB_STEP_SUMMARY
+              echo "- **Reviewers**: ⚠️ Automatic assignment failed - please add manually (@wkoutre)" >> $GITHUB_STEP_SUMMARY
             fi
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ steps.auto-merge.outputs.merged }}" = "true" ]; then
+          if [ "$AUTO_MERGED" = "true" ]; then
             echo "The production release PR has been automatically merged to \`main\`." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### Completed steps:" >> $GITHUB_STEP_SUMMARY
@@ -516,8 +532,8 @@ jobs:
             echo "### Next steps:" >> $GITHUB_STEP_SUMMARY
             echo "1. ✅ PR created with AI-generated changelog" >> $GITHUB_STEP_SUMMARY
 
-            if [ "${{ steps.add-reviewers.outcome }}" = "success" ]; then
-              echo "2. ✅ Reviewers assigned (@wkoutre, @Melvillian)" >> $GITHUB_STEP_SUMMARY
+            if [ "$ADD_REVIEWERS_OUTCOME" = "success" ]; then
+              echo "2. ✅ Reviewers assigned (@wkoutre)" >> $GITHUB_STEP_SUMMARY
             else
               echo "2. ⚠️ Reviewers could not be assigned automatically - please add manually" >> $GITHUB_STEP_SUMMARY
             fi

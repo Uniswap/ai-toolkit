@@ -26,14 +26,15 @@ This plugin supports two PR creation workflows:
 
 **Graphite-only features:**
 
-- `stack-splitter` - Requires Graphite for PR stacking
+- `stack-splitter-agent` - Requires Graphite for PR stacking
 - `graphite-stack-updater` - Requires Graphite for stack management
 
 ## Plugin Components
 
 ### Skills (./skills/)
 
-- **resolve-pr-issues**: Address PR review comments and fix CI failures
+- **resolve-all-prs**: Batch resolve issues across all your open PRs in parallel with auto-commit/push
+- **resolve-pr-issues**: Orchestrated PR issue resolution — triages inline comments, review bodies, and CI failures, then dispatches `comment-resolver-agent` subagents per file group for code changes and posts replies for items that don't need action
 - **review-code**: Comprehensive code review for architecture, security, performance, and style
 - **split-graphite-stack**: Split monolithic branches into logical PR stacks
 - **update-graphite-stack**: Update Graphite PR stacks by resolving comments and syncing
@@ -52,8 +53,9 @@ This plugin supports two PR creation workflows:
 
 ### Agents (./agents/)
 
-- **review-executor**: Executes code review tasks and implements feedback
-- **stack-splitter**: Splits monolithic branches into logical PR stacks
+- **review-executor-agent**: Executes code review tasks and implements feedback (used by `resolve-all-prs`)
+- **stack-splitter-agent**: Splits monolithic branches into logical PR stacks
+- **comment-resolver-agent**: Resolves PR review comments by applying code changes to specific files, handling CI failures, and reporting results (used by `resolve-pr-issues`)
 
 ### MCP Integration (./.mcp.json)
 
@@ -111,6 +113,7 @@ development-pr-workflow/
 ├── .claude-plugin/
 │   └── plugin.json
 ├── skills/
+│   ├── resolve-all-prs/
 │   ├── resolve-pr-issues/
 │   ├── review-code/
 │   ├── split-graphite-stack/
@@ -125,7 +128,8 @@ development-pr-workflow/
 │   └── setup-worktree-core.md
 ├── agents/
 │   ├── review-executor.md
-│   └── stack-splitter.md
+│   ├── stack-splitter.md
+│   └── comment-resolver.md
 ├── .mcp.json
 ├── project.json
 ├── package.json

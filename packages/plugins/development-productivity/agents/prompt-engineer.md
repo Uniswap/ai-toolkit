@@ -1,5 +1,5 @@
 ---
-name: prompt-engineer
+name: prompt-engineer-agent
 description: Expert in analyzing, optimizing, and testing prompts for AI agents and LLMs to maximize clarity, effectiveness, and efficiency
 ---
 

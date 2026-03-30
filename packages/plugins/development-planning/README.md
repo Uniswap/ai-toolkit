@@ -27,14 +27,14 @@ This plugin provides the following skills:
 
 ## Agents
 
-| Agent                        | Description                                                |
-| ---------------------------- | ---------------------------------------------------------- |
-| **planner**                  | Creates clear, actionable implementation plans             |
-| **plan-reviewer**            | Validates plans for completeness and feasibility           |
-| **pr-creator**               | Creates well-formatted PRs with comprehensive descriptions |
-| **commit-message-generator** | Generates structured git commit messages                   |
+| Agent                              | Description                                                |
+| ---------------------------------- | ---------------------------------------------------------- |
+| **planner-agent**                  | Creates clear, actionable implementation plans             |
+| **plan-reviewer-agent**            | Validates plans for completeness and feasibility           |
+| **pr-creator-agent**               | Creates well-formatted PRs with comprehensive descriptions |
+| **commit-message-generator-agent** | Generates structured git commit messages                   |
 
-> **Note**: The `context-loader` agent has been moved to `development-codebase-tools` for centralized context management. Planning agents can still use it via `Task(subagent_type:context-loader)`.
+> **Note**: The `context-loader` agent has been moved to `development-codebase-tools` for centralized context management. Planning agents can still use it via `Task(subagent_type:context-loader-agent)`.
 
 ## Usage Examples
 
