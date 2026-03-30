@@ -35,6 +35,7 @@ This plugin bundles the following MCP (Model Context Protocol) servers:
 | **github-setup**           | Configure GitHub Personal Access Token for MCP server          |
 | **orchestrate-deployment** | Orchestrate deployment pipelines with CI/CD configuration      |
 | **refine-linear-task**     | Refine and enhance Linear task descriptions                    |
+| **use-datadog**            | Use the `pup` CLI for Datadog observability tasks              |
 
 ## Agents
 
@@ -51,6 +52,8 @@ This plugin bundles the following MCP (Model Context Protocol) servers:
 "Generate my daily standup"                    # triggers daily-standup skill
 "Help me deploy to staging"                    # triggers orchestrate-deployment skill
 "Refine this Linear task description"          # triggers refine-linear-task skill
+"Check Datadog for error logs in prod"         # triggers use-datadog skill
+"Are there any firing monitors?"               # triggers use-datadog skill
 ```
 
 ## MCP Authentication
