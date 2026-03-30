@@ -138,15 +138,16 @@ export function getClaudeConfigPath(): string {
   return path.join(os.homedir(), '.claude.json');
 }
 
-// For backward compatibility, check multiple config locations
+// When CLAUDE_CONFIG_DIR is set, only returns that path (no cross-profile fallback).
+// Otherwise returns legacy paths in priority order.
 export function getAllClaudeConfigPaths(): string[] {
-  const paths: string[] = [];
   if (process.env.CLAUDE_CONFIG_DIR) {
-    paths.push(path.join(process.env.CLAUDE_CONFIG_DIR, 'claude.json'));
+    return [path.join(process.env.CLAUDE_CONFIG_DIR, 'claude.json')];
   }
-  paths.push(path.join(os.homedir(), '.claude.json')); // Legacy
-  paths.push(path.join(os.homedir(), '.claude', 'claude.json')); // New default
-  return paths;
+  return [
+    path.join(os.homedir(), '.claude.json'), // Legacy
+    path.join(os.homedir(), '.claude', 'claude.json'), // New default
+  ];
 }
 
 export function isUsingCustomConfigDir(): boolean {

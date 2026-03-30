@@ -78,10 +78,10 @@ function loadSlackConfig(): SlackConfig | null {
 /**
  * Get the current Slack token from Claude config.
  *
- * For backward compatibility, this checks multiple config locations:
- * 1. $CLAUDE_CONFIG_DIR/claude.json (if env var is set)
- * 2. ~/.claude.json (legacy location)
- * 3. ~/.claude/claude.json (new default user location)
+ * When CLAUDE_CONFIG_DIR is set, reads only from the active profile to
+ * avoid cross-profile contamination. Otherwise checks legacy locations:
+ * 1. ~/.claude.json (legacy location)
+ * 2. ~/.claude/claude.json (new default user location)
  *
  * Returns the token from the first config file that contains it.
  */

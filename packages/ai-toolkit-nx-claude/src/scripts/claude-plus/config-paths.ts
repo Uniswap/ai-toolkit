@@ -42,29 +42,30 @@ export function getClaudeConfigPath(): string {
 /**
  * Get all possible Claude configuration file paths for reading.
  *
- * This returns paths in priority order:
- * 1. $CLAUDE_CONFIG_DIR/claude.json (if env var is set)
- * 2. ~/.claude.json (legacy location)
- * 3. ~/.claude/claude.json (new default user location)
+ * When CLAUDE_CONFIG_DIR is set, returns ONLY that path to avoid
+ * cross-profile contamination (e.g., reading a Slack token from
+ * a different profile and treating it as valid for the active one).
+ *
+ * When CLAUDE_CONFIG_DIR is not set, returns legacy paths in priority order:
+ * 1. ~/.claude.json (legacy location)
+ * 2. ~/.claude/claude.json (new default user location)
  *
  * Used for backward compatibility when searching for configuration values
  * like MCP server tokens that may exist in any of these locations.
  */
 export function getAllClaudeConfigPaths(): string[] {
-  const paths: string[] = [];
-
-  // Priority 1: Custom config dir (if set)
+  // When a custom config dir is set, restrict reads to the active profile only.
+  // Falling back to other locations could return tokens from a different profile,
+  // causing validation to pass while the active profile remains unconfigured.
   if (process.env.CLAUDE_CONFIG_DIR) {
-    paths.push(path.join(process.env.CLAUDE_CONFIG_DIR, 'claude.json'));
+    return [path.join(process.env.CLAUDE_CONFIG_DIR, 'claude.json')];
   }
 
-  // Priority 2: Legacy location (~/.claude.json)
-  paths.push(path.join(os.homedir(), '.claude.json'));
-
-  // Priority 3: New default user location (~/.claude/claude.json)
-  paths.push(path.join(os.homedir(), '.claude', 'claude.json'));
-
-  return paths;
+  // No custom config dir — check legacy locations in priority order
+  return [
+    path.join(os.homedir(), '.claude.json'),
+    path.join(os.homedir(), '.claude', 'claude.json'),
+  ];
 }
 
 /**
