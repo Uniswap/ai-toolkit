@@ -77,10 +77,9 @@
 name: Dev AI Newsletter
 
 on:
-  # Run weekly on Monday at 9:00 AM EST (14:00 UTC)
-
-  schedule:
-    - cron: "0 14 * * 1"
+  # DISABLED: Scheduled runs temporarily paused
+  # schedule:
+  #   - cron: "0 14 * * 1"
 
   # Manual trigger with inputs
 

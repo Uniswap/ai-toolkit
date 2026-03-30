@@ -57,6 +57,7 @@ Structure your response as follows:
 4. **Be honest**: If it was a slow week, say so. Don't inflate minor changes.
 
 5. **Combine related commits**: Don't list every commit separately. Synthesize.
+
    - BAD: "Fixed button color, adjusted padding, updated hover state"
    - GOOD: "Refined button styling for better visual consistency"
 
