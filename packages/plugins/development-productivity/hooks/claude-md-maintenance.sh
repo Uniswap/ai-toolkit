@@ -98,7 +98,7 @@ fi
 # =============================================================================
 
 # Extract just the file paths from git output (strip status chars and spaces)
-CHANGED_PATHS=$(printf '%s' "$ALL_CHANGED" | grep -v '^$' | sed 's/^[[:space:]]*[A-Z?][[:space:]]*//' | sort -u)
+CHANGED_PATHS=$(printf '%s' "$ALL_CHANGED" | grep -v '^$' | sed 's/^[[:space:]]*\?\?[[:space:]]*//' | sed 's/^[[:space:]]*[A-Z?][[:space:]]*//' | sort -u)
 
 # Check if ALL changed files are .md files (pure documentation change)
 NON_MD_FILES=$(printf '%s' "$CHANGED_PATHS" | grep -v '\.md$' | grep -v '^$' || true)
@@ -119,8 +119,8 @@ fi
 # =============================================================================
 IS_NON_TRIVIAL=false
 
-# Signal 1: New files added or untracked (git status 'A' or '?' untracked)
-if printf '%s' "$ALL_CHANGED" | grep -qE '^[[:space:]]*[A?][[:space:]]'; then
+# Signal 1: New files added (git status 'A' or '?' untracked)
+if printf '%s' "$ALL_CHANGED" | grep -qE '^[[:space:]]*([A?][[:space:]]|\?\?)'; then
   echo "[claude-md-maintenance] Signal: new/untracked files detected" >&2
   IS_NON_TRIVIAL=true
 fi

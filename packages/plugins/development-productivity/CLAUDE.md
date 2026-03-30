@@ -76,7 +76,6 @@ development-productivity/
 The `claude-md-maintenance` hook is disabled by default. To enable it per project, create:
 
 ```markdown
-.claude/development-productivity.local.md
 ---
 enabled: true
 ---
