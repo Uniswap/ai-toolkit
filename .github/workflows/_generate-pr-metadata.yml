@@ -138,15 +138,6 @@ on:
           spec-workflow
           claude-setup
 
-      plugin_ref:
-        description: |
-          Git ref of ai-toolkit to use for the build-plugin-config composite
-          action. Must be 'main' (stable) or 'next' (pre-release). Defaults to
-          'main'.
-        required: false
-        type: string
-        default: "main"
-
       skip_if_description_adequate:
         description: |
           When true (default), skip generation if the existing PR description
@@ -867,26 +858,12 @@ jobs:
           echo "✅ Configured allowed tools (${#ALLOWED_TOOLS} chars)"
 
       # Build plugin configuration using shared composite action
-      # Note: GitHub Actions requires static refs in 'uses:', so we use conditional
-      # steps instead of dynamic interpolation for security and predictability.
-      - name: Build plugin configuration (main)
+      - name: Build plugin configuration
         if: |
           steps.cache-check.outputs.cache-hit != 'true' &&
-          steps.quality-gate.outputs.should_skip != 'true' &&
-          (inputs.plugin_ref == 'main' || inputs.plugin_ref == '')
-        id: build-plugins-main
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@db515d00e9e2b6c6efed887473e24db9800b003c # main
-        with:
-          install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
-          exclude_plugins: ${{ inputs.exclude_plugins }}
-
-      - name: Build plugin configuration (next)
-        if: |
-          steps.cache-check.outputs.cache-hit != 'true' &&
-          steps.quality-gate.outputs.should_skip != 'true' &&
-          inputs.plugin_ref == 'next'
-        id: build-plugins-next
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@5551a05100852bf27a7e8df8201fba7d69d00b01 # next
+          steps.quality-gate.outputs.should_skip != 'true'
+        id: build-plugins
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@bc20d5cb11941235a629ccd7e296eb6d8a4a2028 # next (dynamic discovery)
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
           exclude_plugins: ${{ inputs.exclude_plugins }}
@@ -908,9 +885,8 @@ jobs:
           track_progress: false # Disable to avoid PR comments
           allowed_bots: dependabot
           claude_args: ${{ steps.build-args.outputs.claude_args }}
-          # Coalesce outputs from conditional steps (only one will have run)
-          plugin_marketplaces: ${{ steps.build-plugins-main.outputs.plugin_marketplaces || steps.build-plugins-next.outputs.plugin_marketplaces }}
-          plugins: ${{ steps.build-plugins-main.outputs.plugins || steps.build-plugins-next.outputs.plugins }}
+          plugin_marketplaces: ${{ steps.build-plugins.outputs.plugin_marketplaces }}
+          plugins: ${{ steps.build-plugins.outputs.plugins }}
 
       # Update PR title and description using generated files
       - name: Update PR Metadata
