@@ -1,6 +1,6 @@
 # @uniswap/uniswap-integrations
 
-External service integrations for Claude Code - Linear, Notion, Nx, Chrome DevTools, GitHub, Pulumi, Figma, Vercel, Slack, and more.
+External service integrations for Claude Code - Linear, Notion, Nx, Chrome DevTools, GitHub, Pulumi, Figma, Vercel, Slack, Amplitude, and more.
 
 ## Installation
 
@@ -26,6 +26,7 @@ This plugin bundles the following MCP (Model Context Protocol) servers:
 | **pulumi**          | Pulumi infrastructure as code management         | OAuth |
 | **figma**           | Figma design file access and collaboration       | OAuth |
 | **vercel**          | Vercel deployment management and hosting         | OAuth |
+| **amplitude**       | Amplitude analytics, experiments, and metrics    | OAuth |
 | **slack**           | Slack workspace integration for messaging        | Token |
 
 ## Skills
@@ -65,6 +66,7 @@ Some MCP servers require authentication:
 - **pulumi**: OAuth via <https://mcp.ai.pulumi.com> - Run `/mcp` and follow browser flow
 - **figma**: OAuth via <https://mcp.figma.com> - Run `/mcp` and follow browser flow
 - **vercel**: OAuth via <https://mcp.vercel.com> - Run `/mcp` and follow browser flow
+- **amplitude**: OAuth via <https://mcp.amplitude.com> - Run `/mcp` and follow browser flow (routes through Uniswap SSO)
 
 ### Token-Based (Manual Setup)
 
