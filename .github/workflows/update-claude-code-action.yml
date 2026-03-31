@@ -16,8 +16,11 @@ jobs:
       contents: write
       pull-requests: write
     steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Get latest claude-code-action release
         id: latest
         env:
@@ -47,11 +50,17 @@ jobs:
       - name: Find current pinned SHA
         id: current
         run: |
-          CURRENT_SHA=$(
+          ALL_SHAS=$(
             grep -rEoh 'anthropics/claude-code-action@([a-f0-9A-F]+)' .github/workflows/ 2>/dev/null \
-            | head -1 \
-            | sed 's/.*@//'
+            | sed 's/.*@//' \
+            | sort -u
           )
+          SHA_COUNT=$(echo "$ALL_SHAS" | grep -c . || true)
+          if [ "$SHA_COUNT" -gt 1 ]; then
+            echo "WARNING: Found $SHA_COUNT distinct pinned SHAs — picking the first (oldest) to trigger update:"
+            echo "$ALL_SHAS"
+          fi
+          CURRENT_SHA=$(echo "$ALL_SHAS" | head -1)
           if [ -z "$CURRENT_SHA" ]; then
             echo "No pinned SHA found for anthropics/claude-code-action in .github/workflows/"
           else
@@ -95,30 +104,30 @@ jobs:
             | sed 's|^|  - `|; s|$|`|'
           )
           cat > /tmp/pr_body.md << EOF
-          ## Update \`anthropics/claude-code-action\` SHA
+## Update \`anthropics/claude-code-action\` SHA
 
-          This automated PR pins all usages of \`anthropics/claude-code-action\` to the latest release.
+This automated PR pins all usages of \`anthropics/claude-code-action\` to the latest release.
 
-          | | |
-          |---|---|
-          | **Previous SHA** | [\`${CURRENT:0:7}\`](https://github.com/anthropics/claude-code-action/commit/${CURRENT}) |
-          | **New SHA** | [\`${LATEST:0:7}\`](https://github.com/anthropics/claude-code-action/commit/${LATEST}) |
-          | **New Release** | [\`${LATEST_TAG}\`](${RELEASE_URL}) |
-          | **Diff** | [Compare changes](${COMPARE_URL}) |
+| | |
+|---|---|
+| **Previous SHA** | [\`${CURRENT:0:7}\`](https://github.com/anthropics/claude-code-action/commit/${CURRENT}) |
+| **New SHA** | [\`${LATEST:0:7}\`](https://github.com/anthropics/claude-code-action/commit/${LATEST}) |
+| **New Release** | [\`${LATEST_TAG}\`](${RELEASE_URL}) |
+| **Diff** | [Compare changes](${COMPARE_URL}) |
 
-          ### Files updated
-          ${CHANGED_FILES}
+### Files updated
+${CHANGED_FILES}
 
-          ---
+---
 
-          ### Release notes for \`${LATEST_TAG}\`
+### Release notes for \`${LATEST_TAG}\`
 
-          $(cat /tmp/release_notes.md)
+$(cat /tmp/release_notes.md)
 
-          ---
+---
 
-          > _This PR was created automatically by the [update-claude-code-action](${GITHUB_SERVER_URL_VAL}/${GITHUB_REPOSITORY_VAL}/actions/workflows/update-claude-code-action.yml) workflow._
-          EOF
+> _This PR was created automatically by the [update-claude-code-action](${GITHUB_SERVER_URL_VAL}/${GITHUB_REPOSITORY_VAL}/actions/workflows/update-claude-code-action.yml) workflow._
+EOF
       - name: Update SHA in workflow files
         if: steps.check.outputs.needs_update == 'true'
         env:
@@ -128,7 +137,7 @@ jobs:
           find .github/workflows/ \( -name "*.yml" -o -name "*.yaml" \) | while read -r file; do
             if grep -qE "anthropics/claude-code-action@[a-f0-9A-F]+" "$file"; then
               sed -i -E \
-                "s|anthropics/claude-code-action@[a-f0-9A-F]+([[:space:]]*#[^\n]*)?|anthropics/claude-code-action@${LATEST} # ${LATEST_TAG}|g" \
+                "s|anthropics/claude-code-action@[a-f0-9A-F]+([[:space:]]*#.*)?|anthropics/claude-code-action@${LATEST} # ${LATEST_TAG}|g" \
                 "$file"
               echo "  Updated: $file"
             fi
