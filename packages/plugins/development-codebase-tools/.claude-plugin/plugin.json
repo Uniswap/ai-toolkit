@@ -25,7 +25,12 @@
     "./skills/analyze-code",
     "./skills/analyze-tech-debt",
     "./skills/diagram-excalidraw",
+    "./skills/analyze-code",
+    "./skills/analyze-tech-debt",
+    "./skills/diagram-excalidraw",
+    "./skills/explore-codebase",
     "./skills/mermaid-diagram",
+    "./skills/refactor-code"
     "./skills/explore-codebase",
     "./skills/refactor-code"
   ]
