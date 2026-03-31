@@ -1,0 +1,151 @@
+name: Update claude-code-action SHA
+on:
+  schedule:
+    - cron: "0 9 * * 1" # Every Monday at 9:00 AM UTC
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Force update even if SHA appears current"
+        type: boolean
+        default: false
+jobs:
+  update-sha:
+    name: Check and update anthropics/claude-code-action
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Get latest claude-code-action release
+        id: latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "::group::Fetching latest release from anthropics/claude-code-action"
+          RELEASE=$(gh api repos/anthropics/claude-code-action/releases/latest)
+          LATEST_TAG=$(echo "$RELEASE" | jq -r '.tag_name')
+          RELEASE_URL=$(echo "$RELEASE" | jq -r '.html_url')
+          RELEASE_NOTES=$(echo "$RELEASE" | jq -r '.body // "No release notes provided."')
+          echo "Latest release tag: $LATEST_TAG"
+          echo "Release URL: $RELEASE_URL"
+          echo "$RELEASE_NOTES" > /tmp/release_notes.md
+          REF_DATA=$(gh api "repos/anthropics/claude-code-action/git/ref/tags/${LATEST_TAG}")
+          OBJ_TYPE=$(echo "$REF_DATA" | jq -r '.object.type')
+          OBJ_SHA=$(echo "$REF_DATA" | jq -r '.object.sha')
+          if [ "$OBJ_TYPE" = "tag" ]; then
+            COMMIT_SHA=$(gh api "repos/anthropics/claude-code-action/git/tags/${OBJ_SHA}" | jq -r '.object.sha')
+          else
+            COMMIT_SHA="$OBJ_SHA"
+          fi
+          echo "Resolved commit SHA: $COMMIT_SHA"
+          echo "::endgroup::"
+          echo "latest_tag=$LATEST_TAG"         >> "$GITHUB_OUTPUT"
+          echo "latest_sha=$COMMIT_SHA"          >> "$GITHUB_OUTPUT"
+          echo "release_url=$RELEASE_URL"        >> "$GITHUB_OUTPUT"
+      - name: Find current pinned SHA
+        id: current
+        run: |
+          CURRENT_SHA=$(
+            grep -rEoh 'anthropics/claude-code-action@([a-f0-9A-F]+)' .github/workflows/ 2>/dev/null \
+            | head -1 \
+            | sed 's/.*@//'
+          )
+          if [ -z "$CURRENT_SHA" ]; then
+            echo "No pinned SHA found for anthropics/claude-code-action in .github/workflows/"
+          else
+            echo "Current pinned SHA: $CURRENT_SHA"
+          fi
+          echo "current_sha=$CURRENT_SHA" >> "$GITHUB_OUTPUT"
+      - name: Determine if update is needed
+        id: check
+        env:
+          LATEST: ${{ steps.latest.outputs.latest_sha }}
+          CURRENT: ${{ steps.current.outputs.current_sha }}
+          FORCE: ${{ github.event.inputs.force }}
+        run: |
+          if [ -z "$CURRENT" ]; then
+            echo "No existing SHA pin found — nothing to update."
+            echo "needs_update=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$LATEST" = "$CURRENT" ] && [ "$FORCE" != "true" ]; then
+            echo "Already up-to-date (SHA: $CURRENT). Skipping."
+            echo "needs_update=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Update available: $CURRENT → $LATEST"
+            echo "needs_update=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build PR description
+        id: body
+        if: steps.check.outputs.needs_update == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CURRENT: ${{ steps.current.outputs.current_sha }}
+          LATEST: ${{ steps.latest.outputs.latest_sha }}
+          LATEST_TAG: ${{ steps.latest.outputs.latest_tag }}
+          RELEASE_URL: ${{ steps.latest.outputs.release_url }}
+          GITHUB_SERVER_URL_VAL: ${{ github.server_url }}
+          GITHUB_REPOSITORY_VAL: ${{ github.repository }}
+        run: |
+          COMPARE_URL="https://github.com/anthropics/claude-code-action/compare/${CURRENT:0:7}...${LATEST_TAG}"
+          CHANGED_FILES=$(
+            grep -rl "anthropics/claude-code-action@" .github/workflows/ 2>/dev/null \
+            | sed 's|^|  - `|; s|$|`|'
+          )
+          cat > /tmp/pr_body.md << EOF
+          ## Update \`anthropics/claude-code-action\` SHA
+
+          This automated PR pins all usages of \`anthropics/claude-code-action\` to the latest release.
+
+          | | |
+          |---|---|
+          | **Previous SHA** | [\`${CURRENT:0:7}\`](https://github.com/anthropics/claude-code-action/commit/${CURRENT}) |
+          | **New SHA** | [\`${LATEST:0:7}\`](https://github.com/anthropics/claude-code-action/commit/${LATEST}) |
+          | **New Release** | [\`${LATEST_TAG}\`](${RELEASE_URL}) |
+          | **Diff** | [Compare changes](${COMPARE_URL}) |
+
+          ### Files updated
+          ${CHANGED_FILES}
+
+          ---
+
+          ### Release notes for \`${LATEST_TAG}\`
+
+          $(cat /tmp/release_notes.md)
+
+          ---
+
+          > _This PR was created automatically by the [update-claude-code-action](${GITHUB_SERVER_URL_VAL}/${GITHUB_REPOSITORY_VAL}/actions/workflows/update-claude-code-action.yml) workflow._
+          EOF
+      - name: Update SHA in workflow files
+        if: steps.check.outputs.needs_update == 'true'
+        env:
+          LATEST: ${{ steps.latest.outputs.latest_sha }}
+          LATEST_TAG: ${{ steps.latest.outputs.latest_tag }}
+        run: |
+          find .github/workflows/ \( -name "*.yml" -o -name "*.yaml" \) | while read -r file; do
+            if grep -qE "anthropics/claude-code-action@[a-f0-9A-F]+" "$file"; then
+              sed -i -E \
+                "s|anthropics/claude-code-action@[a-f0-9A-F]+([[:space:]]*#[^\n]*)?|anthropics/claude-code-action@${LATEST} # ${LATEST_TAG}|g" \
+                "$file"
+              echo "  Updated: $file"
+            fi
+          done
+      - name: Create Pull Request
+        if: steps.check.outputs.needs_update == 'true'
+        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: "chore/update-claude-code-action-${{ steps.latest.outputs.latest_tag }}"
+          delete-branch: true
+          commit-message: |
+            chore: update claude-code-action to ${{ steps.latest.outputs.latest_tag }}
+
+            Bumps anthropics/claude-code-action from ${{ steps.current.outputs.current_sha }} to ${{ steps.latest.outputs.latest_sha }}
+          title: "chore: update `anthropics/claude-code-action` to `${{ steps.latest.outputs.latest_tag }}`"
+          body-path: /tmp/pr_body.md
+          labels: |
+            dependencies
+            automated
