@@ -26,7 +26,7 @@ name: Publish Packages
 # - NODE_AUTH_TOKEN: For npm publishing
 # - SERVICE_ACCOUNT_GPG_PRIVATE_KEY: For signing commits/tags
 # - ANTHROPIC_API_KEY: For AI-powered changelog generation (auto mode only)
-# - SLACK_WEBHOOK_URL: For release notifications (auto mode only)
+# - SLACK_WEBHOOK_URL: For release and error notifications
 # - NOTION_API_KEY: For Notion publishing (auto mode only)
 # - RELEASE_NOTES_NOTION_DATABASE_ID: For Notion database (auto mode only)
 
@@ -1159,6 +1159,43 @@ jobs:
               echo "✅ Created release for $TAG"
             fi
           done
+
+  # ============================================================================
+  # NOTIFY ERRORS: Slack notification for publish failures
+  # ============================================================================
+  notify-errors:
+    name: Notify publish failures via Slack
+    runs-on: ubuntu-24.04
+    permissions: {}
+    needs: [detect, publish]
+    if: |
+      always() &&
+      needs.publish.result != 'skipped' &&
+      needs.detect.outputs.is_dry_run != 'true' &&
+      (needs.publish.result == 'failure' || needs.publish.outputs.has_failures == 'true')
+
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: true
+
+      - name: Send Slack error notification
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          FAILED_PACKAGES: ${{ needs.publish.outputs.failed_packages || '[]' }}
+          SUCCESSFUL_COUNT: ${{ needs.publish.outputs.successful_count || '0' }}
+          FAILED_COUNT: ${{ needs.publish.outputs.failed_count || '0' }}
+          BRANCH_NAME: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVENT_NAME: ${{ github.event_name }}
+          PUBLISH_RESULT: ${{ needs.publish.result }}
+        run: ./.github/scripts/notify-publish-errors.sh
 
   # ============================================================================
   # GENERATE CHANGELOG: AI-powered changelog (auto mode only)
