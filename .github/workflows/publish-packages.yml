@@ -26,7 +26,7 @@ name: Publish Packages
 # - NODE_AUTH_TOKEN: For npm publishing
 # - SERVICE_ACCOUNT_GPG_PRIVATE_KEY: For signing commits/tags
 # - ANTHROPIC_API_KEY: For AI-powered changelog generation (auto mode only)
-# - SLACK_WEBHOOK_URL: For release notifications (auto mode only)
+# - SLACK_WEBHOOK_URL: For release and error notifications
 # - NOTION_API_KEY: For Notion publishing (auto mode only)
 # - RELEASE_NOTES_NOTION_DATABASE_ID: For Notion database (auto mode only)
 
@@ -1159,6 +1159,111 @@ jobs:
               echo "✅ Created release for $TAG"
             fi
           done
+
+  # ============================================================================
+  # NOTIFY ERRORS: Slack notification for publish failures
+  # ============================================================================
+  notify-errors:
+    name: Notify publish failures via Slack
+    runs-on: ubuntu-24.04
+    permissions: {}
+    needs: [detect, publish]
+    if: |
+      always() &&
+      needs.publish.result != 'skipped' &&
+      needs.detect.outputs.is_dry_run != 'true' &&
+      (needs.publish.result == 'failure' || needs.publish.outputs.has_failures == 'true')
+
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Send Slack error notification
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          FAILED_PACKAGES: ${{ needs.publish.outputs.failed_packages || '[]' }}
+          SUCCESSFUL_COUNT: ${{ needs.publish.outputs.successful_count || '0' }}
+          FAILED_COUNT: ${{ needs.publish.outputs.failed_count || '0' }}
+          BRANCH_NAME: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVENT_NAME: ${{ github.event_name }}
+          PUBLISH_RESULT: ${{ needs.publish.result }}
+        run: |
+          echo "⚠️ Sending Slack error notification for publish failures..."
+
+          # Build the failed packages list
+          if [ "$PUBLISH_RESULT" = "failure" ]; then
+            FAILED_LIST="Job failed — check workflow logs for details"
+            SUMMARY="Publish job failed"
+          else
+            FAILED_LIST=$(echo "$FAILED_PACKAGES" | jq -r '.[] | "• \`" + . + "\`"' 2>/dev/null || echo "• Unknown packages")
+            SUMMARY="$FAILED_COUNT package(s) failed, $SUCCESSFUL_COUNT succeeded"
+          fi
+
+          # Create the Slack message payload
+          PAYLOAD=$(jq -n \
+            --arg branch "$BRANCH_NAME" \
+            --arg sha "${COMMIT_SHA:0:7}" \
+            --arg run_url "$RUN_URL" \
+            --arg event "$EVENT_NAME" \
+            --arg summary "$SUMMARY" \
+            --arg failed "$FAILED_LIST" \
+            '{
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "⚠️ Package Publishing Failed",
+                    "emoji": true
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ("*Branch:* `" + $branch + "`\n*Summary:* " + $summary)
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ("*Failed Packages:*\n" + $failed)
+                  }
+                },
+                {
+                  "type": "context",
+                  "elements": [
+                    {
+                      "type": "mrkdwn",
+                      "text": ("Triggered by: `" + $event + "` | Commit: `" + $sha + "` | <" + $run_url + "|View Workflow Run>")
+                    }
+                  ]
+                }
+              ]
+            }')
+
+          # Send to Slack
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+              --data "$PAYLOAD" \
+              "$SLACK_WEBHOOK_URL"
+            echo ""
+            echo "✅ Slack error notification sent"
+          else
+            echo "⚠️ SLACK_WEBHOOK_URL not configured, skipping notification"
+          fi
+
+          # Generate step summary
+          echo "## ⚠️ Package Publishing Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "$SUMMARY" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "$PUBLISH_RESULT" != "failure" ]; then
+            echo "### Failed Packages" >> $GITHUB_STEP_SUMMARY
+            echo "$FAILED_PACKAGES" | jq -r '.[] | "- `" + . + "`"' >> $GITHUB_STEP_SUMMARY 2>/dev/null
+          fi
 
   # ============================================================================
   # GENERATE CHANGELOG: AI-powered changelog (auto mode only)
