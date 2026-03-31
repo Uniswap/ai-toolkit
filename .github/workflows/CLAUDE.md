@@ -1434,19 +1434,22 @@ The publishing functionality is consolidated into a single unified workflow due 
 │     ├── Push commits + tags                                      │
 │     └── Create GitHub releases                                   │
 │                                                                   │
-│  3. generate-changelog (Auto mode, if packages published)        │
+│  3. notify-errors (if publish failed or has partial failures)     │
+│     └── Slack error notification via .github/scripts/            │
+│                                                                   │
+│  4. generate-changelog (Auto mode, if packages published)        │
 │     └── AI-generated release notes                               │
 │                                                                   │
-│  4. notify-release (Auto mode, if packages published)            │
+│  5. notify-release (Auto mode, if packages published)            │
 │     └── Slack notifications for package releases                 │
 │                                                                   │
-│  5. sync-next (Auto mode, main branch, after publish completes)  │
+│  6. sync-next (Auto mode, main branch, after publish completes)  │
 │     └── Sync main → next branch (packages OR workflows)          │
 │                                                                   │
-│  6. notify-workflow-changes (Auto mode, after sync-next)         │
+│  7. notify-workflow-changes (Auto mode, after sync-next)         │
 │     └── Slack notifications for workflow-only updates            │
 │                                                                   │
-│  7. summary (Force mode only)                                    │
+│  8. summary (Force mode only)                                    │
 │     └── Publish summary                                          │
 │                                                                   │
 └───────────────────────────────────────────────────────────────────┘
