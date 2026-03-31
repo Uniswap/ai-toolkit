@@ -57,7 +57,7 @@ jobs:
           )
           SHA_COUNT=$(echo "$ALL_SHAS" | grep -c . || true)
           if [ "$SHA_COUNT" -gt 1 ]; then
-            echo "WARNING: Found $SHA_COUNT distinct pinned SHAs — picking the first (oldest) to trigger update:"
+            echo "WARNING: Found $SHA_COUNT distinct pinned SHAs — picking the first to ensure update is triggered:"
             echo "$ALL_SHAS"
           fi
           CURRENT_SHA=$(echo "$ALL_SHAS" | head -1)
