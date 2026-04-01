@@ -330,7 +330,7 @@ jobs:
         continue-on-error: true
         run: |
           # Pass multi-line content via environment variable to avoid command-line escaping issues
-          PAGE_URL=$(npx @uniswap/ai-toolkit-notion-publisher@latest \
+          PAGE_URL=$(npx @uniswap/ai-toolkit-notion-publisher@0.0.16 \
             --title "$TITLE" \
             --content "$CONTENT" \
             --from-ref "$FROM_REF" \
