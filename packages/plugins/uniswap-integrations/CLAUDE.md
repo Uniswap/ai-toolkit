@@ -2,7 +2,7 @@
 
 ## Overview
 
-This plugin provides external service integrations for Claude Code, bundling MCP servers for Linear, Notion, Nx, Chrome DevTools, GitHub, Slack, and more, plus deployment and CI/CD capabilities.
+This plugin provides external service integrations for Claude Code, bundling MCP servers for Linear, Notion, Nx, Chrome DevTools, GitHub, Slack, Amplitude, and more, plus deployment and CI/CD capabilities.
 
 ## Plugin Components
 
@@ -31,6 +31,7 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 | **pulumi**          | Pulumi infrastructure as code management         | OAuth |
 | **figma**           | Figma design file access and collaboration       | OAuth |
 | **vercel**          | Vercel deployment management and hosting         | OAuth |
+| **amplitude**       | Amplitude analytics, experiments, and metrics    | OAuth |
 | **slack**           | Slack workspace integration for messaging        | Token |
 
 ### Hooks (./hooks/)
@@ -43,14 +44,14 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 - Agents are auto-discovered from the `agents/` directory
 - Skills invoke agents via `Task(subagent_type:agent-name)`
 - MCP servers provide external service connectivity
-- OAuth-based servers (Notion, Linear, Pulumi, Figma, Vercel) authenticate via `/mcp` command
+- OAuth-based servers (Notion, Linear, Pulumi, Figma, Vercel, Amplitude) authenticate via `/mcp` command
 - Token-based servers (GitHub, Slack) require environment variable configuration
 
 ## MCP Authentication
 
 ### OAuth Servers
 
-Notion and Linear use OAuth authentication. Users authenticate via the `/mcp` command which opens a browser flow.
+Notion, Linear, Amplitude, and other OAuth servers use OAuth authentication. Users authenticate via the `/mcp` command which opens a browser flow. Amplitude's OAuth flow routes through Uniswap's SSO provider (SAML 2.0), so no separate API keys are needed.
 
 ### Token-Based Servers
 
