@@ -1302,7 +1302,7 @@ jobs:
 
       - name: Install Graphite CLI
         run: |
-          npm install -g @withgraphite/graphite-cli@1.8.3
+          npm install -g @withgraphite/graphite-cli@1.8.3 # no public repo for SHA pin
           gt --version
 
       - name: Sync next branch with main
