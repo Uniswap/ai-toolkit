@@ -90,10 +90,11 @@ runs:
         PLUGINS=""
 
         # Dynamically discover plugins from marketplace.json (unless opt-out is set)
-        # Always fetch from the marketplace's default ref (main) so discovery and
-        # installation are always consistent with the same branch.
+        # Fetches from `next` (the default branch) so discovery matches what
+        # `claude plugin marketplace add` clones. The git URL below also clones
+        # the default branch, keeping both in sync.
         if [[ "$INSTALL_UNISWAP_PLUGINS" != "false" ]]; then
-          MARKETPLACE_URL="https://raw.githubusercontent.com/Uniswap/ai-toolkit/main/.claude-plugin/marketplace.json"
+          MARKETPLACE_URL="https://raw.githubusercontent.com/Uniswap/ai-toolkit/next/.claude-plugin/marketplace.json"
           echo "Fetching plugin list from marketplace.json"
           MARKETPLACE_JSON=$(curl -fsSL "$MARKETPLACE_URL")
 
