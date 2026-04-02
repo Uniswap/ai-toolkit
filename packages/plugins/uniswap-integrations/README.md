@@ -1,6 +1,6 @@
 # @uniswap/uniswap-integrations
 
-External service integrations for Claude Code - Linear, Notion, Nx, Chrome DevTools, GitHub, Pulumi, Figma, Vercel, Slack, Amplitude, and more.
+External service integrations for Claude Code - Linear, Notion, Nx, Chrome DevTools, GitHub, Pulumi, Figma, Vercel, Slack, Amplitude, Datadog, and more.
 
 ## Installation
 
@@ -27,6 +27,7 @@ This plugin bundles the following MCP (Model Context Protocol) servers:
 | **figma**           | Figma design file access and collaboration       | OAuth |
 | **vercel**          | Vercel deployment management and hosting         | OAuth |
 | **amplitude**       | Amplitude analytics, experiments, and metrics    | OAuth |
+| **datadog**         | Datadog monitoring, logs, and metrics            | OAuth |
 | **slack**           | Slack workspace integration for messaging        | Token |
 
 ## Skills
@@ -67,6 +68,7 @@ Some MCP servers require authentication:
 - **figma**: OAuth via <https://mcp.figma.com> - Run `/mcp` and follow browser flow
 - **vercel**: OAuth via <https://mcp.vercel.com> - Run `/mcp` and follow browser flow
 - **amplitude**: OAuth via <https://mcp.amplitude.com> - Run `/mcp` and follow browser flow (routes through Uniswap SSO)
+- **datadog**: OAuth via <https://mcp.datadoghq.com> - Run `/mcp` and follow browser flow
 
 ### Token-Based (Manual Setup)
 
