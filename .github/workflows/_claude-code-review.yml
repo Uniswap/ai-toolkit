@@ -390,7 +390,7 @@ jobs:
 
       - name: Install tsx globally (security)
         run: |
-          npm install -g tsx
+          npm install -g github:privatenumber/tsx#f6284cd50575ce6e8d110f63266d66cb9cde3b88 # tsx@4.21.0
           TSX_BIN=$(which tsx)
           echo "TSX_BIN=$TSX_BIN" >> "$GITHUB_ENV"
           echo "✅ Installed tsx globally at: $TSX_BIN"
