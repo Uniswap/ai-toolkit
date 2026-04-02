@@ -43,6 +43,10 @@
       "type": "http",
       "url": "https://mcp.amplitude.com/mcp"
     },
+    "datadog": {
+      "type": "http",
+      "url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"
+    },
     "slack": {
       "type": "stdio",
       "command": "npx",
