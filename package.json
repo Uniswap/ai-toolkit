@@ -68,7 +68,6 @@
     "ts-loader": "^9.5.4",
     "ts-node": "10.9.1",
     "tslib": "^2.3.0",
-    "tsx": "^4.20.6",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.29.0",
     "verdaccio": "^6.0.5",
