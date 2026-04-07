@@ -380,20 +380,13 @@ jobs:
             echo "   Using merge base for accurate diff calculation"
           fi
 
-      # Setup Node.js and install tsx BEFORE checking out PR code.
+      # Setup Node.js BEFORE checking out PR code.
       # Security: PR checkout may contain a malicious .npmrc that redirects
       # the npm registry, so all npm operations must complete first.
       - name: Setup Node.js (Early)
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: "22"
-
-      - name: Install tsx globally (security)
-        run: |
-          npm install -g github:privatenumber/tsx#f6284cd50575ce6e8d110f63266d66cb9cde3b88 # tsx@4.21.0
-          TSX_BIN=$(which tsx)
-          echo "TSX_BIN=$TSX_BIN" >> "$GITHUB_ENV"
-          echo "✅ Installed tsx globally at: $TSX_BIN"
 
       # Checkout the exact PR head commit (not GitHub's merge commit)
       - name: Checkout Repository
@@ -402,6 +395,9 @@ jobs:
           persist-credentials: false
           ref: ${{ steps.pr-info.outputs.head_sha }}
           fetch-depth: 1 # Shallow clone - merge base fetched separately
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
       # Fetch just the merge base commit tree for diff computation.
       # Full history is unnecessary — git diff only needs the two commit trees.
@@ -513,7 +509,7 @@ jobs:
           REPO_OWNER=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)
           REPO_NAME=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
 
-          "$TSX_BIN" "$POST_REVIEW_SCRIPT" \
+          bun run "$POST_REVIEW_SCRIPT" \
             --mode skipped \
             --owner "$REPO_OWNER" \
             --repo "$REPO_NAME" \
@@ -580,7 +576,7 @@ jobs:
           REPO_NAME=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
 
           # Post in-progress comment (creates or updates the bot's comment)
-          "$TSX_BIN" "$POST_REVIEW_SCRIPT" \
+          bun run "$POST_REVIEW_SCRIPT" \
             --mode in-progress \
             --owner "$REPO_OWNER" \
             --repo "$REPO_NAME" \
@@ -715,7 +711,7 @@ jobs:
           REPO_NAME=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
 
           # Post message that PR is too large for Claude review
-          "$TSX_BIN" "$POST_REVIEW_SCRIPT" \
+          bun run "$POST_REVIEW_SCRIPT" \
             --mode too-large \
             --owner "$REPO_OWNER" \
             --repo "$REPO_NAME" \
@@ -952,7 +948,7 @@ jobs:
           REPO_NAME=$(echo "$REPO" | cut -d'/' -f2)
 
           # Run the build-prompt script
-          "$TSX_BIN" "$BUILD_PROMPT_SCRIPT" \
+          bun run "$BUILD_PROMPT_SCRIPT" \
             --prompt-dir "/tmp/pr-review-prompts" \
             --output "/tmp/final-prompt.txt" \
             --repo-owner "$REPO_OWNER" \
@@ -1237,7 +1233,7 @@ jobs:
           # Run the post-review script (path from setup-script step)
           # REVIEW_JSON_FILE env var is passed to the script, which reads the file directly
           # This avoids shell expansion of file content (shell injection safe)
-          "$TSX_BIN" "$POST_REVIEW_SCRIPT" \
+          bun run "$POST_REVIEW_SCRIPT" \
             --owner "$REPO_OWNER" \
             --repo "$REPO_NAME" \
             --pr-number "$PR_NUMBER"

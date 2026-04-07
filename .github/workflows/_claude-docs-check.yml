@@ -276,20 +276,13 @@ jobs:
           echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
           echo "📍 Head ref: $HEAD_REF"
 
-      # Setup Node.js and install tsx BEFORE checking out PR code.
+      # Setup Node.js BEFORE checking out PR code.
       # Security: PR checkout may contain a malicious .npmrc that redirects
       # the npm registry, so all npm operations must complete first.
       - name: Setup Node.js
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: "22"
-
-      - name: Install tsx globally (security)
-        run: |
-          npm install -g github:privatenumber/tsx#f6284cd50575ce6e8d110f63266d66cb9cde3b88 # tsx@4.21.0
-          TSX_BIN=$(which tsx)
-          echo "TSX_BIN=$TSX_BIN" >> "$GITHUB_ENV"
-          echo "✅ Installed tsx globally at: $TSX_BIN"
 
       # Checkout PR head
       - name: Checkout PR Head
@@ -298,6 +291,9 @@ jobs:
           persist-credentials: false
           ref: ${{ steps.pr-info.outputs.head_sha }}
           fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
       # Defense-in-depth: remove any attacker-supplied binaries from PR checkout
       - name: Remove untrusted node_modules binaries
@@ -678,8 +674,8 @@ jobs:
             SCRIPT_ARGS="$SCRIPT_ARGS --auto-commit"
           fi
 
-          # Run post-processing script (use globally installed tsx, not npx)
-          "$TSX_BIN" "$POST_SCRIPT" $SCRIPT_ARGS
+          # Run post-processing script
+          bun run "$POST_SCRIPT" $SCRIPT_ARGS
 
           # Check if branch was created
           if [ -f /tmp/fixup-branch-name.txt ]; then
