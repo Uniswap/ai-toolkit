@@ -380,22 +380,13 @@ jobs:
             echo "   Using merge base for accurate diff calculation"
           fi
 
-      # Setup Node.js and ensure tsx is available BEFORE checking out PR code.
+      # Setup Node.js BEFORE checking out PR code.
       # Security: PR checkout may contain a malicious .npmrc that redirects
       # the npm registry, so all npm operations must complete first.
       - name: Setup Node.js (Early)
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: "22"
-
-      - name: Install tsx
-        run: |
-          npm uninstall -g tsx 2>/dev/null || true
-          npm install -g "https://registry.npmjs.org/tsx/-/tsx-4.21.0.tgz" \
-            --integrity="sha512-5C1sg4USs1lfG0GFb2RLXsdpXqBSEhAaA/0kPL01wxzpMqLILNxIxIOKiILz+cdg/pLnOUxFYOR5yhHU666wbw=="
-          TSX_BIN="$(npm prefix -g)/bin/tsx"
-          echo "TSX_BIN=$TSX_BIN" >> "$GITHUB_ENV"
-          echo "✅ tsx at: $TSX_BIN"
 
       # Checkout the exact PR head commit (not GitHub's merge commit)
       - name: Checkout Repository
@@ -515,7 +506,7 @@ jobs:
           REPO_OWNER=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)
           REPO_NAME=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
 
-          "$TSX_BIN" "$POST_REVIEW_SCRIPT" \
+          bun run "$POST_REVIEW_SCRIPT" \
             --mode skipped \
             --owner "$REPO_OWNER" \
             --repo "$REPO_NAME" \
@@ -582,7 +573,7 @@ jobs:
           REPO_NAME=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
 
           # Post in-progress comment (creates or updates the bot's comment)
-          "$TSX_BIN" "$POST_REVIEW_SCRIPT" \
+          bun run "$POST_REVIEW_SCRIPT" \
             --mode in-progress \
             --owner "$REPO_OWNER" \
             --repo "$REPO_NAME" \
@@ -717,7 +708,7 @@ jobs:
           REPO_NAME=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
 
           # Post message that PR is too large for Claude review
-          "$TSX_BIN" "$POST_REVIEW_SCRIPT" \
+          bun run "$POST_REVIEW_SCRIPT" \
             --mode too-large \
             --owner "$REPO_OWNER" \
             --repo "$REPO_NAME" \
@@ -954,7 +945,7 @@ jobs:
           REPO_NAME=$(echo "$REPO" | cut -d'/' -f2)
 
           # Run the build-prompt script
-          "$TSX_BIN" "$BUILD_PROMPT_SCRIPT" \
+          bun run "$BUILD_PROMPT_SCRIPT" \
             --prompt-dir "/tmp/pr-review-prompts" \
             --output "/tmp/final-prompt.txt" \
             --repo-owner "$REPO_OWNER" \
@@ -1239,7 +1230,7 @@ jobs:
           # Run the post-review script (path from setup-script step)
           # REVIEW_JSON_FILE env var is passed to the script, which reads the file directly
           # This avoids shell expansion of file content (shell injection safe)
-          "$TSX_BIN" "$POST_REVIEW_SCRIPT" \
+          bun run "$POST_REVIEW_SCRIPT" \
             --owner "$REPO_OWNER" \
             --repo "$REPO_NAME" \
             --pr-number "$PR_NUMBER"

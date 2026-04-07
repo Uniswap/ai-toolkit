@@ -276,22 +276,13 @@ jobs:
           echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
           echo "📍 Head ref: $HEAD_REF"
 
-      # Setup Node.js and ensure tsx is available BEFORE checking out PR code.
+      # Setup Node.js BEFORE checking out PR code.
       # Security: PR checkout may contain a malicious .npmrc that redirects
       # the npm registry, so all npm operations must complete first.
       - name: Setup Node.js
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: "22"
-
-      - name: Install tsx
-        run: |
-          npm uninstall -g tsx 2>/dev/null || true
-          npm install -g "https://registry.npmjs.org/tsx/-/tsx-4.21.0.tgz" \
-            --integrity="sha512-5C1sg4USs1lfG0GFb2RLXsdpXqBSEhAaA/0kPL01wxzpMqLILNxIxIOKiILz+cdg/pLnOUxFYOR5yhHU666wbw=="
-          TSX_BIN="$(npm prefix -g)/bin/tsx"
-          echo "TSX_BIN=$TSX_BIN" >> "$GITHUB_ENV"
-          echo "✅ tsx at: $TSX_BIN"
 
       # Checkout PR head
       - name: Checkout PR Head
@@ -680,8 +671,8 @@ jobs:
             SCRIPT_ARGS="$SCRIPT_ARGS --auto-commit"
           fi
 
-          # Run post-processing script (use globally installed tsx, not npx)
-          "$TSX_BIN" "$POST_SCRIPT" $SCRIPT_ARGS
+          # Run post-processing script
+          bun run "$POST_SCRIPT" $SCRIPT_ARGS
 
           # Check if branch was created
           if [ -f /tmp/fixup-branch-name.txt ]; then
