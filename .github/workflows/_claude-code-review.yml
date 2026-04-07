@@ -394,6 +394,8 @@ jobs:
             echo "✅ tsx already available at: $(which tsx)"
           else
             echo "⬇️ tsx not found, installing from pinned SHA..."
+            # Remove any stale tsx entry (file/symlink) that blocks npm install
+            rm -rf "$(npm prefix -g)/lib/node_modules/tsx" 2>/dev/null || true
             npm install -g github:privatenumber/tsx#f6284cd50575ce6e8d110f63266d66cb9cde3b88 # tsx@4.21.0
           fi
           TSX_BIN="$(npm prefix -g)/bin/tsx"
