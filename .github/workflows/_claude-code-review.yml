@@ -393,8 +393,8 @@ jobs:
           if command -v tsx &>/dev/null; then
             echo "✅ tsx already available at: $(which tsx)"
           else
-            echo "⬇️ tsx not found, installing..."
-            npm install -g tsx@4.21.0
+            echo "⬇️ tsx not found, installing from pinned SHA..."
+            npm install -g github:privatenumber/tsx#f6284cd50575ce6e8d110f63266d66cb9cde3b88 # tsx@4.21.0
           fi
           TSX_BIN="$(npm prefix -g)/bin/tsx"
           echo "TSX_BIN=$TSX_BIN" >> "$GITHUB_ENV"
