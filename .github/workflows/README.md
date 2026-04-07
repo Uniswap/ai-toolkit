@@ -159,9 +159,11 @@ Workflows designed to be called by other workflows using `workflow_call`. These 
 1. publish job
    └─> Versions and publishes packages to NPM
         ↓
-2. generate-changelog job (calls reusable workflow)
-   └─> Generates AI-powered changelog
-        ↓
+2a. notify-errors job (if publish failed or has partial failures)
+    └─> Sends Slack error notification via .github/scripts/notify-publish-errors.sh
+2b. generate-changelog job (calls reusable workflow)
+    └─> Generates AI-powered changelog
+         ↓
 3. notify-release job (calls reusable workflow)
    └─> Sends Slack notification with changelog
         ↓
@@ -200,7 +202,7 @@ The [Claude GitHub App](https://github.com/apps/claude) must be installed on you
 | ---------------------------------- | ------------------------------------------- | --------------------------------------------------- |
 | `WORKFLOW_PAT`                     | publish-packages.yml, update-production.yml | Push commits/tags, create PRs (internal CI/CD only) |
 | `ANTHROPIC_API_KEY`                | generate-changelog.yml                      | AI-powered changelog generation                     |
-| `SLACK_WEBHOOK_URL`                | notify-release.yml                          | Send Slack release notifications                    |
+| `SLACK_WEBHOOK_URL`                | notify-release.yml, publish-packages.yml    | Send Slack release and error notifications          |
 | `NOTION_API_KEY`                   | notify-release.yml                          | Publish release notes to Notion (optional)          |
 | `RELEASE_NOTES_NOTION_DATABASE_ID` | notify-release.yml                          | Notion database ID for release notes (optional)     |
 | `NODE_AUTH_TOKEN`                  | publish-packages.yml                        | Publish to NPM registry                             |
