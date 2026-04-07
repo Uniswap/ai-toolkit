@@ -392,7 +392,8 @@ jobs:
         run: |
           # Clean up any broken/stale tsx installation that causes ENOTDIR
           npm uninstall -g tsx 2>/dev/null || true
-          npm install -g tsx@4.21.0
+          npm install -g "https://registry.npmjs.org/tsx/-/tsx-4.21.0.tgz" \
+            --integrity="sha512-5C1sg4USs1lfG0GFb2RLXsdpXqBSEhAaA/0kPL01wxzpMqLILNxIxIOKiILz+cdg/pLnOUxFYOR5yhHU666wbw=="
           TSX_BIN="$(npm prefix -g)/bin/tsx"
           echo "TSX_BIN=$TSX_BIN" >> "$GITHUB_ENV"
           echo "✅ tsx at: $TSX_BIN"
