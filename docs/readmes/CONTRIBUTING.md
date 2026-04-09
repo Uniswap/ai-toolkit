@@ -47,7 +47,7 @@ graph LR
 
 ### Prerequisites
 
-- **Node.js 22+** with npm
+- **Node.js 22+** with **npm 11.7.0** (`npm install -g npm@11.7.0`)
 - **Git** configured with your GitHub credentials
 
 ### Initial Setup

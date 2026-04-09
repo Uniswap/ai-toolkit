@@ -2,7 +2,7 @@
 
 ## Overview
 
-This plugin provides external service integrations for Claude Code, bundling MCP servers for Linear, Notion, Nx, Chrome DevTools, and GitHub, plus deployment and CI/CD capabilities.
+This plugin provides external service integrations for Claude Code, bundling MCP servers for Linear, Notion, Nx, Chrome DevTools, GitHub, Slack, Amplitude, Datadog, and more, plus deployment and CI/CD capabilities.
 
 ## Plugin Components
 
@@ -31,6 +31,9 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 | **pulumi**          | Pulumi infrastructure as code management         | OAuth |
 | **figma**           | Figma design file access and collaboration       | OAuth |
 | **vercel**          | Vercel deployment management and hosting         | OAuth |
+| **amplitude**       | Amplitude analytics, experiments, and metrics    | OAuth |
+| **datadog**         | Datadog monitoring, logs, and metrics            | OAuth |
+| **slack**           | Slack workspace integration for messaging        | Token |
 
 ### Hooks (./hooks/)
 
@@ -42,16 +45,18 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 - Agents are auto-discovered from the `agents/` directory
 - Skills invoke agents via `Task(subagent_type:agent-name)`
 - MCP servers provide external service connectivity
-- OAuth-based servers (Notion, Linear, Pulumi, Figma, Vercel) authenticate via `/mcp` command
-- PAT-based servers (GitHub) require environment variable configuration
+- OAuth-based servers (Notion, Linear, Pulumi, Figma, Vercel, Amplitude, Datadog) authenticate via `/mcp` command
+- Token-based servers (GitHub, Slack) require environment variable configuration
 
 ## MCP Authentication
 
 ### OAuth Servers
 
-Notion and Linear use OAuth authentication. Users authenticate via the `/mcp` command which opens a browser flow.
+Notion, Linear, Amplitude, Datadog, and other OAuth servers use OAuth authentication. Users authenticate via the `/mcp` command which opens a browser flow. Amplitude's OAuth flow routes through Uniswap's SSO provider (SAML 2.0), so no separate API keys are needed.
 
-### PAT Servers
+### Token-Based Servers
+
+#### GitHub
 
 GitHub requires a Personal Access Token set as `GITHUB_PERSONAL_ACCESS_TOKEN` environment variable:
 
@@ -60,6 +65,29 @@ export GITHUB_PERSONAL_ACCESS_TOKEN="github_pat_your_token_here"
 ```
 
 Run `/uniswap-integrations:github-setup` for detailed setup instructions.
+
+#### Slack
+
+Slack requires a bot token set as `SLACK_BOT_TOKEN` environment variable:
+
+```bash
+export SLACK_BOT_TOKEN="xoxp-your-token-here"
+export SLACK_TEAM_ID="your-team-id"  # Optional
+```
+
+To obtain a Slack token:
+
+1. Visit <https://ai-toolkit-slack-oauth-backend.vercel.app/>
+2. Click "Add to Slack" and authorize the app
+3. Copy the Access Token
+
+**Recommended**: Use the `claude-plus` launcher which automatically handles Slack token validation and refresh:
+
+```bash
+npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus
+```
+
+For detailed documentation, see: <https://www.notion.so/uniswaplabs/Using-a-Slack-MCP-with-Claude-Claude-Code-249c52b2548b8052b901dc05d90e57fc>
 
 ## Related Plugins
 

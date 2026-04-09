@@ -22,7 +22,7 @@ Instead of each person at Uniswap manually configuring AI assistant behaviors fo
 
 Before working with this repository, ensure you have the following tools installed:
 
-- **Node.js 22+** with npm
+- **Node.js 22+** with **npm 11.7.0** (`npm install -g npm@11.7.0`)
 
 ### Local Installation
 
@@ -39,16 +39,25 @@ npm install
 
 ### Option A: Install Plugins via Marketplace (Recommended)
 
-The AI Toolkit provides plugins through the Claude Code Marketplace. To install:
+The AI Toolkit provides plugins through the Claude Code Marketplace. To install, open Claude Code and run:
 
 ```bash
-# Install plugins from the marketplace
-claude /install-plugin @uniswap/development-planning
-claude /install-plugin @uniswap/development-pr-workflow
-claude /install-plugin @uniswap/development-codebase-tools
-claude /install-plugin @uniswap/development-productivity
-claude /install-plugin @uniswap/uniswap-integrations
+# Step 1: Add the Uniswap AI Toolkit marketplace
+/plugin marketplace add Uniswap/ai-toolkit
+
+# Step 2: Install the plugins you want
+/plugin install development-planning@uniswap-ai-toolkit
+/plugin install development-pr-workflow@uniswap-ai-toolkit
+/plugin install development-codebase-tools@uniswap-ai-toolkit
+/plugin install development-productivity@uniswap-ai-toolkit
+/plugin install uniswap-integrations@uniswap-ai-toolkit
+
+# Optional plugins
+/plugin install spec-workflow@uniswap-ai-toolkit
+/plugin install claude-setup@uniswap-ai-toolkit
 ```
+
+> **Note**: These commands are run inside the Claude Code REPL (i.e. after running `claude` in your terminal), not in your shell directly.
 
 ### Option B: Install MCP Server Addons
 
@@ -78,13 +87,15 @@ Once installed, you'll have access to powerful Claude Code agents, skills, and c
 
 ### Available Plugins
 
-| Plugin                         | Description                                          |
-| ------------------------------ | ---------------------------------------------------- |
-| **development-planning**       | Implementation planning & execution workflows        |
-| **development-pr-workflow**    | PR management, review, & Graphite integration        |
-| **development-codebase-tools** | Code exploration, refactoring & analysis             |
-| **development-productivity**   | Documentation, research, & prompt optimization       |
-| **uniswap-integrations**       | External service integrations (Linear, Notion, etc.) |
+| Plugin                         | Description                                                                  |
+| ------------------------------ | ---------------------------------------------------------------------------- |
+| **development-planning**       | Implementation planning & execution workflows                                |
+| **development-pr-workflow**    | PR management, review, & Graphite integration                                |
+| **development-codebase-tools** | Code exploration, refactoring & analysis                                     |
+| **development-productivity**   | Documentation, research, & prompt optimization                               |
+| **uniswap-integrations**       | External service integrations (Linear, Notion, etc.)                         |
+| **spec-workflow**              | Autonomous spec-driven development with multi-agent collaboration (optional) |
+| **claude-setup**               | Interactive setup wizard for configuring repos with Claude Code (optional)   |
 
 ## Contributing
 

@@ -26,7 +26,7 @@ name: Publish Packages
 # - NODE_AUTH_TOKEN: For npm publishing
 # - SERVICE_ACCOUNT_GPG_PRIVATE_KEY: For signing commits/tags
 # - ANTHROPIC_API_KEY: For AI-powered changelog generation (auto mode only)
-# - SLACK_WEBHOOK_URL: For release notifications (auto mode only)
+# - SLACK_WEBHOOK_URL: For release and error notifications
 # - NOTION_API_KEY: For Notion publishing (auto mode only)
 # - RELEASE_NOTES_NOTION_DATABASE_ID: For Notion database (auto mode only)
 
@@ -51,6 +51,8 @@ on:
           - "true"
           - "false"
 
+permissions: {}
+
 # Ensure only one publish workflow runs at a time per branch
 concurrency:
   group: publish-${{ github.ref }}
@@ -66,6 +68,8 @@ jobs:
   detect:
     name: Detect packages to publish
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     environment: ${{ github.event_name == 'push' && 'Production' || null }}
     outputs:
       has_packages: ${{ steps.resolve.outputs.has_packages }}
@@ -90,6 +94,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -100,7 +105,9 @@ jobs:
           scope: "@uniswap"
 
       - name: Install npm
-        run: npm install -g npm@${{ vars.NPM_VERSION }}
+        env:
+          NPM_VERSION: ${{ vars.NPM_VERSION }}
+        run: npm install -g npm@$NPM_VERSION
 
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
@@ -386,6 +393,13 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.WORKFLOW_PAT }}
+          persist-credentials: false
+
+      - name: Configure git credentials for push
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
@@ -395,7 +409,9 @@ jobs:
           scope: "@uniswap"
 
       - name: Install npm
-        run: npm install -g npm@${{ vars.NPM_VERSION }}
+        env:
+          NPM_VERSION: ${{ vars.NPM_VERSION }}
+        run: npm install -g npm@$NPM_VERSION
 
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
@@ -1145,6 +1161,43 @@ jobs:
           done
 
   # ============================================================================
+  # NOTIFY ERRORS: Slack notification for publish failures
+  # ============================================================================
+  notify-errors:
+    name: Notify publish failures via Slack
+    runs-on: ubuntu-24.04
+    permissions: {}
+    needs: [detect, publish]
+    if: |
+      always() &&
+      needs.publish.result != 'skipped' &&
+      needs.detect.outputs.is_dry_run != 'true' &&
+      (needs.publish.result == 'failure' || needs.publish.outputs.has_failures == 'true')
+
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: true
+
+      - name: Send Slack error notification
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          FAILED_PACKAGES: ${{ needs.publish.outputs.failed_packages || '[]' }}
+          SUCCESSFUL_COUNT: ${{ needs.publish.outputs.successful_count || '0' }}
+          FAILED_COUNT: ${{ needs.publish.outputs.failed_count || '0' }}
+          BRANCH_NAME: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVENT_NAME: ${{ github.event_name }}
+          PUBLISH_RESULT: ${{ needs.publish.result }}
+        run: ./.github/scripts/notify-publish-errors.sh
+
+  # ============================================================================
   # GENERATE CHANGELOG: AI-powered changelog (auto mode only)
   # ============================================================================
   generate-changelog:
@@ -1154,6 +1207,8 @@ jobs:
       github.event_name == 'push' &&
       needs.detect.outputs.is_dry_run != 'true' &&
       needs.publish.outputs.has_successes == 'true'
+    permissions:
+      contents: read
     uses: ./.github/workflows/_generate-changelog.yml
     with:
       from_ref: ${{ github.event.before }}
@@ -1215,6 +1270,8 @@ jobs:
       github.event_name == 'push' &&
       needs.detect.outputs.is_dry_run != 'true' &&
       needs.publish.outputs.has_successes == 'true'
+    permissions:
+      contents: read
     uses: ./.github/workflows/_notify-release.yml
     with:
       changelog_slack: ${{ needs.generate-changelog.outputs.changelog_slack }}
@@ -1258,6 +1315,13 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.WORKFLOW_PAT }}
+          persist-credentials: false
+
+      - name: Configure git credentials for push
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec # v6
@@ -1275,7 +1339,7 @@ jobs:
 
       - name: Install Graphite CLI
         run: |
-          npm install -g @withgraphite/graphite-cli
+          npm install -g @withgraphite/graphite-cli@1.8.3 # no public repo for SHA pin
           gt --version
 
       - name: Sync next branch with main
@@ -1355,6 +1419,7 @@ jobs:
   notify-workflow-changes:
     name: Notify workflow changes via Slack
     runs-on: ubuntu-24.04
+    permissions: {}
     needs: [detect, sync-next]
     if: |
       always() &&
@@ -1366,6 +1431,8 @@ jobs:
       needs.sync-next.result == 'success'
 
     steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
       - name: Send Slack notification for workflow changes
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -1451,10 +1518,13 @@ jobs:
   summary:
     name: Generate summary
     runs-on: ubuntu-24.04
+    permissions: {}
     needs: [detect, publish]
     if: github.event_name == 'workflow_dispatch' && always()
 
     steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+
       - name: Generate workflow summary
         env:
           DRY_RUN: ${{ needs.detect.outputs.is_dry_run }}

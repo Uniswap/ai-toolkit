@@ -52,7 +52,7 @@ on:
         required: false
         type: choice
         options:
-          - "claude-sonnet-4-5"
+          - "claude-sonnet-4-6"
           - "claude-opus-4-6"
           - "claude-haiku-4-5"
         default: "claude-opus-4-6"
@@ -79,6 +79,8 @@ on:
         default: true
 
 # Prevent concurrent runs
+permissions: {}
+
 concurrency:
   group: claude-auto-tasks
   cancel-in-progress: false
@@ -86,6 +88,8 @@ concurrency:
 jobs:
   # Job 1: Query Linear and prepare the task matrix
   prepare:
+    permissions:
+      contents: read
     uses: ./.github/workflows/_claude-task-prepare.yml
     with:
       linear_team: ${{ inputs.linear_team || 'Developer AI' }}
@@ -100,6 +104,12 @@ jobs:
   process-task:
     needs: prepare
     if: needs.prepare.outputs.has_tasks == 'true'
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: read
     strategy:
       fail-fast: false
       max-parallel: 3
@@ -118,8 +128,6 @@ jobs:
       timeout_minutes: 60
       linear_task_utils_tag: ${{ needs.prepare.outputs.linear_task_utils_tag }}
       debug_mode: ${{ inputs.debug_mode != '' && inputs.debug_mode || true }}
-      # Use 'next' branch for plugin configuration (testing pre-release)
-      plugin_ref: "next"
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -130,6 +138,7 @@ jobs:
     needs: [prepare, process-task]
     if: always()
     runs-on: ubuntu-latest
+    permissions: {}
 
     steps:
       # Security scanning

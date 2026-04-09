@@ -20,7 +20,7 @@
 #       issue_url: ${{ matrix.issue_url }}
 #       branch_name: ${{ matrix.branch_name }}
 #       target_branch: 'next'
-#       model: 'claude-sonnet-4-5'
+#       model: 'claude-sonnet-4-6'
 #     secrets:
 #       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 #       LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
@@ -33,7 +33,7 @@
 # - issue_url: Linear issue URL
 # - branch_name: Branch to create (e.g., "claude/dai-123-fix-bug")
 # - target_branch: Branch to create PR against (default: "next")
-# - model: Claude model to use (default: claude-sonnet-4-5)
+# - model: Claude model to use (default: claude-sonnet-4-6)
 # - timeout_minutes: Execution timeout (default: 60)
 # - linear_task_utils_tag: npm tag for @uniswap/ai-toolkit-linear-task-utils (default: "latest")
 # - debug_mode: Enable full Claude Code output for debugging (default: true)
@@ -89,7 +89,7 @@ on:
       model:
         description: |
           Claude model to use.
-          Options: claude-sonnet-4-5, claude-opus-4-6, claude-haiku-4-5
+          Options: claude-sonnet-4-6, claude-opus-4-6, claude-haiku-4-5
         required: false
         type: string
         default: "claude-opus-4-6"
@@ -128,12 +128,8 @@ on:
         description: |
           Whether to install the uniswap-ai-toolkit plugins automatically.
 
-          When true (default): All 5 uniswap-ai-toolkit plugins are installed:
-          - development-planning
-          - development-pr-workflow
-          - development-codebase-tools
-          - development-productivity
-          - uniswap-integrations
+          When true (default): Plugins are discovered dynamically from marketplace.json
+          (minus any excluded via exclude_plugins).
 
           When false: No uniswap plugins are installed. Use this if you want to
           use only your own plugins via plugin_marketplaces and plugins inputs.
@@ -141,14 +137,16 @@ on:
         type: boolean
         default: true
 
-      plugin_ref:
+      exclude_plugins:
         description: |
-          Git ref of ai-toolkit to use for the build-plugin-config composite
-          action. Must be 'main' (stable) or 'next' (pre-release). Defaults to
-          'main'.
+          Newline-separated list of plugin names to exclude from auto-installation.
+          Defaults to 'uniswap-integrations'.
         required: false
         type: string
-        default: "main"
+        default: |
+          uniswap-integrations
+          spec-workflow
+          claude-setup
 
     secrets:
       ANTHROPIC_API_KEY:
@@ -195,6 +193,13 @@ jobs:
           ref: ${{ inputs.target_branch }}
           fetch-depth: 50
           token: ${{ secrets.WORKFLOW_PAT || github.token }}
+          persist-credentials: false
+
+      - name: Configure git credentials for push
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT || github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
       # Download validate-claude-auth action if caller repo doesn't have it
       # This allows external repos to use this reusable workflow without copying the action
@@ -263,42 +268,63 @@ jobs:
       # Create and push the feature branch
       - name: Create feature branch
         id: create-branch
+        env:
+          BRANCH_NAME: ${{ inputs.branch_name }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           # Check if branch already exists remotely
-          if git ls-remote --exit-code --heads origin "${{ inputs.branch_name }}" > /dev/null 2>&1; then
-            echo "Branch ${{ inputs.branch_name }} already exists, checking out"
-            git fetch origin "${{ inputs.branch_name }}"
-            git checkout "${{ inputs.branch_name }}"
+          if git ls-remote --exit-code --heads origin "$BRANCH_NAME" > /dev/null 2>&1; then
+            echo "Branch $BRANCH_NAME already exists, checking out"
+            git fetch origin "$BRANCH_NAME"
+            git checkout "$BRANCH_NAME"
             echo "branch_created=false" >> $GITHUB_OUTPUT
           else
-            echo "Creating new branch ${{ inputs.branch_name }}"
-            git checkout -b "${{ inputs.branch_name }}"
-            git push -u origin "${{ inputs.branch_name }}"
+            echo "Creating new branch $BRANCH_NAME"
+            git checkout -b "$BRANCH_NAME"
+            git push -u origin "$BRANCH_NAME"
             echo "branch_created=true" >> $GITHUB_OUTPUT
           fi
 
       # Build the prompt from template
       - name: Build prompt
         id: build-prompt
+        env:
+          INPUT_ISSUE_IDENTIFIER: ${{ inputs.issue_identifier }}
+          INPUT_ISSUE_TITLE: ${{ inputs.issue_title }}
+          INPUT_ISSUE_URL: ${{ inputs.issue_url }}
+          INPUT_BRANCH_NAME: ${{ inputs.branch_name }}
+          INPUT_TARGET_BRANCH: ${{ inputs.target_branch }}
+          INPUT_ISSUE_DESCRIPTION: ${{ inputs.issue_description }}
+          INPUT_MODEL: ${{ inputs.model }}
+          INPUT_PR_TYPE: ${{ inputs.pr_type }}
         run: |
+          # Build the PR type flag
+          if [ "$INPUT_PR_TYPE" = "draft" ]; then
+            PR_TYPE_FLAG="--draft"
+          else
+            PR_TYPE_FLAG=""
+          fi
+
           # Read the template and substitute variables
-          PROMPT=$(cat << 'PROMPT_EOF'
+          # Note: Using a quoted heredoc ('PROMPT_EOF') to prevent shell expansion,
+          # then using envsubst to safely substitute environment variables.
+          export INPUT_ISSUE_IDENTIFIER INPUT_ISSUE_TITLE INPUT_ISSUE_URL INPUT_BRANCH_NAME INPUT_TARGET_BRANCH INPUT_ISSUE_DESCRIPTION INPUT_MODEL PR_TYPE_FLAG
+          PROMPT=$(envsubst << 'PROMPT_EOF'
           # Autonomous Task Execution
 
-          You are autonomously implementing Linear issue **${{ inputs.issue_identifier }}**: "${{ inputs.issue_title }}"
+          You are autonomously implementing Linear issue **${INPUT_ISSUE_IDENTIFIER}**: "${INPUT_ISSUE_TITLE}"
 
           ## Task Details
 
-          - **Issue URL:** ${{ inputs.issue_url }}
-          - **Branch:** `${{ inputs.branch_name }}`
-          - **Target Branch:** `${{ inputs.target_branch }}`
+          - **Issue URL:** ${INPUT_ISSUE_URL}
+          - **Branch:** `${INPUT_BRANCH_NAME}`
+          - **Target Branch:** `${INPUT_TARGET_BRANCH}`
 
           ## Description
 
-          ${{ inputs.issue_description }}
+          ${INPUT_ISSUE_DESCRIPTION}
 
           ---
 
@@ -324,7 +350,7 @@ jobs:
           ```bash
           git add -A
           git commit -m "wip: [describe what was done]"
-          git push origin ${{ inputs.branch_name }}
+          git push origin ${INPUT_BRANCH_NAME}
           ```
           This ensures work is saved even if the session ends unexpectedly.
 
@@ -365,10 +391,10 @@ jobs:
           Run these commands:
           ```bash
           npx nx format:write --uncommitted
-          npx nx affected --target=lint --base=${{ inputs.target_branch }}
-          npx nx affected --target=typecheck --base=${{ inputs.target_branch }}
-          npx nx affected --target=test --base=${{ inputs.target_branch }}
-          npx nx affected --target=build --base=${{ inputs.target_branch }}
+          npx nx affected --target=lint --base=${INPUT_TARGET_BRANCH}
+          npx nx affected --target=typecheck --base=${INPUT_TARGET_BRANCH}
+          npx nx affected --target=test --base=${INPUT_TARGET_BRANCH}
+          npx nx affected --target=build --base=${INPUT_TARGET_BRANCH}
           ```
 
           If checks fail, fix only **critical errors**. Minor warnings can be noted in the PR.
@@ -379,7 +405,7 @@ jobs:
           ```bash
           git add -A
           git commit -m "type(scope): description"
-          git push origin ${{ inputs.branch_name }}
+          git push origin ${INPUT_BRANCH_NAME}
           ```
 
           ### Phase 7: Create Pull Request (REQUIRED - turns 131-150)
@@ -389,7 +415,7 @@ jobs:
           Run this command:
           ```bash
           gh pr create \
-            --title "[${{ inputs.issue_identifier }}] [Brief description of your changes]" \
+            --title "[${INPUT_ISSUE_IDENTIFIER}] [Brief description of your changes]" \
             --body "## Summary
 
           [Explain what was implemented and why]
@@ -406,12 +432,12 @@ jobs:
 
           ## Linear Issue
 
-          Closes: ${{ inputs.issue_url }}
+          Closes: ${INPUT_ISSUE_URL}
 
           ---
-          *Autonomous implementation using ${{ inputs.model }}*" \
-            --base "${{ inputs.target_branch }}" \
-            --head "${{ inputs.branch_name }}" ${{ inputs.pr_type == 'draft' && '--draft' || '' }}
+          *Autonomous implementation using ${INPUT_MODEL}*" \
+            --base "${INPUT_TARGET_BRANCH}" \
+            --head "${INPUT_BRANCH_NAME}" ${PR_TYPE_FLAG}
           ```
 
           After creating the PR, verify it was created:
@@ -433,7 +459,7 @@ jobs:
           - Make reasonable assumptions—do not over-research
           - Keep changes minimal—scope down if needed
           - Only ask for clarification if task is COMPLETELY unclear
-          - Do NOT push to main or ${{ inputs.target_branch }} directly
+          - Do NOT push to main or ${INPUT_TARGET_BRANCH} directly
           - **Prioritize shipping over perfection**
           PROMPT_EOF
           )
@@ -463,27 +489,18 @@ jobs:
           fi
 
       # Build plugin configuration using shared composite action
-      # Note: GitHub Actions requires static refs in 'uses:', so we use conditional
-      # steps instead of dynamic interpolation for security and predictability.
-      - name: Build plugin configuration (main)
-        if: inputs.plugin_ref == 'main' || inputs.plugin_ref == ''
-        id: build-plugins-main
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main
+      - name: Build plugin configuration
+        id: build-plugins
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@bc20d5cb11941235a629ccd7e296eb6d8a4a2028 # pinned to next
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
-
-      - name: Build plugin configuration (next)
-        if: inputs.plugin_ref == 'next'
-        id: build-plugins-next
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next
-        with:
-          install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+          exclude_plugins: ${{ inputs.exclude_plugins }}
 
       # Run Claude Code with Linear MCP configured
       # Supports both API key and OAuth token authentication (OAuth takes precedence)
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71 # v1.0.29
+        uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6 # v1.0.75
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -494,18 +511,21 @@ jobs:
             --max-turns 150
             --dangerously-skip-permissions
             --mcp-config '{"mcpServers":{"linear":{"command":"npx","args":["-y","linear-mcp-server"],"env":{"LINEAR_API_KEY":"${{ secrets.LINEAR_API_KEY }}"}}}}'
-          # Coalesce outputs from conditional steps (only one will have run)
-          plugin_marketplaces: ${{ steps.build-plugins-main.outputs.plugin_marketplaces || steps.build-plugins-next.outputs.plugin_marketplaces }}
-          plugins: ${{ steps.build-plugins-main.outputs.plugins || steps.build-plugins-next.outputs.plugins }}
+          plugin_marketplaces: ${{ steps.build-plugins.outputs.plugin_marketplaces }}
+          plugins: ${{ steps.build-plugins.outputs.plugins }}
           additional_permissions: |
             actions: read
 
       # Check if a PR was created by Claude
       - name: Check for PR
         id: check-pr
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          BRANCH_NAME: ${{ inputs.branch_name }}
+          TARGET_BRANCH: ${{ inputs.target_branch }}
         run: |
           # Check if there's an open PR from this branch
-          PR_URL=$(gh pr list --head "${{ inputs.branch_name }}" --base "${{ inputs.target_branch }}" --json url --jq '.[0].url' || echo "")
+          PR_URL=$(gh pr list --head "$BRANCH_NAME" --base "$TARGET_BRANCH" --json url --jq '.[0].url' || echo "")
 
           if [ -n "$PR_URL" ]; then
             echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
@@ -513,10 +533,8 @@ jobs:
             echo "Found PR: $PR_URL"
           else
             echo "pr_exists=false" >> $GITHUB_OUTPUT
-            echo "No PR found for branch ${{ inputs.branch_name }}"
+            echo "No PR found for branch $BRANCH_NAME"
           fi
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
 
       # Check how many commits were made
       - name: Check commit count
@@ -599,11 +617,11 @@ jobs:
 
       # Validate that Claude completed the task
       - name: Validate outcome
+        env:
+          PR_EXISTS: ${{ steps.check-pr.outputs.pr_exists }}
+          FALLBACK_PR: ${{ steps.fallback-pr.outputs.pr_created }}
+          COMMITS: ${{ steps.check-commits.outputs.commit_count }}
         run: |
-          PR_EXISTS="${{ steps.check-pr.outputs.pr_exists }}"
-          FALLBACK_PR="${{ steps.fallback-pr.outputs.pr_created }}"
-          COMMITS="${{ steps.check-commits.outputs.commit_count }}"
-
           echo "PR exists: $PR_EXISTS"
           echo "Fallback PR created: $FALLBACK_PR"
           echo "Commits: $COMMITS"
@@ -649,20 +667,26 @@ jobs:
           FALLBACK_PR_CREATED: ${{ steps.fallback-pr.outputs.pr_created }}
           FALLBACK_PR_URL: ${{ steps.fallback-pr.outputs.pr_url }}
           COMMIT_COUNT: ${{ steps.check-commits.outputs.commit_count }}
+          ISSUE_IDENTIFIER: ${{ inputs.issue_identifier }}
+          ISSUE_TITLE: ${{ inputs.issue_title }}
+          ISSUE_URL: ${{ inputs.issue_url }}
+          BRANCH_NAME: ${{ inputs.branch_name }}
+          MODEL: ${{ inputs.model }}
+          PR_TYPE: ${{ inputs.pr_type }}
         run: |
-          echo "## Task: ${{ inputs.issue_identifier }}" >> $GITHUB_STEP_SUMMARY
+          echo "## Task: $ISSUE_IDENTIFIER" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Title:** ${{ inputs.issue_title }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Title:** $ISSUE_TITLE" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Linear Issue:** [${{ inputs.issue_identifier }}](${{ inputs.issue_url }})" >> $GITHUB_STEP_SUMMARY
+          echo "**Linear Issue:** [$ISSUE_IDENTIFIER]($ISSUE_URL)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Branch:** \`${{ inputs.branch_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`$BRANCH_NAME\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Model:** ${{ inputs.model }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Model:** $MODEL" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Max Turns:** 150" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**PR Type:** ${{ inputs.pr_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "**PR Type:** $PR_TYPE" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # Show commit count

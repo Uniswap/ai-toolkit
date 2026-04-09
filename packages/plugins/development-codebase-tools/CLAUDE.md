@@ -11,6 +11,7 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 - **analyze-code**: Multi-agent code explanation for architecture, patterns, security, and performance
 - **analyze-tech-debt**: Identify and prioritize technical debt with remediation plans
 - **diagram-excalidraw**: Generate Excalidraw architecture diagrams from codebase analysis
+- **mermaid-diagram**: Generate syntactically valid Mermaid.js diagrams (flowcharts, sequence, class, state, ER, Gantt, git)
 - **explore-codebase**: Deep codebase exploration with architectural understanding
 - **refactor-code**: Comprehensive refactoring with safety checks and pattern application
 
@@ -81,6 +82,7 @@ development-codebase-tools/
 │   ├── analyze-code/
 │   ├── analyze-tech-debt/
 │   ├── diagram-excalidraw/
+│   ├── mermaid-diagram/
 │   ├── explore-codebase/
 │   └── refactor-code/
 ├── agents/

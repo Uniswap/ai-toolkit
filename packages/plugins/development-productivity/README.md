@@ -1,6 +1,6 @@
 # @uniswap/development-productivity
 
-Documentation, research, test generation, and prompt optimization tools for Claude Code.
+Documentation, research, test generation, document generation, and prompt optimization tools for Claude Code.
 
 ## Installation
 
@@ -14,12 +14,13 @@ claude /plugin install development-productivity
 
 ## Skills
 
-| Skill                  | Description                                                    |
-| ---------------------- | -------------------------------------------------------------- |
-| **generate-tests**     | Generate comprehensive tests with advanced testing strategies  |
-| **optimize-prompt**    | Optimize AI prompts for better model performance               |
-| **research-topic**     | Research topics by combining web search with codebase analysis |
-| **update-claude-docs** | Update CLAUDE.md documentation files after code changes        |
+| Skill                  | Description                                                                    |
+| ---------------------- | ------------------------------------------------------------------------------ |
+| **generate-document**  | Generate professional documents (PDF, DOCX, HTML, ODT, EPUB, RTF) using pandoc |
+| **generate-tests**     | Generate comprehensive tests with advanced testing strategies                  |
+| **optimize-prompt**    | Optimize AI prompts for better model performance                               |
+| **research-topic**     | Research topics by combining web search with codebase analysis                 |
+| **update-claude-docs** | Update CLAUDE.md documentation files after code changes                        |
 
 ## Commands
 
@@ -39,6 +40,34 @@ claude /plugin install development-productivity
 | **test-writer-agent**             | Generates comprehensive, deterministic tests with advanced testing strategies and edge case identification                        |
 | **agent-tester-agent**            | Automated agent testing specialist that validates agent behaviors, tests prompt variations, and detects regressions               |
 
+## Hooks
+
+| Hook                      | Event  | Description                                                              |
+| ------------------------- | ------ | ------------------------------------------------------------------------ |
+| **claude-md-maintenance** | `Stop` | Reminds Claude to run `/update-claude-md` after significant code changes |
+
+### Enabling the CLAUDE.md Maintenance Hook
+
+This hook is **opt-in** and disabled by default. To activate it for a project:
+
+1. Create `.claude/development-productivity.local.md` in your project root:
+
+   ```markdown
+   ---
+   enabled: true
+   ---
+   ```
+
+2. Restart Claude Code for the hook to take effect.
+
+3. Add `.claude/*.local.md` to your `.gitignore` to keep the setting local to your machine:
+
+   ```
+   .claude/*.local.md
+   ```
+
+**What it does:** After each Claude Code session (Stop event), the hook checks git for non-trivial changes — new files, modifications to `package.json`/`project.json`, or more than 50 lines changed. If detected, it injects a reminder for Claude to run `/update-claude-md` to keep CLAUDE.md in sync. The hook is non-blocking: it never prevents Claude from finishing.
+
 ## Usage Examples
 
 ```bash
@@ -53,6 +82,9 @@ claude /plugin install development-productivity
 "Research best practices for React hooks"       # triggers research-topic
 "Improve this prompt for better results"        # triggers optimize-prompt
 "Generate tests for this module"                # triggers generate-tests
+"Export this analysis to PDF"                   # triggers generate-document
+"Create a Word doc from these findings"         # triggers generate-document
+"Generate an HTML report"                       # triggers generate-document
 ```
 
 ## License
