@@ -22,7 +22,7 @@
     "@notionhq/client": "^2.2.15",
     "@tryfabric/martian": "^1.2.4",
     "express": "^5.1.0",
-    "express-rate-limit": "^8.0.1",
+    "express-rate-limit": "^8.2.2",
     "helmet": "^8.1.0",
     "minimist": "^1.2.8"
   },
@@ -37,7 +37,7 @@
     "@nx/js": "22.0.2",
     "@nx/node": "22.0.2",
     "@nx/plugin": "22.0.2",
-    "@nx/webpack": "22.0.2",
+    "@nx/webpack": "22.6.4",
     "@swc-node/register": "~1.9.1",
     "@swc/cli": "~0.6.0",
     "@swc/core": "^1.14.0",
@@ -70,7 +70,7 @@
     "tslib": "^2.3.0",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.29.0",
-    "verdaccio": "^6.0.5",
+    "verdaccio": "^6.4.0",
     "webpack": "5.105.1",
     "webpack-node-externals": "^3.0.0"
   },
