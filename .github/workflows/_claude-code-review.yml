@@ -274,7 +274,7 @@ jobs:
 
       # Checkout required before using local composite actions
       - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
           fetch-depth: 50
@@ -384,13 +384,13 @@ jobs:
       # Security: PR checkout may contain a malicious .npmrc that redirects
       # the npm registry, so all npm operations must complete first.
       - name: Setup Node.js (Early)
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: "22"
+          node-version: "24"
 
       # Checkout the exact PR head commit (not GitHub's merge commit)
       - name: Checkout Repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
           ref: ${{ steps.pr-info.outputs.head_sha }}
@@ -473,7 +473,7 @@ jobs:
       - name: Check Review Cache
         id: cache-check
         if: inputs.force_review != true
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           path: .review-cache
           # Include merge_base_sha in cache key to invalidate when the merge base changes
@@ -661,7 +661,7 @@ jobs:
       # Upload diff files as artifacts for debugging and inspection
       - name: Upload PR Diff Artifacts
         if: steps.cache-check.outputs.cache-hit != 'true'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: pr-diff-files-pr${{ inputs.pr_number }}
           path: |
@@ -981,7 +981,7 @@ jobs:
       # Upload final prompt as artifact for debugging and inspection
       - name: Upload Final Prompt Artifact
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: final-prompt-pr${{ inputs.pr_number }}
           path: /tmp/final-prompt.txt
@@ -1181,7 +1181,7 @@ jobs:
       # Upload Claude execution output as artifact for debugging
       - name: Upload Claude Execution Output
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: claude-execution-output-pr${{ inputs.pr_number }}
           path: /home/runner/work/_temp/claude-execution-output.json
@@ -1244,7 +1244,7 @@ jobs:
       # These temp files contain the JSON payloads sent to GitHub API
       - name: Upload Post Review Debug Artifacts
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: post-review-debug-pr${{ inputs.pr_number }}
           path: /tmp/gh-input-*.json
@@ -1504,7 +1504,7 @@ jobs:
       # Security: Only allow auto-fix for same-repo PRs (not forks)
       - name: Checkout for Auto-Fix
         if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ${{ steps.pr-branch.outputs.repo_full_name }}
           ref: ${{ steps.pr-branch.outputs.branch_name }}

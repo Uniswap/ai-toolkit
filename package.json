@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "npm@11.7.0",
   "engines": {
-    "node": "22.x",
+    "node": ">=22.x",
     "npm": "11.7.0"
   },
   "scripts": {
@@ -46,7 +46,7 @@
     "@types/express": "^5.0.4",
     "@types/jest": "^30.0.0",
     "@types/minimist": "^1.2.5",
-    "@types/node": "20.19.9",
+    "@types/node": "^24.0.0",
     "@types/supertest": "^6.0.3",
     "@typescript-eslint/eslint-plugin": "^8.42.0",
     "@typescript-eslint/parser": "^8.42.0",
