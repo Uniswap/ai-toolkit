@@ -174,6 +174,12 @@ jobs:
   docs-check:
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout_minutes }}
+    env:
+      # Security: neutralize CWD-based config loading from attacker-controlled PR checkout
+      BUN_CONFIG_FILE: /dev/null
+      NODE_OPTIONS: ""
+      NPM_CONFIG_REGISTRY: ""
+      NODE_PATH: ""
     permissions:
       id-token: write
       contents: write
@@ -189,11 +195,19 @@ jobs:
       commits_pushed: ${{ steps.process-results.outputs.commits_pushed }}
 
     steps:
-      # Security scanning
+      # Security scanning — block mode prevents secret exfiltration if RCE is achieved.
+      # Allowlist validated against Datadog (service:github-actions, 7d window).
       - name: Security Scan
         uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-domains: |
+            github.com
+            *.github.com
+            *.githubusercontent.com
+            api.anthropic.com
+            bun.sh
+          enable-sudo: false
 
       # Initial checkout
       - name: Checkout repository
@@ -271,18 +285,29 @@ jobs:
           echo "merge_base_sha=$MERGE_BASE_SHA" >> $GITHUB_OUTPUT
           echo "📍 Merge base SHA: $MERGE_BASE_SHA"
 
+          # Security: reject fork PRs to prevent untrusted code execution
+          HEAD_REPO=$(echo "$PR_DATA" | jq -r '.head.repo.full_name')
+          BASE_REPO=$(echo "$PR_DATA" | jq -r '.base.repo.full_name')
+          if [ "$HEAD_REPO" != "$BASE_REPO" ]; then
+            echo "::error::Fork PR detected ($HEAD_REPO → $BASE_REPO). Refusing to run on untrusted code."
+            exit 1
+          fi
+
           # Get head branch name for fixup branch creation
           HEAD_REF=$(echo "$PR_DATA" | jq -r '.head.ref')
           echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
           echo "📍 Head ref: $HEAD_REF"
 
-      # Setup Node.js BEFORE checking out PR code.
-      # Security: PR checkout may contain a malicious .npmrc that redirects
-      # the npm registry, so all npm operations must complete first.
+      # Setup Node.js and Bun BEFORE checking out PR code.
+      # Security: PR checkout may contain malicious config files (.npmrc, bunfig.toml)
+      # that could redirect registries or execute code during tool setup.
       - name: Setup Node.js
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: "22"
+
+      - name: Setup Bun (Early)
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
       # Checkout PR head
       - name: Checkout PR Head
@@ -292,16 +317,26 @@ jobs:
           ref: ${{ steps.pr-info.outputs.head_sha }}
           fetch-depth: 0
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-
-      # Defense-in-depth: remove any attacker-supplied binaries from PR checkout
-      - name: Remove untrusted node_modules binaries
+      # Defense-in-depth: remove attacker-supplied node_modules entirely from PR checkout
+      - name: Remove untrusted node_modules
         run: |
-          if [ -d "node_modules/.bin" ]; then
-            rm -rf node_modules/.bin
-            echo "🗑️  Removed node_modules/.bin from PR checkout"
+          if [ -d "node_modules" ]; then
+            rm -rf node_modules
+            echo "🗑️  Removed node_modules from PR checkout"
           fi
+
+      # Defense-in-depth: remove attacker-supplied config files (all depths).
+      # BUN_CONFIG_FILE=/dev/null at job level is the primary defense; this covers
+      # .npmrc and other tools that resolve config by walking up from CWD.
+      - name: Remove untrusted config files
+        run: |
+          find . -maxdepth 5 -not -path "./node_modules/*" \( \
+            -name "bunfig.toml" -o -name ".npmrc" -o -name ".yarnrc" -o \
+            -name ".yarnrc.yml" -o -name ".babelrc" -o -name ".babelrc.*" -o \
+            -name "babel.config.*" -o -name ".tool-versions" -o \
+            -name ".node-version" -o -name ".nvmrc" -o \
+            -name ".env" -o -name ".env.*" \
+          \) -print -delete 2>/dev/null || true
 
       # Generate PR diff
       - name: Generate PR Diff
@@ -831,14 +866,26 @@ jobs:
           fi
           git remote set-url origin "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
-      # Defense-in-depth: remove any attacker-supplied binaries from auto-fix checkout
-      - name: Remove potentially compromised bin directory (auto-fix)
+      # Defense-in-depth: remove attacker-supplied node_modules from auto-fix checkout
+      - name: Remove untrusted node_modules (auto-fix)
         if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
         run: |
-          if [ -d "node_modules/.bin" ]; then
-            rm -rf node_modules/.bin
-            echo "Removed node_modules/.bin after auto-fix checkout"
+          if [ -d "node_modules" ]; then
+            rm -rf node_modules
+            echo "Removed node_modules after auto-fix checkout"
           fi
+
+      # Defense-in-depth: remove attacker-supplied config files after auto-fix re-checkout
+      - name: Remove untrusted config files (auto-fix)
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
+        run: |
+          find . -maxdepth 5 -not -path "./node_modules/*" \( \
+            -name "bunfig.toml" -o -name ".npmrc" -o -name ".yarnrc" -o \
+            -name ".yarnrc.yml" -o -name ".babelrc" -o -name ".babelrc.*" -o \
+            -name "babel.config.*" -o -name ".tool-versions" -o \
+            -name ".node-version" -o -name ".nvmrc" -o \
+            -name ".env" -o -name ".env.*" \
+          \) -print -delete 2>/dev/null || true
 
       # Build auto-fix prompt from docs check results
       - name: Build Auto-Fix Prompt
