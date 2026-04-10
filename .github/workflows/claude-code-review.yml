@@ -275,7 +275,8 @@ jobs:
     needs: get-pr-info
     if: |
       github.event_name == 'workflow_dispatch' &&
-      needs.get-pr-info.outputs.should_run == 'true'
+      needs.get-pr-info.outputs.should_run == 'true' &&
+      needs.get-pr-info.outputs.is_fork != 'true'
     permissions:
       id-token: write
       contents: write

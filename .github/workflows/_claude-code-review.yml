@@ -441,15 +441,15 @@ jobs:
       # Defense-in-depth: remove attacker-supplied config files that could
       # influence tool behavior (registry redirects, preload scripts, env injection).
       # BUN_CONFIG_FILE=/dev/null at job level is the primary defense; this is belt-and-suspenders.
+      # Uses find to catch config files in subdirectories (bun/npm resolve config by walking up from CWD).
       - name: Remove untrusted config files
         run: |
-          SENSITIVE_FILES="bunfig.toml .npmrc .yarnrc .yarnrc.yml .babelrc babel.config.js babel.config.cjs .tool-versions .node-version .nvmrc"
-          for f in $SENSITIVE_FILES; do
-            if [ -f "$f" ]; then
-              rm -f "$f"
-              echo "🗑️  Removed attacker-supplied $f"
-            fi
-          done
+          find . -maxdepth 5 -not -path "./node_modules/*" \( \
+            -name "bunfig.toml" -o -name ".npmrc" -o -name ".yarnrc" -o \
+            -name ".yarnrc.yml" -o -name ".babelrc" -o -name "babel.config.js" -o \
+            -name "babel.config.cjs" -o -name ".tool-versions" -o \
+            -name ".node-version" -o -name ".nvmrc" \
+          \) -print -delete 2>/dev/null || true
 
       # Download post-review script from trusted ref (never use PR checkout files)
       # Security: Always fetch from a trusted ref to prevent script tampering via PR
@@ -1570,6 +1570,20 @@ jobs:
             echo "Removed node_modules after auto-fix checkout"
           fi
 
+      # Defense-in-depth: remove attacker-supplied config files after auto-fix checkout.
+      # The initial checkout deletes these, but auto-fix re-checks out the PR branch,
+      # reintroducing attacker-controlled config. BUN_CONFIG_FILE=/dev/null is the primary
+      # defense; this covers the auto-fix path which has WORKFLOW_PAT access.
+      - name: Remove untrusted config files (auto-fix)
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
+        run: |
+          find . -maxdepth 5 -not -path "./node_modules/*" \( \
+            -name "bunfig.toml" -o -name ".npmrc" -o -name ".yarnrc" -o \
+            -name ".yarnrc.yml" -o -name ".babelrc" -o -name "babel.config.js" -o \
+            -name "babel.config.cjs" -o -name ".tool-versions" -o \
+            -name ".node-version" -o -name ".nvmrc" \
+          \) -print -delete 2>/dev/null || true
+
       # Build auto-fix prompt from review results
       - name: Build Auto-Fix Prompt
         id: build-fix-prompt
@@ -1648,10 +1662,10 @@ jobs:
           # Use auto_fix_model if specified, otherwise use the review model
           # --allowedTools grants specific permissions for auto-fix
           # without using the blanket --dangerously-skip-permissions flag.
-          # Bash is intentionally unrestricted here (unlike docs-check's
-          # Bash(git:*)) because code-review fixes may need to run linters,
-          # formatters, type checkers, and build tools to verify the fix.
-          claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }} --allowedTools Read,Edit,Write,Grep,Glob,Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(bun:*),Bash(node:*),WebSearch,WebFetch"
+          # Bash is prefix-restricted to git, npm, npx, bun, and node commands.
+          # This allows linters, formatters, type checkers, and build tools
+          # while blocking arbitrary shell execution.
+          claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }} --allowedTools Read,Edit,Write,Grep,Glob,Bash(git:*),Bash(npm run:*),Bash(npx nx:*),Bash(bun run:*),Bash(node:*),WebSearch,WebFetch"
           # Note: plugin_marketplaces and plugins are intentionally omitted here.
           # The marketplace and plugins were already installed by the "Run Claude Code
           # Review" step earlier in this job. Both steps share the same runner and

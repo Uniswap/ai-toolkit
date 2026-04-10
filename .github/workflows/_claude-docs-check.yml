@@ -320,16 +320,17 @@ jobs:
             echo "🗑️  Removed node_modules from PR checkout"
           fi
 
-      # Defense-in-depth: remove attacker-supplied config files
+      # Defense-in-depth: remove attacker-supplied config files (all depths).
+      # BUN_CONFIG_FILE=/dev/null at job level is the primary defense; this covers
+      # .npmrc and other tools that resolve config by walking up from CWD.
       - name: Remove untrusted config files
         run: |
-          SENSITIVE_FILES="bunfig.toml .npmrc .yarnrc .yarnrc.yml .babelrc babel.config.js babel.config.cjs .tool-versions .node-version .nvmrc"
-          for f in $SENSITIVE_FILES; do
-            if [ -f "$f" ]; then
-              rm -f "$f"
-              echo "🗑️  Removed attacker-supplied $f"
-            fi
-          done
+          find . -maxdepth 5 -not -path "./node_modules/*" \( \
+            -name "bunfig.toml" -o -name ".npmrc" -o -name ".yarnrc" -o \
+            -name ".yarnrc.yml" -o -name ".babelrc" -o -name "babel.config.js" -o \
+            -name "babel.config.cjs" -o -name ".tool-versions" -o \
+            -name ".node-version" -o -name ".nvmrc" \
+          \) -print -delete 2>/dev/null || true
 
       # Generate PR diff
       - name: Generate PR Diff
@@ -867,6 +868,17 @@ jobs:
             rm -rf node_modules
             echo "Removed node_modules after auto-fix checkout"
           fi
+
+      # Defense-in-depth: remove attacker-supplied config files after auto-fix re-checkout
+      - name: Remove untrusted config files (auto-fix)
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
+        run: |
+          find . -maxdepth 5 -not -path "./node_modules/*" \( \
+            -name "bunfig.toml" -o -name ".npmrc" -o -name ".yarnrc" -o \
+            -name ".yarnrc.yml" -o -name ".babelrc" -o -name "babel.config.js" -o \
+            -name "babel.config.cjs" -o -name ".tool-versions" -o \
+            -name ".node-version" -o -name ".nvmrc" \
+          \) -print -delete 2>/dev/null || true
 
       # Build auto-fix prompt from docs check results
       - name: Build Auto-Fix Prompt
