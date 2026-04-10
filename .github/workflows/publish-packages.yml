@@ -101,16 +101,14 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
           node-version: ${{ vars.NODE_VERSION }}
-          registry-url: "https://registry.npmjs.org"
-          scope: "@uniswap"
 
-      - name: Install npm
-        env:
-          NPM_VERSION: ${{ vars.NPM_VERSION }}
-        run: npm install -g npm@$NPM_VERSION
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.3.12"
 
       - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit
+        run: bun install --frozen-lockfile
 
       - name: Determine workflow configuration
         id: config
@@ -225,8 +223,8 @@ jobs:
         run: |
           # Get all release-configured packages from nx.json
           echo "Scanning for release-configured packages..."
-          ALL_PACKAGES=$(npx nx show projects --json 2>/dev/null | jq -r '.[]' | while read project; do
-            PROJECT_ROOT=$(npx nx show project "$project" --json 2>/dev/null | jq -r '.root' || echo "")
+          ALL_PACKAGES=$(bunx nx show projects --json 2>/dev/null | jq -r '.[]' | while read project; do
+            PROJECT_ROOT=$(bunx nx show project "$project" --json 2>/dev/null | jq -r '.root' || echo "")
             if [ -n "$PROJECT_ROOT" ] && [ -f "$PROJECT_ROOT/package.json" ]; then
               IS_PRIVATE=$(jq -r '.private // false' "$PROJECT_ROOT/package.json")
               if [ "$IS_PRIVATE" != "true" ]; then
@@ -285,10 +283,10 @@ jobs:
           else
             # AUTO MODE: Use Nx affected detection
             echo "🔍 Auto mode: detecting affected packages"
-            echo "Running: npx nx show projects --affected --base=$BASE_SHA --head=HEAD --type=lib --json"
+            echo "Running: bunx nx show projects --affected --base=$BASE_SHA --head=HEAD --type=lib --json"
 
             # Capture output and check if it's valid JSON
-            RAW_OUTPUT=$(NODE_NO_WARNINGS=1 npx nx show projects --affected --base="$BASE_SHA" --head=HEAD --type=lib --json 2>&1 || echo "[]")
+            RAW_OUTPUT=$(NODE_NO_WARNINGS=1 bunx nx show projects --affected --base="$BASE_SHA" --head=HEAD --type=lib --json 2>&1 || echo "[]")
 
             # Filter out npm warnings
             AFFECTED_OUTPUT=$(echo "$RAW_OUTPUT" | grep -v '^npm warn' || echo "[]")
@@ -306,7 +304,7 @@ jobs:
             SELECTED_PACKAGES=""
 
             for project in $(echo "$AFFECTED_JSON" | jq -r '.[]'); do
-              PROJECT_ROOT=$(npx nx show project "$project" --json 2>/dev/null | jq -r '.root' || echo "")
+              PROJECT_ROOT=$(bunx nx show project "$project" --json 2>/dev/null | jq -r '.root' || echo "")
 
               if [ -n "$PROJECT_ROOT" ] && [ -f "$PROJECT_ROOT/package.json" ]; then
                 IS_PRIVATE=$(jq -r '.private // false' "$PROJECT_ROOT/package.json")
@@ -408,23 +406,28 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           scope: "@uniswap"
 
-      - name: Install npm
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.3.12"
+
+      - name: Install npm (for OIDC publishing only)
         env:
           NPM_VERSION: ${{ vars.NPM_VERSION }}
         run: npm install -g npm@$NPM_VERSION
 
       - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit
+        run: bun install --frozen-lockfile
 
-      - name: Verify package-lock.json unchanged
+      - name: Verify bun.lock unchanged
         run: |
-          if ! git diff --exit-code package-lock.json; then
-            echo "❌ ERROR: npm ci modified package-lock.json!"
-            echo "This should not happen. Please investigate why npm ci is modifying the lock file."
-            git diff package-lock.json
+          if ! git diff --exit-code bun.lock; then
+            echo "❌ ERROR: bun install modified bun.lock!"
+            echo "This should not happen. Please investigate why bun install is modifying the lock file."
+            git diff bun.lock
             exit 1
           fi
-          echo "✅ package-lock.json unchanged after npm ci"
+          echo "✅ bun.lock unchanged after install"
 
       - name: Configure Git identity for service account
         run: |
@@ -447,12 +450,12 @@ jobs:
 
           if [ -n "$INPUT_BASE_SHA" ]; then
             echo "Using affected build with base: $INPUT_BASE_SHA"
-            npx nx affected --target=build --base="$INPUT_BASE_SHA" --head=HEAD
+            bunx nx affected --target=build --base="$INPUT_BASE_SHA" --head=HEAD
           else
             IFS=',' read -ra PROJECT_ARRAY <<< "$INPUT_PROJECTS"
             for project in "${PROJECT_ARRAY[@]}"; do
               echo "Building $project..."
-              npx nx build "$project"
+              bunx nx build "$project"
             done
           fi
 
@@ -935,7 +938,7 @@ jobs:
             echo "=========================================="
 
             PACKAGE_NAME=$(echo "$package" | sed 's/@[^/]*\///')
-            PROJECT_ROOT=$(npx nx show project "$project" --json 2>/dev/null | jq -r '.root' || echo "")
+            PROJECT_ROOT=$(bunx nx show project "$project" --json 2>/dev/null | jq -r '.root' || echo "")
 
             if [ -z "$PROJECT_ROOT" ] || [ ! -f "$PROJECT_ROOT/package.json" ]; then
               echo "❌ Could not find package.json for $project"
@@ -970,21 +973,21 @@ jobs:
             mv "$PROJECT_ROOT/package.json.tmp" "$PROJECT_ROOT/package.json"
 
             # Run sync-version target if it exists (updates version.ts and similar files)
-            if npx nx show project "$project" --json 2>/dev/null | jq -e '.targets["sync-version"]' > /dev/null 2>&1; then
+            if bunx nx show project "$project" --json 2>/dev/null | jq -e '.targets["sync-version"]' > /dev/null 2>&1; then
               echo "  Running sync-version target..."
-              npx nx run "$project:sync-version" || echo "  ⚠️ sync-version target failed, continuing..."
+              bunx nx run "$project:sync-version" || echo "  ⚠️ sync-version target failed, continuing..."
             fi
 
-            # Update package-lock.json to reflect workspace dependency changes
-            echo "  Updating package-lock.json..."
-            npm install --package-lock-only --ignore-scripts
+            # Update bun.lock to reflect workspace dependency changes
+            echo "  Updating bun.lock..."
+            bun install
 
             # Stage all modified files in the project directory (handles version.ts, etc.)
             git add "$PROJECT_ROOT"
-            # Include package-lock.json if it changed (check unstaged changes, not cached)
-            if ! git diff --quiet package-lock.json 2>/dev/null; then
-              git add package-lock.json
-              echo "  Including package-lock.json in commit"
+            # Include bun.lock if it changed (check unstaged changes, not cached)
+            if ! git diff --quiet bun.lock 2>/dev/null; then
+              git add bun.lock
+              echo "  Including bun.lock in commit"
             fi
 
             # Only commit if there are staged changes (handles case where version is already correct)
