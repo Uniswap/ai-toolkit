@@ -128,7 +128,7 @@ bunx nx <command>        # Run Nx commands
 
 **Supply chain security:** The project enforces a 3-day minimum release age for new package versions via `bunfig.toml`. Versions published less than 3 days ago are filtered out during installation.
 
-**npm for publishing only:** The CI publish pipeline (`publish-packages.yml`) still uses npm for OIDC trusted publishing. The `.npmrc` file is retained for this purpose. Local development and all other CI jobs use Bun exclusively.
+**npm for publishing only:** The CI publish pipeline (`publish-packages.yml`) still uses npm 11.7.0+ for OIDC trusted publishing. npm OIDC requires npm >= 11.5.1, and the `workflow_ref` claim in the OIDC token must match the configured trusted workflow. The `.npmrc` file and `npm ci` are retained in the publish job for this purpose. Local development and all other CI jobs use Bun exclusively.
 
 ## Package Scope
 
