@@ -22,7 +22,7 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 - **code-generator-agent**: Generates production-ready code following patterns (delegates to test-writer-agent for tests)
 - **context-loader-agent**: Advanced context management with summarization, checkpointing, and cross-agent sharing
 - **debug-assistant-agent**: Advanced debugging with root cause analysis
-- **pattern-learner-agent**: Learns and applies codebase patterns
+- **pattern-learner-agent**: Extracts recurring conventions, architecture patterns, and project-specific idioms from a codebase
 - **performance-analyzer-agent**: Analyzes performance bottlenecks and optimization opportunities
 - **refactorer-agent**: Performs safe, incremental refactoring operations
 - **security-analyzer-agent**: Identifies security vulnerabilities and recommends fixes
