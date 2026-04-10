@@ -257,6 +257,11 @@ jobs:
     timeout-minutes: ${{ inputs.timeout_minutes }}
     env:
       MAX_CLAUDE_DIFF_LINES: ${{ inputs.max_diff_lines }} # any PR with a `git diff` larger than this will be considered too large for Claude review
+      # Security: neutralize CWD-based config loading from attacker-controlled PR checkout
+      BUN_CONFIG_FILE: /dev/null
+      NODE_OPTIONS: ""
+      NPM_CONFIG_REGISTRY: ""
+      NODE_PATH: ""
     # Fixed permissions (cannot be overridden by calling workflow)
     permissions:
       id-token: write # Required for OIDC
@@ -266,11 +271,25 @@ jobs:
       actions: read # Required to check CI status
 
     steps:
-      # Security scanning (required for all workflows)
+      # Security scanning — block mode prevents secret exfiltration if RCE is achieved
+      # via attacker-controlled config files (bunfig.toml, .npmrc, etc.) in fork PRs.
+      # If a legitimate host is missing, the workflow will fail loudly — update the
+      # allowlist rather than switching back to audit mode.
       - name: Security Scan
         uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-domains: |
+            github.com
+            *.github.com
+            *.githubusercontent.com
+            api.anthropic.com
+            console.anthropic.com
+            statsig.anthropic.com
+            sentry.io
+            *.sentry.io
+            registry.npmjs.org
+          enable-sudo: false
 
       # Checkout required before using local composite actions
       - name: Checkout repository
@@ -380,13 +399,16 @@ jobs:
             echo "   Using merge base for accurate diff calculation"
           fi
 
-      # Setup Node.js BEFORE checking out PR code.
-      # Security: PR checkout may contain a malicious .npmrc that redirects
-      # the npm registry, so all npm operations must complete first.
+      # Setup Node.js and Bun BEFORE checking out PR code.
+      # Security: PR checkout may contain malicious config files (.npmrc, bunfig.toml)
+      # that could redirect registries or execute code during tool setup.
       - name: Setup Node.js (Early)
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: "22"
+
+      - name: Setup Bun (Early)
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
       # Checkout the exact PR head commit (not GitHub's merge commit)
       - name: Checkout Repository
@@ -395,9 +417,6 @@ jobs:
           persist-credentials: false
           ref: ${{ steps.pr-info.outputs.head_sha }}
           fetch-depth: 1 # Shallow clone - merge base fetched separately
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
       # Fetch just the merge base commit tree for diff computation.
       # Full history is unnecessary — git diff only needs the two commit trees.
@@ -410,13 +429,27 @@ jobs:
             fetch --depth=1 origin "$MERGE_BASE_SHA"
           echo "✅ Fetched merge base: ${MERGE_BASE_SHA:0:12}"
 
-      # Defense-in-depth: remove any attacker-supplied binaries from PR checkout
-      - name: Remove untrusted node_modules binaries
+      # Defense-in-depth: remove attacker-supplied node_modules entirely from PR checkout
+      # This prevents binary shims, lifecycle scripts, and module resolution hijacking
+      - name: Remove untrusted node_modules
         run: |
-          if [ -d "node_modules/.bin" ]; then
-            rm -rf node_modules/.bin
-            echo "🗑️  Removed node_modules/.bin from PR checkout"
+          if [ -d "node_modules" ]; then
+            rm -rf node_modules
+            echo "🗑️  Removed node_modules from PR checkout"
           fi
+
+      # Defense-in-depth: remove attacker-supplied config files that could
+      # influence tool behavior (registry redirects, preload scripts, env injection).
+      # BUN_CONFIG_FILE=/dev/null at job level is the primary defense; this is belt-and-suspenders.
+      - name: Remove untrusted config files
+        run: |
+          SENSITIVE_FILES="bunfig.toml .npmrc .yarnrc .yarnrc.yml .babelrc babel.config.js babel.config.cjs .tool-versions .node-version .nvmrc"
+          for f in $SENSITIVE_FILES; do
+            if [ -f "$f" ]; then
+              rm -f "$f"
+              echo "🗑️  Removed attacker-supplied $f"
+            fi
+          done
 
       # Download post-review script from trusted ref (never use PR checkout files)
       # Security: Always fetch from a trusted ref to prevent script tampering via PR
@@ -1528,13 +1561,13 @@ jobs:
           fi
           git remote set-url origin "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
-      # Defense-in-depth: remove any attacker-supplied binaries from auto-fix checkout
-      - name: Remove potentially compromised bin directory (auto-fix)
+      # Defense-in-depth: remove attacker-supplied node_modules from auto-fix checkout
+      - name: Remove untrusted node_modules (auto-fix)
         if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
         run: |
-          if [ -d "node_modules/.bin" ]; then
-            rm -rf node_modules/.bin
-            echo "Removed node_modules/.bin after auto-fix checkout"
+          if [ -d "node_modules" ]; then
+            rm -rf node_modules
+            echo "Removed node_modules after auto-fix checkout"
           fi
 
       # Build auto-fix prompt from review results
@@ -1618,7 +1651,7 @@ jobs:
           # Bash is intentionally unrestricted here (unlike docs-check's
           # Bash(git:*)) because code-review fixes may need to run linters,
           # formatters, type checkers, and build tools to verify the fix.
-          claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }} --allowedTools Read,Edit,Write,Grep,Glob,Bash,WebSearch,WebFetch"
+          claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }} --allowedTools Read,Edit,Write,Grep,Glob,Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(bun:*),Bash(node:*),WebSearch,WebFetch"
           # Note: plugin_marketplaces and plugins are intentionally omitted here.
           # The marketplace and plugins were already installed by the "Run Claude Code
           # Review" step earlier in this job. Both steps share the same runner and
