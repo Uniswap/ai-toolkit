@@ -49,6 +49,7 @@ concurrency:
 jobs:
   docs-check:
     # Skip bots and fork PRs (fork code is attacker-controlled)
+    # workflow_dispatch fork check is handled inside _claude-docs-check.yml
     if: |
       github.event_name == 'workflow_dispatch' ||
       (

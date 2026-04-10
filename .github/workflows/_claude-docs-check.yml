@@ -195,7 +195,8 @@ jobs:
       commits_pushed: ${{ steps.process-results.outputs.commits_pushed }}
 
     steps:
-      # Security scanning — block mode prevents secret exfiltration if RCE is achieved
+      # Security scanning — block mode prevents secret exfiltration if RCE is achieved.
+      # Allowlist validated against Datadog (service:github-actions, 7d window).
       - name: Security Scan
         uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
         with:
@@ -205,11 +206,7 @@ jobs:
             *.github.com
             *.githubusercontent.com
             api.anthropic.com
-            console.anthropic.com
-            statsig.anthropic.com
-            sentry.io
-            *.sentry.io
-            registry.npmjs.org
+            bun.sh
           enable-sudo: false
 
       # Initial checkout
@@ -288,6 +285,14 @@ jobs:
           echo "merge_base_sha=$MERGE_BASE_SHA" >> $GITHUB_OUTPUT
           echo "📍 Merge base SHA: $MERGE_BASE_SHA"
 
+          # Security: reject fork PRs to prevent untrusted code execution
+          HEAD_REPO=$(echo "$PR_DATA" | jq -r '.head.repo.full_name')
+          BASE_REPO=$(echo "$PR_DATA" | jq -r '.base.repo.full_name')
+          if [ "$HEAD_REPO" != "$BASE_REPO" ]; then
+            echo "::error::Fork PR detected ($HEAD_REPO → $BASE_REPO). Refusing to run on untrusted code."
+            exit 1
+          fi
+
           # Get head branch name for fixup branch creation
           HEAD_REF=$(echo "$PR_DATA" | jq -r '.head.ref')
           echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
@@ -327,9 +332,10 @@ jobs:
         run: |
           find . -maxdepth 5 -not -path "./node_modules/*" \( \
             -name "bunfig.toml" -o -name ".npmrc" -o -name ".yarnrc" -o \
-            -name ".yarnrc.yml" -o -name ".babelrc" -o -name "babel.config.js" -o \
-            -name "babel.config.cjs" -o -name ".tool-versions" -o \
-            -name ".node-version" -o -name ".nvmrc" \
+            -name ".yarnrc.yml" -o -name ".babelrc" -o -name ".babelrc.*" -o \
+            -name "babel.config.*" -o -name ".tool-versions" -o \
+            -name ".node-version" -o -name ".nvmrc" -o \
+            -name ".env" -o -name ".env.*" \
           \) -print -delete 2>/dev/null || true
 
       # Generate PR diff
@@ -875,9 +881,10 @@ jobs:
         run: |
           find . -maxdepth 5 -not -path "./node_modules/*" \( \
             -name "bunfig.toml" -o -name ".npmrc" -o -name ".yarnrc" -o \
-            -name ".yarnrc.yml" -o -name ".babelrc" -o -name "babel.config.js" -o \
-            -name "babel.config.cjs" -o -name ".tool-versions" -o \
-            -name ".node-version" -o -name ".nvmrc" \
+            -name ".yarnrc.yml" -o -name ".babelrc" -o -name ".babelrc.*" -o \
+            -name "babel.config.*" -o -name ".tool-versions" -o \
+            -name ".node-version" -o -name ".nvmrc" -o \
+            -name ".env" -o -name ".env.*" \
           \) -print -delete 2>/dev/null || true
 
       # Build auto-fix prompt from docs check results

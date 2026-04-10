@@ -284,11 +284,7 @@ jobs:
             *.github.com
             *.githubusercontent.com
             api.anthropic.com
-            console.anthropic.com
-            statsig.anthropic.com
-            sentry.io
-            *.sentry.io
-            registry.npmjs.org
+            bun.sh
           enable-sudo: false
 
       # Checkout required before using local composite actions
@@ -446,9 +442,10 @@ jobs:
         run: |
           find . -maxdepth 5 -not -path "./node_modules/*" \( \
             -name "bunfig.toml" -o -name ".npmrc" -o -name ".yarnrc" -o \
-            -name ".yarnrc.yml" -o -name ".babelrc" -o -name "babel.config.js" -o \
-            -name "babel.config.cjs" -o -name ".tool-versions" -o \
-            -name ".node-version" -o -name ".nvmrc" \
+            -name ".yarnrc.yml" -o -name ".babelrc" -o -name ".babelrc.*" -o \
+            -name "babel.config.*" -o -name ".tool-versions" -o \
+            -name ".node-version" -o -name ".nvmrc" -o \
+            -name ".env" -o -name ".env.*" \
           \) -print -delete 2>/dev/null || true
 
       # Download post-review script from trusted ref (never use PR checkout files)
@@ -1579,9 +1576,10 @@ jobs:
         run: |
           find . -maxdepth 5 -not -path "./node_modules/*" \( \
             -name "bunfig.toml" -o -name ".npmrc" -o -name ".yarnrc" -o \
-            -name ".yarnrc.yml" -o -name ".babelrc" -o -name "babel.config.js" -o \
-            -name "babel.config.cjs" -o -name ".tool-versions" -o \
-            -name ".node-version" -o -name ".nvmrc" \
+            -name ".yarnrc.yml" -o -name ".babelrc" -o -name ".babelrc.*" -o \
+            -name "babel.config.*" -o -name ".tool-versions" -o \
+            -name ".node-version" -o -name ".nvmrc" -o \
+            -name ".env" -o -name ".env.*" \
           \) -print -delete 2>/dev/null || true
 
       # Build auto-fix prompt from review results
@@ -1662,10 +1660,11 @@ jobs:
           # Use auto_fix_model if specified, otherwise use the review model
           # --allowedTools grants specific permissions for auto-fix
           # without using the blanket --dangerously-skip-permissions flag.
-          # Bash is prefix-restricted to git, npm, npx, bun, and node commands.
-          # This allows linters, formatters, type checkers, and build tools
-          # while blocking arbitrary shell execution.
-          claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }} --allowedTools Read,Edit,Write,Grep,Glob,Bash(git:*),Bash(npm run:*),Bash(npx nx:*),Bash(bun run:*),Bash(node:*),WebSearch,WebFetch"
+          # Bash is prefix-restricted to prevent arbitrary shell execution:
+          # - git: commit, push, status, diff operations
+          # - npm run / npx nx / bun run: linters, formatters, type checkers
+          # Bash(node:*) is intentionally excluded — it permits arbitrary JS execution.
+          claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }} --allowedTools Read,Edit,Write,Grep,Glob,Bash(git:*),Bash(npm run:*),Bash(npx nx:*),Bash(bun run:*),WebSearch,WebFetch"
           # Note: plugin_marketplaces and plugins are intentionally omitted here.
           # The marketplace and plugins were already installed by the "Run Claude Code
           # Review" step earlier in this job. Both steps share the same runner and
