@@ -3,12 +3,11 @@
   "version": "0.0.1",
   "private": true,
   "engines": {
-    "node": "22.x",
-    "npm": "11.7.0"
+    "node": "22.x"
   },
   "scripts": {
     "start": "node main.js",
-    "vercel:build": "npx nx build slack-oauth-backend",
+    "vercel:build": "bunx nx build slack-oauth-backend",
     "vercel:dev": "vercel dev"
   },
   "dependencies": {

@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "pwd && ls -a && cd ../../ && npm -g install npm@11.7.0 && npm install --include=dev",
-  "buildCommand": "cd ../../ && npx nx build slack-oauth-backend --prod",
+  "installCommand": "pwd && ls -a && cd ../../ && bun install",
+  "buildCommand": "cd ../../ && bunx nx build slack-oauth-backend --prod",
   "outputDirectory": "dist",
   "framework": null,
   "functions": {
