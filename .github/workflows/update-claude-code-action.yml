@@ -109,31 +109,31 @@ jobs:
             grep -rl "anthropics/claude-code-action@" .github/workflows/ 2>/dev/null \
             | sed 's|^|  - `|; s|$|`|'
           )
-          cat > /tmp/pr_body.md << EOF
-## Update \`anthropics/claude-code-action\` SHA
-
-This automated PR pins all usages of \`anthropics/claude-code-action\` to the latest release.
-
-| | |
-|---|---|
-| **Previous SHA(s)** | \`${CURRENT_SHAS}\` |
-| **New SHA** | [\`${LATEST:0:7}\`](https://github.com/anthropics/claude-code-action/commit/${LATEST}) |
-| **New Release** | [\`${LATEST_TAG}\`](${RELEASE_URL}) |
-| **Diff** | [Compare changes](${COMPARE_URL}) |
-
-### Files updated
-${CHANGED_FILES}
-
----
-
-### Release notes for \`${LATEST_TAG}\`
-
-$(cat /tmp/release_notes.md)
-
----
-
-> _This PR was created automatically by the [update-claude-code-action](${GITHUB_SERVER_URL_VAL}/${GITHUB_REPOSITORY_VAL}/actions/workflows/update-claude-code-action.yml) workflow._
-EOF
+          {
+            echo "## Update \`anthropics/claude-code-action\` SHA"
+            echo ""
+            echo "This automated PR pins all usages of \`anthropics/claude-code-action\` to the latest release."
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| **Previous SHA(s)** | \`${CURRENT_SHAS}\` |"
+            echo "| **New SHA** | [\`${LATEST:0:7}\`](https://github.com/anthropics/claude-code-action/commit/${LATEST}) |"
+            echo "| **New Release** | [\`${LATEST_TAG}\`](${RELEASE_URL}) |"
+            echo "| **Diff** | [Compare changes](${COMPARE_URL}) |"
+            echo ""
+            echo "### Files updated"
+            echo "${CHANGED_FILES}"
+            echo ""
+            echo "---"
+            echo ""
+            echo "### Release notes for \`${LATEST_TAG}\`"
+            echo ""
+            cat /tmp/release_notes.md
+            echo ""
+            echo "---"
+            echo ""
+            echo "> _This PR was created automatically by the [update-claude-code-action](${GITHUB_SERVER_URL_VAL}/${GITHUB_REPOSITORY_VAL}/actions/workflows/update-claude-code-action.yml) workflow._"
+          } > /tmp/pr_body.md
       - name: Update SHA in workflow files
         if: steps.check.outputs.needs_update == 'true'
         env:
