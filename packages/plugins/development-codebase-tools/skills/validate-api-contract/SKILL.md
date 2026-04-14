@@ -1,6 +1,6 @@
 ---
 description: Detect breaking changes in API contracts across REST (OpenAPI/Swagger), GraphQL schemas, and gRPC proto files. Use when user says "check for breaking API changes", "validate the API contract", "did I break any APIs?", "review my OpenAPI diff", "check if this GraphQL schema change is safe", or "are there any backwards-incompatible changes in this PR?".
-allowed-tools: Read, Glob, Grep, Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git stash:*), Bash(find:*), Bash(cat:*)
+allowed-tools: Read, Glob, Grep, Bash(git diff:*), Bash(git log:*), Bash(git show:*)
 model: sonnet
 ---
 
@@ -20,14 +20,9 @@ Detect and classify breaking versus non-breaking changes across REST (OpenAPI/Sw
 
 Scan the repository for API contract files:
 
-```bash
-# OpenAPI / Swagger
-find . -name "*.yaml" -o -name "*.yml" -o -name "*.json" | xargs grep -l "openapi:\|swagger:" 2>/dev/null
-# GraphQL schemas
-find . -name "*.graphql" -o -name "*.gql" 2>/dev/null
-# gRPC proto files
-find . -name "*.proto" 2>/dev/null
-```
+- **OpenAPI / Swagger**: Use `Glob("**/*.{yaml,yml,json}")` then `Grep` for `openapi:` or `swagger:` (YAML-style) or `"openapi"` / `"swagger"` (JSON-style keys) to identify matching files
+- **GraphQL schemas**: Use `Glob("**/*.{graphql,gql}")`
+- **gRPC proto files**: Use `Glob("**/*.proto")`
 
 If no API definition files are found, look for:
 
