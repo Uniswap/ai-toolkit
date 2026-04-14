@@ -24,6 +24,7 @@ claude /plugin install development-codebase-tools
 | **diagram-excalidraw**  | Generate Excalidraw architecture diagrams from codebase analysis                                 |
 | **explore-codebase**    | Deep codebase exploration and understanding                                                      |
 | **refactor-code**       | Comprehensive refactoring with safety checks and pattern application                             |
+| **scan-secrets**        | Scan for hardcoded secrets, API keys, tokens, and credentials                                   |
 | **strengthen-types**    | Audit and harden TypeScript type safety — find `any`, unsafe casts, and missing return types     |
 
 ## Agents
@@ -62,6 +63,8 @@ claude /plugin install development-codebase-tools
 "Find all dead code and unused exports"          # triggers analyze-dead-code
 "Check accessibility in src/components"          # triggers audit-accessibility
 "Find WCAG violations in LoginForm.tsx"          # triggers audit-accessibility
+"Scan for hardcoded secrets"                     # triggers scan-secrets
+"Are there any credentials in this code?"        # triggers scan-secrets
 ```
 
 ## License

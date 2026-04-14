@@ -29,6 +29,7 @@
     "./skills/explore-codebase",
     "./skills/mermaid-diagram",
     "./skills/refactor-code",
+    "./skills/scan-secrets",
     "./skills/strengthen-types"
   ]
 }

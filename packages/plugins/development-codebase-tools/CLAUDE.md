@@ -17,6 +17,7 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 - **mermaid-diagram**: Generate syntactically valid Mermaid.js diagrams (flowcharts, sequence, class, state, ER, Gantt, git)
 - **explore-codebase**: Deep codebase exploration with architectural understanding
 - **refactor-code**: Comprehensive refactoring with safety checks and pattern application
+- **scan-secrets**: Scan for hardcoded secrets, API keys, tokens, and credentials with remediation guidance
 - **strengthen-types**: Audit and harden TypeScript type safety — find `any`, unsafe casts, non-null assertions, and missing return types with severity-ranked findings and concrete fixes
 
 ### Agents (./agents/)
@@ -92,6 +93,7 @@ development-codebase-tools/
 │   ├── mermaid-diagram/
 │   ├── explore-codebase/
 │   ├── refactor-code/
+│   ├── scan-secrets/
 │   └── strengthen-types/
 ├── agents/
 │   ├── agent-orchestrator.md
