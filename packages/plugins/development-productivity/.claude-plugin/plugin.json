@@ -17,6 +17,7 @@
   ],
   "license": "MIT",
   "skills": [
+    "./skills/audit-dependencies",
     "./skills/generate-document",
     "./skills/generate-tests",
     "./skills/optimize-prompt",
