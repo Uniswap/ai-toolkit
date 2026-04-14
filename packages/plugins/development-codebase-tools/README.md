@@ -28,18 +28,18 @@ claude /plugin install development-codebase-tools
 
 ## Agents
 
-| Agent                          | Description                                                                                                                                |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| **agent-orchestrator-agent**   | Centralized agent orchestration and capability matching                                                                                    |
-| **code-explainer-agent**       | Explains what code does, how it's structured, and why it's designed that way; delegates security/performance concerns to specialist agents |
-| **code-generator-agent**       | Generates production-ready code (delegates to test-writer-agent for tests)                                                                 |
-| **context-loader-agent**       | Advanced context management with summarization and cross-agent sharing                                                                     |
-| **debug-assistant-agent**      | Advanced debugging with root cause analysis                                                                                                |
-| **pattern-learner-agent**      | Learns and applies codebase patterns                                                                                                       |
-| **performance-analyzer-agent** | Analyzes performance bottlenecks and optimization opportunities                                                                            |
-| **refactorer-agent**           | Performs safe, incremental refactoring operations                                                                                          |
-| **security-analyzer-agent**    | Identifies security vulnerabilities and recommends fixes                                                                                   |
-| **style-enforcer-agent**       | Enforces code style and conventions                                                                                                        |
+| Agent                          | Description                                                                                                                                 |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **agent-orchestrator-agent**   | Coordinates multiple AI agents for complex multi-step tasks; decomposes tasks, matches specialists, and executes in parallel where possible |
+| **code-explainer-agent**       | Explains what code does, how it's structured, and why it's designed that way; delegates security/performance concerns to specialist agents  |
+| **code-generator-agent**       | Generates production-ready code (delegates to test-writer-agent for tests)                                                                  |
+| **context-loader-agent**       | Advanced context management with summarization and cross-agent sharing                                                                      |
+| **debug-assistant-agent**      | Advanced debugging with root cause analysis                                                                                                 |
+| **pattern-learner-agent**      | Learns and applies codebase patterns                                                                                                        |
+| **performance-analyzer-agent** | Analyzes performance bottlenecks and optimization opportunities                                                                             |
+| **refactorer-agent**           | Performs safe, incremental refactoring operations                                                                                           |
+| **security-analyzer-agent**    | Identifies security vulnerabilities and recommends fixes                                                                                    |
+| **style-enforcer-agent**       | Enforces code style and conventions                                                                                                         |
 
 ## Hooks
 
