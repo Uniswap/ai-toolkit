@@ -18,12 +18,12 @@ Audit project dependencies for security vulnerabilities and outdated packages, t
 
 ## Options
 
-| Option    | Values                 | Default  | Description                          |
-| --------- | ---------------------- | -------- | ------------------------------------ |
-| `--fix`   | flag                   | off      | Auto-apply safe updates (patch only) |
-| `--minor` | flag                   | off      | Also update minor versions (with `--fix`) |
-| `--scope` | `security`, `all`      | `all`    | What to report: only CVEs or everything |
-| `--dry`   | flag                   | off      | Show planned updates without applying them |
+| Option    | Values            | Default | Description                                |
+| --------- | ----------------- | ------- | ------------------------------------------ |
+| `--fix`   | flag              | off     | Auto-apply safe updates (patch only)       |
+| `--minor` | flag              | off     | Also update minor versions (with `--fix`)  |
+| `--scope` | `security`, `all` | `all`   | What to report: only CVEs or everything    |
+| `--dry`   | flag              | off     | Show planned updates without applying them |
 
 ## Quick Process
 
@@ -43,12 +43,23 @@ Check for lockfiles to identify the package manager:
 ls package-lock.json yarn.lock pnpm-lock.yaml bun.lockb 2>/dev/null
 ```
 
-| Lockfile          | Package Manager | Audit Command              | Outdated Command          |
-| ----------------- | --------------- | -------------------------- | ------------------------- |
-| `package-lock.json` | npm           | `npm audit --json`         | `npm outdated --json`     |
-| `yarn.lock`       | yarn            | `yarn audit --json`        | `yarn outdated --json`    |
-| `pnpm-lock.yaml`  | pnpm            | `pnpm audit --json`        | `pnpm outdated --format json` |
-| `bun.lockb`       | bun             | `bun audit`                | `bun outdated`            |
+| Lockfile                 | Package Manager | Audit Command           | Outdated Command              |
+| ------------------------ | --------------- | ----------------------- | ----------------------------- |
+| `package-lock.json`      | npm             | `npm audit --json`      | `npm outdated --json`         |
+| `yarn.lock` (Classic v1) | yarn classic    | `yarn audit --json`     | `yarn outdated --json`        |
+| `yarn.lock` (Berry v2+)  | yarn berry      | `yarn npm audit --json` | `yarn outdated --json`        |
+| `pnpm-lock.yaml`         | pnpm            | `pnpm audit --json`     | `pnpm outdated --format json` |
+| `bun.lockb`              | bun             | `bun audit`             | `bun outdated`                |
+
+When `yarn.lock` is present, detect the Yarn version before choosing the audit command:
+
+```bash
+# Returns "1.x.x" for Classic, "2.x.x" or higher for Berry
+yarn --version 2>/dev/null
+```
+
+- If the version starts with `1`, use `yarn audit --json` (Classic).
+- If the version is `2` or higher, use `yarn npm audit --json` (Berry).
 
 If no lockfile found, check `package.json` and default to npm.
 
@@ -107,15 +118,29 @@ Build a prioritized action list:
 **Safe updates** (patch only, unless `--minor` also specified):
 
 ```bash
-# npm — fix only auto-fixable vulnerabilities
+# npm — fix only auto-fixable vulnerabilities (patch-safe)
 npm audit fix 2>/dev/null
 
-# npm — also update within semver range
-npm update 2>/dev/null
+# npm — also update within semver range (only when --minor is set)
+# WARNING: `npm update` installs the highest version satisfying the declared
+# semver range, which can move caret ranges to newer minor releases.
+# Only run this when --minor was explicitly requested.
+npm update 2>/dev/null  # only if --minor flag is set
 
-# For specific packages:
+# For specific packages (use the `wanted` version for patch-only, `latest` only with --minor):
 npm install <package>@<wanted-version> 2>/dev/null
 ```
+
+When `--minor` is **not** set:
+
+- Run `npm audit fix` only (which is restricted to patch-level fixes).
+- Do **not** run `npm update` — it may apply minor version upgrades even within caret ranges.
+- Pin specific installs to the `wanted` version (patch boundary), not `latest`.
+
+When `--minor` **is** set:
+
+- Run `npm audit fix` followed by `npm update` to also advance within semver ranges.
+- Installing at `latest` is permitted for packages where a newer minor is available.
 
 **Never** automatically update across major versions — flag these for manual review.
 
