@@ -16,14 +16,15 @@ claude /plugin install development-planning
 
 This plugin provides the following skills:
 
-| Skill                       | Description                                          |
-| --------------------------- | ---------------------------------------------------- |
-| **create-pr**               | Create Graphite PRs with conventional commits        |
-| **execute-plan**            | Execute implementation plans step-by-step            |
-| **generate-commit-message** | Generate well-structured git commit messages         |
-| **plan-implementation**     | Create implementation plans for features and changes |
-| **plan-swarm**              | Refine plans through multi-agent expert discussion   |
-| **review-plan**             | Review plans for completeness and feasibility        |
+| Skill                       | Description                                                     |
+| --------------------------- | --------------------------------------------------------------- |
+| **create-pr**               | Create Graphite PRs with conventional commits                   |
+| **execute-plan**            | Execute implementation plans step-by-step                       |
+| **generate-commit-message** | Generate well-structured git commit messages                    |
+| **manage-release**          | Coordinate a full release: version bump, changelog, tag, and PR |
+| **plan-implementation**     | Create implementation plans for features and changes            |
+| **plan-swarm**              | Refine plans through multi-agent expert discussion              |
+| **review-plan**             | Review plans for completeness and feasibility                   |
 
 ## Agents
 
