@@ -1,6 +1,6 @@
 {
   "name": "development-productivity",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Documentation, research, test generation, document generation, and prompt optimization tools",
   "author": {
     "name": "Uniswap Labs",
@@ -17,6 +17,7 @@
   ],
   "license": "MIT",
   "skills": [
+    "./skills/audit-dependencies",
     "./skills/generate-document",
     "./skills/generate-tests",
     "./skills/optimize-prompt",
