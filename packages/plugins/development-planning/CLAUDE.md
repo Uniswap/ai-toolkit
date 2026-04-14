@@ -11,6 +11,7 @@ This plugin provides the complete implementation lifecycle for Claude Code: plan
 - **create-pr**: Creates Graphite PRs with auto-generated conventional commit messages
 - **execute-plan**: Executes plans step-by-step with progress tracking; supports **single PR mode** (default) and **Graphite stack mode** for creating one PR per logical chunk
 - **generate-commit-message**: Generates well-structured git commit messages
+- **manage-release**: Coordinates a full software release — determines next version via conventional commits, updates package files, generates a changelog entry, creates a release branch, commits, and opens a release PR
 - **plan-implementation**: Creates comprehensive implementation plans with step-by-step breakdowns
 - **plan-swarm**: Multi-agent collaborative plan refinement through expert discussion
 - **review-plan**: Reviews plans for completeness, feasibility, and alignment with codebase patterns
@@ -72,6 +73,7 @@ development-planning/
 │   │   ├── SKILL.md
 │   │   └── execution-guide.md
 │   ├── generate-commit-message/
+│   ├── manage-release/
 │   ├── plan-implementation/
 │   ├── plan-swarm/
 │   └── review-plan/
