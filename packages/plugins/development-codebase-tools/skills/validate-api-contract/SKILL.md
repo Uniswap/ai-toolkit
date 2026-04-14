@@ -40,7 +40,7 @@ Determine the comparison baseline:
 3. **Staged only**: If user says "staged changes", use `git diff --cached`
 
 ```bash
-git diff <baseline>..HEAD -- <api-files>
+git diff <baseline>...HEAD -- <api-files>
 ```
 
 If the diff is empty (no API file changes), report "No API contract files changed" and exit cleanly.
