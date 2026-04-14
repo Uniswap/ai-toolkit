@@ -16,11 +16,12 @@ claude /plugin install development-codebase-tools
 
 | Skill                  | Description                                                                        |
 | ---------------------- | ---------------------------------------------------------------------------------- |
-| **analyze-code**       | Multi-agent code explanation for architecture, patterns, security, and performance |
-| **analyze-tech-debt**  | Identify and prioritize technical debt with remediation plans                      |
-| **diagram-excalidraw** | Generate Excalidraw architecture diagrams from codebase analysis                   |
-| **explore-codebase**   | Deep codebase exploration and understanding                                        |
-| **refactor-code**      | Comprehensive refactoring with safety checks and pattern application               |
+| **analyze-code**            | Multi-agent code explanation for architecture, patterns, security, and performance        |
+| **analyze-tech-debt**       | Identify and prioritize technical debt with remediation plans                             |
+| **diagram-excalidraw**      | Generate Excalidraw architecture diagrams from codebase analysis                          |
+| **explore-codebase**        | Deep codebase exploration and understanding                                               |
+| **refactor-code**           | Comprehensive refactoring with safety checks and pattern application                      |
+| **validate-api-contract**   | Detect breaking vs non-breaking changes in REST (OpenAPI/Swagger), GraphQL, and gRPC APIs |
 
 ## Agents
 
@@ -52,6 +53,8 @@ claude /plugin install development-codebase-tools
 "How does the authentication system work?"       # triggers explore-codebase
 "Create an architecture diagram of this system"  # triggers diagram-excalidraw
 "What technical debt exists in this module?"     # triggers analyze-tech-debt
+"Did I break any APIs in this branch?"           # triggers validate-api-contract
+"Check for breaking changes before I open this PR" # triggers validate-api-contract
 ```
 
 ## License
