@@ -14,6 +14,7 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 - **mermaid-diagram**: Generate syntactically valid Mermaid.js diagrams (flowcharts, sequence, class, state, ER, Gantt, git)
 - **explore-codebase**: Deep codebase exploration with architectural understanding
 - **refactor-code**: Comprehensive refactoring with safety checks and pattern application
+- **validate-api-contract**: Detect breaking vs non-breaking changes in REST (OpenAPI/Swagger), GraphQL, and gRPC API definitions
 
 ### Agents (./agents/)
 
@@ -84,7 +85,8 @@ development-codebase-tools/
 │   ├── diagram-excalidraw/
 │   ├── mermaid-diagram/
 │   ├── explore-codebase/
-│   └── refactor-code/
+│   ├── refactor-code/
+│   └── validate-api-contract/
 ├── agents/
 │   ├── agent-orchestrator.md
 │   ├── code-explainer.md
