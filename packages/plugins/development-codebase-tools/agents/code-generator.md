@@ -1,6 +1,6 @@
 ---
 name: code-generator-agent
-description: Generates new production-ready implementation code for features, modules, API routes, React components, and utilities — following existing codebase patterns. Use for net-new code; for changing existing code use refactorer-agent; for tests use test-writer-agent.
+description: Generates new production-ready implementation code for features, modules, API routes, React components, and utilities — following existing codebase patterns. Use when the primary goal is net-new code (and wiring it into existing callers); for restructuring or modifying existing logic use refactorer-agent; for tests use test-writer-agent.
 tools: Read, Write, Edit, Glob, Grep
 ---
 
