@@ -1,6 +1,6 @@
 ---
 name: context-loader-agent
-description: Analyzes and summarizes a specific codebase area so other agents can implement or debug it correctly. Use when an orchestrator needs deep understanding of a subsystem before delegating work. Trigger phrases: "analyze this area", "load context for", "summarize the X module", "understand how X works", "prepare context before implementation", "what patterns does X use", "give me context on".
+description: 'Analyzes and summarizes a specific codebase area so other agents can implement or debug it correctly. Use when an orchestrator needs deep understanding of a subsystem before delegating work. Trigger phrases: "analyze this area", "load context for", "summarize the X module", "understand how X works", "prepare context before implementation", "what patterns does X use", "give me context on".'
 model: claude-sonnet-4-6
 ---
 
