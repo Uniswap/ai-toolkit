@@ -4,9 +4,9 @@
 pre-commit:
   parallel: false # Changed to false to ensure commands run in order
   commands:
-    update-package-lock:
-      run: sh scripts/lefthook/update-package-lock.sh
-      tags: package-lock
+    update-lockfile:
+      run: sh scripts/lefthook/update-lockfile.sh
+      tags: lockfile
       skip:
         - merge
         - rebase
