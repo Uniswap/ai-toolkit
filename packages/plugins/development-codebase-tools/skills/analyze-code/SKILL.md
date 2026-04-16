@@ -25,7 +25,7 @@ Provide comprehensive code explanation through multi-agent analysis for architec
 
    - `overview`: spawn **code-explainer-agent** only; pass the file path and its contents
    - `deep`: spawn **code-explainer-agent** + **security-analyzer-agent** + **performance-analyzer-agent** in parallel
-   - `architectural`: spawn all four agents in parallel, loading system-level context via **context-loader-agent** first
+   - `architectural`: run **context-loader-agent** first to gather system-level context, then spawn **code-explainer-agent** + **security-analyzer-agent** + **performance-analyzer-agent** in parallel with that context
 
 5. **Synthesize results** — Combine agent outputs into a single structured report. Integrate and deduplicate findings; do not dump raw agent output.
 
