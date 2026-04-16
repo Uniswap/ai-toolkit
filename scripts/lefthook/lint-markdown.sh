@@ -11,7 +11,7 @@ if [ -z "$STAGED_MD_FILES" ]; then
 fi
 
 # Lint and fix markdown files (uses .markdownlint-cli2.jsonc config)
-echo "$STAGED_MD_FILES" | xargs npm exec markdownlint-cli2 -- --fix
+echo "$STAGED_MD_FILES" | xargs bunx markdownlint-cli2 --fix
 MD_EXIT_CODE=$?
 
 # Re-stage any auto-fixed files

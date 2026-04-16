@@ -4,13 +4,13 @@
 pre-commit:
   parallel: false # Changed to false to ensure commands run in order
   commands:
-    update-package-lock:
-      run: sh scripts/lefthook/update-package-lock.sh
-      tags: package-lock
+    update-lockfile:
+      run: sh scripts/lefthook/update-lockfile.sh
+      tags: lockfile
       skip:
         - merge
         - rebase
-      fail_text: 'Failed to update package-lock.json. Please run npm install manually.'
+      fail_text: 'Failed to update bun.lock. Please run bun install manually.'
 
     format:
       run: sh scripts/lefthook/format-files.sh
@@ -29,7 +29,7 @@ pre-commit:
       fail_text: 'Linting failed. Please fix the issues before committing.'
 
     typecheck:
-      run: npx nx affected --target=typecheck --base=HEAD~1
+      run: bunx nx affected --target=typecheck --base=HEAD~1
       tags: typecheck
       skip:
         - merge
@@ -37,7 +37,7 @@ pre-commit:
       fail_text: 'Typechecking failed. Please fix the issues before committing.'
 
     test:
-      run: npx nx affected --target=test --base=HEAD~1
+      run: bunx nx affected --target=test --base=HEAD~1
       tags: test
       skip:
         - merge
