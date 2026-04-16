@@ -14,13 +14,14 @@ claude /plugin install development-codebase-tools
 
 ## Skills
 
-| Skill                  | Description                                                                        |
-| ---------------------- | ---------------------------------------------------------------------------------- |
-| **analyze-code**       | Multi-agent code explanation for architecture, patterns, security, and performance |
-| **analyze-tech-debt**  | Identify and prioritize technical debt with remediation plans                      |
-| **diagram-excalidraw** | Generate Excalidraw architecture diagrams from codebase analysis                   |
-| **explore-codebase**   | Deep codebase exploration and understanding                                        |
-| **refactor-code**      | Comprehensive refactoring with safety checks and pattern application               |
+| Skill                   | Description                                                                        |
+| ----------------------- | ---------------------------------------------------------------------------------- |
+| **analyze-code**        | Multi-agent code explanation for architecture, patterns, security, and performance |
+| **analyze-tech-debt**   | Identify and prioritize technical debt with remediation plans                      |
+| **audit-accessibility** | Audit UI components for WCAG 2.1 AA compliance with severity-grouped violations    |
+| **diagram-excalidraw**  | Generate Excalidraw architecture diagrams from codebase analysis                   |
+| **explore-codebase**    | Deep codebase exploration and understanding                                        |
+| **refactor-code**       | Comprehensive refactoring with safety checks and pattern application               |
 
 ## Agents
 
@@ -52,6 +53,8 @@ claude /plugin install development-codebase-tools
 "How does the authentication system work?"       # triggers explore-codebase
 "Create an architecture diagram of this system"  # triggers diagram-excalidraw
 "What technical debt exists in this module?"     # triggers analyze-tech-debt
+"Check accessibility in src/components"          # triggers audit-accessibility
+"Find WCAG violations in LoginForm.tsx"          # triggers audit-accessibility
 ```
 
 ## License
