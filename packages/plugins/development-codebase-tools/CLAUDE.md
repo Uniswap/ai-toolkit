@@ -13,6 +13,7 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 - **diagram-excalidraw**: Generate Excalidraw architecture diagrams from codebase analysis
 - **mermaid-diagram**: Generate syntactically valid Mermaid.js diagrams (flowcharts, sequence, class, state, ER, Gantt, git)
 - **explore-codebase**: Deep codebase exploration with architectural understanding
+- **profile-performance**: Profile and analyze application performance to identify bottlenecks via static analysis and profiling tools
 - **refactor-code**: Comprehensive refactoring with safety checks and pattern application
 
 ### Agents (./agents/)
@@ -84,6 +85,7 @@ development-codebase-tools/
 │   ├── diagram-excalidraw/
 │   ├── mermaid-diagram/
 │   ├── explore-codebase/
+│   ├── profile-performance/
 │   └── refactor-code/
 ├── agents/
 │   ├── agent-orchestrator.md
