@@ -14,13 +14,14 @@ claude /plugin install development-codebase-tools
 
 ## Skills
 
-| Skill                  | Description                                                                        |
-| ---------------------- | ---------------------------------------------------------------------------------- |
-| **analyze-code**       | Multi-agent code explanation for architecture, patterns, security, and performance |
-| **analyze-tech-debt**  | Identify and prioritize technical debt with remediation plans                      |
-| **diagram-excalidraw** | Generate Excalidraw architecture diagrams from codebase analysis                   |
-| **explore-codebase**   | Deep codebase exploration and understanding                                        |
-| **refactor-code**      | Comprehensive refactoring with safety checks and pattern application               |
+| Skill                   | Description                                                                        |
+| ----------------------- | ---------------------------------------------------------------------------------- |
+| **analyze-code**        | Multi-agent code explanation for architecture, patterns, security, and performance |
+| **analyze-tech-debt**   | Identify and prioritize technical debt with remediation plans                      |
+| **diagram-excalidraw**  | Generate Excalidraw architecture diagrams from codebase analysis                   |
+| **explore-codebase**    | Deep codebase exploration and understanding                                        |
+| **profile-performance** | Profile and analyze application performance to identify bottlenecks                |
+| **refactor-code**       | Comprehensive refactoring with safety checks and pattern application               |
 
 ## Agents
 
@@ -52,6 +53,8 @@ claude /plugin install development-codebase-tools
 "How does the authentication system work?"       # triggers explore-codebase
 "Create an architecture diagram of this system"  # triggers diagram-excalidraw
 "What technical debt exists in this module?"     # triggers analyze-tech-debt
+"Why is this endpoint slow?"                      # triggers profile-performance
+"Find performance bottlenecks in this service"    # triggers profile-performance
 ```
 
 ## License
