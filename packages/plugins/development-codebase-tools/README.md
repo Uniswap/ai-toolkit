@@ -23,6 +23,7 @@ claude /plugin install development-codebase-tools
 | **debug-issue**         | Systematic debugging workflow — from vague symptom to root cause analysis and validated fix      |
 | **diagram-excalidraw**  | Generate Excalidraw architecture diagrams from codebase analysis                                 |
 | **explore-codebase**    | Deep codebase exploration and understanding                                                      |
+| **profile-performance** | Profile and analyze application performance to identify bottlenecks                              |
 | **refactor-code**       | Comprehensive refactoring with safety checks and pattern application                             |
 | **strengthen-types**    | Audit and harden TypeScript type safety — find `any`, unsafe casts, and missing return types     |
 
@@ -62,6 +63,8 @@ claude /plugin install development-codebase-tools
 "Find all dead code and unused exports"          # triggers analyze-dead-code
 "Check accessibility in src/components"          # triggers audit-accessibility
 "Find WCAG violations in LoginForm.tsx"          # triggers audit-accessibility
+"Why is this endpoint slow?"                     # triggers profile-performance
+"Find performance bottlenecks in this service"   # triggers profile-performance
 ```
 
 ## License
