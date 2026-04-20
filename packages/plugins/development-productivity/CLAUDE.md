@@ -9,6 +9,7 @@ optimization tools for Claude Code.
 
 ### Skills (./skills/)
 
+- **audit-dependencies**: Audit project dependencies for security vulnerabilities and outdated packages; apply safe updates
 - **generate-document**: Generate professional documents in multiple formats (PDF, DOCX, HTML, ODT, EPUB, RTF) using pandoc
 - **generate-tests**: Generate comprehensive tests with advanced testing strategies
 - **optimize-prompt**: Optimize AI prompts for better model performance
@@ -59,6 +60,7 @@ development-productivity/
 ├── .claude-plugin/
 │   └── plugin.json
 ├── skills/
+│   ├── audit-dependencies/
 │   ├── generate-document/
 │   ├── generate-tests/
 │   ├── optimize-prompt/
