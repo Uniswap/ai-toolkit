@@ -18,7 +18,7 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 ### Agents (./agents/)
 
 - **agent-orchestrator-agent**: Centralized agent orchestration and capability matching
-- **code-explainer-agent**: Explains code architecture, patterns, and dependencies
+- **code-explainer-agent**: Explains what code does, how it's structured, and why it's designed that way; delegates security/performance concerns to specialist agents
 - **code-generator-agent**: Generates production-ready code following patterns (delegates to test-writer-agent for tests)
 - **context-loader-agent**: Advanced context management with summarization, checkpointing, and cross-agent sharing
 - **debug-assistant-agent**: Advanced debugging with root cause analysis
