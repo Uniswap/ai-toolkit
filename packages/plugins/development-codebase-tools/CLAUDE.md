@@ -13,6 +13,7 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 - **analyze-dead-code**: Find unused exports, unreachable modules, and dead files with confidence-ranked removal guidance
 - **analyze-migrations**: Statically analyze database migration files for safety issues (locks, data loss, missing rollbacks)
 - **analyze-tech-debt**: Identify and prioritize technical debt with remediation plans. Uses a structured 6-step execution process: scope the target, collect code signals (Glob/Grep for large files, nesting, TODO/FIXME/HACK, `any` types), examine git history (high-churn files via `git log`, chronic bug areas via `git blame`), assess test presence (test-to-source file ratio), score and prioritize items by ROI, and write a Debt Metrics Dashboard + Prioritized Roadmap. Allowed tools include `Bash(git blame:*)`.
+- **analyze-test-coverage**: Measure test coverage gaps and produce a prioritized list of what to test next
 - **audit-accessibility**: Audit UI components for WCAG 2.1 AA compliance, identifying violations by severity with fix guidance
 - **debug-issue**: Systematic debugging workflow — accepts any error report (message, stack trace, or vague symptom), locates the origin, gathers context, invokes the debug-assistant-agent for root-cause analysis, and validates the fix
 - **diagram-excalidraw**: Generate Excalidraw architecture diagrams from codebase analysis
@@ -90,6 +91,7 @@ development-codebase-tools/
 │   ├── analyze-dead-code/
 │   ├── analyze-migrations/
 │   ├── analyze-tech-debt/
+│   ├── analyze-test-coverage/
 │   ├── audit-accessibility/
 │   ├── debug-issue/
 │   ├── diagram-excalidraw/
