@@ -27,6 +27,7 @@
     "./skills/diagram-excalidraw",
     "./skills/explore-codebase",
     "./skills/mermaid-diagram",
-    "./skills/refactor-code"
+    "./skills/refactor-code",
+    "./skills/validate-iac"
   ]
 }

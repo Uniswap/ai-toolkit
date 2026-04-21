@@ -14,6 +14,7 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 - **mermaid-diagram**: Generate syntactically valid Mermaid.js diagrams (flowcharts, sequence, class, state, ER, Gantt, git)
 - **explore-codebase**: Deep codebase exploration with architectural understanding
 - **refactor-code**: Comprehensive refactoring with safety checks and pattern application
+- **validate-iac**: Validate and security-scan Infrastructure as Code (Terraform, CDK, Helm, CloudFormation, Pulumi)
 
 ### Agents (./agents/)
 
@@ -84,7 +85,8 @@ development-codebase-tools/
 │   ├── diagram-excalidraw/
 │   ├── mermaid-diagram/
 │   ├── explore-codebase/
-│   └── refactor-code/
+│   ├── refactor-code/
+│   └── validate-iac/
 ├── agents/
 │   ├── agent-orchestrator.md
 │   ├── code-explainer.md

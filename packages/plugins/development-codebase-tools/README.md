@@ -20,7 +20,9 @@ claude /plugin install development-codebase-tools
 | **analyze-tech-debt**  | Identify and prioritize technical debt with remediation plans                      |
 | **diagram-excalidraw** | Generate Excalidraw architecture diagrams from codebase analysis                   |
 | **explore-codebase**   | Deep codebase exploration and understanding                                        |
+| **mermaid-diagram**    | Generate syntactically valid Mermaid.js diagrams (flowcharts, sequence, class, ER) |
 | **refactor-code**      | Comprehensive refactoring with safety checks and pattern application               |
+| **validate-iac**       | Validate and security-scan IaC configs (Terraform, CDK, Helm, CloudFormation)      |
 
 ## Agents
 
@@ -52,6 +54,8 @@ claude /plugin install development-codebase-tools
 "How does the authentication system work?"       # triggers explore-codebase
 "Create an architecture diagram of this system"  # triggers diagram-excalidraw
 "What technical debt exists in this module?"     # triggers analyze-tech-debt
+"Check my Terraform for security issues"         # triggers validate-iac
+"Lint my Helm charts before deploy"              # triggers validate-iac
 ```
 
 ## License
