@@ -114,9 +114,9 @@ Safe alternative:
 
 **Verdict**:
 
-- All CRITICAL resolved → `SAFE TO DEPLOY`
+- No CRITICAL and no WARNING → `SAFE TO DEPLOY`
+- No CRITICAL but WARNING(s) present → `DEPLOY WITH CAUTION — review WARNING findings`
 - Any CRITICAL unresolved → `BLOCKED — resolve CRITICAL findings before deploying`
-- Only warnings → `DEPLOY WITH CAUTION — review WARNING findings`
 
 For each CRITICAL and WARNING finding, provide a concrete safe alternative. Examples:
 
