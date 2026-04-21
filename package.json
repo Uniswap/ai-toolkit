@@ -37,7 +37,7 @@
     "@nx/js": "22.0.2",
     "@nx/node": "22.0.2",
     "@nx/plugin": "22.0.2",
-    "@nx/webpack": "22.6.4",
+    "@nx/webpack": "22.6.5",
     "@swc-node/register": "~1.9.1",
     "@swc/cli": "~0.6.0",
     "@swc/core": "^1.14.0",
