@@ -1,6 +1,6 @@
 ---
 description: Profile and analyze application performance to identify bottlenecks. Use when user says "profile performance", "find performance bottlenecks", "why is this slow", "optimize runtime performance", "identify CPU hotspots", "analyze memory usage", "benchmark this code", or "performance profiling".
-allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(npx:*), Bash(python:*), Bash(python3:*), Bash(pip:*), Bash(go:*), Bash(cargo:*), Bash(hyperfine:*), Task(subagent_type:performance-analyzer)
+allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(npx:*), Bash(python:*), Bash(python3:*), Bash(pip:*), Bash(go:*), Bash(cargo:*), Bash(hyperfine:*), Task(subagent_type:performance-analyzer-agent)
 model: sonnet
 ---
 
@@ -107,7 +107,7 @@ python3 -m py_spy --version 2>/dev/null && echo "py-spy available"
 
 # Go
 which pprof 2>/dev/null && echo "pprof available"
-go test -bench . -benchtime=1x . 2>/dev/null && echo "go bench available"
+go version 2>/dev/null && echo "go bench available"
 
 # Universal benchmarking
 hyperfine --version 2>/dev/null && echo "hyperfine available"
