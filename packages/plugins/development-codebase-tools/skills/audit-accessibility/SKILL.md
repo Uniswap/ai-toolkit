@@ -1,6 +1,6 @@
 ---
 description: Audit UI components and pages for accessibility (a11y) issues. Use when user says "check accessibility", "audit a11y compliance", "find WCAG violations", "is this component accessible", "run an accessibility audit", or "check screen reader support".
-allowed-tools: Read, Grep, Glob, Bash(npx axe:*), Bash(npx pa11y:*), Bash(npx lighthouse:*), Bash(npx jest:*), Bash(node:*), Task(subagent_type:security-analyzer-agent)
+allowed-tools: Read, Grep, Glob, Bash(npx axe:*), Bash(npx pa11y:*), Bash(npx lighthouse:*), Bash(npx jest:*), Bash(node -e:*), Task
 model: sonnet
 ---
 
@@ -44,9 +44,9 @@ Audit frontend components and pages for WCAG 2.1 AA compliance, identifying viol
 ### Automated Tools (when available)
 
 ```
-axe-core  →  npx axe <url>  or  jest-axe in test files
-pa11y     →  npx pa11y <url>
-lighthouse →  npx lighthouse <url> --only-categories=accessibility --output=json
+@axe-core/cli  →  npx axe <url>  or  jest-axe in test files
+pa11y          →  npx pa11y <url>
+lighthouse     →  npx lighthouse <url> --only-categories=accessibility --output=json
 ```
 
 ## Step-by-Step
@@ -75,7 +75,7 @@ For each component file:
 
 ### Step 3: Run Automated Tools
 
-Detect installed tools via `node -e "require('axe-core')"` or `npx pa11y --version` etc.
+Detect installed tools via `npx axe --version`, `npx pa11y --version`, `npx lighthouse --version` etc.
 For each available tool, run against the target URL or build output.
 Parse JSON output and merge with static findings (deduplicate by element + criterion).
 
