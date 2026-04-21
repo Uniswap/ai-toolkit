@@ -139,7 +139,7 @@ eyJ[A-Za-z0-9+/]+\.[A-Za-z0-9+/]+\.[A-Za-z0-9+/\-_]+
 # Private keys
 -----BEGIN (RSA |EC |OPENSSH |PRIVATE |PGP PRIVATE )KEY-----
 
-# Heroku API key (require credential variable name context to avoid UUID false positives)
+# Heroku API key (requires credential variable name context to avoid matching plain UUIDs)
 (heroku[_-]?api[_-]?key|heroku[_-]?token|HEROKU_API_KEY|HEROKU_TOKEN)\s*[:=]\s*["']?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}["']?
 
 # NPM auth token
