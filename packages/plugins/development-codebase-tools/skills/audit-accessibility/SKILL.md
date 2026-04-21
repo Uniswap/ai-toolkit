@@ -129,7 +129,7 @@ When `--fix` is passed, safely apply:
 
 - Add `alt=""` to clearly decorative images (svg icons, spacers)
 - Add `lang="en"` to `<html>` if missing
-- Replace `role="button"` on `<div onClick>` with `<button>`
+- Replace `role="button"` on `<div onClick>` with `<button type="button">` (explicit `type="button"` prevents unintended form submissions in form contexts)
 
 Never auto-fix color contrast or heading hierarchy — these require design judgment.
 
