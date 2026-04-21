@@ -164,7 +164,7 @@ lin_api_[A-Za-z0-9]{40,}
 # Basic auth in URLs
 https?:\/\/[^:@\s]+:[^@\s"']+@
 
-# Private RSA/PEM material inline (base64 blob ≥64 chars, require credential variable name context)
+# Private RSA/PEM material inline (base64 blob ≥64 chars, requires credential variable name context)
 (private_key|secret|credential|pem|certificate|private)\s*[:=]\s*["'][A-Za-z0-9+/]{64,}={0,2}["']
 ```
 
