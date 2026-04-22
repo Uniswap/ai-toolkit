@@ -1,5 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "build": {
+    "env": {
+      "ENABLE_EXPERIMENTAL_COREPACK": "0"
+    }
+  },
   "installCommand": "cd ../../ && bun install --frozen-lockfile",
   "buildCommand": "cd ../../ && bunx nx build slack-oauth-backend --prod",
   "outputDirectory": "dist",
