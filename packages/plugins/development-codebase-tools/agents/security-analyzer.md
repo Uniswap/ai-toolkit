@@ -38,6 +38,10 @@ Apply OWASP Top 10 (2021) for web apps and OWASP API Security Top 10 (2023) for 
 
 For APIs also check: broken object/property-level authorization, unrestricted resource consumption, and unsafe third-party API consumption.
 
+For **mobile** targets, additionally apply OWASP Mobile Top 10 (2024): insecure local storage (cleartext credentials in SharedPreferences/NSUserDefaults/SQLite), missing certificate pinning, exported Android activities/content providers/broadcast receivers, insecure deeplink/intent handling, sensitive data leakage via logs or screenshots, and improper session token storage (keychain vs. keystore).
+
+For **infrastructure** targets, additionally check: IAM over-permissive roles and privilege escalation paths, publicly exposed management ports (SSH/RDP/admin consoles), missing network segmentation and security group rules, cloud metadata endpoint exposure (`169.254.169.254`), unencrypted secrets in environment variables or config management, container image vulnerabilities and root-running processes, and missing audit logging for privileged operations.
+
 ### Phase 3: Dependency & Secret Scanning
 
 Run `npm audit` (or language-equivalent) for known CVEs. Search for hardcoded secrets: API keys, tokens, database credentials, SSH keys, cloud service credentials. Use Grep to scan for common secret patterns (`password =`, `secret =`, `API_KEY`, etc.).
@@ -56,7 +60,9 @@ Apply STRIDE (Spoofing/Tampering/Repudiation/Information Disclosure/DoS/Elevatio
 
 ### Phase 7: Compliance Assessment
 
-Map findings to relevant frameworks. For PCI-DSS: focus on cardholder data protection, access controls, logging (requirements 3, 7, 8, 10). For GDPR: encryption, data minimization, right-to-erasure, breach notification. For HIPAA: access controls, audit logs, transmission security. For SOC2: logical access (CC6), availability (A1), and confidentiality (C1) trust criteria.
+Map findings to relevant frameworks. For PCI-DSS: cardholder data protection, access controls, logging (requirements 3, 7, 8, 10), network security (req 1-2), vulnerability management (req 6), physical security (req 9), regular testing (req 11), and information security policy (req 12). For GDPR: encryption, data minimization, right-to-erasure, breach notification, consent management, and data processing records. For HIPAA: access controls, audit logs, transmission security, integrity controls, and emergency access procedures. For SOC2: logical access (CC6), change management (CC8), availability (A1), confidentiality (C1), and processing integrity (PI1).
+
+**Verdict rules**: A framework verdict of `PASS` requires exhaustive coverage of all controls in scope. If only a subset of controls are assessed (due to limited access, time constraints, or scope restrictions), the verdict MUST be `PARTIAL` — never `PASS`. Document which controls were not assessed and why. Reserve `FAIL` for cases where assessed controls have confirmed violations.
 
 ### Phase 8: Security Headers
 
@@ -70,7 +76,7 @@ Structure findings as a security assessment report:
 ## Executive Summary
 - Overall risk score: CRITICAL | HIGH | MEDIUM | LOW
 - Vulnerability counts by severity (critical/high/medium/low/info)
-- Compliance status (PASS | FAIL | PARTIAL) per framework
+- Compliance status per framework: PASS (all controls assessed and met) | FAIL (confirmed violations found) | PARTIAL (subset of controls assessed — list unassessed controls)
 
 ## Detailed Findings
 For each finding:
