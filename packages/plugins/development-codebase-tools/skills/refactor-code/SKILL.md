@@ -1,7 +1,7 @@
 ---
 description: Refactor code with safety checks and pattern application. Use when user says "refactor this code", "clean up this function", "simplify this logic", "extract this into a separate function", "apply the strategy pattern here", "reduce the complexity of this module", or "reorganize this file structure".
 allowed-tools: Read, Edit, Write, Grep, TodoWrite, Bash(git diff:*), Bash(git show:*), Task(subagent_type:refactorer-agent), Task(subagent_type:style-enforcer-agent), Task(subagent_type:code-explainer-agent), Task(subagent_type:test-writer-agent), Task(subagent_type:agent-orchestrator-agent)
-model: claude-opus-4-7
+model: claude-opus-4-6
 ---
 
 # Code Refactorer
