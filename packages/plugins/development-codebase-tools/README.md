@@ -14,15 +14,16 @@ claude /plugin install development-codebase-tools
 
 ## Skills
 
-| Skill                  | Description                                                                                  |
-| ---------------------- | -------------------------------------------------------------------------------------------- |
-| **analyze-code**       | Multi-agent code explanation for architecture, patterns, security, and performance           |
-| **analyze-tech-debt**  | Identify and prioritize technical debt with remediation plans                                |
-| **debug-issue**        | Systematic debugging workflow — from vague symptom to root cause analysis and validated fix  |
-| **diagram-excalidraw** | Generate Excalidraw architecture diagrams from codebase analysis                             |
-| **explore-codebase**   | Deep codebase exploration and understanding                                                  |
-| **refactor-code**      | Comprehensive refactoring with safety checks and pattern application                         |
-| **strengthen-types**   | Audit and harden TypeScript type safety — find `any`, unsafe casts, and missing return types |
+| Skill                  | Description                                                                                      |
+| ---------------------- | ------------------------------------------------------------------------------------------------ |
+| **analyze-code**       | Multi-agent code explanation for architecture, patterns, security, and performance               |
+| **analyze-dead-code**  | Find unused exports, unreachable modules, and dead files with confidence-ranked removal guidance |
+| **analyze-tech-debt**  | Identify and prioritize technical debt with remediation plans                                    |
+| **debug-issue**        | Systematic debugging workflow — from vague symptom to root cause analysis and validated fix      |
+| **diagram-excalidraw** | Generate Excalidraw architecture diagrams from codebase analysis                                 |
+| **explore-codebase**   | Deep codebase exploration and understanding                                                      |
+| **refactor-code**      | Comprehensive refactoring with safety checks and pattern application                             |
+| **strengthen-types**   | Audit and harden TypeScript type safety — find `any`, unsafe casts, and missing return types     |
 
 ## Agents
 
@@ -57,6 +58,7 @@ claude /plugin install development-codebase-tools
 "Run a type safety audit on this codebase"       # triggers strengthen-types
 "I'm getting a TypeError in the auth module"     # triggers debug-issue
 "This keeps crashing in production, help me fix it" # triggers debug-issue
+"Find all dead code and unused exports"          # triggers analyze-dead-code
 ```
 
 ## License
