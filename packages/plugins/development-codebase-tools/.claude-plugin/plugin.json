@@ -1,6 +1,6 @@
 {
   "name": "development-codebase-tools",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "Codebase exploration, refactoring, and quality analysis",
   "author": {
     "name": "Uniswap Labs",

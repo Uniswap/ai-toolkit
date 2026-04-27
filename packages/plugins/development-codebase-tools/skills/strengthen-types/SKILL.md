@@ -115,12 +115,12 @@ grep -rn ": object\b\|: {}\|: Function\b\|: Object\b" \
 **Missing return type on exported functions** (exported functions without an explicit return annotation are the highest-value targets because callers depend on their signature):
 
 ```bash
-grep -rn "^export (async )?function [a-zA-Z]" \
+grep -rEn "^export (async )?function [a-zA-Z]" \
   src/ --include="*.ts" --include="*.tsx" | grep -v ": " | head -20
 ```
 
 ```bash
-grep -rn "^export const [a-zA-Z].*= (async )?\(" \
+grep -rEn "^export const [a-zA-Z].*= (async )?\(" \
   src/ --include="*.ts" --include="*.tsx" | grep -v ": " | head -20
 ```
 
