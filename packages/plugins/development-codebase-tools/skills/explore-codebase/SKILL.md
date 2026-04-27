@@ -19,11 +19,9 @@ Build comprehensive understanding of codebase areas before implementation or to 
 
 ## Quick Process
 
-1. **Identify the topic** from user's natural language
-2. **Map relevant files** using Glob and Grep
-3. **Trace dependencies** and integration points
-4. **Identify patterns** and conventions
-5. **Document findings** for implementation work
+1. **Parse the request** — extract `topic`, `files` (optional), and `focus` (optional) from the user's message
+2. **Delegate** — invoke context-loader-agent with the extracted parameters
+3. **Present findings** — format the agent output using the Output Format section below
 
 ## Input Parsing
 
@@ -35,7 +33,13 @@ Extract from user's request:
 
 ## Delegation
 
-Invoke the **context-loader-agent** agent with extracted parameters for comprehensive analysis.
+Invoke **context-loader-agent** and pass the extracted parameters:
+
+- `topic`: the main area to explore
+- `files`: specific files mentioned (omit if none)
+- `focus`: the aspect to emphasize (omit if not specified)
+
+The agent handles file discovery, dependency tracing, pattern identification, and analysis.
 
 ## Output Format
 
@@ -48,6 +52,16 @@ Return structured analysis:
 - **Data Flow**: How data moves through the system
 - **Gotchas**: Non-obvious behaviors and pitfalls
 - **Implementation Notes**: Key considerations for new work
+
+## Examples
+
+```
+"How does the authentication flow work?"
+"Where is the API rate limiting implemented?"
+"Show me how data flows from the UI to the database"
+"Explain the plugin architecture before I add a new one"
+"Trace a request from the controller to the database"
+```
 
 ## Workflow Integration
 

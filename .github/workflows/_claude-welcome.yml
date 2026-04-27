@@ -106,7 +106,7 @@ jobs:
 
       - name: Validate workflow deployment date
         id: validate-date
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           DEPLOYMENT_DATE: ${{ inputs.workflow_deployment_date }}
         with:
@@ -147,7 +147,7 @@ jobs:
 
       - name: Validate documentation URL
         if: inputs.documentation_url != ''
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           DOCS_URL: ${{ inputs.documentation_url }}
         with:
@@ -202,7 +202,7 @@ jobs:
 
       - name: Check if within expiration period
         id: check-date
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           DEPLOYMENT_DATE: ${{ inputs.workflow_deployment_date }}
           EXPIRATION_MONTHS: ${{ inputs.expiration_months }}
@@ -248,7 +248,7 @@ jobs:
       - name: Check for existing welcome message
         if: steps.check-date.outputs.active == 'true'
         id: check-comment
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -277,7 +277,7 @@ jobs:
 
       - name: Post welcome message
         if: steps.check-date.outputs.active == 'true' && steps.check-comment.outputs.result == 'false'
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           WELCOME_MESSAGE: ${{ inputs.welcome_message }}
           DOCS_URL: ${{ inputs.documentation_url }}

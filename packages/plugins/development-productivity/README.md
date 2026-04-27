@@ -14,13 +14,14 @@ claude /plugin install development-productivity
 
 ## Skills
 
-| Skill                  | Description                                                                    |
-| ---------------------- | ------------------------------------------------------------------------------ |
-| **generate-document**  | Generate professional documents (PDF, DOCX, HTML, ODT, EPUB, RTF) using pandoc |
-| **generate-tests**     | Generate comprehensive tests with advanced testing strategies                  |
-| **optimize-prompt**    | Optimize AI prompts for better model performance                               |
-| **research-topic**     | Research topics by combining web search with codebase analysis                 |
-| **update-claude-docs** | Update CLAUDE.md documentation files after code changes                        |
+| Skill                    | Description                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------ |
+| **audit-dependencies**   | Audit dependencies for security vulnerabilities and outdated packages; apply safe updates |
+| **generate-document**    | Generate professional documents (PDF, DOCX, HTML, ODT, EPUB, RTF) using pandoc |
+| **generate-tests**       | Generate comprehensive tests with advanced testing strategies                  |
+| **optimize-prompt**      | Optimize AI prompts for better model performance                               |
+| **research-topic**       | Research topics by combining web search with codebase analysis                 |
+| **update-claude-docs**   | Update CLAUDE.md documentation files after code changes                        |
 
 ## Commands
 
@@ -85,6 +86,9 @@ This hook is **opt-in** and disabled by default. To activate it for a project:
 "Export this analysis to PDF"                   # triggers generate-document
 "Create a Word doc from these findings"         # triggers generate-document
 "Generate an HTML report"                       # triggers generate-document
+"Audit my dependencies"                         # triggers audit-dependencies
+"Check for vulnerable packages --fix"           # triggers audit-dependencies + apply patches
+"Dependency health check"                       # triggers audit-dependencies
 ```
 
 ## License
