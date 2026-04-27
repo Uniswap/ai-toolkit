@@ -14,13 +14,14 @@ claude /plugin install development-codebase-tools
 
 ## Skills
 
-| Skill                  | Description                                                                        |
-| ---------------------- | ---------------------------------------------------------------------------------- |
-| **analyze-code**       | Multi-agent code explanation for architecture, patterns, security, and performance |
-| **analyze-tech-debt**  | Identify and prioritize technical debt with remediation plans                      |
-| **diagram-excalidraw** | Generate Excalidraw architecture diagrams from codebase analysis                   |
-| **explore-codebase**   | Deep codebase exploration and understanding                                        |
-| **refactor-code**      | Comprehensive refactoring with safety checks and pattern application               |
+| Skill                  | Description                                                                                  |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| **analyze-code**       | Multi-agent code explanation for architecture, patterns, security, and performance           |
+| **analyze-tech-debt**  | Identify and prioritize technical debt with remediation plans                                |
+| **diagram-excalidraw** | Generate Excalidraw architecture diagrams from codebase analysis                             |
+| **explore-codebase**   | Deep codebase exploration and understanding                                                  |
+| **refactor-code**      | Comprehensive refactoring with safety checks and pattern application                         |
+| **strengthen-types**   | Audit and harden TypeScript type safety — find `any`, unsafe casts, and missing return types |
 
 ## Agents
 
@@ -52,6 +53,7 @@ claude /plugin install development-codebase-tools
 "How does the authentication system work?"       # triggers explore-codebase
 "Create an architecture diagram of this system"  # triggers diagram-excalidraw
 "What technical debt exists in this module?"     # triggers analyze-tech-debt
+"Run a type safety audit on this codebase"       # triggers strengthen-types
 ```
 
 ## License
