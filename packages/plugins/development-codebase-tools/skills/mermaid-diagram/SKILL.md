@@ -7,7 +7,7 @@ model: sonnet
 
 # Mermaid.js Diagram Generator
 
-Generate valid Mermaid.js diagrams that render without syntax errors on the first attempt. Always wrap output in a fenced code block with the `mermaid` language tag.
+Generate valid Mermaid.js diagrams that render without syntax errors on the first attempt. When outputting a diagram, always wrap it in a fenced code block with the `mermaid` language tag.
 
 ## Syntax Rules
 
