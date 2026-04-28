@@ -60,7 +60,7 @@ claude /plugin install development-codebase-tools
 "How does the authentication system work?"       # triggers explore-codebase
 "Create an architecture diagram of this system"  # triggers diagram-excalidraw
 "What technical debt exists in this module?"     # triggers analyze-tech-debt
-"What's our test coverage? Where should we focus?" # triggers analyze-test-coverage
+"What's our test coverage? Where should we focus?"  # triggers analyze-test-coverage
 "Run a type safety audit on this codebase"       # triggers strengthen-types
 "I'm getting a TypeError in the auth module"     # triggers debug-issue
 "This keeps crashing in production, help me fix it" # triggers debug-issue

@@ -1,6 +1,6 @@
 ---
 description: Analyze test coverage gaps and prioritize what to test next. Use this skill whenever the user says "analyze test coverage", "what's our test coverage", "find gaps in test coverage", "which code isn't tested", "improve test coverage", "show me a coverage report", "coverage analysis", "where are we missing tests", "what's untested", "test coverage audit", or asks about coverage percentages or uncovered files. Also trigger when the user asks which areas to focus testing efforts on, or when they want to know what the test-writer agent should work on next.
-allowed-tools: Read, Glob, Grep, Bash(npm test:*), Bash(npx vitest:*), Bash(npx jest:*), Bash(npx c8:*), Bash(python -m pytest:*), Bash(go test:*), Bash(mvn:*), Bash(gradle:*), Bash(cat:*), Bash(find:*), Task(subagent_type:test-writer-agent)
+allowed-tools: Read, Glob, Grep, Bash(npm test:*), Bash(npm run:*), Bash(npx vitest:*), Bash(npx jest:*), Bash(npx c8:*), Bash(python -m pytest:*), Bash(go test:*), Bash(mvn:*), Bash(gradle:*), Bash(./gradlew:*), Task(subagent_type:test-writer-agent)
 model: sonnet
 ---
 
