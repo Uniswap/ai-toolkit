@@ -45,7 +45,7 @@ Before re-building, check whether a recent build already exists:
 
 ```bash
 # Vite / generic
-find dist -name "*.js" -newer package.json 2>/dev/null | head -20
+find dist -name "*.js" -mtime -1 2>/dev/null | head -20
 ls -lhS dist/ 2>/dev/null | head -20
 
 # Next.js
@@ -118,9 +118,13 @@ When bundler-specific tools aren't available, `source-map-explorer` works on any
 # Ensure source maps exist
 ls dist/*.js.map build/static/js/*.js.map .next/static/chunks/*.js.map 2>/dev/null | head -5
 
-# Run source-map-explorer on the main bundle(s)
-npx source-map-explorer 'dist/*.js' --json > /tmp/sme-report.json 2>/dev/null
-npx source-map-explorer 'build/static/js/*.js' --json > /tmp/sme-report.json 2>/dev/null
+# Run source-map-explorer on the detected build output (use only the matching path to
+# avoid the second command silently overwriting the first report)
+if [ -d dist ]; then
+  npx source-map-explorer 'dist/*.js' --json > /tmp/sme-report.json 2>/dev/null
+elif [ -d build/static/js ]; then
+  npx source-map-explorer 'build/static/js/*.js' --json > /tmp/sme-report.json 2>/dev/null
+fi
 ```
 
 Parse the JSON output to extract module sizes.
@@ -159,9 +163,27 @@ List the 15 largest modules (by parsed/compressed size). For each entry note:
 Check if the same package appears at multiple versions (common with monorepos and conflicting peer dependencies):
 
 ```bash
-# Check for duplicate packages in node_modules
-find node_modules -name "package.json" -not -path "*/node_modules/*/node_modules/*" \
-  | xargs grep -l '"name"' 2>/dev/null \
+# Preferred: use npm/pnpm/yarn to report all resolved versions — this catches nested
+# hoisting conflicts that a flat node_modules scan would miss
+npm ls --all --json 2>/dev/null | node -e "
+const data = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+const seen = {};
+function walk(node, depth) {
+  if (!node || depth > 10) return;
+  if (node.name && node.version) {
+    if (!seen[node.name]) seen[node.name] = new Set();
+    seen[node.name].add(node.version);
+  }
+  for (const dep of Object.values(node.dependencies || {})) walk(dep, depth+1);
+}
+walk(data, 0);
+Object.entries(seen).filter(([,vs])=>vs.size>1)
+  .forEach(([n,vs])=>console.log(n+': '+[...vs].join(', ')));
+" 2>/dev/null | head -20
+
+# Fallback if npm ls is too slow: flat scan (note: excludes nested node_modules,
+# so it may miss hoisted duplicates — use npm ls output for authoritative results)
+find node_modules -maxdepth 2 -name "package.json" \
   | xargs node -e "
 const fs=require('fs');
 const map={};
@@ -169,13 +191,11 @@ process.argv.slice(1).forEach(f=>{
   try{
     const p=JSON.parse(fs.readFileSync(f,'utf8'));
     if(!map[p.name]) map[p.name]=[];
-    map[p.name].push({v:p.version,path:f});
+    map[p.name].push(p.version);
   }catch(e){}
 });
-Object.entries(map).filter(([,vs])=>vs.length>1).forEach(([n,vs])=>{
-  const total=vs.reduce((a,v)=>a+Number(v.v.split('.')[0]||0),0);
-  console.log(n+': '+vs.map(v=>v.v).join(', '));
-});
+Object.entries(map).filter(([,vs])=>vs.length>1)
+  .forEach(([n,vs])=>console.log(n+': '+vs.join(', ')));
 " 2>/dev/null | head -20
 ```
 
