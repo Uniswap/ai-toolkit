@@ -18,6 +18,7 @@ claude /plugin install development-codebase-tools
 | ---------------------- | -------------------------------------------------------------------------------------------- |
 | **analyze-code**       | Multi-agent code explanation for architecture, patterns, security, and performance           |
 | **analyze-tech-debt**  | Identify and prioritize technical debt with remediation plans                                |
+| **debug-issue**        | Systematic debugging workflow — from vague symptom to root cause analysis and validated fix  |
 | **diagram-excalidraw** | Generate Excalidraw architecture diagrams from codebase analysis                             |
 | **explore-codebase**   | Deep codebase exploration and understanding                                                  |
 | **refactor-code**      | Comprehensive refactoring with safety checks and pattern application                         |
@@ -54,6 +55,8 @@ claude /plugin install development-codebase-tools
 "Create an architecture diagram of this system"  # triggers diagram-excalidraw
 "What technical debt exists in this module?"     # triggers analyze-tech-debt
 "Run a type safety audit on this codebase"       # triggers strengthen-types
+"I'm getting a TypeError in the auth module"     # triggers debug-issue
+"This keeps crashing in production, help me fix it" # triggers debug-issue
 ```
 
 ## License
