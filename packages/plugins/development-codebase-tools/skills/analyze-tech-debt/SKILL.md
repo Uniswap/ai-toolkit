@@ -21,7 +21,7 @@ Identify, quantify, and prioritize technical debt with ROI-based remediation pla
 1. **Scope the target** — Identify which packages, modules, or files to analyze. If no scope is given, use the entire repository.
 2. **Collect code signals** — Use `Glob` and `Grep` to find: files over 500 lines, deeply nested code (≥4 levels of indentation), `TODO`/`FIXME`/`HACK` comments, and `any` types in TypeScript files.
 3. **Examine git history** — Run `git log --since="6 months ago" --format="%H %s" --stat` to identify high-churn files. Run `git log --oneline --grep="fix\|bug\|hotfix" -- <path>` on suspect files to spot chronic bug areas.
-4. **Assess test coverage** — Use `Glob("**/*.test.*")` and `Glob("**/*.spec.*")` to find test files. Cross-reference with source files to identify untested modules. Estimate coverage as (test file count / source file count) × 100.
+4. **Assess test presence** — Use `Glob("**/*.test.*")` and `Glob("**/*.spec.*")` to find test files. Cross-reference with source files to identify untested modules. Compute the test-to-source file ratio (test file count / source file count) as a proxy for testing density — not a statement of line coverage.
 5. **Score and prioritize each item** — Assign impact (hours/month lost), effort (hours to fix), and risk (critical/high/medium/low). Compute ROI = (monthly_impact × 12) / effort.
 6. **Write the report** — Output a Debt Metrics Dashboard followed by a Prioritized Roadmap. Categorize items as Quick Wins (high ROI, <4h effort), Medium-Term, or Long-Term.
 
@@ -73,9 +73,9 @@ files_over_500_lines:
 todo_fixme_count:
   total: 83
   hotspots: [src/payments/, src/legacy/]
-test_coverage_estimate:
+test_to_source_ratio:
   ratio: 45%
-  target: 80%
+  note: proxy for testing density, not line coverage
 ```
 
 ### Prioritized Roadmap
