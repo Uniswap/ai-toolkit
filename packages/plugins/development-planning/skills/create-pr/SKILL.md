@@ -20,7 +20,7 @@ Create or update pull requests with auto-generated conventional commits and desc
 ## Error Handling
 
 - **No changes / no commits ahead of target**: Stop and inform the user — there is nothing to submit
-- **PR already exists for this branch**: Switch to update mode; run `gh pr edit` or `gt submit` to push the latest commits
+- **PR already exists for this branch**: Switch to update mode; run `git push` to publish the latest commits (use `gt submit` for Graphite), then `gh pr edit` if the PR title or body also need updating
 - **User rejects commit message**: Re-generate with user-provided guidance, then confirm again before proceeding
 
 ## Conventional Commit Types
