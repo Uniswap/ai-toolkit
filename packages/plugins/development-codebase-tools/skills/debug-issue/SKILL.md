@@ -9,9 +9,9 @@ description: >-
   phrases include: "getting an error", "this crashes", "why is this failing", "help me fix this", "it broke",
   "not working", "exception thrown", "stack trace", "test is failing", "something is wrong with".
 allowed-tools: >-
-  Read, Glob, Grep, Bash(git log:*), Bash(git diff:*), Bash(git blame:*), Bash(git status:*),
+  Read, Glob, Grep, Edit, Write, Bash(git log:*), Bash(git diff:*), Bash(git blame:*), Bash(git status:*),
   Task(subagent_type:debug-assistant-agent)
-model: claude-opus-4-7
+model: opus
 ---
 
 # Debug Issue
