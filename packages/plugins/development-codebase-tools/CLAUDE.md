@@ -27,7 +27,7 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 - **context-loader-agent**: Read-only reconnaissance agent that discovers, reads, and summarizes a codebase area so other agents can implement or debug it correctly
 - **debug-assistant-agent**: Advanced debugging with root cause analysis
 - **pattern-learner-agent**: Extracts recurring conventions, architecture patterns, and project-specific idioms from a codebase
-- **performance-analyzer-agent**: Analyzes performance bottlenecks and optimization opportunities
+- **performance-analyzer-agent**: Analyzes performance bottlenecks and optimization opportunities. Uses `model: opus` for complex multi-step analysis; has `allowed-tools: Read, Glob, Grep, Bash` for file access and shell execution during profiling workflows.
 - **refactorer-agent**: Performs safe, incremental refactoring operations
 - **security-analyzer-agent**: Identifies security vulnerabilities and recommends fixes
 - **style-enforcer-agent**: Enforces code style and conventions
