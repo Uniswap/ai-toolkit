@@ -9,6 +9,7 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 ### Skills (./skills/)
 
 - **analyze-code**: Multi-agent code explanation for architecture, patterns, security, and performance
+- **analyze-dead-code**: Find unused exports, unreachable modules, and dead files with confidence-ranked removal guidance
 - **analyze-tech-debt**: Identify and prioritize technical debt with remediation plans
 - **debug-issue**: Systematic debugging workflow — accepts any error report (message, stack trace, or vague symptom), locates the origin, gathers context, invokes the debug-assistant-agent for root-cause analysis, and validates the fix
 - **diagram-excalidraw**: Generate Excalidraw architecture diagrams from codebase analysis
@@ -82,6 +83,7 @@ development-codebase-tools/
 │   └── plugin.json
 ├── skills/
 │   ├── analyze-code/
+│   ├── analyze-dead-code/
 │   ├── analyze-tech-debt/
 │   ├── debug-issue/
 │   ├── diagram-excalidraw/
