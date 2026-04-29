@@ -21,7 +21,7 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 
 ### Agents (./agents/)
 
-- **agent-orchestrator-agent**: Centralized agent orchestration and capability matching
+- **agent-orchestrator-agent**: Coordinates multiple AI agents for complex multi-step tasks; decomposes tasks into atomic units, matches each to the right specialist, and executes in parallel where possible
 - **code-explainer-agent**: Explains what code does, how it's structured, and why it's designed that way; delegates security/performance concerns to specialist agents
 - **code-generator-agent**: Generates production-ready code following patterns (delegates to test-writer-agent for tests)
 - **context-loader-agent**: Read-only reconnaissance agent that discovers, reads, and summarizes a codebase area so other agents can implement or debug it correctly
