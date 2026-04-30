@@ -62,7 +62,7 @@ graph LR
 2. **Install dependencies**:
 
    ```bash
-   npm install  # This also sets up git hooks automatically
+   bun install  # This also sets up git hooks automatically
    ```
 
 3. **Install development tools**:
@@ -150,10 +150,10 @@ After changes are merged to `main`, an automated workflow rebases `next` onto `m
 
    ```bash
    # Use Nx to explore the project structure
-   npx nx graph
+   bunx nx graph
 
    # List all projects
-   npx nx show projects
+   bunx nx show projects
    ```
 
 2. **Make focused changes**:
@@ -190,16 +190,16 @@ Before committing:
 
 ```bash
 # Format all files
-npm run format
+bun run format
 
 # Lint affected projects
-npx nx affected --target=lint --base=HEAD~1
+bunx nx affected --target=lint --base=HEAD~1
 
 # Fix auto-fixable lint issues
-npx nx affected --target=lint --base=HEAD~1 --fix
+bunx nx affected --target=lint --base=HEAD~1 --fix
 
 # Run type checking
-npx nx affected --target=typecheck --base=HEAD~1
+bunx nx affected --target=typecheck --base=HEAD~1
 ```
 
 These automatically happen via Lefthook on commit, but you can run them manually to ensure quality before committing, if you want!
@@ -220,16 +220,16 @@ LEFTHOOK=0 git commit -m "WIP: temporary commit"
 
 ```bash
 # Test affected projects
-npx nx affected --target=test --base=HEAD~1
+bunx nx affected --target=test --base=HEAD~1
 
 # Test specific package
-npx nx test package-name
+bunx nx test package-name
 
 # Test with coverage
-npx nx test package-name --coverage
+bunx nx test package-name --coverage
 
 # Run all tests
-npx nx run-many --target=test
+bunx nx run-many --target=test
 ```
 
 ### Writing Tests
@@ -297,7 +297,7 @@ Publishing happens automatically through GitHub Actions:
 
 ```bash
 # Create a new publishable library
-npx nx g @nx/js:lib packages/ai-toolkit-my-package \
+bunx nx g @nx/js:lib packages/ai-toolkit-my-package \
   --publishable \
   --importPath=@uniswap/ai-toolkit-my-package
 ```
@@ -327,7 +327,7 @@ npx nx g @nx/js:lib packages/ai-toolkit-my-package \
 
 ```bash
 # Create generator in ai-toolkit-nx-claude package
-npx nx generate @nx/plugin:generator my-generator \
+bunx nx generate @nx/plugin:generator my-generator \
   --project=ai-toolkit-nx-claude
 ```
 
@@ -393,19 +393,19 @@ git commit -m "feat(ai-toolkit-nx-claude)!: change generator API"
 
 ```bash
 # Visualize project graph
-npx nx graph
+bunx nx graph
 
 # Show affected projects
-npx nx affected:graph --base=main
+bunx nx affected:graph --base=main
 
 # Run command for all projects
-npx nx run-many --target=build
+bunx nx run-many --target=build
 
 # Run command for affected projects
-npx nx affected --target=test --base=main
+bunx nx affected --target=test --base=main
 
 # Reset Nx cache
-npx nx reset
+bunx nx reset
 ```
 
 We recommend you using the Nx Console IDE extension!
@@ -414,22 +414,22 @@ We recommend you using the Nx Console IDE extension!
 
 ```bash
 # Walkthrough the core of what we've built (for new contributors)
-npm run install-all
+bun run install-all
 
 # Format and lint everything
-npx nx format:write
-npx nx run-many --target=lint --fix
+bunx nx format:write
+bunx nx run-many --target=lint --fix
 
 # Build all packages
-npx nx run-many --target=build
+bunx nx run-many --target=build
 ```
 
 ### Debugging
 
 1. **Verbose output**: Add `--verbose` to Nx commands
-2. **Cache issues**: Run `npx nx reset`
-3. **Dependency issues**: Run `npm install` again
-4. **Git hook issues**: Check Lefthook with `npx lefthook run pre-commit`
+2. **Cache issues**: Run `bunx nx reset`
+3. **Dependency issues**: Run `bun install` again
+4. **Git hook issues**: Check Lefthook with `bunx lefthook run pre-commit`
 
 ## Getting Help
 
@@ -442,7 +442,7 @@ npx nx run-many --target=build
 ### Common Issues
 
 1. **Build failures**: Check Node version requirements
-2. **Test failures**: Run `npx nx reset` and try again
+2. **Test failures**: Run `bunx nx reset` and try again
 3. **Merge conflicts**: Rebase your branch on latest `next`
 
 ### Reporting Issues

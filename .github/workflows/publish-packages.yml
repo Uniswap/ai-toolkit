@@ -287,9 +287,12 @@ jobs:
 
             # Capture stdout (JSON) and stderr (warnings/banners) separately so any
             # extra noise on stderr can't contaminate the JSON parse below.
+            # The `|| NX_EXIT=$?` form is required because GitHub Actions runs
+            # bash with `-e`; a bare assignment would abort the step before
+            # `NX_EXIT=$?` could capture the failure code.
             NX_STDERR_LOG="$(mktemp)"
-            RAW_OUTPUT=$(bunx nx show projects --affected --base="$BASE_SHA" --head=HEAD --type=lib --json 2>"$NX_STDERR_LOG")
-            NX_EXIT=$?
+            NX_EXIT=0
+            RAW_OUTPUT=$(bunx nx show projects --affected --base="$BASE_SHA" --head=HEAD --type=lib --json 2>"$NX_STDERR_LOG") || NX_EXIT=$?
 
             if [ $NX_EXIT -ne 0 ]; then
               echo "::error::nx show projects failed (exit $NX_EXIT)"

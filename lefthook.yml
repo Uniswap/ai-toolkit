@@ -5,7 +5,7 @@ pre-commit:
   parallel: false # Changed to false to ensure commands run in order
   commands:
     update-lockfile:
-      run: sh scripts/lefthook/update-lockfile.sh
+      run: scripts/lefthook/update-lockfile.sh
       tags: lockfile
       skip:
         - merge
@@ -13,7 +13,7 @@ pre-commit:
       fail_text: 'Failed to update bun.lock. Please run bun install manually.'
 
     format:
-      run: sh scripts/lefthook/format-files.sh
+      run: scripts/lefthook/format-files.sh
       tags: format
       skip:
         - merge
@@ -21,7 +21,7 @@ pre-commit:
       fail_text: 'Formatting failed. Please review the changes.'
 
     lint:
-      run: sh scripts/lefthook/lint.sh
+      run: scripts/lefthook/lint.sh
       tags: lint
       skip:
         - merge
@@ -46,7 +46,7 @@ pre-commit:
 
     lint-markdown:
       glob: '*.md'
-      run: sh scripts/lefthook/lint-markdown.sh
+      run: scripts/lefthook/lint-markdown.sh
       tags: markdown
       skip:
         - merge

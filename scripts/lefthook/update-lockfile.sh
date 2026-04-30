@@ -33,7 +33,7 @@ fi
 
 if [ "$LOCKFILE_BEFORE" != "$LOCKFILE_AFTER" ]; then
   echo "✓ bun.lock was updated — preview of changes:"
-  git --no-pager diff --stat bun.lock || true
+  git --no-pager diff --stat bun.lock
   echo "→ Staging updated bun.lock"
   git add bun.lock
   echo "✓ bun.lock staged for commit"
