@@ -1,4 +1,5 @@
 #!/bin/bash
+set -uo pipefail
 
 echo "📝 Linting staged markdown files..."
 
@@ -10,8 +11,11 @@ if [ -z "$STAGED_MD_FILES" ]; then
   exit 0
 fi
 
-# Lint and fix markdown files (uses .markdownlint-cli2.jsonc config)
-echo "$STAGED_MD_FILES" | xargs npm exec markdownlint-cli2 -- --fix
+# Lint and fix markdown files (uses .markdownlint-cli2.jsonc config).
+# Capture the exit code so we still re-stage auto-fixed content even when
+# unfixable errors remain — but bail before re-staging if anything else
+# in the pipeline goes sideways.
+echo "$STAGED_MD_FILES" | xargs bunx markdownlint-cli2 --fix
 MD_EXIT_CODE=$?
 
 # Re-stage any auto-fixed files

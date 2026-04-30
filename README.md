@@ -22,7 +22,7 @@ Instead of each person at Uniswap manually configuring AI assistant behaviors fo
 
 Before working with this repository, ensure you have the following tools installed:
 
-- **Node.js 22+** with **npm 11.7.0** (`npm install -g npm@11.7.0`)
+- **Node.js 22+** and **Bun 1.3.12+** (`curl -fsSL https://bun.sh/install | bash`)
 
 ### Local Installation
 
@@ -32,7 +32,7 @@ git clone https://github.com/Uniswap/ai-toolkit
 cd ai-toolkit
 
 # Install all dependencies (also sets up git hooks automatically)
-npm install
+bun install
 ```
 
 ### Setup Claude Code Integration
@@ -63,10 +63,10 @@ The AI Toolkit provides plugins through the Claude Code Marketplace. To install,
 
 ```bash
 # Run the CLI to see available options
-npm run start
+bun run start
 
 # Install MCP server addons
-npx nx generate @uniswap/ai-toolkit-nx-claude:addons
+bunx nx generate @uniswap/ai-toolkit-nx-claude:addons
 ```
 
 ### Verify Installation
@@ -113,7 +113,7 @@ We welcome contributions from all developers! This project uses a **trunk-based 
    ```bash
    git clone https://github.com/Uniswap/ai-toolkit
    cd ai-toolkit
-   npm install  # Sets up everything including git hooks
+   bun install  # Sets up everything including git hooks
    ```
 
 2. **Install recommended tools**:
@@ -169,13 +169,13 @@ npx @uniswap/ai-toolkit-nx-claude@next
 To build the library use:
 
 ```sh
-npx nx build pkg1
+bunx nx build pkg1
 ```
 
 To run any task with Nx use:
 
 ```sh
-npx nx <target> <project-name>
+bunx nx <target> <project-name>
 ```
 
 These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or in the `nx` property of `package.json` files.
@@ -197,13 +197,13 @@ Nx automatically updates TypeScript [project references](https://www.typescriptl
 To manually trigger the process to sync the project graph dependencies information to the TypeScript project references, run the following command:
 
 ```sh
-npx nx sync
+bunx nx sync
 ```
 
 You can enforce that the TypeScript project references are always in the correct state when running in CI by adding a step to your CI job configuration that runs the following command:
 
 ```sh
-npx nx sync:check
+bunx nx sync:check
 ```
 
 [Learn more about nx sync](https://nx.dev/reference/nx-commands#sync)
