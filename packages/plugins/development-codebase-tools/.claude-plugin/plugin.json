@@ -1,6 +1,6 @@
 {
   "name": "development-codebase-tools",
-  "version": "2.2.0",
+  "version": "2.5.7",
   "description": "Codebase exploration, refactoring, and quality analysis",
   "author": {
     "name": "Uniswap Labs",
@@ -24,9 +24,11 @@
   "skills": [
     "./skills/analyze-code",
     "./skills/analyze-tech-debt",
+    "./skills/debug-issue",
     "./skills/diagram-excalidraw",
     "./skills/explore-codebase",
     "./skills/mermaid-diagram",
-    "./skills/refactor-code"
+    "./skills/refactor-code",
+    "./skills/strengthen-types"
   ]
 }

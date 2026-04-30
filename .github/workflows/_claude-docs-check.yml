@@ -211,7 +211,7 @@ jobs:
 
       # Initial checkout
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
           fetch-depth: 50
@@ -302,16 +302,16 @@ jobs:
       # Security: PR checkout may contain malicious config files (.npmrc, bunfig.toml)
       # that could redirect registries or execute code during tool setup.
       - name: Setup Node.js
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: "22"
+          node-version: "24"
 
       - name: Setup Bun (Early)
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
       # Checkout PR head
       - name: Checkout PR Head
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
           ref: ${{ steps.pr-info.outputs.head_sha }}
@@ -732,7 +732,7 @@ jobs:
       # Upload artifacts
       - name: Upload Docs Check Artifacts
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: docs-check-pr${{ inputs.pr_number }}
           path: |
@@ -842,7 +842,7 @@ jobs:
       # Security: Only allow auto-fix for same-repo PRs (not forks)
       - name: Checkout for Auto-Fix
         if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ${{ steps.pr-branch.outputs.repo_full_name }}
           ref: ${{ steps.pr-branch.outputs.branch_name }}

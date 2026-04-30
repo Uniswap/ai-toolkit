@@ -1082,13 +1082,13 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 Before:
 
 ```yaml
-- uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+- uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 ```
 
 After (if v4.2.3 is latest):
 
 ```yaml
-- uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.3
+- uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 ```
 
 **Manual Trigger:**
@@ -1567,7 +1567,7 @@ For reusable tools, publish as npm packages (e.g., `@uniswap/ai-toolkit-notion-p
 Always pin external actions to **specific commit hashes** with version comments:
 
 ```yaml
-- uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+- uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 ```
 
 Never use tags or branch names directly.

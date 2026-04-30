@@ -1,28 +1,35 @@
 ---
 description: Comprehensive code explanation and analysis. Use when user says "explain this file to me", "what does this code do", "analyze the security of this module", "review the performance of this function", or "help me understand this architecture".
 allowed-tools: Read, Grep, Glob, Bash(git show:*), Bash(git ls-files:*), Task(subagent_type:code-explainer-agent), Task(subagent_type:security-analyzer-agent), Task(subagent_type:performance-analyzer-agent), Task(subagent_type:context-loader-agent)
-model: sonnet
+model: opus
 ---
 
 # Code Analyzer
 
 Provide comprehensive code explanation through multi-agent analysis for architecture, patterns, security, and performance insights.
 
-## When to Activate
+## Execution Steps
 
-- User asks "what does this code do?"
-- User wants code explained
-- User asks about security or performance
-- User wants to understand patterns in code
-- Before making changes to unfamiliar code
+1. **Identify the target** — Extract the file path or module name from the user's request. If no target is specified, ask: "Which file or module would you like me to analyze?"
 
-## Quick Process
+2. **Verify the target exists** — Use `Read` or `Glob` to confirm the file exists. If it doesn't, report and stop: "Could not find `<path>`. Please check the path and try again."
 
-1. **Structure Analysis**: Understand architecture and patterns
-2. **Dependency Mapping**: Trace imports and dependencies
-3. **Risk Assessment**: Identify vulnerabilities and issues
-4. **Performance Analysis**: Evaluate complexity
-5. **Pattern Recognition**: Identify design patterns
+3. **Infer analysis depth** from the user's request:
+
+   - `overview` — request uses words like "quick", "summary", "briefly", "what does this do"
+   - `deep` — request mentions "security", "performance", "vulnerabilities", "thorough", "deep", "comprehensive"
+   - `architectural` — request mentions "architecture", "system", "how does this fit", "overall design"
+   - Default to `deep` when depth is ambiguous
+
+4. **Dispatch agents** based on depth:
+
+   - `overview`: spawn **code-explainer-agent** only; pass the file path and its contents
+   - `deep`: spawn **code-explainer-agent** + **security-analyzer-agent** + **performance-analyzer-agent** in parallel
+   - `architectural`: run **context-loader-agent** first to gather system-level context, then spawn **code-explainer-agent** + **security-analyzer-agent** + **performance-analyzer-agent** in parallel with that context
+
+5. **Synthesize results** — Combine agent outputs into a single structured report. Integrate and deduplicate findings; do not dump raw agent output.
+
+6. **Handle agent failures** — If an agent errors or returns empty output, note it in the report ("Security analysis unavailable") and continue with remaining results.
 
 ## Analysis Depth
 

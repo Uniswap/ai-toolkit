@@ -9,15 +9,19 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 ### Skills (./skills/)
 
 - **analyze-code**: Multi-agent code explanation for architecture, patterns, security, and performance
-- **analyze-tech-debt**: Identify and prioritize technical debt with remediation plans
+- **analyze-dead-code**: Find unused exports, unreachable modules, and dead files with confidence-ranked removal guidance
+- **analyze-tech-debt**: Identify and prioritize technical debt with remediation plans. Uses a structured 6-step execution process: scope the target, collect code signals (Glob/Grep for large files, nesting, TODO/FIXME/HACK, `any` types), examine git history (high-churn files via `git log`, chronic bug areas via `git blame`), assess test presence (test-to-source file ratio), score and prioritize items by ROI, and write a Debt Metrics Dashboard + Prioritized Roadmap. Allowed tools include `Bash(git blame:*)`.
+- **audit-accessibility**: Audit UI components for WCAG 2.1 AA compliance, identifying violations by severity with fix guidance
+- **debug-issue**: Systematic debugging workflow — accepts any error report (message, stack trace, or vague symptom), locates the origin, gathers context, invokes the debug-assistant-agent for root-cause analysis, and validates the fix
 - **diagram-excalidraw**: Generate Excalidraw architecture diagrams from codebase analysis
 - **mermaid-diagram**: Generate syntactically valid Mermaid.js diagrams (flowcharts, sequence, class, state, ER, Gantt, git)
 - **explore-codebase**: Deep codebase exploration with architectural understanding
 - **refactor-code**: Comprehensive refactoring with safety checks and pattern application
+- **strengthen-types**: Audit and harden TypeScript type safety — find `any`, unsafe casts, non-null assertions, and missing return types with severity-ranked findings and concrete fixes
 
 ### Agents (./agents/)
 
-- **agent-orchestrator-agent**: Centralized agent orchestration and capability matching
+- **agent-orchestrator-agent**: Coordinates multiple AI agents for complex multi-step tasks; decomposes tasks into atomic units, matches each to the right specialist, and executes in parallel where possible
 - **code-explainer-agent**: Explains what code does, how it's structured, and why it's designed that way; delegates security/performance concerns to specialist agents
 - **code-generator-agent**: Generates production-ready code following patterns (delegates to test-writer-agent for tests)
 - **context-loader-agent**: Read-only reconnaissance agent that discovers, reads, and summarizes a codebase area so other agents can implement or debug it correctly
@@ -80,11 +84,15 @@ development-codebase-tools/
 │   └── plugin.json
 ├── skills/
 │   ├── analyze-code/
+│   ├── analyze-dead-code/
 │   ├── analyze-tech-debt/
+│   ├── audit-accessibility/
+│   ├── debug-issue/
 │   ├── diagram-excalidraw/
 │   ├── mermaid-diagram/
 │   ├── explore-codebase/
-│   └── refactor-code/
+│   ├── refactor-code/
+│   └── strengthen-types/
 ├── agents/
 │   ├── agent-orchestrator.md
 │   ├── code-explainer.md

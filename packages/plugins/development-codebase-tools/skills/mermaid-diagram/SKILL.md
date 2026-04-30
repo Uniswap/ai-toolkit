@@ -1,11 +1,13 @@
 ---
 name: mermaid-diagram
 description: Generate syntactically valid Mermaid.js diagrams. Use when user says "create a mermaid diagram", "generate a flowchart", "draw a sequence diagram", "visualize with mermaid", "mermaid architecture diagram", "create a class diagram", "make a state diagram", "ER diagram", "Gantt chart", "gitGraph", or when generating any Mermaid code block in markdown. Also use when asked to fix or debug a broken Mermaid diagram.
+allowed-tools: []
+model: sonnet
 ---
 
 # Mermaid.js Diagram Generator
 
-Generate valid Mermaid.js diagrams that render without syntax errors on the first attempt.
+Generate valid Mermaid.js diagrams that render without syntax errors on the first attempt. When outputting a diagram, always wrap it in a fenced code block with the `mermaid` language tag.
 
 ## Syntax Rules
 
@@ -131,15 +133,15 @@ Trace through the diagram to confirm:
 
 ## Diagram Type Quick Reference
 
-| Type | Directive | Use For |
-|------|-----------|---------|
+| Type      | Directive                       | Use For                            |
+| --------- | ------------------------------- | ---------------------------------- |
 | Flowchart | `flowchart TD` / `flowchart LR` | Architecture, data flow, decisions |
-| Sequence | `sequenceDiagram` | API calls, request/response |
-| Class | `classDiagram` | Type relationships, OOP |
-| State | `stateDiagram-v2` | State machines, lifecycles |
-| ER | `erDiagram` | Database schemas, entities |
-| Gantt | `gantt` | Timelines, schedules |
-| Git | `gitGraph` | Branch strategies, merges |
+| Sequence  | `sequenceDiagram`               | API calls, request/response        |
+| Class     | `classDiagram`                  | Type relationships, OOP            |
+| State     | `stateDiagram-v2`               | State machines, lifecycles         |
+| ER        | `erDiagram`                     | Database schemas, entities         |
+| Gantt     | `gantt`                         | Timelines, schedules               |
+| Git       | `gitGraph`                      | Branch strategies, merges          |
 
 ## Common Patterns
 
@@ -170,3 +172,14 @@ sequenceDiagram
     D-->>S: Result
     S-->>C: 201 Created
 ```
+
+## Fixing Broken Diagrams
+
+When asked to fix a broken Mermaid diagram:
+
+1. **Identify the error type** — parse errors almost always come from one of: chained arrows, unquoted special characters, bare subgraph names, or HTML in labels.
+2. **Apply the relevant rules above** — check each rule against the broken code line by line.
+3. **Rewrite the offending lines** — fix only what is broken; preserve the diagram's intent.
+4. **Re-validate** using the checklist in Rule 9 before presenting the corrected diagram.
+
+If the diagram is structurally ambiguous (missing nodes, unclear relationships), ask one clarifying question before rewriting.
