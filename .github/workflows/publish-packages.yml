@@ -285,19 +285,32 @@ jobs:
             echo "🔍 Auto mode: detecting affected packages"
             echo "Running: bunx nx show projects --affected --base=$BASE_SHA --head=HEAD --type=lib --json"
 
-            # Capture output and check if it's valid JSON
-            RAW_OUTPUT=$(NODE_NO_WARNINGS=1 bunx nx show projects --affected --base="$BASE_SHA" --head=HEAD --type=lib --json 2>&1 || echo "[]")
+            # Capture stdout (JSON) and stderr (warnings/banners) separately so any
+            # extra noise on stderr can't contaminate the JSON parse below.
+            NX_STDERR_LOG="$(mktemp)"
+            RAW_OUTPUT=$(bunx nx show projects --affected --base="$BASE_SHA" --head=HEAD --type=lib --json 2>"$NX_STDERR_LOG")
+            NX_EXIT=$?
 
-            # Filter out npm warnings
-            AFFECTED_OUTPUT=$(echo "$RAW_OUTPUT" | grep -v '^npm warn' || echo "[]")
-
-            # Check if output is valid JSON
-            if echo "$AFFECTED_OUTPUT" | jq empty 2>/dev/null; then
-              AFFECTED_JSON="$AFFECTED_OUTPUT"
-            else
-              echo "⚠️  Nx output is not valid JSON. Using empty array as fallback"
-              AFFECTED_JSON="[]"
+            if [ $NX_EXIT -ne 0 ]; then
+              echo "::error::nx show projects failed (exit $NX_EXIT)"
+              echo "stderr:"
+              cat "$NX_STDERR_LOG"
+              rm -f "$NX_STDERR_LOG"
+              exit 1
             fi
+
+            if echo "$RAW_OUTPUT" | jq empty 2>/dev/null; then
+              AFFECTED_JSON="$RAW_OUTPUT"
+            else
+              echo "::error::nx returned non-JSON stdout — refusing to fall back to an empty release matrix"
+              echo "stdout:"
+              echo "$RAW_OUTPUT"
+              echo "stderr:"
+              cat "$NX_STDERR_LOG"
+              rm -f "$NX_STDERR_LOG"
+              exit 1
+            fi
+            rm -f "$NX_STDERR_LOG"
 
             # Filter to only publishable packages
             SELECTED_PROJECTS=""

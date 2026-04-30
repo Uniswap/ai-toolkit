@@ -22,7 +22,7 @@ Instead of each person at Uniswap manually configuring AI assistant behaviors fo
 
 Before working with this repository, ensure you have the following tools installed:
 
-- **Node.js 22+** with **npm 11.7.0** (`npm install -g npm@11.7.0`)
+- **Node.js 22+** and **Bun 1.3.12+** (`curl -fsSL https://bun.sh/install | bash`)
 
 ### Local Installation
 

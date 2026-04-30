@@ -16,7 +16,7 @@
  * and committed/pushed by the workflow. This bypasses suggestion_mode entirely.
  *
  * @usage
- *   npx tsx .github/scripts/post-docs-check.ts \
+ *   bunx tsx .github/scripts/post-docs-check.ts \
  *     --owner "Uniswap" \
  *     --repo "ai-toolkit" \
  *     --pr-number 123 \
@@ -25,7 +25,7 @@
  *     --response-file "/tmp/docs-check-response.json"
  *
  *   # With auto-commit:
- *   npx tsx .github/scripts/post-docs-check.ts \
+ *   bunx tsx .github/scripts/post-docs-check.ts \
  *     --owner "Uniswap" \
  *     --repo "ai-toolkit" \
  *     --pr-number 123 \

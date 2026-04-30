@@ -19,7 +19,7 @@
  *   19:    Fixed final (output guidance)
  *
  * @usage
- *   npx tsx .github/scripts/build-prompt.ts \
+ *   bunx tsx .github/scripts/build-prompt.ts \
  *     --prompt-dir ".github/prompts/pr-review" \
  *     --output "/tmp/final-prompt.txt" \
  *     --repo-owner "Uniswap" \
