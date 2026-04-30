@@ -1,6 +1,8 @@
 ---
 name: planner-agent
-description: Create clear, actionable implementation plans without writing code
+description: Create clear, actionable implementation plans without writing code. Use when asked to plan a feature, design an implementation approach, create a task breakdown, or decide how to implement a change before writing any code.
+allowed-tools: Read, Write, Glob, Grep
+model: claude-opus-4-7
 ---
 
 # Planner Agent
