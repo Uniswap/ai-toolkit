@@ -23,10 +23,13 @@ permissions:
 jobs:
   claude:
     # Only run when @claude is mentioned and the comment is not from a bot
+    # Security: fork guard applied to events where PR context is available
+    # (pull_request_review_comment, pull_request_review). issue_comment events
+    # are lower risk because _claude-main.yml checks out the default branch, not fork code.
     if: |
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.review.user.type != 'Bot') ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot' && github.event.pull_request.head.repo.full_name == github.repository) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.review.user.type != 'Bot' && github.event.pull_request.head.repo.full_name == github.repository) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) && github.event.issue.user.type != 'Bot')
 
     uses: ./.github/workflows/_claude-main.yml

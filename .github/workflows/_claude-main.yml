@@ -290,12 +290,18 @@ jobs:
       cancel-in-progress: true
 
     steps:
-      # FIXED: Security scanning with bullfrog
+      # FIXED: Security scanning with bullfrog — block mode prevents exfiltration
       # This step cannot be disabled or modified
       - name: Security scanning
         uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-domains: |
+            github.com
+            *.github.com
+            *.githubusercontent.com
+            api.anthropic.com
+          enable-sudo: false
 
       # FIXED: Checkout with consistent fetch depth
       - name: Checkout repository
