@@ -58,12 +58,12 @@ fi
 RELATIVE_PATH="${FILE_PATH#$WORKSPACE_ROOT/}"
 
 # Run prettier on the file (fast, file-based)
-if ! bunx prettier --write "$FILE_PATH" 2>> "$LOG_FILE"; then
+if ! npx prettier --write "$FILE_PATH" 2>> "$LOG_FILE"; then
   log "Warning: prettier failed for $FILE_PATH"
 fi
 
 # Run eslint on the file (file-based, quick feedback)
-if ! bunx eslint "$FILE_PATH" --fix --quiet 2>> "$LOG_FILE"; then
+if ! npx eslint "$FILE_PATH" --fix --quiet 2>> "$LOG_FILE"; then
   log "Warning: eslint failed for $FILE_PATH"
 fi
 
@@ -72,13 +72,13 @@ fi
 if echo "$FILE_PATH" | grep -qE '\.tsx?$'; then
   # Get the affected project(s) for this specific file
   # Use || true to prevent pipefail from exiting on nx errors
-  AFFECTED_PROJECT=$(bunx nx show projects --affected --files="$RELATIVE_PATH" 2>> "$LOG_FILE" | head -1 || true)
+  AFFECTED_PROJECT=$(npx nx show projects --affected --files="$RELATIVE_PATH" 2>> "$LOG_FILE" | head -1 || true)
 
   if [ -n "$AFFECTED_PROJECT" ]; then
     # Check if the project has a typecheck target
-    PROJECT_JSON=$(bunx nx show project "$AFFECTED_PROJECT" --json 2>> "$LOG_FILE" || true)
+    PROJECT_JSON=$(npx nx show project "$AFFECTED_PROJECT" --json 2>> "$LOG_FILE" || true)
     if echo "$PROJECT_JSON" | grep -q '"typecheck"'; then
-      if ! bunx nx run "$AFFECTED_PROJECT":typecheck 2>> "$LOG_FILE"; then
+      if ! npx nx run "$AFFECTED_PROJECT":typecheck 2>> "$LOG_FILE"; then
         log "Warning: typecheck failed for project $AFFECTED_PROJECT"
       fi
     fi

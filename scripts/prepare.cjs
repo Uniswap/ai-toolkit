@@ -3,7 +3,7 @@
 /**
  * Prepare script for the AI Toolkit monorepo.
  *
- * This script runs during bun install and sets up git hooks
+ * This script runs during npm install/ci and sets up git hooks
  * for local development. In CI environments, it skips hook installation
  * since hooks are not needed (and can cause errors with platform-specific binaries).
  */
@@ -17,7 +17,7 @@ if (process.env.CI) {
 
 try {
   console.log('Installing Lefthook git hooks...');
-  execSync('bunx lefthook install', { stdio: 'inherit' });
+  execSync('npx lefthook install', { stdio: 'inherit' });
   console.log('✅ Lefthook hooks installed successfully');
 } catch (error) {
   console.error('❌ Failed to install Lefthook hooks:', error.message);

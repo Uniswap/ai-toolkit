@@ -75,18 +75,18 @@ git commit -m "docs: update README"
 ./scripts/lefthook/lint-markdown.sh
 ```
 
-### update-lockfile.sh
+### update-package-lock.sh
 
-**Purpose**: Ensure bun.lock is up to date
+**Purpose**: Ensure package-lock.json is up to date
 
 **Execution**: Pre-commit hook
 
 **Behavior**:
 
-- Captures the bun.lock hash before running `bun install`
-- Runs `bun install` to refresh the lockfile
-- Stages bun.lock if its hash changed
-- Fails if `bun install` itself fails
+- Checks if package.json was modified
+- Verifies package-lock.json is in sync
+- Fails if package-lock.json is outdated
+- Provides command to regenerate lockfile
 
 **Usage**:
 
@@ -95,7 +95,7 @@ git commit -m "docs: update README"
 git commit -m "deps: update dependencies"
 
 # Manual execution
-./scripts/lefthook/update-lockfile.sh
+./scripts/lefthook/update-package-lock.sh
 ```
 
 ## Script Conventions
@@ -134,7 +134,7 @@ Scripts provide clear output:
 ```bash
 echo "✅ Formatting complete"
 echo "❌ Linting failed"
-echo "ℹ️  Run 'bun run lint:fix' to auto-fix"
+echo "ℹ️  Run 'npm run lint:fix' to auto-fix"
 ```
 
 ## Lefthook Configuration
@@ -151,8 +151,8 @@ pre-commit:
       run: ./scripts/lefthook/lint.sh
     lint-markdown:
       run: ./scripts/lefthook/lint-markdown.sh
-    update-lockfile:
-      run: ./scripts/lefthook/update-lockfile.sh
+    package-lock:
+      run: ./scripts/lefthook/update-package-lock.sh
 ```
 
 ## Development

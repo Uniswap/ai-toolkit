@@ -1148,7 +1148,7 @@ These workflows are prefixed with two `__` and are only used within this reposit
     - **Auto mode** (push to main/next): Detects affected packages via Nx, publishes with conventional/prerelease versioning, generates changelogs, sends Slack notifications
     - **Force mode** (manual workflow_dispatch): Publishes user-specified packages with prerelease versioning, useful for new packages or failed releases
   - Handles atomic versioning, npm publish with OIDC, git commit/tag push, and GitHub release creation
-  - **Lockfile sync**: Automatically updates `bun.lock` when package versions are bumped to keep workspace dependencies in sync
+  - **Lockfile sync**: Automatically updates `package-lock.json` when package versions are bumped to keep workspace dependencies in sync
   - **Workflow change detection**: Detects changes to reusable workflows (files prefixed with `_` in `.github/workflows/`). When workflow files change, the `next` branch is synced and Slack notifications are sent, even if no packages need publishing.
 
 ### Consumer Workflows
@@ -1323,13 +1323,6 @@ Version pinning is centralized using GitHub repository variables (`vars.*`):
   with:
     node-version: ${{ vars.NODE_VERSION }}
 
-- uses: oven-sh/setup-bun@<sha> # vX.Y.Z
-  with:
-    bun-version: '1.3.12'
-
-- run: bun install --frozen-lockfile
-
-# Publish job only (OIDC trusted publishing requires npm CLI):
 - run: npm install -g npm@${{ vars.NPM_VERSION }}
 ```
 

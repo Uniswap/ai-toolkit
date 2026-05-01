@@ -1,4 +1,4 @@
-#!/usr/bin/env bunx tsx
+#!/usr/bin/env npx tsx
 /**
  * Post Review Script
  *
@@ -18,27 +18,27 @@
  *
  * @usage
  *   # Full review mode (default)
- *   bunx tsx .github/scripts/post-review.ts \
+ *   npx tsx .github/scripts/post-review.ts \
  *     --owner "Uniswap" \
  *     --repo "ai-toolkit" \
  *     --pr-number 123
  *
  *   # In-progress mode (no JSON needed)
- *   bunx tsx .github/scripts/post-review.ts \
+ *   npx tsx .github/scripts/post-review.ts \
  *     --mode in-progress \
  *     --owner "Uniswap" \
  *     --repo "ai-toolkit" \
  *     --pr-number 123
  *
  *   # Skipped mode (cache hit, no JSON needed)
- *   bunx tsx .github/scripts/post-review.ts \
+ *   npx tsx .github/scripts/post-review.ts \
  *     --mode skipped \
  *     --owner "Uniswap" \
  *     --repo "ai-toolkit" \
  *     --pr-number 123
  *
  *   # Too large mode (PR diff exceeds threshold)
- *   bunx tsx .github/scripts/post-review.ts \
+ *   npx tsx .github/scripts/post-review.ts \
  *     --mode too-large \
  *     --owner "Uniswap" \
  *     --repo "ai-toolkit" \

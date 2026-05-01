@@ -1,8 +1,0 @@
-[install]
-# Minimum 3-day age for new package versions (supply chain defense)
-# Versions published less than 3 days ago are filtered out during install/update.
-# Value is in seconds: 3 days = 259200 seconds
-minimumReleaseAge = 259200
-
-[install.scopes]
-"@uniswap" = { url = "https://registry.npmjs.org/" }

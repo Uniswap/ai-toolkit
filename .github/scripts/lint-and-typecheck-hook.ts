@@ -1,4 +1,4 @@
-#!/usr/bin/env bunx tsx
+#!/usr/bin/env npx tsx
 /**
  * Claude Code PostToolUse Hook: Lint and Typecheck
  *
@@ -14,7 +14,7 @@
  *         "matcher": "Write|Edit",
  *         "hooks": [{
  *           "type": "command",
- *           "command": "bunx tsx .github/scripts/lint-and-typecheck-hook.ts"
+ *           "command": "npx tsx .github/scripts/lint-and-typecheck-hook.ts"
  *         }]
  *       }]
  *     }
@@ -39,7 +39,7 @@
  *
  * @environment
  *   No special environment variables required.
- *   Assumes bunx, eslint, and typescript are available in the project.
+ *   Assumes npx, eslint, and typescript are available in the project.
  */
 
 import { execSync, type ExecSyncOptions } from 'node:child_process';
@@ -224,7 +224,7 @@ function lintFile(filePath: string, projectRoot: string): LintResult {
 
   // Use ESLint directly on the specific file
   // The --format option outputs machine-readable JSON
-  const command = `bunx eslint "${filePath}" --format json --no-error-on-unmatched-pattern`;
+  const command = `npx eslint "${filePath}" --format json --no-error-on-unmatched-pattern`;
 
   const result = execCommand(command, projectRoot);
 
@@ -288,7 +288,7 @@ function lintFile(filePath: string, projectRoot: string): LintResult {
  */
 function findNxProject(filePath: string, projectRoot: string): string | null {
   // Use Nx to find the project for this file
-  const command = `bunx nx show project --file="${filePath}" 2>/dev/null || true`;
+  const command = `npx nx show project --file="${filePath}" 2>/dev/null || true`;
 
   const result = execCommand(command, projectRoot);
 
@@ -333,7 +333,7 @@ function typecheckProject(
   if (nxProject) {
     log(`Found Nx project: ${nxProject}`);
     // Run typecheck target on the specific project
-    command = `bunx nx run ${nxProject}:typecheck --skip-nx-cache 2>&1 || true`;
+    command = `npx nx run ${nxProject}:typecheck --skip-nx-cache 2>&1 || true`;
   } else {
     // Fallback: run tsc on the file's directory
     log(`No Nx project found, using tsc directly`);
@@ -356,7 +356,7 @@ function typecheckProject(
     }
 
     // Run tsc with noEmit to just check types
-    command = `bunx tsc --noEmit --project "${tsconfigPath}" 2>&1 | grep -E "${fileName}" || true`;
+    command = `npx tsc --noEmit --project "${tsconfigPath}" 2>&1 | grep -E "${fileName}" || true`;
   }
 
   const result = execCommand(command, projectRoot);

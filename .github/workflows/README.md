@@ -17,7 +17,7 @@ Workflows that run automated checks on pull requests and commits.
 
 - **ci-pr-checks.yml**:
 
-  - Verifies `bun.lock` is up to date
+  - Verifies `package-lock.json` is up to date
   - Runs affected Nx targets only (build, lint, format, test)
   - Runs tests with coverage in parallel
   - Uses Nx's affected commands for efficiency

@@ -1,4 +1,4 @@
-#!/usr/bin/env bunx tsx
+#!/usr/bin/env npx tsx
 /**
  * Post Docs Check Script
  *
@@ -16,7 +16,7 @@
  * and committed/pushed by the workflow. This bypasses suggestion_mode entirely.
  *
  * @usage
- *   bunx tsx .github/scripts/post-docs-check.ts \
+ *   npx tsx .github/scripts/post-docs-check.ts \
  *     --owner "Uniswap" \
  *     --repo "ai-toolkit" \
  *     --pr-number 123 \
@@ -25,7 +25,7 @@
  *     --response-file "/tmp/docs-check-response.json"
  *
  *   # With auto-commit:
- *   bunx tsx .github/scripts/post-docs-check.ts \
+ *   npx tsx .github/scripts/post-docs-check.ts \
  *     --owner "Uniswap" \
  *     --repo "ai-toolkit" \
  *     --pr-number 123 \

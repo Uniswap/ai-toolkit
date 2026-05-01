@@ -1,4 +1,4 @@
-#!/usr/bin/env bunx tsx
+#!/usr/bin/env npx tsx
 /**
  * Build Prompt Script
  *
@@ -19,7 +19,7 @@
  *   19:    Fixed final (output guidance)
  *
  * @usage
- *   bunx tsx .github/scripts/build-prompt.ts \
+ *   npx tsx .github/scripts/build-prompt.ts \
  *     --prompt-dir ".github/prompts/pr-review" \
  *     --output "/tmp/final-prompt.txt" \
  *     --repo-owner "Uniswap" \
