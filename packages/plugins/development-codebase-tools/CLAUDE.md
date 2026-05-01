@@ -8,6 +8,7 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 
 ### Skills (./skills/)
 
+- **analyze-bundle**: Analyze web application bundle size — identify heaviest modules, tree-shaking gaps, duplicate packages, and code-splitting opportunities
 - **analyze-code**: Multi-agent code explanation for architecture, patterns, security, and performance
 - **analyze-dead-code**: Find unused exports, unreachable modules, and dead files with confidence-ranked removal guidance
 - **analyze-migrations**: Statically analyze database migration files for safety issues (locks, data loss, missing rollbacks)
@@ -84,6 +85,7 @@ development-codebase-tools/
 ├── .claude-plugin/
 │   └── plugin.json
 ├── skills/
+│   ├── analyze-bundle/
 │   ├── analyze-code/
 │   ├── analyze-dead-code/
 │   ├── analyze-migrations/

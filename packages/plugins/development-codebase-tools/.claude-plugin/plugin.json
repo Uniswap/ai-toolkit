@@ -22,9 +22,12 @@
     "./agents/style-enforcer.md"
   ],
   "skills": [
+    "./skills/analyze-bundle",
     "./skills/analyze-code",
+    "./skills/analyze-dead-code",
     "./skills/analyze-migrations",
     "./skills/analyze-tech-debt",
+    "./skills/audit-accessibility",
     "./skills/debug-issue",
     "./skills/diagram-excalidraw",
     "./skills/explore-codebase",
