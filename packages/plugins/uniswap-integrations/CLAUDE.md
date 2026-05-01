@@ -10,6 +10,7 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 
 - **daily-standup**: Generate daily standup reports from GitHub and Linear activity
 - **github-setup**: Configure GitHub Personal Access Token for the GitHub MCP server
+- **investigate-incident**: Investigate production incidents using Datadog logs, metrics, and traces
 - **orchestrate-deployment**: Orchestrate deployment pipelines with CI/CD configuration
 - **refine-linear-task**: Refine and enhance Linear task descriptions
 
@@ -102,6 +103,7 @@ uniswap-integrations/
 ├── skills/
 │   ├── daily-standup/
 │   ├── github-setup/
+│   ├── investigate-incident/
 │   ├── orchestrate-deployment/
 │   └── refine-linear-task/
 ├── agents/
