@@ -27,6 +27,7 @@
     "./skills/analyze-dead-code",
     "./skills/analyze-migrations",
     "./skills/analyze-tech-debt",
+    "./skills/analyze-test-coverage",
     "./skills/audit-accessibility",
     "./skills/debug-issue",
     "./skills/diagram-excalidraw",

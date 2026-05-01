@@ -14,20 +14,21 @@ claude /plugin install development-codebase-tools
 
 ## Skills
 
-| Skill                   | Description                                                                                                                 |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| **analyze-bundle**      | Analyze web application bundle size — heaviest modules, tree-shaking gaps, duplicate packages, code-splitting opportunities |
-| **analyze-code**        | Multi-agent code explanation for architecture, patterns, security, and performance                                          |
-| **analyze-dead-code**   | Find unused exports, unreachable modules, and dead files with confidence-ranked removal guidance                            |
-| **analyze-migrations**  | Static safety analysis of database migration files (locks, data loss, rollback gaps)                                        |
-| **analyze-tech-debt**   | Identify and prioritize technical debt with remediation plans                                                               |
-| **audit-accessibility** | Audit UI components for WCAG 2.1 AA compliance with severity-grouped violations                                             |
-| **debug-issue**         | Systematic debugging workflow — from vague symptom to root cause analysis and validated fix                                 |
-| **diagram-excalidraw**  | Generate Excalidraw architecture diagrams from codebase analysis                                                            |
-| **explore-codebase**    | Deep codebase exploration and understanding                                                                                 |
-| **mermaid-diagram**     | Generate Mermaid diagrams from codebase analysis                                                                            |
-| **refactor-code**       | Comprehensive refactoring with safety checks and pattern application                                                        |
-| **strengthen-types**    | Audit and harden TypeScript type safety — find `any`, unsafe casts, and missing return types                                |
+| Skill                     | Description                                                                                                                 |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| **analyze-bundle**        | Analyze web application bundle size — heaviest modules, tree-shaking gaps, duplicate packages, code-splitting opportunities |
+| **analyze-code**          | Multi-agent code explanation for architecture, patterns, security, and performance                                          |
+| **analyze-dead-code**     | Find unused exports, unreachable modules, and dead files with confidence-ranked removal guidance                            |
+| **analyze-migrations**    | Static safety analysis of database migration files (locks, data loss, rollback gaps)                                        |
+| **analyze-tech-debt**     | Identify and prioritize technical debt with remediation plans                                                               |
+| **analyze-test-coverage** | Measure test coverage gaps and produce a prioritized list of what to test next                                              |
+| **audit-accessibility**   | Audit UI components for WCAG 2.1 AA compliance with severity-grouped violations                                             |
+| **debug-issue**           | Systematic debugging workflow — from vague symptom to root cause analysis and validated fix                                 |
+| **diagram-excalidraw**    | Generate Excalidraw architecture diagrams from codebase analysis                                                            |
+| **explore-codebase**      | Deep codebase exploration and understanding                                                                                 |
+| **mermaid-diagram**       | Generate Mermaid diagrams from codebase analysis                                                                            |
+| **refactor-code**         | Comprehensive refactoring with safety checks and pattern application                                                        |
+| **strengthen-types**      | Audit and harden TypeScript type safety — find `any`, unsafe casts, and missing return types                                |
 
 ## Agents
 
@@ -59,6 +60,7 @@ claude /plugin install development-codebase-tools
 "How does the authentication system work?"       # triggers explore-codebase
 "Create an architecture diagram of this system"  # triggers diagram-excalidraw
 "What technical debt exists in this module?"     # triggers analyze-tech-debt
+"What's our test coverage? Where should we focus?"  # triggers analyze-test-coverage
 "Run a type safety audit on this codebase"       # triggers strengthen-types
 "I'm getting a TypeError in the auth module"     # triggers debug-issue
 "This keeps crashing in production, help me fix it" # triggers debug-issue
