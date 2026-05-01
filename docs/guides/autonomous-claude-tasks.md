@@ -60,7 +60,7 @@ on:
         type: choice
         options:
           - 'claude-sonnet-4-6'
-          - 'claude-opus-4-6'
+          - 'claude-opus-4-7'
         default: 'claude-sonnet-4-6'
       target_branch:
         description: 'Branch to create PRs against'
@@ -143,7 +143,7 @@ See the full example at `.github/workflows/examples/11-autonomous-linear-tasks.y
 | Model               | Best For                                  |
 | ------------------- | ----------------------------------------- |
 | `claude-sonnet-4-6` | Balance of speed and capability (default) |
-| `claude-opus-4-6`   | Complex tasks requiring deep reasoning    |
+| `claude-opus-4-7`   | Complex tasks requiring deep reasoning    |
 | `claude-haiku-4-5`  | Simple tasks, cost optimization           |
 
 ## Creating Good Task Descriptions
@@ -213,7 +213,7 @@ Trigger manually from the GitHub Actions UI or CLI:
 gh workflow run claude-auto-tasks.yml \
   -f linear_team="Your Team" \
   -f max_issues="5" \
-  -f model="claude-opus-4-6"
+  -f model="claude-opus-4-7"
 ```
 
 ## Monitoring
