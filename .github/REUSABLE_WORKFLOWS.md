@@ -334,7 +334,7 @@ jobs:
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     with:
-      model: 'claude-opus-4-6'
+      model: 'claude-opus-4-7'
       timeout_minutes: '15' # Opus may need more time
 ```
 
@@ -423,7 +423,7 @@ jobs:
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     with:
-      model: 'claude-opus-4-6'
+      model: 'claude-opus-4-7'
       timeout_minutes: '15'
 ```
 
@@ -619,7 +619,7 @@ jobs:
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     with:
-      model: 'claude-opus-4-6'
+      model: 'claude-opus-4-7'
       timeout_minutes: '15'
 ```
 
@@ -640,7 +640,7 @@ claude-deep:
     contains(github.event.pull_request.labels.*.name, 'deep-analysis') &&
     # ... (rest of if condition)
   with:
-    model: 'claude-opus-4-6'
+    model: 'claude-opus-4-7'
 ```
 
 #### Integration with Other Workflows
@@ -1117,7 +1117,7 @@ jobs:
       pr_number: ${{ github.event.pull_request.number }}
       base_ref: ${{ github.base_ref }}
       # Use Opus for PRs with 'claude-opus' label, otherwise Sonnet
-      model: ${{ contains(github.event.pull_request.labels.*.name, 'claude-opus') && 'claude-opus-4-6' || 'claude-sonnet-4-6' }}
+      model: ${{ contains(github.event.pull_request.labels.*.name, 'claude-opus') && 'claude-opus-4-7' || 'claude-sonnet-4-6' }}
       max_turns: 20 # Allow more turns for thorough Opus reviews
       timeout_minutes: 45 # Longer timeout for complex reviews
     secrets:
@@ -1596,7 +1596,7 @@ jobs:
     with:
       pr_number: ${{ github.event.pull_request.number }}
       base_ref: ${{ github.base_ref }}
-      model: 'claude-opus-4-6'
+      model: 'claude-opus-4-7'
       custom_prompt_path: '.github/prompts/security-review.md'
       timeout_minutes: 60
     secrets:
