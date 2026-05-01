@@ -1029,20 +1029,22 @@ jobs:
             if npm view "$package" version --registry=https://registry.npmjs.org &>/dev/null; then
               NPM_VERSION=$(npm view "$package" version --registry=https://registry.npmjs.org 2>/dev/null || echo "unknown")
               echo "📦 Status: EXISTING package (current: $NPM_VERSION)"
-
-              if npx nx release publish --projects="$project" --tag="$INPUT_NPM_TAG" --registry=https://registry.npmjs.org --verbose; then
-                PUBLISH_SUCCESS=true
-              else
-                PUBLISH_SUCCESS=false
-              fi
             else
               echo "🆕 Status: NEW package"
+            fi
 
-              if npx nx release publish --projects="$project" --first-release --tag="$INPUT_NPM_TAG" --registry=https://registry.npmjs.org --verbose; then
-                PUBLISH_SUCCESS=true
-              else
-                PUBLISH_SUCCESS=false
-              fi
+            # Invoke `npm publish` directly (rather than `nx release publish`) so npm OIDC
+            # trusted publishing works. Nx's release-publish executor honors the workspace
+            # `packageManager` field and routes through `bun publish`, which does not
+            # implement the npm OIDC token exchange.
+            PROJECT_ROOT=$(bunx nx show project "$project" --json | jq -r '.root')
+            if [ -z "$PROJECT_ROOT" ] || [ "$PROJECT_ROOT" = "null" ]; then
+              echo "❌ Could not resolve project root for $project"
+              PUBLISH_SUCCESS=false
+            elif (cd "$PROJECT_ROOT" && npm publish --tag="$INPUT_NPM_TAG" --registry=https://registry.npmjs.org); then
+              PUBLISH_SUCCESS=true
+            else
+              PUBLISH_SUCCESS=false
             fi
 
             if [ "$PUBLISH_SUCCESS" = true ]; then
