@@ -18,6 +18,7 @@ claude /plugin install development-codebase-tools
 | ----------------------- | ------------------------------------------------------------------------------------------------ |
 | **analyze-code**        | Multi-agent code explanation for architecture, patterns, security, and performance               |
 | **analyze-dead-code**   | Find unused exports, unreachable modules, and dead files with confidence-ranked removal guidance |
+| **analyze-migrations**  | Static safety analysis of database migration files (locks, data loss, rollback gaps)             |
 | **analyze-tech-debt**   | Identify and prioritize technical debt with remediation plans                                    |
 | **audit-accessibility** | Audit UI components for WCAG 2.1 AA compliance with severity-grouped violations                  |
 | **debug-issue**         | Systematic debugging workflow — from vague symptom to root cause analysis and validated fix      |
@@ -59,9 +60,10 @@ claude /plugin install development-codebase-tools
 "Run a type safety audit on this codebase"       # triggers strengthen-types
 "I'm getting a TypeError in the auth module"     # triggers debug-issue
 "This keeps crashing in production, help me fix it" # triggers debug-issue
-"Find all dead code and unused exports"          # triggers analyze-dead-code
-"Check accessibility in src/components"          # triggers audit-accessibility
-"Find WCAG violations in LoginForm.tsx"          # triggers audit-accessibility
+"Find all dead code and unused exports"           # triggers analyze-dead-code
+"Check accessibility in src/components"           # triggers audit-accessibility
+"Find WCAG violations in LoginForm.tsx"           # triggers audit-accessibility
+"Are these migrations safe to run in production?" # triggers analyze-migrations
 ```
 
 ## License

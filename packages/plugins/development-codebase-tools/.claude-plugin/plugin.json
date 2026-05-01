@@ -23,6 +23,7 @@
   ],
   "skills": [
     "./skills/analyze-code",
+    "./skills/analyze-migrations",
     "./skills/analyze-tech-debt",
     "./skills/debug-issue",
     "./skills/diagram-excalidraw",
