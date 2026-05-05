@@ -94,7 +94,7 @@
     ],
     "projectsRelationship": "independent",
     "version": {
-      "preVersionCommand": "npx nx affected -t build",
+      "preVersionCommand": "bunx nx affected -t build",
       "conventionalCommits": true,
       "fallbackCurrentVersionResolver": "disk",
       "git": {

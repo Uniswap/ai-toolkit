@@ -1,8 +1,8 @@
 ---
 name: execute-plan-agent
-description: Execute implementation plans step-by-step. Bridge agent that ensures both Task and Skill invocations of execute-plan work correctly.
+description: Execute implementation plans step-by-step. Use when user says "execute the plan", "implement the plan we created", "start building based on the plan", "go ahead and implement it", "proceed with the implementation", "execute as a stack", "create a PR stack while implementing", "implement with one PR per step", or references a plan file and wants to begin coding.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*), Bash(gt:*), Bash(npx:*), Task(subagent_type:test-writer-agent), Task(subagent_type:documentation-agent), Task(subagent_type:pr-creator-agent), Task(subagent_type:commit-message-generator-agent)
-model: opus
+model: claude-opus-4-7
 ---
 
 # Execute Plan Agent

@@ -48,10 +48,15 @@ concurrency:
 
 jobs:
   docs-check:
-    # Skip if PR is from a bot (e.g., dependabot)
+    # Skip bots and fork PRs (fork code is attacker-controlled)
+    # workflow_dispatch fork check is handled inside _claude-docs-check.yml
     if: |
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' && !contains(github.event.pull_request.user.login, '[bot]'))
+      (
+        github.event_name == 'pull_request' &&
+        !contains(github.event.pull_request.user.login, '[bot]') &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      )
     permissions:
       id-token: write
       contents: write

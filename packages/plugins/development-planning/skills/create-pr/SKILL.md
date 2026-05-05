@@ -8,22 +8,20 @@ model: opus
 
 Create or update pull requests with auto-generated conventional commits and descriptions. Supports both standard Git + GitHub CLI (default) and Graphite workflows.
 
-## When to Activate
-
-- User wants to create a PR
-- Changes ready for review
-- User says "submit" or "push for review"
-- PR update needed
-- User mentions PR creation, GitHub, or Graphite
-
 ## What It Does
 
-1. **Analyze Diff**: Compare current branch to target
-2. **Detect Change Type**: feat, fix, refactor, etc.
-3. **Generate Commit**: Create conventional commit (with user confirmation)
+1. **Analyze Diff**: Run `git diff origin/<target>...HEAD` to inspect all changed files
+2. **Detect Change Type**: Classify as feat, fix, refactor, etc. based on the diff
+3. **Generate Commit**: Use `commit-message-generator-agent` to draft a conventional commit message, then ask user to confirm before staging/committing
 4. **Create PR Title**: `<type>(<scope>): <description>`
-5. **Write Description**: Comprehensive PR body
-6. **Submit**: Use `gt submit` or `gh pr create`
+5. **Write Description**: Comprehensive PR body (summary, modified files, testing notes, linked issues)
+6. **Submit**: Use `gt submit` (Graphite) or `gh pr create` (default)
+
+## Error Handling
+
+- **No changes / no commits ahead of target**: Stop and inform the user — there is nothing to submit
+- **PR already exists for this branch**: Switch to update mode; run `git push` to publish the latest commits (use `gt submit` for Graphite), then `gh pr edit` if the PR title or body also need updating
+- **User rejects commit message**: Re-generate with user-provided guidance, then confirm again before proceeding
 
 ## Conventional Commit Types
 

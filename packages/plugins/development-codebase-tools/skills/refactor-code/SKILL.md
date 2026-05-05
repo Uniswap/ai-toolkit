@@ -1,20 +1,12 @@
 ---
 description: Refactor code with safety checks and pattern application. Use when user says "refactor this code", "clean up this function", "simplify this logic", "extract this into a separate function", "apply the strategy pattern here", "reduce the complexity of this module", or "reorganize this file structure".
-allowed-tools: Read, Grep, Bash(git diff:*), Bash(git show:*), Task(subagent_type:refactorer-agent), Task(subagent_type:style-enforcer-agent), Task(subagent_type:code-explainer-agent), Task(subagent_type:test-writer-agent), Task(subagent_type:agent-orchestrator-agent)
+allowed-tools: Read, Edit, Write, Grep, TodoWrite, Bash(git diff:*), Bash(git show:*), Task(subagent_type:refactorer-agent), Task(subagent_type:style-enforcer-agent), Task(subagent_type:code-explainer-agent), Task(subagent_type:test-writer-agent), Task(subagent_type:agent-orchestrator-agent)
+model: claude-opus-4-6
 ---
 
 # Code Refactorer
 
 Orchestrate sophisticated refactoring through multi-agent coordination with safety checks.
-
-## When to Activate
-
-- User wants to refactor code
-- Code complexity needs reduction
-- Design patterns should be applied
-- Technical debt cleanup needed
-- Code structure improvements requested
-- User mentions "clean up", "simplify", or "improve"
 
 ## Refactoring Strategies
 
@@ -24,13 +16,19 @@ Orchestrate sophisticated refactoring through multi-agent coordination with safe
 | **Aggressive**     | Medium | Comprehensive restructuring with tests |
 | **Architectural**  | High   | System-wide pattern application        |
 
-## Quick Process
+## Execution Steps
 
-1. **Analyze**: Understand current structure and issues
-2. **Identify**: Detect applicable design patterns
-3. **Plan**: Create incremental, safe transformations
-4. **Validate**: Ensure behavior preservation
-5. **Test**: Generate tests for refactored code
+1. **Understand scope** — Read the target file(s). Run `git diff HEAD` to see any uncommitted state. Use `code-explainer-agent` if the codebase context is complex.
+2. **Create a task plan** — Use TodoWrite to list the refactoring tasks before starting.
+3. **Dispatch refactorer-agent** — Pass:
+   - `paths`: file(s) or globs to refactor
+   - `goals`: e.g., `["readability", "maintainability"]` (or user-specified goal from Goals table below)
+   - `refactor_depth`: `"surface"` | `"moderate"` | `"deep"` based on strategy
+   - `risk_tolerance`: `"low"` | `"medium"` | `"high"` matching the strategy
+4. **Apply patches** — Write the refactored code to disk using the patches returned by refactorer-agent. Apply incrementally — one logical change at a time.
+5. **Enforce style** — Dispatch `style-enforcer-agent` on the modified files.
+6. **Validate** — Run `git diff HEAD` to review the final changes. Confirm behavior is preserved.
+7. **Generate tests** (if not already covered) — Dispatch `test-writer-agent` to add regression tests for refactored code.
 
 ## Goals
 

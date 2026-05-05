@@ -105,6 +105,7 @@ jobs:
       head_ref: ${{ steps.pr-info.outputs.head_ref }}
       pr_number: ${{ steps.pr-info.outputs.pr_number }}
       should_run: ${{ steps.pr-info.outputs.should_run }}
+      is_fork: ${{ steps.pr-info.outputs.is_fork }}
     steps:
       - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
 
@@ -183,7 +184,17 @@ jobs:
           echo "base_ref=$BASE_REF" >> $GITHUB_OUTPUT
           echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
 
-          echo "✅ PR #$PR_NUMBER: base=$BASE_REF, head=$HEAD_REF"
+          # Security: detect fork PRs to prevent untrusted code execution
+          HEAD_REPO=$(echo "$PR_DATA" | jq -r '.head.repo.full_name')
+          BASE_REPO=$(echo "$PR_DATA" | jq -r '.base.repo.full_name')
+          if [ "$HEAD_REPO" != "$BASE_REPO" ]; then
+            echo "is_fork=true" >> $GITHUB_OUTPUT
+            echo "⚠️  Fork PR detected: $HEAD_REPO → $BASE_REPO"
+          else
+            echo "is_fork=false" >> $GITHUB_OUTPUT
+          fi
+
+          echo "✅ PR #$PR_NUMBER: base=$BASE_REF, head=$HEAD_REF, fork=$( [ "$HEAD_REPO" != "$BASE_REPO" ] && echo 'yes' || echo 'no' )"
 
   # Automatic review triggered by pull_request events (opened, synchronize, ready_for_review)
   # Skips certain automated PRs but reviews dependency updates (for auto-merge support)
@@ -193,6 +204,7 @@ jobs:
     needs: check-automated
     if: |
       github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
       (
         needs.check-automated.outputs.is_automated != 'true' ||
         needs.check-automated.outputs.category == 'deps'
@@ -263,7 +275,8 @@ jobs:
     needs: get-pr-info
     if: |
       github.event_name == 'workflow_dispatch' &&
-      needs.get-pr-info.outputs.should_run == 'true'
+      needs.get-pr-info.outputs.should_run == 'true' &&
+      needs.get-pr-info.outputs.is_fork != 'true'
     permissions:
       id-token: write
       contents: write
@@ -295,7 +308,8 @@ jobs:
     needs: get-pr-info
     if: |
       (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
-      needs.get-pr-info.outputs.should_run == 'true'
+      needs.get-pr-info.outputs.should_run == 'true' &&
+      needs.get-pr-info.outputs.is_fork != 'true'
     permissions:
       id-token: write
       contents: write
