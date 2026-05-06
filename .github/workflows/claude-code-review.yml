@@ -227,12 +227,12 @@ jobs:
       force_review: false
       max_diff_lines: ${{ fromJSON(vars.MAX_DIFF_LINES) }}
 
-      # Use Opus 4.6 for comprehensive reviews with reliable inline comments
+      # Use Opus 4.7 for comprehensive reviews with reliable inline comments
       # Opus is more capable at following complex multi-step instructions
       # Uncomment one of these to use a different model for reviews:
       # model: 'claude-haiku-4-5'
       # model: 'claude-sonnet-4-6'
-      model: "claude-opus-4-6"
+      model: "claude-opus-4-7"
 
       # Allow standard review conversation turns
       # max_turns: 15
@@ -290,8 +290,8 @@ jobs:
       force_review: ${{ inputs.force_review }}
       max_diff_lines: ${{ fromJSON(vars.MAX_DIFF_LINES) }}
 
-      # Use Opus 4.6 for comprehensive reviews with reliable inline comments
-      model: "claude-opus-4-6"
+      # Use Opus 4.7 for comprehensive reviews with reliable inline comments
+      model: "claude-opus-4-7"
 
       # Standard timeout for most PRs
       timeout_minutes: 20
@@ -323,8 +323,8 @@ jobs:
       force_review: true # Always force when triggered by comment
       max_diff_lines: ${{ fromJSON(vars.MAX_DIFF_LINES) }}
 
-      # Use Opus 4.6 for comprehensive reviews with reliable inline comments
-      model: "claude-opus-4-6"
+      # Use Opus 4.7 for comprehensive reviews with reliable inline comments
+      model: "claude-opus-4-7"
 
       # Standard timeout for most PRs
       timeout_minutes: 20

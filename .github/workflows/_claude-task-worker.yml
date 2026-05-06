@@ -89,10 +89,10 @@ on:
       model:
         description: |
           Claude model to use.
-          Options: claude-sonnet-4-6, claude-opus-4-6, claude-haiku-4-5
+          Options: claude-sonnet-4-6, claude-opus-4-7, claude-haiku-4-5
         required: false
         type: string
-        default: "claude-opus-4-6"
+        default: "claude-opus-4-7"
 
       timeout_minutes:
         description: "Maximum execution time in minutes"
