@@ -79,7 +79,7 @@ on:
 
           Available models:
           - claude-sonnet-4-6 (default, recommended) - Latest Sonnet model with best balance of speed and capability
-          - claude-opus-4-6 - Most capable model for complex tasks
+          - claude-opus-4-7 - Most capable model for complex tasks
           - claude-haiku-4-5 - Fast, cost-effective model for simpler tasks
 
           Default: claude-sonnet-4-6

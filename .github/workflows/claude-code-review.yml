@@ -1,31 +1,57 @@
 name: Claude Code Review
 
 # Automated PR code reviews using Claude AI
+
 #
-# This workflow provides:
+
+# This workflow provides
+
 # - Formal GitHub reviews (APPROVE/REQUEST_CHANGES/COMMENT)
+
 # - Inline comments on specific lines of code
+
 # - Auto-resolution of fixed issues on subsequent reviews
+
 # - Patch-ID based caching to skip rebases (no duplicate reviews)
+
 # - Iterative review tracking of previous comments
+
 #
-# TRIGGERS:
+
+# TRIGGERS
+
 # - Automatic: On PR open, synchronize (push), or ready_for_review
+
 # - Comment: Add a comment containing "@request-claude-review" to trigger a fresh review
+
 # - Manual: Via workflow_dispatch with PR number and optional force_review flag
+
 #
-# TRIGGERING A NEW REVIEW WITHOUT CODE CHANGES:
-# The easiest way is to add a comment on the PR containing "@request-claude-review".
-# This bypasses the cache and forces a fresh review.
+
+# TRIGGERING A NEW REVIEW WITHOUT CODE CHANGES
+
+# The easiest way is to add a comment on the PR containing "@request-claude-review"
+
+# This bypasses the cache and forces a fresh review
+
 #
-# Alternatively, use the manual workflow_dispatch trigger via the Actions tab or CLI:
-#   gh workflow run "Claude Code Review" -f pr_number=123
+
+# Alternatively, use the manual workflow_dispatch trigger via the Actions tab or CLI
+
+# gh workflow run "Claude Code Review" -f pr_number=123
+
 #
+
 # NOTE: Re-requesting a review from github-actions[bot] via the GitHub UI
+
 # does NOT work. GitHub does not fire events when re-requesting reviews
-# from bot accounts. Use the comment trigger or manual dispatch instead.
+
+# from bot accounts. Use the comment trigger or manual dispatch instead
+
 #
+
 # The review uses the default prompt from this repository's
+
 # .github/prompts/default-pr-review.md
 
 on:
@@ -35,16 +61,20 @@ on:
       - synchronize
       - ready_for_review
 
-  # Comment trigger: Add "@request-claude-review" to any PR comment to force a fresh review
-  # Works with both regular PR comments and inline review comments
+# Comment trigger: Add "@request-claude-review" to any PR comment to force a fresh review
+
+# Works with both regular PR comments and inline review comments
+
   issue_comment:
     types: [created]
 
-  # Pull request review comments (inline comments on diffs)
+# Pull request review comments (inline comments on diffs)
+
   pull_request_review_comment:
     types: [created]
 
-  # Manual trigger for forcing a new review without code changes
+# Manual trigger for forcing a new review without code changes
+
   workflow_dispatch:
     inputs:
       pr_number:
@@ -58,14 +88,19 @@ on:
         default: true
 
 # Ensure only one review runs at a time per PR
+
 # New reviews wait for the current one to complete before starting
+
 concurrency:
   group: claude-review-${{ github.event.pull_request.number || github.event.issue.number || inputs.pr_number }}
   cancel-in-progress: false
 
 jobs:
-  # Pre-check job for automatic reviews to detect automated PRs
-  # Only runs for pull_request events (not manual/comment triggers)
+
+# Pre-check job for automatic reviews to detect automated PRs
+
+# Only runs for pull_request events (not manual/comment triggers)
+
   check-automated:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -92,8 +127,10 @@ jobs:
           branch_name: ${{ github.head_ref }}
           pr_title: ${{ github.event.pull_request.title }}
 
-  # Fetch PR details for manual triggers (workflow_dispatch) and comment triggers
-  # This job retrieves base_ref which isn't available in these event contexts
+# Fetch PR details for manual triggers (workflow_dispatch) and comment triggers
+
+# This job retrieves base_ref which isn't available in these event contexts
+
   get-pr-info:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment'
     runs-on: ubuntu-latest
@@ -196,10 +233,14 @@ jobs:
 
           echo "✅ PR #$PR_NUMBER: base=$BASE_REF, head=$HEAD_REF, fork=$( [ "$HEAD_REPO" != "$BASE_REPO" ] && echo 'yes' || echo 'no' )"
 
-  # Automatic review triggered by pull_request events (opened, synchronize, ready_for_review)
-  # Skips certain automated PRs but reviews dependency updates (for auto-merge support)
-  # Skip categories: release, sync, action-update, merge-queue
-  # Review categories: deps (dependabot/renovate), and all non-automated PRs
+# Automatic review triggered by pull_request events (opened, synchronize, ready_for_review)
+
+# Skips certain automated PRs but reviews dependency updates (for auto-merge support)
+
+# Skip categories: release, sync, action-update, merge-queue
+
+# Review categories: deps (dependabot/renovate), and all non-automated PRs
+
   claude-review-auto:
     needs: check-automated
     if: |
@@ -227,12 +268,12 @@ jobs:
       force_review: false
       max_diff_lines: ${{ fromJSON(vars.MAX_DIFF_LINES) }}
 
-      # Use Opus 4.6 for comprehensive reviews with reliable inline comments
+      # Use Opus 4.7 for comprehensive reviews with reliable inline comments
       # Opus is more capable at following complex multi-step instructions
       # Uncomment one of these to use a different model for reviews:
       # model: 'claude-haiku-4-5'
       # model: 'claude-sonnet-4-6'
-      model: "claude-opus-4-6"
+      model: "claude-opus-4-7"
 
       # Allow standard review conversation turns
       # max_turns: 15
@@ -248,7 +289,8 @@ jobs:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
 
-  # Summary job for skipped automatic reviews
+# Summary job for skipped automatic reviews
+
   review-skipped:
     needs: check-automated
     if: |
@@ -268,9 +310,12 @@ jobs:
           echo "::notice::Code review skipped for automated PR: $SKIP_REASON"
           echo "✅ Automated PR detected - code review is not required for this PR type."
 
-  # Manual review triggered by workflow_dispatch
-  # This runs after get-pr-info to have access to PR metadata
-  # Note: Manual triggers bypass automated PR checks - if you explicitly request a review, you get one
+# Manual review triggered by workflow_dispatch
+
+# This runs after get-pr-info to have access to PR metadata
+
+# Note: Manual triggers bypass automated PR checks - if you explicitly request a review, you get one
+
   claude-review-manual:
     needs: get-pr-info
     if: |
@@ -290,8 +335,8 @@ jobs:
       force_review: ${{ inputs.force_review }}
       max_diff_lines: ${{ fromJSON(vars.MAX_DIFF_LINES) }}
 
-      # Use Opus 4.6 for comprehensive reviews with reliable inline comments
-      model: "claude-opus-4-6"
+      # Use Opus 4.7 for comprehensive reviews with reliable inline comments
+      model: "claude-opus-4-7"
 
       # Standard timeout for most PRs
       timeout_minutes: 20
@@ -301,9 +346,12 @@ jobs:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
 
-  # Comment-triggered review: Add "@request-claude-review" to any PR comment
-  # This forces a fresh review, bypassing the cache
-  # Note: Comment triggers bypass automated PR checks - if you explicitly request a review, you get one
+# Comment-triggered review: Add "@request-claude-review" to any PR comment
+
+# This forces a fresh review, bypassing the cache
+
+# Note: Comment triggers bypass automated PR checks - if you explicitly request a review, you get one
+
   claude-review-comment:
     needs: get-pr-info
     if: |
@@ -323,8 +371,8 @@ jobs:
       force_review: true # Always force when triggered by comment
       max_diff_lines: ${{ fromJSON(vars.MAX_DIFF_LINES) }}
 
-      # Use Opus 4.6 for comprehensive reviews with reliable inline comments
-      model: "claude-opus-4-6"
+      # Use Opus 4.7 for comprehensive reviews with reliable inline comments
+      model: "claude-opus-4-7"
 
       # Standard timeout for most PRs
       timeout_minutes: 20
@@ -334,8 +382,10 @@ jobs:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
 
-  # Auto-merge Dependabot security updates after successful review
-  # Only runs for pull_request events (dependabot only triggers pull_request)
+# Auto-merge Dependabot security updates after successful review
+
+# Only runs for pull_request events (dependabot only triggers pull_request)
+
   auto-merge-dependabot:
     needs: claude-review-auto
     if: |
