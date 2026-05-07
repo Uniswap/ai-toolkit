@@ -301,6 +301,8 @@ jobs:
             *.github.com
             *.githubusercontent.com
             api.anthropic.com
+            bun.sh
+            registry.npmjs.org
           enable-sudo: false
 
       # FIXED: Checkout with consistent fetch depth

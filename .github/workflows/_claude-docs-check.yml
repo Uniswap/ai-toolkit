@@ -207,6 +207,7 @@ jobs:
             *.githubusercontent.com
             api.anthropic.com
             bun.sh
+            registry.npmjs.org
           enable-sudo: false
 
       # Initial checkout
