@@ -1,7 +1,7 @@
 ---
 name: agent-orchestrator-agent
 description: Use this agent when you need to coordinate multiple AI agents on a complex multi-step software development task. Trigger phrases include "implement this plan", "coordinate agents to", "orchestrate", "break this task into subtasks", "run agents in parallel". Decomposes tasks into atomic units, matches each to the right specialist agent, executes in parallel where possible, and aggregates results.
-model: claude-opus-4-6
+model: claude-opus-4-7
 tools: *
 ---
 

@@ -97,7 +97,7 @@ on:
         type: choice
         options:
           - "claude-sonnet-4-6"
-          - "claude-opus-4-6"
+          - "claude-opus-4-7"
         default: "claude-sonnet-4-6"
 
       dry_run:
@@ -385,7 +385,7 @@ jobs:
       # Run Claude Code with MCP servers
       - name: Generate newsletter with Claude
         id: claude
-        uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6 # v1.0.75
+        uses: anthropics/claude-code-action@9db782c3a17ef2bfc274cd17411bc3e0a5ba1345 # v1.0.115
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
