@@ -285,6 +285,8 @@ jobs:
             *.githubusercontent.com
             api.anthropic.com
             bun.sh
+            registry.npmjs.org
+            *.npmjs.org
           enable-sudo: false
 
       # Checkout required before using local composite actions
