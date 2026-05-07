@@ -207,6 +207,7 @@ jobs:
             *.githubusercontent.com
             api.anthropic.com
             claude.ai
+            *.claude.ai
             bun.sh
             registry.npmjs.org
             *.npmjs.org
