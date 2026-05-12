@@ -1160,6 +1160,12 @@ jobs:
       - name: Run Claude Code Review
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
         id: claude
+        # Tolerate action-level failures so the job degrades gracefully via the
+        # downstream "Fallback Review Comment" step (gated on failure()). Without
+        # this, transient errors (workflow validation guard on PRs that modify
+        # .github/workflows/**, API outages, rate limits) fail a required check
+        # despite the workflow already surfacing the error to the PR.
+        continue-on-error: true
         uses: anthropics/claude-code-action@476e359e6203e73dad705c8b322e333fabbd7416 # v1.0.119
         with:
           # Authentication: provide either API key or OAuth token (validated in earlier step)
