@@ -425,7 +425,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MERGE_BASE_SHA: ${{ steps.pr-info.outputs.merge_base_sha }}
         run: |
-          git -c http.extraheader="Authorization: basic $(echo -n "x-access-token:${GITHUB_TOKEN}" | base64)" \
+          # `base64 -w 0` disables line wrapping. GNU coreutils' base64 (the
+          # default on Ubuntu runners) wraps at column 76, which inserts a
+          # literal newline into the Authorization header value once the
+          # encoded `x-access-token:${token}` exceeds 56 bytes (i.e. token
+          # length ≥ 42 chars). HTTP parses that newline as end-of-header
+          # and rejects the next line as a malformed continuation, which
+          # libcurl reports as `Failed sending HTTP request` and git exits
+          # 128. actions/checkout doesn't hit this because it builds the
+          # header in JS via Buffer.toString('base64') (no wrap).
+          git -c http.extraheader="Authorization: basic $(echo -n "x-access-token:${GITHUB_TOKEN}" | base64 -w 0)" \
             fetch --depth=1 origin "$MERGE_BASE_SHA"
           echo "✅ Fetched merge base: ${MERGE_BASE_SHA:0:12}"
 

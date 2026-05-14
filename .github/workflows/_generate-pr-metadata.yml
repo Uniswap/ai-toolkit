@@ -435,6 +435,13 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Providing github_token short-circuits the action's OIDC→app-token
+          # exchange in setupGitHubToken() (src/github/token.ts), which is what
+          # trips Anthropic's `workflow_not_found_on_default_branch` validation
+          # on PRs that modify .github/workflows/**. Match the pattern from
+          # _claude-docs-check.yml and _claude-code-review.yml, which already
+          # pass github_token for this reason.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
             You are evaluating whether a pull request description adequately
             describes the code changes.
@@ -881,6 +888,10 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # See note on quality-gate-eval above: github_token short-circuits the
+          # OIDC→app-token exchange that trips the workflow-validation guard on
+          # PRs that modify .github/workflows/**.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: "Read and act upon the prompt at @${{ steps.build-prompt.outputs.prompt_file_path }}"
           track_progress: false # Disable to avoid PR comments
           allowed_bots: dependabot
