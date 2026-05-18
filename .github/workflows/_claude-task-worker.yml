@@ -179,11 +179,27 @@ jobs:
       actions: read
 
     steps:
-      # Security scanning
+      # Security scanning — block mode prevents secret exfiltration if RCE is achieved.
+      # Egress allowlist matches the other ai-toolkit workflows that already run in
+      # block mode (_claude-main.yml, _claude-code-review.yml, _claude-docs-check.yml,
+      # _generate-pr-metadata.yml). api.linear.app is added because this worker
+      # talks to Linear via mcp__linear__ tools.
       - name: Security scanning
         uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-domains: |
+            github.com
+            *.github.com
+            *.githubusercontent.com
+            api.anthropic.com
+            claude.ai
+            *.claude.ai
+            api.linear.app
+            bun.sh
+            registry.npmjs.org
+            *.npmjs.org
+          enable-sudo: false
 
       # Checkout the target branch
       # Must come before validate-claude-auth (local composite action)
@@ -535,10 +551,18 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: ${{ steps.build-prompt.outputs.prompt }}
           show_full_output: ${{ inputs.debug_mode }}
+          # Replaced --dangerously-skip-permissions with an explicit allowedTools list.
+          # Without an allowlist Claude prompts on every tool call (no human to approve
+          # in CI, so the job stalls); with --dangerously-skip-permissions a prompt-
+          # injected session could call any tool. The allowlist below covers the tools
+          # the autonomous task worker legitimately needs and excludes anything that
+          # would let a hijacked session move laterally (e.g., curl/wget for arbitrary
+          # exfiltration, mcp__linear__delete_*, etc.). Refine as needed — if a
+          # legitimate task fails because a tool is missing, add the tool here.
           claude_args: |
             --model ${{ inputs.model }}
             --max-turns 150
-            --dangerously-skip-permissions
+            --allowedTools "Read,Write,Edit,MultiEdit,NotebookEdit,Glob,Grep,WebSearch,WebFetch,Bash(git:*),Bash(gh pr:*),Bash(gh issue:*),Bash(gh api:*),Bash(npm:*),Bash(bun:*),Bash(bunx:*),Bash(npx:*),Bash(node:*),Bash(python3:*),Bash(ls:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(grep:*),Bash(find:*),Bash(awk:*),Bash(sed:*),Bash(jq:*),Bash(date:*),Bash(wc:*),Bash(cut:*),Bash(tr:*),Bash(sort:*),Bash(uniq:*),Bash(diff:*),Bash(echo:*),Bash(printf:*),Bash(mkdir:*),Bash(touch:*),Bash(chmod:*),Bash(mv:*),Bash(cp:*),mcp__linear__linear_get_issue,mcp__linear__linear_list_issues,mcp__linear__linear_add_comment,mcp__linear__linear_search_documentation,mcp__linear__linear_update_issue"
             --mcp-config '{"mcpServers":{"linear":{"command":"bunx","args":["linear-mcp-server"],"env":{"LINEAR_API_KEY":"${{ secrets.LINEAR_API_KEY }}"}}}}'
           plugin_marketplaces: ${{ steps.build-plugins.outputs.plugin_marketplaces }}
           plugins: ${{ steps.build-plugins.outputs.plugins }}
