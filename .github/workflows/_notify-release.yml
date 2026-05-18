@@ -254,11 +254,16 @@ jobs:
               exit 1
             fi
 
+            # Per-call unguessable delimiter; fail fast on RNG/size errors.
+            NOTION_DELIM_RAND=$(openssl rand -hex 16)
+            [ -n "$NOTION_DELIM_RAND" ] || { echo "::error::openssl rand returned empty" >&2; exit 1; }
+            [ "$(printf '%s' "$NOTION_CHANGELOG" | wc -c)" -lt 900000 ] || { echo "::error::notion changelog exceeds 900KB" >&2; exit 1; }
+            NOTION_DELIM="NOTION_DELIMITER_$(date +%s%N)_${NOTION_DELIM_RAND}"
             {
-              echo 'changelog_for_notion<<EOF'
+              echo "changelog_for_notion<<${NOTION_DELIM}"
               echo "$NOTION_CHANGELOG"
-              echo 'EOF'
-            } >> $GITHUB_OUTPUT
+              echo "${NOTION_DELIM}"
+            } >> "$GITHUB_OUTPUT"
           fi
 
   notify-slack:

@@ -637,7 +637,11 @@ jobs:
 
           # Per-call unguessable heredoc delimiter; defense in depth against
           # the $GITHUB_OUTPUT duplicate-key last-write-wins injection class.
-          ARGS_DELIM="CLAUDE_ARGS_DELIMITER_$(date +%s%N)_$(openssl rand -hex 16)"
+          # Fail fast if openssl returns empty or value exceeds 1MB cap.
+          ARGS_DELIM_RAND=$(openssl rand -hex 16)
+          [ -n "$ARGS_DELIM_RAND" ] || { echo "::error::openssl rand returned empty; refusing to write predictable delimiter" >&2; exit 1; }
+          [ "$(printf '%s' "$CLAUDE_ARGS" | wc -c)" -lt 900000 ] || { echo "::error::claude_args exceeds 900KB; would risk \$GITHUB_OUTPUT truncation" >&2; exit 1; }
+          ARGS_DELIM="CLAUDE_ARGS_DELIMITER_$(date +%s%N)_${ARGS_DELIM_RAND}"
           echo "claude_args<<${ARGS_DELIM}" >> "$GITHUB_OUTPUT"
           echo "$CLAUDE_ARGS" >> "$GITHUB_OUTPUT"
           echo "${ARGS_DELIM}" >> "$GITHUB_OUTPUT"

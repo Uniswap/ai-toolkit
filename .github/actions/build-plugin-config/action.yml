@@ -136,18 +136,24 @@ runs:
         MARKETPLACES=$(echo -n "$MARKETPLACES" | sed '/^$/d')
         PLUGINS=$(echo -n "$PLUGINS" | sed '/^$/d')
 
-        # Output results
+        # Output results with per-call unguessable delimiters.
+        MKT_DELIM_RAND=$(openssl rand -hex 16)
+        PLG_DELIM_RAND=$(openssl rand -hex 16)
+        { [ -n "$MKT_DELIM_RAND" ] && [ -n "$PLG_DELIM_RAND" ]; } || { echo "::error::openssl rand returned empty" >&2; exit 1; }
+        [ "$(printf '%s' "$MARKETPLACES" | wc -c)" -lt 900000 ] || { echo "::error::plugin_marketplaces exceeds 900KB" >&2; exit 1; }
+        [ "$(printf '%s' "$PLUGINS" | wc -c)" -lt 900000 ] || { echo "::error::plugins exceeds 900KB" >&2; exit 1; }
+        MKT_DELIM="MKT_DELIMITER_$(date +%s%N)_${MKT_DELIM_RAND}"
+        PLG_DELIM="PLG_DELIMITER_$(date +%s%N)_${PLG_DELIM_RAND}"
         {
-          echo "plugin_marketplaces<<EOF"
+          echo "plugin_marketplaces<<${MKT_DELIM}"
           echo "$MARKETPLACES"
-          echo "EOF"
-        } >> $GITHUB_OUTPUT
-
+          echo "${MKT_DELIM}"
+        } >> "$GITHUB_OUTPUT"
         {
-          echo "plugins<<EOF"
+          echo "plugins<<${PLG_DELIM}"
           echo "$PLUGINS"
-          echo "EOF"
-        } >> $GITHUB_OUTPUT
+          echo "${PLG_DELIM}"
+        } >> "$GITHUB_OUTPUT"
 
         # Log configuration
         if [[ -n "$MARKETPLACES" ]]; then
