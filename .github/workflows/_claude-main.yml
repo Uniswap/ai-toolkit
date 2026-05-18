@@ -408,9 +408,12 @@ jobs:
             ARGS="$ARGS--mcp-config '$INPUT_MCP_CONFIG'"$'\n'
           fi
 
-          echo "claude_args<<EOF" >> $GITHUB_OUTPUT
-          echo "$ARGS" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          # Per-call unguessable heredoc delimiter; defense in depth against
+          # the $GITHUB_OUTPUT duplicate-key last-write-wins injection class.
+          ARGS_DELIM="CLAUDE_ARGS_DELIMITER_$(date +%s%N)_$(openssl rand -hex 16)"
+          echo "claude_args<<${ARGS_DELIM}" >> "$GITHUB_OUTPUT"
+          echo "$ARGS" >> "$GITHUB_OUTPUT"
+          echo "${ARGS_DELIM}" >> "$GITHUB_OUTPUT"
 
       # Build plugin configuration using shared composite action
       - name: Build plugin configuration

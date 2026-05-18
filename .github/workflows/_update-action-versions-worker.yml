@@ -387,10 +387,14 @@ jobs:
           PROMPT_EOF
           )
 
-          # Output using heredoc delimiter
-          echo "prompt<<PROMPT_DELIM" >> $GITHUB_OUTPUT
-          echo "$PROMPT" >> $GITHUB_OUTPUT
-          echo "PROMPT_DELIM" >> $GITHUB_OUTPUT
+          # Output using a per-call unguessable heredoc delimiter so that
+          # any future caller-controlled input cannot terminate the heredoc
+          # and inject a replacement `prompt<<...` entry (last-write-wins on
+          # duplicate keys per the $GITHUB_OUTPUT spec).
+          PROMPT_DELIM="PROMPT_DELIMITER_$(date +%s%N)_$(openssl rand -hex 16)"
+          echo "prompt<<${PROMPT_DELIM}" >> "$GITHUB_OUTPUT"
+          echo "$PROMPT" >> "$GITHUB_OUTPUT"
+          echo "${PROMPT_DELIM}" >> "$GITHUB_OUTPUT"
 
       # Build plugin configuration using shared composite action
       - name: Build plugin configuration

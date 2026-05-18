@@ -635,9 +635,12 @@ jobs:
           # Read-only tools
           CLAUDE_ARGS="$CLAUDE_ARGS --allowedTools Read,Grep,Glob,Bash(git log:*),Bash(git diff:*),Bash(git show:*)"
 
-          echo "claude_args<<CLAUDE_ARGS_EOF" >> $GITHUB_OUTPUT
-          echo "$CLAUDE_ARGS" >> $GITHUB_OUTPUT
-          echo "CLAUDE_ARGS_EOF" >> $GITHUB_OUTPUT
+          # Per-call unguessable heredoc delimiter; defense in depth against
+          # the $GITHUB_OUTPUT duplicate-key last-write-wins injection class.
+          ARGS_DELIM="CLAUDE_ARGS_DELIMITER_$(date +%s%N)_$(openssl rand -hex 16)"
+          echo "claude_args<<${ARGS_DELIM}" >> "$GITHUB_OUTPUT"
+          echo "$CLAUDE_ARGS" >> "$GITHUB_OUTPUT"
+          echo "${ARGS_DELIM}" >> "$GITHUB_OUTPUT"
 
       # Build plugin configuration
       - name: Build plugin configuration
