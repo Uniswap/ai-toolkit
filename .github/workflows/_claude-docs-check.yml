@@ -170,6 +170,14 @@ on:
         description: "Number of commits pushed when auto_commit is enabled"
         value: ${{ jobs.docs-check.outputs.commits_pushed }}
 
+# Disable Bun's automatic bunfig.toml loading from CWD. When a workflow
+# checks out PR head content (this workflow checks out PR refs to read
+# diffs and post comments), `bun run` would otherwise auto-load
+# bunfig.toml from the checkout root, and `bunfig.toml.preload` executes
+# arbitrary code before the intended script — RCE with caller secrets.
+env:
+  BUN_CONFIG_FILE: /dev/null
+
 jobs:
   docs-check:
     runs-on: ubuntu-latest

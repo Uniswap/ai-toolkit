@@ -7,6 +7,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
+# Disable Bun's automatic bunfig.toml loading from CWD. `bun run` invocations
+# in this workflow run after checkout; without this, a malicious bunfig.toml
+# at the checkout root would have its preload array execute arbitrary code
+# before the intended script (RCE with workflow secrets).
+env:
+  BUN_CONFIG_FILE: /dev/null
+
 jobs:
   # Pre-check job to detect automated PRs
   check-automated:

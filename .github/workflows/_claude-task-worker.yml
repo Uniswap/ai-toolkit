@@ -165,6 +165,13 @@ on:
         description: "PAT for pushing branches (optional, falls back to GITHUB_TOKEN)"
         required: false
 
+# Disable Bun's automatic bunfig.toml loading from CWD. `bun run` invocations
+# in this workflow run after checkout of the worker's repo; without this,
+# a malicious bunfig.toml at the checkout root would have its preload array
+# execute arbitrary code before the intended script (RCE with caller secrets).
+env:
+  BUN_CONFIG_FILE: /dev/null
+
 jobs:
   process-task:
     runs-on: ubuntu-latest
