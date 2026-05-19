@@ -292,16 +292,20 @@ jobs:
         uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
         with:
           egress-policy: block
+          # Per-workflow tightened allowlist. Empirical data from block-mode
+          # logs shows only http-intake.logs.us5.datadoghq.com is currently
+          # blocked (Datadog logs agent — intentionally blocked). No
+          # legitimate destination is being blocked.
+          # Dropped (no empirical use): github.com / *.github.com (in
+          # bullfrog defaultDomains), claude.ai / *.claude.ai (OAuth path
+          # unused here; ANTHROPIC_API_KEY path), bun.sh (setup-bun uses
+          # github releases via *.githubusercontent.com), *.npmjs.org
+          # (registry.npmjs.org is the only subdomain used). Pinned
+          # githubusercontent to release-assets only.
           allowed-domains: |
-            github.com
-            *.github.com
-            *.githubusercontent.com
+            release-assets.githubusercontent.com
             api.anthropic.com
-            claude.ai
-            *.claude.ai
-            bun.sh
             registry.npmjs.org
-            *.npmjs.org
           enable-sudo: false
 
       # Validate toolkit_ref BEFORE any downstream step uses it to download

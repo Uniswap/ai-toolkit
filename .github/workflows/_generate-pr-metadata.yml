@@ -172,16 +172,30 @@ jobs:
       pull-requests: write # Required to update PR title and description
 
     steps:
-      # Security scanning (required for all workflows).
+      # Security scanning — flipped from audit to block.
       # Per .github/workflows/CLAUDE.md, bullfrog must be the FIRST step in
       # every job on a non-macOS runner ("no exceptions"), so it runs before
       # the toolkit_ref validation below. Ordering is safe: bullfrog does not
       # consume toolkit_ref, and the validation runs before any step that
       # downloads action.yml or post-*.ts content using it.
+      #
+      # Empirical data: 15 audit-mode runs of this workflow show first-
+      # resolution destinations are only registry.npmjs.org (341 lines —
+      # bun install --production) and release-assets.githubusercontent.com
+      # (5 lines — setup-bun). Plus api.anthropic.com is required at
+      # runtime (invisible in audit logs due to DNS-reply coalescing,
+      # per agent/queue_audit.nft). No Linear MCP, no OAuth — drops
+      # api.linear.app, claude.ai, *.claude.ai vs the sister workflows.
+      # github.com / api.github.com are in bullfrog defaultDomains.
       - name: Security Scan
         uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-domains: |
+            release-assets.githubusercontent.com
+            api.anthropic.com
+            registry.npmjs.org
+          enable-sudo: false
 
       # Validate toolkit_ref BEFORE any downstream step uses it to download
       # action.yml / post-*.ts script content from the ai-toolkit repo.
