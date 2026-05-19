@@ -180,25 +180,24 @@ jobs:
 
     steps:
       # Security scanning — block mode prevents secret exfiltration if RCE is achieved.
-      # Egress allowlist matches the other ai-toolkit workflows that already run in
-      # block mode (_claude-main.yml, _claude-code-review.yml, _claude-docs-check.yml,
-      # _generate-pr-metadata.yml). api.linear.app is added because this worker
-      # talks to Linear via mcp__linear__ tools.
+      #
+      # Allowlist is workflow-specific. github.com / api.github.com are in
+      # bullfrog's defaultDomains (agent/agent.go:18) and don't need to be
+      # listed. claude.ai / *.claude.ai apply only to the OAuth token path
+      # (CLAUDE_CODE_OAUTH_TOKEN); this worker uses the API-key path and
+      # never resolves them. bun.sh is unused — setup-bun fetches the binary
+      # from GitHub releases (covered by *.githubusercontent.com), confirmed
+      # by 15 audit-mode runs of _generate-pr-metadata.yml that use the same
+      # setup-bun action and showed 0 audit lines for bun.sh.
       - name: Security scanning
         uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
         with:
           egress-policy: block
           allowed-domains: |
-            github.com
-            *.github.com
-            *.githubusercontent.com
+            release-assets.githubusercontent.com
             api.anthropic.com
-            claude.ai
-            *.claude.ai
             api.linear.app
-            bun.sh
             registry.npmjs.org
-            *.npmjs.org
           enable-sudo: false
 
       # Checkout the target branch
