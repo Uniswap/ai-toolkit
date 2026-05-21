@@ -500,14 +500,13 @@ jobs:
       # Supports both API key and OAuth token authentication (OAuth takes precedence)
       #
       # Git author identity is locked to github-actions[bot] via GIT_AUTHOR_*
-      # env vars below. This is critical because Claude Code's bundled default
-      # identity (claude-code@anthropic.com) has been squatted on GitHub by an
-      # unrelated user (Karim13014), causing every commit made with that email
-      # to be attributed to them. See anthropics/claude-code#58479.
-      #
-      # TODO: migrate to a dedicated uniswap-claude[bot] GitHub App identity
-      # once registered. github-actions[bot] is a safe stop-gap because it's
-      # owned by GitHub itself and cannot be squatted.
+      # env vars below. Claude Code's bundled default identity
+      # (claude-code@anthropic.com) is squatted on GitHub by an unrelated user
+      # (Karim13014), so every commit made with that email is attributed to them.
+      # github-actions[bot]@users.noreply.github.com is reserved by GitHub
+      # itself and cannot be squatted — the `<id>+<name>` and special-cased
+      # github-actions noreply formats are GitHub-managed and validated against
+      # the account ID. See anthropics/claude-code#58479.
       - name: Run Claude Code
         id: claude
         env:
