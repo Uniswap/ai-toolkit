@@ -241,7 +241,6 @@ export function createOAuthHandler(
       'im:history',
       'im:read',
       'im:write',
-      'incoming-webhook',
       'mpim:history',
       'mpim:read',
       'reactions:read',
