@@ -292,24 +292,23 @@ jobs:
         uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
         with:
           egress-policy: block
-          # Per-workflow tightened allowlist. Empirical data from block-mode
-          # logs shows only http-intake.logs.us5.datadoghq.com is currently
-          # blocked (Datadog logs agent — intentionally blocked).
-          # raw.githubusercontent.com was missed by audit-mode sampling
-          # (bullfrog v0.8.4 queues DNS replies; cached resolutions emit
-          # no further events — per agent/queue_audit.nft); required at
-          # runtime by .github/actions/build-plugin-config which fetches
-          # marketplace.json from raw for plugin discovery.
-          # Dropped (no empirical use): github.com / *.github.com (in
-          # bullfrog defaultDomains), claude.ai / *.claude.ai (OAuth path
-          # unused here; ANTHROPIC_API_KEY path), bun.sh (setup-bun uses
-          # github releases via *.githubusercontent.com), *.npmjs.org
-          # (registry.npmjs.org is the only subdomain used). Pinned
-          # githubusercontent to release-assets + raw subdomains.
+          # Per-workflow tightened allowlist. Audit-mode sampling missed
+          # several destinations because bullfrog v0.8.4 queues DNS *replies*
+          # (agent/queue_audit.nft) and cached resolutions emit no further
+          # events. Domains added below as block-mode CI failures revealed:
+          # - raw.githubusercontent.com: build-plugin-config fetches
+          #   marketplace.json from /Uniswap/ai-toolkit/next/.claude-plugin/.
+          # - claude.ai: Claude SDK install path (claude.ai/install.sh)
+          #   AND runtime telemetry/session lookup on API-key auth too.
+          # Dropped: github.com / *.github.com (in bullfrog defaultDomains),
+          # bun.sh (setup-bun uses github releases via release-assets.*),
+          # *.npmjs.org (registry.npmjs.org is the only subdomain used).
+          # Pinned githubusercontent to release-assets + raw subdomains.
           allowed-domains: |
             release-assets.githubusercontent.com
             raw.githubusercontent.com
             api.anthropic.com
+            claude.ai
             registry.npmjs.org
           enable-sudo: false
 

@@ -179,17 +179,16 @@ jobs:
       # consume toolkit_ref, and the validation runs before any step that
       # downloads action.yml or post-*.ts content using it.
       #
-      # Empirical data: 15 audit-mode runs of this workflow show first-
-      # resolution destinations are only registry.npmjs.org (341 lines —
-      # bun install --production) and release-assets.githubusercontent.com
-      # (5 lines — setup-bun). Plus api.anthropic.com is required at
-      # runtime (invisible in audit logs due to DNS-reply coalescing,
-      # per agent/queue_audit.nft). raw.githubusercontent.com was also
-      # invisible in audit (cached resolution) but required at runtime by
-      # .github/actions/build-plugin-config (fetches marketplace.json).
-      # No Linear MCP, no OAuth — drops api.linear.app, claude.ai,
-      # *.claude.ai vs the sister workflows.
+      # Audit-mode sampling identified registry.npmjs.org (bun install)
+      # and release-assets.githubusercontent.com (setup-bun) as the only
+      # first-resolution destinations, BUT bullfrog v0.8.4 audit only
+      # queues DNS *replies* (agent/queue_audit.nft); cached resolutions
+      # emit no further events. Block-mode CI then revealed three more:
+      # api.anthropic.com (runtime API), raw.githubusercontent.com
+      # (build-plugin-config fetches marketplace.json), and claude.ai
+      # (Claude SDK install + runtime telemetry, even on API-key auth).
       # github.com / api.github.com are in bullfrog defaultDomains.
+      # Add destinations here as future block-mode CI failures reveal them.
       - name: Security Scan
         uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
         with:
@@ -198,6 +197,7 @@ jobs:
             release-assets.githubusercontent.com
             raw.githubusercontent.com
             api.anthropic.com
+            claude.ai
             registry.npmjs.org
           enable-sudo: false
 

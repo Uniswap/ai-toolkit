@@ -215,19 +215,22 @@ jobs:
         with:
           egress-policy: block
           # Per-workflow tightened allowlist. Audit-mode sampling missed
-          # raw.githubusercontent.com because bullfrog v0.8.4 queues DNS
-          # *replies* (agent/queue_audit.nft) and cached resolutions emit
-          # no further events — observed in block-mode CI failure on this
-          # PR when build-plugin-config/action.yml fetches marketplace.json.
-          # Dropped (no empirical use): github.com / *.github.com (in
-          # bullfrog defaultDomains), claude.ai / *.claude.ai (OAuth path
-          # unused; uses ANTHROPIC_API_KEY), bun.sh (setup-bun via
-          # github releases), *.npmjs.org (only registry.npmjs.org used).
-          # Pinned githubusercontent to release-assets + raw subdomains.
+          # several destinations (raw.githubusercontent.com, claude.ai)
+          # because bullfrog v0.8.4 queues DNS *replies*
+          # (agent/queue_audit.nft) and cached resolutions emit no further
+          # events. Add domains here as block-mode CI failures reveal them.
+          # raw.githubusercontent.com: build-plugin-config fetches
+          #   marketplace.json (Uniswap/ai-toolkit/next/.claude-plugin/).
+          # claude.ai: Claude SDK install path (https://claude.ai/install.sh)
+          #   AND runtime telemetry/session lookup even on API-key auth.
+          # Dropped: github.com / *.github.com (in bullfrog defaultDomains),
+          # bun.sh (setup-bun via github releases), *.npmjs.org (only
+          # registry.npmjs.org used).
           allowed-domains: |
             release-assets.githubusercontent.com
             raw.githubusercontent.com
             api.anthropic.com
+            claude.ai
             registry.npmjs.org
           enable-sudo: false
 
