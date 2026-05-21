@@ -498,8 +498,23 @@ jobs:
 
       # Run Claude Code with Linear MCP configured
       # Supports both API key and OAuth token authentication (OAuth takes precedence)
+      #
+      # Git author identity is locked to github-actions[bot] via GIT_AUTHOR_*
+      # env vars below. This is critical because Claude Code's bundled default
+      # identity (claude-code@anthropic.com) has been squatted on GitHub by an
+      # unrelated user (Karim13014), causing every commit made with that email
+      # to be attributed to them. See anthropics/claude-code#58479.
+      #
+      # TODO: migrate to a dedicated uniswap-claude[bot] GitHub App identity
+      # once registered. github-actions[bot] is a safe stop-gap because it's
+      # owned by GitHub itself and cannot be squatted.
       - name: Run Claude Code
         id: claude
+        env:
+          GIT_AUTHOR_NAME: "github-actions[bot]"
+          GIT_AUTHOR_EMAIL: "github-actions[bot]@users.noreply.github.com"
+          GIT_COMMITTER_NAME: "github-actions[bot]"
+          GIT_COMMITTER_EMAIL: "github-actions[bot]@users.noreply.github.com"
         uses: anthropics/claude-code-action@476e359e6203e73dad705c8b322e333fabbd7416 # v1.0.119
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -515,6 +530,40 @@ jobs:
           plugins: ${{ steps.build-plugins.outputs.plugins }}
           additional_permissions: |
             actions: read
+
+      # Verify commit author identity defense-in-depth
+      #
+      # The GIT_AUTHOR_* env vars on the Run Claude Code step are honored by
+      # `git commit` UNLESS the model passes --author=X explicitly, which would
+      # override them. This step fails the workflow if any commit on the branch
+      # has an unexpected author, preventing a misattributed PR from being created.
+      #
+      # Allowed authors:
+      #   - github-actions[bot]@users.noreply.github.com (CI bot)
+      #   - <id>+<user>@users.noreply.github.com         (verified GitHub user noreply)
+      #   - *@uniswap.org                                (Uniswap org member)
+      - name: Verify commit author identity
+        if: always()
+        env:
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+        run: |
+          set -euo pipefail
+          PATTERN='^(github-actions\[bot\]@users\.noreply\.github\.com|[0-9]+\+[^@]+@users\.noreply\.github\.com|[^@]+@uniswap\.org)$'
+          UNEXPECTED=$(git log --format='%ae' "origin/${TARGET_BRANCH}..HEAD" 2>/dev/null | sort -u | grep -Ev "$PATTERN" || true)
+          if [ -n "$UNEXPECTED" ]; then
+            echo "::error::Commits with unexpected author email(s) on this branch:"
+            printf '::error::  %s\n' $UNEXPECTED
+            echo "::error::This typically means Claude Code committed with its bundled identity"
+            echo "::error::(claude-code@anthropic.com), which is squatted on GitHub by user Karim13014"
+            echo "::error::and would attribute every commit to them. See anthropics/claude-code#58479."
+            echo "::error::"
+            echo "::error::Allowed author email patterns:"
+            echo "::error::  - github-actions[bot]@users.noreply.github.com"
+            echo "::error::  - <id>+<user>@users.noreply.github.com"
+            echo "::error::  - *@uniswap.org"
+            exit 1
+          fi
+          echo "All commit authors verified ✓"
 
       # Check if a PR was created by Claude
       - name: Check for PR
