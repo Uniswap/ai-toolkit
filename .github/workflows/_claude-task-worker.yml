@@ -548,7 +548,12 @@ jobs:
         run: |
           set -euo pipefail
           PATTERN='^(github-actions\[bot\]@users\.noreply\.github\.com|[0-9]+\+[^@]+@users\.noreply\.github\.com|[^@]+@uniswap\.org)$'
-          UNEXPECTED=$(git log --format='%ae' "origin/${TARGET_BRANCH}..HEAD" 2>/dev/null | sort -u | grep -Ev "$PATTERN" || true)
+          git rev-parse --verify --quiet "origin/${TARGET_BRANCH}" >/dev/null || {
+            echo "::error::origin/${TARGET_BRANCH} not found — cannot verify commit authors"
+            exit 1
+          }
+          EMAILS=$(git log --format='%ae' "origin/${TARGET_BRANCH}..HEAD" | sort -u)
+          UNEXPECTED=$(printf '%s\n' "$EMAILS" | grep -Ev "$PATTERN" || true)
           if [ -n "$UNEXPECTED" ]; then
             echo "::error::Commits with unexpected author email(s) on this branch:"
             printf '::error::  %s\n' $UNEXPECTED
