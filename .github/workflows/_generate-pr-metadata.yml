@@ -198,6 +198,7 @@ jobs:
             raw.githubusercontent.com
             api.anthropic.com
             claude.ai
+            downloads.claude.ai
             registry.npmjs.org
           enable-sudo: false
 
