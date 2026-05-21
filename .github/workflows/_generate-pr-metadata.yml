@@ -184,8 +184,11 @@ jobs:
       # bun install --production) and release-assets.githubusercontent.com
       # (5 lines — setup-bun). Plus api.anthropic.com is required at
       # runtime (invisible in audit logs due to DNS-reply coalescing,
-      # per agent/queue_audit.nft). No Linear MCP, no OAuth — drops
-      # api.linear.app, claude.ai, *.claude.ai vs the sister workflows.
+      # per agent/queue_audit.nft). raw.githubusercontent.com was also
+      # invisible in audit (cached resolution) but required at runtime by
+      # .github/actions/build-plugin-config (fetches marketplace.json).
+      # No Linear MCP, no OAuth — drops api.linear.app, claude.ai,
+      # *.claude.ai vs the sister workflows.
       # github.com / api.github.com are in bullfrog defaultDomains.
       - name: Security Scan
         uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
@@ -193,6 +196,7 @@ jobs:
           egress-policy: block
           allowed-domains: |
             release-assets.githubusercontent.com
+            raw.githubusercontent.com
             api.anthropic.com
             registry.npmjs.org
           enable-sudo: false

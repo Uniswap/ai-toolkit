@@ -214,17 +214,19 @@ jobs:
         uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
         with:
           egress-policy: block
-          # Per-workflow tightened allowlist. Empirical data: 12 successful
-          # block-mode runs show only http-intake.logs.us5.datadoghq.com is
-          # being blocked (Datadog logs agent — intentional). No legitimate
-          # destination is being blocked.
+          # Per-workflow tightened allowlist. Audit-mode sampling missed
+          # raw.githubusercontent.com because bullfrog v0.8.4 queues DNS
+          # *replies* (agent/queue_audit.nft) and cached resolutions emit
+          # no further events — observed in block-mode CI failure on this
+          # PR when build-plugin-config/action.yml fetches marketplace.json.
           # Dropped (no empirical use): github.com / *.github.com (in
           # bullfrog defaultDomains), claude.ai / *.claude.ai (OAuth path
           # unused; uses ANTHROPIC_API_KEY), bun.sh (setup-bun via
           # github releases), *.npmjs.org (only registry.npmjs.org used).
-          # Pinned githubusercontent to release-assets only.
+          # Pinned githubusercontent to release-assets + raw subdomains.
           allowed-domains: |
             release-assets.githubusercontent.com
+            raw.githubusercontent.com
             api.anthropic.com
             registry.npmjs.org
           enable-sudo: false
