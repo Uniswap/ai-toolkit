@@ -155,6 +155,10 @@ router.get(
     const oauthHandler = createOAuthHandler();
     const authUrl = oauthHandler.generateAuthUrl(state);
 
+    // Debug: log the redirect URL so we can confirm which scopes are being
+    // requested in each `scope=` and `user_scope=` query param.
+    logger.info('Slack OAuth authorize redirect', { authUrl });
+
     // In production, store state in session or database
     // For now, just redirect
     res.redirect(authUrl);
