@@ -223,9 +223,6 @@ jobs:
           #   marketplace.json (Uniswap/ai-toolkit/next/.claude-plugin/).
           # claude.ai: Claude SDK install path (https://claude.ai/install.sh)
           #   AND runtime telemetry/session lookup even on API-key auth.
-          # Dropped: github.com / *.github.com (in bullfrog defaultDomains),
-          # bun.sh (setup-bun via github releases), *.npmjs.org (only
-          # registry.npmjs.org used).
           allowed-domains: |
             release-assets.githubusercontent.com
             raw.githubusercontent.com
