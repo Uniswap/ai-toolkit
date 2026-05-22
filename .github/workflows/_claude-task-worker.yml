@@ -550,18 +550,27 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: ${{ steps.build-prompt.outputs.prompt }}
           show_full_output: ${{ inputs.debug_mode }}
-          # Replaced --dangerously-skip-permissions with an explicit allowedTools list.
-          # Without an allowlist Claude prompts on every tool call (no human to approve
-          # in CI, so the job stalls); with --dangerously-skip-permissions a prompt-
-          # injected session could call any tool. The allowlist below covers the tools
-          # the autonomous task worker legitimately needs and excludes anything that
-          # would let a hijacked session move laterally (e.g., curl/wget for arbitrary
-          # exfiltration, mcp__linear__delete_*, etc.). Refine as needed — if a
-          # legitimate task fails because a tool is missing, add the tool here.
+          # Replaced --dangerously-skip-permissions with an explicit allowedTools list
+          # so Claude doesn't auto-approve every tool call. Without an allowlist
+          # Claude prompts on every tool call (no human to approve in CI, so the job
+          # stalls); with --dangerously-skip-permissions a prompt-injected session
+          # could call any tool.
+          #
+          # SECURITY MODEL: the allowlist below includes Bash(node:*), Bash(python3:*),
+          # Bash(bunx:*), and Bash(npx:*) — each is arbitrary code execution. This
+          # allowlist alone does NOT contain a hijacked session: a prompt-injected
+          # Claude can run `node -e "..."` or `npx <malicious-package>` to do anything
+          # the comment used to claim was "excluded". The actual containment is the
+          # bullfrog egress block above: even if a hijacked session runs `node -e` to
+          # exfiltrate, traffic is blocked to non-allowlisted hosts. Do not relax the
+          # bullfrog allowlist without re-evaluating this layer.
+          #
+          # Refine as needed — if a legitimate task fails because a tool is missing,
+          # add the tool here.
           claude_args: |
             --model ${{ inputs.model }}
             --max-turns 150
-            --allowedTools "Read,Write,Edit,MultiEdit,NotebookEdit,Glob,Grep,WebSearch,WebFetch,Bash(git:*),Bash(gh pr:*),Bash(gh issue:*),Bash(gh api:*),Bash(npm:*),Bash(bun:*),Bash(bunx:*),Bash(npx:*),Bash(node:*),Bash(python3:*),Bash(ls:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(grep:*),Bash(find:*),Bash(awk:*),Bash(sed:*),Bash(jq:*),Bash(date:*),Bash(wc:*),Bash(cut:*),Bash(tr:*),Bash(sort:*),Bash(uniq:*),Bash(diff:*),Bash(echo:*),Bash(printf:*),Bash(mkdir:*),Bash(touch:*),Bash(chmod:*),Bash(mv:*),Bash(cp:*),mcp__linear__linear_get_issue,mcp__linear__linear_list_issues,mcp__linear__linear_add_comment,mcp__linear__linear_search_documentation,mcp__linear__linear_update_issue"
+            --allowedTools "Read,Write,Edit,MultiEdit,NotebookEdit,Glob,Grep,WebSearch,WebFetch,Bash(git:*),Bash(gh pr:*),Bash(gh issue:*),Bash(gh api:*),Bash(npm:*),Bash(bun:*),Bash(bunx:*),Bash(npx:*),Bash(node:*),Bash(python3:*),Bash(ls:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(grep:*),Bash(rg:*),Bash(find:*),Bash(awk:*),Bash(sed:*),Bash(jq:*),Bash(date:*),Bash(wc:*),Bash(cut:*),Bash(tr:*),Bash(sort:*),Bash(uniq:*),Bash(diff:*),Bash(echo:*),Bash(printf:*),Bash(mkdir:*),Bash(touch:*),Bash(chmod:*),Bash(mv:*),Bash(cp:*),mcp__linear__linear_get_issue,mcp__linear__linear_list_issues,mcp__linear__linear_add_comment,mcp__linear__linear_search_documentation,mcp__linear__linear_update_issue"
             --mcp-config '{"mcpServers":{"linear":{"command":"bunx","args":["linear-mcp-server"],"env":{"LINEAR_API_KEY":"${{ secrets.LINEAR_API_KEY }}"}}}}'
           plugin_marketplaces: ${{ steps.build-plugins.outputs.plugin_marketplaces }}
           plugins: ${{ steps.build-plugins.outputs.plugins }}
