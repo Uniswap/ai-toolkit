@@ -81,6 +81,11 @@ jobs:
       # chain). Self-testing changes to worker scripts is now done by landing
       # them to `next` first and verifying there, or by invoking the
       # workflow_dispatch entrypoint with an explicit SHA in the allowlist.
+      #
+      # External repos copying this file as a template: keep this as 'main'.
+      # The reusable worker's toolkit_ref allowlist now blocks fork-branch
+      # values, but `next` is permitted and would pick up untested worker
+      # changes; pinning to 'main' avoids that.
       toolkit_ref: 'main'
     secrets:
       # Use OAuth token (Pro/Max) instead of API key

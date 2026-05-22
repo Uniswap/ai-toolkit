@@ -290,6 +290,29 @@ jobs:
       cancel-in-progress: true
 
     steps:
+      # FIXED: Security scanning with bullfrog — block mode prevents exfiltration
+      # This step cannot be disabled or modified.
+      # Per .github/workflows/CLAUDE.md, bullfrog must be the FIRST step in
+      # every job on a non-macOS runner ("no exceptions"), so it runs before
+      # the toolkit_ref validation below. Ordering is safe: bullfrog does not
+      # consume toolkit_ref, and the validation runs before any step that
+      # downloads action.yml or post-*.ts content using it.
+      - name: Security scanning
+        uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+        with:
+          egress-policy: block
+          allowed-domains: |
+            github.com
+            *.github.com
+            *.githubusercontent.com
+            api.anthropic.com
+            claude.ai
+            *.claude.ai
+            bun.sh
+            registry.npmjs.org
+            *.npmjs.org
+          enable-sudo: false
+
       # Validate toolkit_ref BEFORE any downstream step uses it to download
       # action.yml / post-*.ts script content from the ai-toolkit repo.
       # Without this, an attacker-controlled ref could substitute malicious
@@ -308,24 +331,6 @@ jobs:
               ;;
           esac
           echo "✅ toolkit_ref validated: $TOOLKIT_REF"
-
-      # FIXED: Security scanning with bullfrog — block mode prevents exfiltration
-      # This step cannot be disabled or modified
-      - name: Security scanning
-        uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
-        with:
-          egress-policy: block
-          allowed-domains: |
-            github.com
-            *.github.com
-            *.githubusercontent.com
-            api.anthropic.com
-            claude.ai
-            *.claude.ai
-            bun.sh
-            registry.npmjs.org
-            *.npmjs.org
-          enable-sudo: false
 
       # FIXED: Checkout with consistent fetch depth
       - name: Checkout repository
