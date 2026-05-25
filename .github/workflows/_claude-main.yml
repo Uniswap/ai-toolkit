@@ -80,7 +80,7 @@ on:
           Available models:
           - claude-sonnet-4-6 (default, recommended) - Latest Sonnet model with best balance of speed and capability
           - claude-opus-4-7 - Most capable model for complex tasks
-          - claude-haiku-4-5 - Fast, cost-effective model for simpler tasks
+          - claude-haiku-4-5-20251001 - Fast, cost-effective model for simpler tasks
 
           Default: claude-sonnet-4-6
         required: false
@@ -426,7 +426,7 @@ jobs:
       # Supports both API key and OAuth token authentication (validated in earlier step)
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@476e359e6203e73dad705c8b322e333fabbd7416 # v1.0.119
+        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
         with:
           # Authentication: provide either API key or OAuth token (validated in earlier step)
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
