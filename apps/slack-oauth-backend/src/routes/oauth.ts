@@ -155,6 +155,16 @@ router.get(
     const oauthHandler = createOAuthHandler();
     const authUrl = oauthHandler.generateAuthUrl(state);
 
+    // Observability: record the scopes being requested on this install
+    // attempt. Parse params out of the URL so the `state` CSRF nonce
+    // doesn't end up in logs alongside the scope data.
+    const parsedUrl = new URL(authUrl);
+    logger.info('Slack OAuth authorize redirect', {
+      scope: parsedUrl.searchParams.get('scope'),
+      userScope: parsedUrl.searchParams.get('user_scope'),
+      redirectUri: parsedUrl.searchParams.get('redirect_uri'),
+    });
+
     // In production, store state in session or database
     // For now, just redirect
     res.redirect(authUrl);

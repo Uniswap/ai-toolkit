@@ -106,6 +106,24 @@ export class SlackOAuthHandler implements OAuthHandler {
         );
       }
 
+      // Observability: record the scopes Slack actually granted on the issued
+      // tokens, plus presence flags useful for diagnosing token-type confusion
+      // and refresh-token availability. Token values themselves are deliberately
+      // omitted; only scope strings and booleans are recorded, so this log is
+      // safe to leave on in production.
+      logger.info('Slack OAuth exchange complete', {
+        botScopesGranted: tokenResponse.scope,
+        userScopesGranted: tokenResponse.authed_user?.scope,
+        hasBotToken: !!tokenResponse.access_token,
+        hasUserToken: !!tokenResponse.authed_user?.access_token,
+        hasBotRefreshToken: !!tokenResponse.refresh_token,
+        hasUserRefreshToken: !!tokenResponse.authed_user?.refresh_token,
+        botTokenType: tokenResponse.token_type,
+        userTokenType: tokenResponse.authed_user?.token_type,
+        teamId: tokenResponse.team?.id,
+        enterpriseId: tokenResponse.enterprise?.id,
+      });
+
       // Get user information using the bot token (if available)
       // With token rotation, bot token may not be available
       let userInfo: SlackUserInfo | undefined;
