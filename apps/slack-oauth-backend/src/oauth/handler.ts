@@ -106,9 +106,11 @@ export class SlackOAuthHandler implements OAuthHandler {
         );
       }
 
-      // Debug: log the scopes Slack actually granted on the issued tokens.
-      // Token values themselves are deliberately omitted; only scope strings and
-      // presence flags are recorded so the log is safe to surface in Vercel.
+      // Observability: record the scopes Slack actually granted on the issued
+      // tokens, plus presence flags useful for diagnosing token-type confusion
+      // and refresh-token availability. Token values themselves are deliberately
+      // omitted; only scope strings and booleans are recorded, so this log is
+      // safe to leave on in production.
       logger.info('Slack OAuth exchange complete', {
         botScopesGranted: tokenResponse.scope,
         userScopesGranted: tokenResponse.authed_user?.scope,
