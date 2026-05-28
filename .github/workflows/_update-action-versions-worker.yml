@@ -215,7 +215,10 @@ jobs:
           # then using envsubst to safely substitute environment variables.
           # This avoids needing to escape backticks, $, and \ throughout the prompt.
           export INPUT_BRANCH_NAME INPUT_TARGET_BRANCH INPUT_DRY_RUN
-          PROMPT=$(envsubst << 'PROMPT_EOF'
+          # Restrict envsubst to the named variables only; without an allowlist
+          # it would expand every $-reference, leaking non-secret runner
+          # context into the prompt body.
+          PROMPT=$(envsubst '$INPUT_BRANCH_NAME $INPUT_TARGET_BRANCH $INPUT_DRY_RUN' << 'PROMPT_EOF'
           # GitHub Actions Version Update Task
 
           You are tasked with updating all external GitHub Actions in this repository to their latest versions.
@@ -387,10 +390,16 @@ jobs:
           PROMPT_EOF
           )
 
-          # Output using heredoc delimiter
-          echo "prompt<<PROMPT_DELIM" >> $GITHUB_OUTPUT
-          echo "$PROMPT" >> $GITHUB_OUTPUT
-          echo "PROMPT_DELIM" >> $GITHUB_OUTPUT
+          # Per-call unguessable heredoc delimiter (defense in depth — body
+          # is static today). Fail fast if openssl returns empty or the
+          # body exceeds the $GITHUB_OUTPUT 1MB per-value cap.
+          PROMPT_DELIM_RAND=$(openssl rand -hex 16)
+          [ -n "$PROMPT_DELIM_RAND" ] || { echo "::error::openssl rand returned empty; refusing to write predictable delimiter" >&2; exit 1; }
+          [ "$(printf '%s' "$PROMPT" | wc -c)" -lt 900000 ] || { echo "::error::prompt body exceeds 900KB; would risk \$GITHUB_OUTPUT truncation" >&2; exit 1; }
+          PROMPT_DELIM="PROMPT_DELIMITER_$(date +%s%N)_${PROMPT_DELIM_RAND}"
+          echo "prompt<<${PROMPT_DELIM}" >> "$GITHUB_OUTPUT"
+          echo "$PROMPT" >> "$GITHUB_OUTPUT"
+          echo "${PROMPT_DELIM}" >> "$GITHUB_OUTPUT"
 
       # Build plugin configuration using shared composite action
       - name: Build plugin configuration
