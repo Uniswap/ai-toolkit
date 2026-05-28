@@ -530,6 +530,72 @@ jobs:
           additional_permissions: |
             actions: read
 
+      # Validate changed files (blocklist for sensitive paths).
+      # The autonomous task worker is generic-purpose — it can legitimately
+      # modify any source file in the repo. But certain paths must require
+      # human review even if a prompt-injected Claude session asks to change
+      # them: workflow/action definitions and bot configs (would alter CI
+      # itself), package-manager config (.npmrc, bunfig.toml — would change
+      # install behavior), CODEOWNERS (would alter review gates), and any
+      # secret material. Refine this blocklist as the team finds new
+      # sensitive-path categories.
+      #
+      # Patterns are bash `case` globs: they match the full path string,
+      # `*` spans '/'. Root-anchored dotfiles (.npmrc, .env) need an
+      # explicit `*/...` variant to also match nested monorepo locations
+      # (apps/foo/.npmrc), since `case ".npmrc"` only matches the literal
+      # repo-root file.
+      - name: Validate changed files
+        env:
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+        run: |
+          set -euo pipefail
+          # Distinguish "git command failed" from "diff is genuinely empty":
+          # swallowing the former would let an attacker who corrupted git
+          # state earlier in the job silently skip the blocklist.
+          if ! CHANGED=$(git diff --name-only "origin/$TARGET_BRANCH..HEAD"); then
+            echo "::error::Failed to compute diff against origin/$TARGET_BRANCH; refusing to skip blocklist check"
+            exit 1
+          fi
+          if [ -z "$CHANGED" ]; then
+            echo "No files changed"
+            exit 0
+          fi
+          echo "Changed files:"
+          echo "$CHANGED"
+          BLOCKED=0
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            case "$f" in
+              # CI / review-gate surfaces (workflows, composite actions, CODEOWNERS, bot configs).
+              # Anchored under .github/ since that's where GitHub honors them.
+              .github/workflows/*|.github/actions/*|\
+              .github/CODEOWNERS|CODEOWNERS|\
+              .github/dependabot.yml|\
+              .github/renovate.json|.github/renovate.json5|\
+              .github/settings.yml)
+                echo "::error::Blocked: $f — CI/review-gate files require human review, not autonomous Claude modification"
+                BLOCKED=1 ;;
+              # Package-manager config — both repo-root and nested monorepo packages.
+              .npmrc|*/.npmrc|\
+              .bun-version|*/.bun-version|\
+              bunfig.toml|*/bunfig.toml|.bunfig.toml|*/.bunfig.toml|\
+              .yarnrc|*/.yarnrc|.yarnrc.yml|*/.yarnrc.yml|\
+              .pnpmrc|*/.pnpmrc)
+                echo "::error::Blocked: $f — package-manager config requires human review"
+                BLOCKED=1 ;;
+              # Secret material — both root and nested. *.pem/*.key already
+              # cover nested paths because `case` `*` spans '/'.
+              .env|.env.*|*/.env|*/.env.*|\
+              secrets/*|*/secrets/*|\
+              *.pem|*.key)
+                echo "::error::Blocked: $f — secret material must never be committed by an autonomous run"
+                BLOCKED=1 ;;
+            esac
+          done <<<"$CHANGED"
+          [ "$BLOCKED" -eq 0 ] || { echo "::error::One or more changed files are in the blocklist; failing job."; exit 1; }
+          echo "✅ All changed files passed the blocklist check"
+
       # Verify commit author identity defense-in-depth
       #
       # The GIT_AUTHOR_* env vars on the Run Claude Code step are honored by
