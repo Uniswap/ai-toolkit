@@ -214,16 +214,22 @@ jobs:
         uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
         with:
           egress-policy: block
+          # Per-workflow tightened allowlist. Audit-mode sampling missed
+          # several destinations (raw.githubusercontent.com, claude.ai)
+          # because bullfrog v0.8.4 queues DNS *replies*
+          # (agent/queue_audit.nft) and cached resolutions emit no further
+          # events. Add domains here as block-mode CI failures reveal them.
+          # raw.githubusercontent.com: build-plugin-config fetches
+          #   marketplace.json (Uniswap/ai-toolkit/next/.claude-plugin/).
+          # claude.ai: Claude SDK install path (https://claude.ai/install.sh)
+          #   AND runtime telemetry/session lookup even on API-key auth.
           allowed-domains: |
-            github.com
-            *.github.com
-            *.githubusercontent.com
+            release-assets.githubusercontent.com
+            raw.githubusercontent.com
             api.anthropic.com
             claude.ai
-            *.claude.ai
-            bun.sh
+            downloads.claude.ai
             registry.npmjs.org
-            *.npmjs.org
           enable-sudo: false
 
       # Validate toolkit_ref BEFORE any downstream step uses it to download
