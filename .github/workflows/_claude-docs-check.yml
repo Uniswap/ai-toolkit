@@ -170,6 +170,14 @@ on:
         description: "Number of commits pushed when auto_commit is enabled"
         value: ${{ jobs.docs-check.outputs.commits_pushed }}
 
+# Disable Bun's automatic bunfig.toml loading from CWD. When a workflow
+# checks out PR head content (this workflow checks out PR refs to read
+# diffs and post comments), `bun run` would otherwise auto-load
+# bunfig.toml from the checkout root, and `bunfig.toml.preload` executes
+# arbitrary code before the intended script — RCE with caller secrets.
+env:
+  BUN_CONFIG_FILE: /dev/null
+
 jobs:
   docs-check:
     runs-on: ubuntu-latest
@@ -732,8 +740,11 @@ jobs:
             SCRIPT_ARGS="$SCRIPT_ARGS --auto-commit"
           fi
 
-          # Run post-processing script
-          bun run "$POST_SCRIPT" $SCRIPT_ARGS
+          # Run post-processing script. BUN_CONFIG_FILE=/dev/null is already set
+          # at the job env (line 187), but pinning it inline keeps Semgrep's
+          # bun-run-in-reusable-workflow rule satisfied and survives anyone
+          # later moving this into a step that overrides the job env.
+          BUN_CONFIG_FILE=/dev/null bun run "$POST_SCRIPT" $SCRIPT_ARGS
 
           # Check if branch was created
           if [ -f /tmp/fixup-branch-name.txt ]; then

@@ -251,6 +251,14 @@ on:
         description: "Personal Access Token with repo scope. Required for: (1) resolving review threads via GraphQL API, and (2) auto-fix pushes that trigger subsequent workflow runs. Falls back to GITHUB_TOKEN if not provided, but auto-fix pushes with GITHUB_TOKEN will NOT trigger new workflow runs."
         required: false
 
+# Disable Bun's automatic bunfig.toml loading from CWD. This workflow runs
+# `bun run` against post-review scripts; if a caller checks out PR head
+# content first, `bun run` would auto-load bunfig.toml from the checkout
+# root and `bunfig.toml.preload` would execute arbitrary code with the
+# caller's secrets. Propagates to all jobs and steps in this workflow.
+env:
+  BUN_CONFIG_FILE: /dev/null
+
 jobs:
   claude-review:
     runs-on: ubuntu-latest
