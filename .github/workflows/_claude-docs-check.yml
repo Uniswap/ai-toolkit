@@ -507,18 +507,30 @@ jobs:
 
           PROMPT_EOF
 
-          # Substitute variables
-          sed -i "s|\${REPO_OWNER}|$REPO_OWNER|g" /tmp/docs-check-prompt.txt
-          sed -i "s|\${REPO_NAME}|$REPO_NAME|g" /tmp/docs-check-prompt.txt
-          sed -i "s|\${PR_NUMBER}|$PR_NUMBER|g" /tmp/docs-check-prompt.txt
-          sed -i "s|\${BASE_REF}|$BASE_REF|g" /tmp/docs-check-prompt.txt
-          sed -i "s|\${LINES_CHANGED}|$LINES_CHANGED|g" /tmp/docs-check-prompt.txt
-          sed -i "s|\${FAIL_ON_MISSING_DOCS}|$FAIL_ON_MISSING_DOCS|g" /tmp/docs-check-prompt.txt
-          sed -i "s|\${FAIL_ON_MISSING_VERSION}|$FAIL_ON_MISSING_VERSION|g" /tmp/docs-check-prompt.txt
-
-          # Insert changed files (escape for sed)
-          CHANGED_FILES_ESCAPED=$(printf '%s\n' "$CHANGED_FILES" | sed 's/[&/\]/\\&/g; s/$/\\n/' | tr -d '\n')
-          sed -i "s|\${CHANGED_FILES}|$CHANGED_FILES_ESCAPED|g" /tmp/docs-check-prompt.txt
+          # Substitute placeholders using python's str.replace.
+          #
+          # Why not sed: the previous code used `sed -i "s|\${VAR}|$VALUE|g"`
+          # with `|` as the sed delimiter. The escape applied to $CHANGED_FILES
+          # was `sed 's/[&/\]/\\&/g'`, which escapes `&`, `/`, `\` but NOT `|`
+          # (the actual delimiter). A filename in $CHANGED_FILES containing `|`
+          # — legal on Linux, not quoted by git's default `core.quotepath`
+          # since `|` is in the printable ASCII range — would break the
+          # substitution into garbage flags and cause the docs-check workflow
+          # to fail loudly or, worse, write a partial value.
+          #
+          # Python's str.replace is plain-text and immune to this class.
+          export REPO_OWNER REPO_NAME CHANGED_FILES
+          python3 - <<'PYEOF'
+          import os
+          from pathlib import Path
+          p = Path('/tmp/docs-check-prompt.txt')
+          content = p.read_text()
+          for key in ('REPO_OWNER', 'REPO_NAME', 'PR_NUMBER', 'BASE_REF',
+                      'LINES_CHANGED', 'FAIL_ON_MISSING_DOCS',
+                      'FAIL_ON_MISSING_VERSION', 'CHANGED_FILES'):
+              content = content.replace('${' + key + '}', os.environ.get(key, ''))
+          p.write_text(content)
+          PYEOF
 
           # For the diff, we'll append it separately due to size
           echo "" >> /tmp/docs-check-prompt.txt
