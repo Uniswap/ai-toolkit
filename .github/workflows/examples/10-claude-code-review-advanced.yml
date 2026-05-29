@@ -38,6 +38,16 @@ jobs:
       !contains(github.head_ref, 'gh-readonly-queue/') &&
       (github.event.pull_request.draft == false || github.event.action == 'ready_for_review')
 
+    # Required: the calling job must grant at least what the reusable workflow declares, or
+    # GitHub rejects the run with a silent startup_failure (a ~1s run with no logs).
+    # contents: write is needed here because auto_fix (below) pushes commits.
+    permissions:
+      id-token: write # OIDC for Claude Code Action
+      contents: write # read code AND push auto_fix commits
+      pull-requests: write # comment and submit the review
+      issues: read # read PR discussions
+      actions: read # check CI status
+
     uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@main
     with:
       pr_number: ${{ github.event.pull_request.number }}
