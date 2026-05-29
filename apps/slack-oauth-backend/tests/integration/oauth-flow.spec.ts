@@ -3,6 +3,7 @@ import type { Express } from 'express';
 import express from 'express';
 import { WebClient } from '@slack/web-api';
 import oauthRouter from '../../src/routes/oauth';
+import { generateState } from '../../src/oauth/state';
 import { clearSlackCaches } from '../../src/slack/client';
 import type * as SecurityMiddleware from '../../src/middleware/security';
 
@@ -15,6 +16,7 @@ jest.mock('../../src/config', () => ({
     slackClientId: 'test-client-id',
     slackClientSecret: 'test-client-secret',
     slackRedirectUri: 'https://example.com/callback',
+    sessionSecret: 'test-session-secret-deterministic-32chars',
     notionDocUrl: 'https://notion.so/setup-docs',
     environment: 'test',
   },
@@ -96,7 +98,8 @@ describe('OAuth Flow Integration Tests', () => {
   });
 
   describe('GET /slack/oauth/callback - Success Flow', () => {
-    const validState = '1234567890123456789';
+    // A real HMAC-signed state, the only kind the callback now accepts.
+    const validState = generateState();
     const validCode = 'valid-auth-code';
 
     const mockTokenResponse = {
@@ -270,7 +273,7 @@ describe('OAuth Flow Integration Tests', () => {
 
       const response = await request(app).get('/slack/oauth/callback').query({
         code: 'invalid-code',
-        state: '1234567890123456',
+        state: generateState(),
       });
 
       expect(response.status).toBe(400);
@@ -282,7 +285,7 @@ describe('OAuth Flow Integration Tests', () => {
 
       const response = await request(app).get('/slack/oauth/callback').query({
         code: 'valid-code',
-        state: '1234567890123456',
+        state: generateState(),
       });
 
       expect(response.status).toBe(400);
@@ -309,7 +312,9 @@ describe('OAuth Flow Integration Tests', () => {
       expect(response.headers.location).toContain(
         'redirect_uri=https%3A%2F%2Fexample.com%2Fcallback'
       );
-      expect(response.headers.location).toContain('state=state_');
+      // State is now an HMAC-signed base64url token (A-Za-z0-9-_), not the old
+      // predictable `state_<ts>_<rand>` format.
+      expect(response.headers.location).toMatch(/state=[A-Za-z0-9_-]{16,}/);
     });
   });
 
@@ -366,7 +371,7 @@ describe('OAuth Flow Integration Tests', () => {
 
       const response = await request(app).get('/slack/oauth/callback').query({
         code: 'complete-auth-code',
-        state: 'complete_state_1234567890',
+        state: generateState(),
       });
 
       expect(response.status).toBe(200);
@@ -410,7 +415,7 @@ describe('OAuth Flow Integration Tests', () => {
 
       const response = await request(app).get('/slack/oauth/callback').query({
         code: 'partial-auth-code',
-        state: 'partial_state_1234567890',
+        state: generateState(),
       });
 
       // Should still succeed overall
