@@ -23,9 +23,12 @@ name: "[claude] Generate PR Title & Description"
 # - Pattern learning from repository history
 # - Custom prompt support
 #
-# PERMISSIONS:
-# This workflow defines its own job-level permissions (contents: read,
-# pull-requests: write). Calling workflows do NOT need to grant these.
+# PERMISSIONS REQUIRED (the calling workflow must grant its calling job at least these;
+# a reusable workflow cannot be granted more than its caller provides, so granting fewer
+# causes a silent startup_failure: a ~1s run with no logs):
+#   id-token: write
+#   contents: read
+#   pull-requests: write
 
 on:
   workflow_call:
@@ -172,7 +175,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout_minutes }}
 
-    # Fixed permissions (cannot be overridden by calling workflow)
+    # Permissions the CALLING workflow must grant its calling job (matching or higher).
+    # A reusable workflow cannot be granted more than its caller provides, so a caller that
+    # declares fewer makes GitHub reject the run with a silent startup_failure: a ~1s run with
+    # no logs. See .github/workflows/examples/12-generate-pr-metadata-basic.yml for a correct caller.
     permissions:
       id-token: write # Required to create ID tokens for Claude Code Action
       contents: read # Required to read repository code

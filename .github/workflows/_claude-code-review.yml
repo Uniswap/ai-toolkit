@@ -37,8 +37,10 @@ name: "[claude] Claude Code Review"
 # event when re-requesting reviews from bot accounts. Use the comment trigger
 # or manual workflow_dispatch instead.
 #
-# PERMISSIONS REQUIRED (calling workflow must grant these):
-#   contents: read
+# PERMISSIONS REQUIRED (the calling workflow must grant its calling job at least these;
+# a reusable workflow cannot be granted more than its caller provides, so granting fewer
+# causes a silent startup_failure: a ~1s run with no logs):
+#   contents: write       # read code AND push commits when auto_fix is enabled
 #   pull-requests: write
 #   issues: read
 #   actions: read
@@ -269,7 +271,11 @@ jobs:
       NODE_OPTIONS: ""
       NPM_CONFIG_REGISTRY: ""
       NODE_PATH: ""
-    # Fixed permissions (cannot be overridden by calling workflow)
+    # Permissions the CALLING workflow must grant its calling job (matching or higher).
+    # A reusable workflow cannot be granted more than its caller provides, so a caller that
+    # declares fewer (e.g. contents: read when this needs contents: write for auto_fix pushes)
+    # makes GitHub reject the run with a silent startup_failure: a ~1s run with no logs.
+    # See .github/workflows/examples/08-claude-code-review-basic.yml for a correct caller.
     permissions:
       id-token: write # Required for OIDC
       contents: write # Required to read code and push fixes when auto_fix is enabled
