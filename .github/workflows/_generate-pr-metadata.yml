@@ -64,10 +64,17 @@ on:
         default: ".github/prompts/generate-pr-title-description.md"
 
       toolkit_ref:
-        description: "Git ref (branch, tag, or SHA) of ai-toolkit to use for downloading the validate-claude-auth action. Defaults to 'main'. Use 'next' or a specific SHA to test unreleased changes."
+        description: |
+          Git ref (branch, tag, or SHA) of Uniswap/ai-toolkit to fetch runtime assets from
+          (the validate-claude-auth action and the default PR-metadata prompt).
+          Leave empty (the default) to fetch from THIS workflow's own commit via job.workflow_sha,
+          so the assets always match the workflow YAML that is actually running. This prevents the
+          drift where a caller pinned `uses: ...@<SHA>` but the assets were fetched from a different
+          (often older) ref and 404'd. Set this explicitly (e.g. 'next' or a SHA) ONLY to test
+          unreleased ai-toolkit changes.
         required: false
         type: string
-        default: "main"
+        default: ""
 
       timeout_minutes:
         description: "Job timeout in minutes"
@@ -186,11 +193,42 @@ jobs:
           persist-credentials: false
           fetch-depth: 0 # Full history needed for git merge-base and history analysis
 
+      # Resolve where to fetch ai-toolkit runtime assets (validate-claude-auth action, default
+      # prompt) from. An explicit toolkit_ref input wins so callers can still pin 'next' or a SHA
+      # of Uniswap/ai-toolkit to test unreleased changes. Otherwise we default to THIS workflow's
+      # own repo+commit (job.workflow_repository / job.workflow_sha), so the assets always match the
+      # workflow YAML that is running. That removes the drift where a caller pinned `uses: ...@<SHA>`
+      # but assets were fetched from a different ref and 404'd. job.workflow_* is unavailable on
+      # GitHub Enterprise Server; this fails loudly there unless toolkit_ref is set.
+      - name: Resolve ai-toolkit asset source
+        env:
+          INPUT_TOOLKIT_REF: ${{ inputs.toolkit_ref }}
+          JOB_WORKFLOW_REPO: ${{ job.workflow_repository }}
+          JOB_WORKFLOW_SHA: ${{ job.workflow_sha }}
+        run: |
+          set -euo pipefail
+          if [ -n "$INPUT_TOOLKIT_REF" ]; then
+            REPO="Uniswap/ai-toolkit"
+            REF="$INPUT_TOOLKIT_REF"
+            echo "Using explicit toolkit_ref override: ${REPO}@${REF}"
+          else
+            REPO="$JOB_WORKFLOW_REPO"
+            REF="$JOB_WORKFLOW_SHA"
+            echo "Defaulting asset source to this workflow's own commit: ${REPO}@${REF}"
+          fi
+          if [ -z "$REPO" ] || [ -z "$REF" ]; then
+            echo "::error::Could not resolve ai-toolkit asset source (repo='${REPO}' ref='${REF}'). job.workflow_* is empty (e.g. GitHub Enterprise Server) and no 'toolkit_ref' input was provided. Set the 'toolkit_ref' input on the calling workflow to a Uniswap/ai-toolkit ref."
+            exit 1
+          fi
+          {
+            echo "TOOLKIT_REPO=${REPO}"
+            echo "TOOLKIT_REF=${REF}"
+          } >> "$GITHUB_ENV"
+
       # Download validate-claude-auth action if caller repo doesn't have it
       # This allows external repos to use this reusable workflow without copying the action
       - name: Ensure validate-claude-auth action exists
         env:
-          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ACTION_FILE=".github/actions/validate-claude-auth/action.yml"
@@ -198,7 +236,7 @@ jobs:
           if [ -f "$ACTION_FILE" ]; then
             echo "Using local validate-claude-auth action"
           else
-            echo "Downloading validate-claude-auth action from ai-toolkit@${TOOLKIT_REF}..."
+            echo "Downloading validate-claude-auth action from ${TOOLKIT_REPO}@${TOOLKIT_REF}..."
             mkdir -p .github/actions/validate-claude-auth
 
             # Use GitHub API (same pattern as other reusable workflows)
@@ -206,9 +244,9 @@ jobs:
             if ! curl -fSs --max-time 30 --max-redirs 3 \
                       -H "Accept: application/vnd.github.v4.raw" \
                       -H "Authorization: Bearer $GITHUB_TOKEN" \
-                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/actions/validate-claude-auth/action.yml?ref=${TOOLKIT_REF}" \
+                      -L "https://api.github.com/repos/${TOOLKIT_REPO}/contents/.github/actions/validate-claude-auth/action.yml?ref=${TOOLKIT_REF}" \
                       -o "$ACTION_FILE" 2>&1 | tee /tmp/curl-error.log; then
-              echo "::error::Failed to download validate-claude-auth action from ai-toolkit@${TOOLKIT_REF}"
+              echo "::error::Failed to download validate-claude-auth action from ${TOOLKIT_REPO}@${TOOLKIT_REF}. If you set a 'toolkit_ref' input, confirm that ref exists in Uniswap/ai-toolkit and contains this action; otherwise leave 'toolkit_ref' empty to fetch from the workflow's own commit."
               cat /tmp/curl-error.log
               exit 1
             fi
@@ -227,7 +265,7 @@ jobs:
               exit 1
             fi
 
-            echo "Successfully downloaded validate-claude-auth action from ai-toolkit@${TOOLKIT_REF}"
+            echo "Successfully downloaded validate-claude-auth action from ${TOOLKIT_REPO}@${TOOLKIT_REF}"
           fi
 
       - name: Validate authentication
@@ -539,22 +577,24 @@ jobs:
             CUSTOM_PROMPT=$(cat "$CUSTOM_PROMPT_PATH")
 
           # Priority 3: Default prompt from ai-toolkit repository (public, no auth needed)
+          # Fetched from the resolved asset source (this workflow's own commit by default) so the
+          # prompt matches the workflow version, rather than always tracking the default branch.
           else
-            echo "📝 Fetching default prompt from Uniswap/ai-toolkit repository"
+            echo "📝 Fetching default prompt from ${TOOLKIT_REPO}@${TOOLKIT_REF}"
 
             # Fetch default prompt via GitHub API (public repo, no auth needed)
             if ! curl -fSs --max-time 30 --max-redirs 3 \
                       -H "Accept: application/vnd.github.v4.raw" \
-                      -L "https://api.github.com/repos/Uniswap/ai-toolkit/contents/.github/prompts/generate-pr-title-description.md" \
+                      -L "https://api.github.com/repos/${TOOLKIT_REPO}/contents/.github/prompts/generate-pr-title-description.md?ref=${TOOLKIT_REF}" \
                       -o /tmp/default-prompt.md 2>&1 | tee /tmp/curl-error.log; then
-              echo "❌ Failed to fetch default prompt from Uniswap/ai-toolkit"
+              echo "❌ Failed to fetch default prompt from ${TOOLKIT_REPO}@${TOOLKIT_REF}"
               echo "   Error details:"
               cat /tmp/curl-error.log | head -5
               exit 1
             fi
 
             CUSTOM_PROMPT=$(cat /tmp/default-prompt.md)
-            echo "✅ Loaded default prompt from Uniswap/ai-toolkit"
+            echo "✅ Loaded default prompt from ${TOOLKIT_REPO}@${TOOLKIT_REF}"
           fi
 
           # Parse repository owner and name from REPO (format: owner/repo)
