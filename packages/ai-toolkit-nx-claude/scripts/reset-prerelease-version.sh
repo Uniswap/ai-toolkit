@@ -3,6 +3,15 @@
 # Script to reset version for prerelease on next branch
 # This helps fix the issue where next branch has same version as latest
 
+# Source numeric validation helper to guard values that flow into bash arithmetic
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VALIDATE_NUMERIC_LIB="$SCRIPT_DIR/../../../.github/scripts/validate-numeric.sh"
+if [[ ! -f "$VALIDATE_NUMERIC_LIB" ]]; then
+    echo "❌ Required helper not found: $VALIDATE_NUMERIC_LIB" >&2
+    exit 1
+fi
+source "$VALIDATE_NUMERIC_LIB"
+
 PACKAGE_NAME="@uniswap/ai-toolkit-nx-claude"
 CURRENT_VERSION=$(jq -r '.version' packages/ai-toolkit-nx-claude/package.json)
 
@@ -43,6 +52,7 @@ fi
 # Determine target version for next branch
 if [[ "$MAJOR.$MINOR.$PATCH" == "$LATEST_MAJOR.$LATEST_MINOR.$LATEST_PATCH" ]]; then
     # Same version, need to bump for next
+    MINOR=$(validate_numeric "$MINOR" "minor") || exit 1
     NEW_MINOR=$((MINOR + 1))
     TARGET_VERSION="$MAJOR.$NEW_MINOR.0"
 else
@@ -59,6 +69,7 @@ if [[ -n "$EXISTING_PRERELEASES" ]]; then
     # Extract the prerelease number if it matches our target
     if [[ "$EXISTING_PRERELEASES" == "$TARGET_VERSION-next."* ]]; then
         PRERELEASE_NUM=${EXISTING_PRERELEASES##*-next.}
+        PRERELEASE_NUM=$(validate_numeric "$PRERELEASE_NUM" "prerelease number") || exit 1
         NEXT_PRERELEASE=$((PRERELEASE_NUM + 1))
     else
         NEXT_PRERELEASE=0

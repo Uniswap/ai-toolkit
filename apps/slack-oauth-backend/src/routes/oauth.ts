@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { Router } from 'express';
 import { createOAuthHandler } from '../oauth/handler';
+import { generateState, validateState } from '../oauth/state';
 import { createSlackClient } from '../slack/client';
 import { formatTokenMessage, formatSuccessPage, formatErrorPage } from '../messages/formatter';
 import { logger } from '../utils/logger';
@@ -54,11 +55,9 @@ router.get(
         throw new ValidationError('Missing authorization code', 'code');
       }
 
-      // Create OAuth handler with state validation
+      // Create OAuth handler with signed-state validation (CSRF protection)
       const oauthHandler = createOAuthHandler((state) => {
-        // In production, validate state against session or database
-        // For now, just ensure it exists and has minimum length
-        return typeof state === 'string' && state.length >= 16;
+        return typeof state === 'string' && validateState(state);
       });
 
       // Handle OAuth callback
@@ -73,6 +72,11 @@ router.get(
         // Send error page
         const errorPage = formatErrorPage(result.errorCode || 'unknown', result.error);
 
+        res.set({
+          'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+          Pragma: 'no-cache',
+          Expires: '0',
+        });
         res.status(400).send(errorPage);
         return;
       }
@@ -117,12 +121,20 @@ router.get(
       // Send success page with token displayed if DM failed
       // Generate refresh URL based on request host
       const refreshUrl = `${req.protocol}://${req.get('host')}/slack/refresh`;
+      // Never render the refresh token in HTML; the page can be cached by
+      // intermediaries. The access-token fallback display is the accepted
+      // compromise so the user can still copy a token if the DM failed.
       const successPage = formatSuccessPage(
         result.user?.name,
         dmSent ? undefined : result.accessToken,
-        dmSent ? undefined : result.refreshToken,
+        undefined,
         dmSent ? undefined : refreshUrl
       );
+      res.set({
+        'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+        Pragma: 'no-cache',
+        Expires: '0',
+      });
       res.send(successPage);
     } catch (error) {
       requestLogger.error('OAuth callback error', error);
@@ -134,6 +146,11 @@ router.get(
           error.message
         );
 
+        res.set({
+          'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+          Pragma: 'no-cache',
+          Expires: '0',
+        });
         res.status(400).send(errorPage);
         return;
       }
@@ -167,17 +184,8 @@ router.get(
       redirectUri: parsedUrl.searchParams.get('redirect_uri'),
     });
 
-    // In production, store state in session or database
-    // For now, just redirect
     res.redirect(authUrl);
   }
 );
-
-/**
- * Generate a random state parameter
- */
-function generateState(): string {
-  return `state_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
-}
 
 export default router;
