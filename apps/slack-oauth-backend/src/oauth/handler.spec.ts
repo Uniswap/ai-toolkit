@@ -100,7 +100,8 @@ describe('SlackOAuthHandler', () => {
 
       const mockTokenResponse = {
         ok: true,
-        access_token: 'xoxp-user-token',
+        // Distinct from the user slot below so assertions prove bot-slot sourcing.
+        access_token: 'xoxb-bot-token',
         token_type: 'user',
         scope: 'chat:write,users:read',
         team: { id: 'T123456', name: 'Test Team' },
@@ -139,9 +140,11 @@ describe('SlackOAuthHandler', () => {
         const result = await handler.handleCallback(validParams);
 
         expect(result.success).toBe(true);
+        // Selected token prefers the user token (authed_user.access_token).
         expect(result.accessToken).toBe('xoxp-user-token');
-        // Bot token from the exchange is surfaced for post-install DM auth.
-        expect(result.botAccessToken).toBe('xoxp-user-token');
+        // Bot token is sourced from the bot slot (tokenResponse.access_token),
+        // distinct from the user token, and surfaced for post-install DM auth.
+        expect(result.botAccessToken).toBe('xoxb-bot-token');
         expect(result.user).toEqual({
           id: 'U123456',
           name: 'testuser',
@@ -186,7 +189,10 @@ describe('SlackOAuthHandler', () => {
         const result = await handler.handleCallback(validParams);
 
         expect(result.success).toBe(true);
-        expect(result.accessToken).toBe('xoxp-user-token');
+        // No user token in the response, so the selected token falls back to
+        // the bot token (tokenResponse.access_token).
+        expect(result.accessToken).toBe('xoxb-bot-token');
+        expect(result.botAccessToken).toBe('xoxb-bot-token');
         expect(result.user).toBeUndefined();
         expect(mockUsersInfo).not.toHaveBeenCalled();
       });
