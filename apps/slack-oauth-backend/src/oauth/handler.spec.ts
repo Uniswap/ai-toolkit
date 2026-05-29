@@ -11,7 +11,6 @@ jest.mock('../config', () => ({
     slackClientId: 'test-client-id',
     slackClientSecret: 'test-client-secret',
     slackRedirectUri: 'https://example.com/callback',
-    slackBotToken: 'xoxb-test-bot-token',
   },
 }));
 
@@ -28,21 +27,19 @@ describe('SlackOAuthHandler', () => {
     mockUsersInfo = jest.fn();
 
     // Mock WebClient constructor and methods
-    (WebClient as jest.MockedClass<typeof WebClient>).mockImplementation(
-      (_token?: string) => {
-        const client = {
-          oauth: {
-            v2: {
-              access: mockOAuthV2Access,
-            },
+    (WebClient as jest.MockedClass<typeof WebClient>).mockImplementation((_token?: string) => {
+      const client = {
+        oauth: {
+          v2: {
+            access: mockOAuthV2Access,
           },
-          users: {
-            info: mockUsersInfo,
-          },
-        } as any;
-        return client;
-      }
-    );
+        },
+        users: {
+          info: mockUsersInfo,
+        },
+      } as any;
+      return client;
+    });
 
     handler = new SlackOAuthHandler({
       clientId: 'test-client-id',
@@ -59,9 +56,7 @@ describe('SlackOAuthHandler', () => {
 
       expect(authUrl).toContain('https://slack.com/oauth/v2/authorize');
       expect(authUrl).toContain('client_id=test-client-id');
-      expect(authUrl).toContain(
-        'redirect_uri=https%3A%2F%2Fexample.com%2Fcallback'
-      );
+      expect(authUrl).toContain('redirect_uri=https%3A%2F%2Fexample.com%2Fcallback');
       expect(authUrl).toContain('state=test-state-123456789');
       expect(authUrl).toContain('scope=chat%3Awrite%2Cusers%3Aread');
     });
@@ -145,6 +140,8 @@ describe('SlackOAuthHandler', () => {
 
         expect(result.success).toBe(true);
         expect(result.accessToken).toBe('xoxp-user-token');
+        // Bot token from the exchange is surfaced for post-install DM auth.
+        expect(result.botAccessToken).toBe('xoxp-user-token');
         expect(result.user).toEqual({
           id: 'U123456',
           name: 'testuser',

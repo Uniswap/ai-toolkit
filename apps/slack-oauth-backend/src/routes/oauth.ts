@@ -86,7 +86,9 @@ router.get(
       let dmSent = false;
       try {
         if (result.user?.id && result.accessToken) {
-          const slackClient = createSlackClient();
+          // Authenticate the DM with the bot token freshly issued by this
+          // exchange (not a static env var, which dies under token rotation).
+          const slackClient = createSlackClient(undefined, result.botAccessToken);
           const tokenMessage = formatTokenMessage(
             result.accessToken,
             result.user.name,
