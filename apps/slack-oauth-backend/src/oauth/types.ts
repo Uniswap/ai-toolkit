@@ -97,6 +97,13 @@ export interface OAuthResult {
   accessToken?: string;
   /** Refresh token if successful (when token rotation is enabled) */
   refreshToken?: string;
+  /**
+   * Bot access token freshly issued by this exchange. Used for post-install
+   * actions that must authenticate as the bot (e.g. DM delivery). Undefined if
+   * Slack did not issue a bot token for this install. Never persisted: with
+   * token rotation these expire (~12h), so callers must use it inline.
+   */
+  botAccessToken?: string;
   /** User information if successful */
   user?: SlackUserInfo;
   /** Error message if failed */

@@ -124,14 +124,14 @@ export class SlackOAuthHandler implements OAuthHandler {
         enterpriseId: tokenResponse.enterprise?.id,
       });
 
-      // Get user information using the bot token (if available)
-      // With token rotation, bot token may not be available
+      // Enrich with user info using the bot token freshly issued by THIS
+      // exchange. A static SLACK_BOT_TOKEN env var is incompatible with token
+      // rotation (xoxe tokens expire ~12h) and dies on every reinstall, which
+      // surfaced as `account_inactive` from users.info. The just-minted token
+      // is always valid and carries users:read.
       let userInfo: SlackUserInfo | undefined;
-      if (tokenResponse.authed_user?.id && config.slackBotToken) {
-        userInfo = await this.getUserInfo(
-          tokenResponse.authed_user.id,
-          config.slackBotToken // Use bot token to get user info
-        );
+      if (tokenResponse.authed_user?.id && tokenResponse.access_token) {
+        userInfo = await this.getUserInfo(tokenResponse.authed_user.id, tokenResponse.access_token);
       }
 
       // Prefer the User OAuth Token (xoxp) if present; otherwise fall back to the Bot token
@@ -147,6 +147,9 @@ export class SlackOAuthHandler implements OAuthHandler {
         success: true,
         accessToken: selectedToken,
         refreshToken: selectedRefreshToken,
+        // Surface the fresh bot token so the route can authenticate post-install
+        // actions (DM delivery) without a static, rotation-incompatible token.
+        botAccessToken: tokenResponse.access_token,
         user: userInfo,
         details: {
           team: tokenResponse.team,

@@ -11,7 +11,6 @@ jest.mock('../config', () => ({
     slackClientId: 'test-client-id',
     slackClientSecret: 'test-client-secret',
     slackRedirectUri: 'https://example.com/callback',
-    slackBotToken: 'xoxb-test-bot-token',
   },
 }));
 
@@ -28,21 +27,19 @@ describe('SlackOAuthHandler', () => {
     mockUsersInfo = jest.fn();
 
     // Mock WebClient constructor and methods
-    (WebClient as jest.MockedClass<typeof WebClient>).mockImplementation(
-      (_token?: string) => {
-        const client = {
-          oauth: {
-            v2: {
-              access: mockOAuthV2Access,
-            },
+    (WebClient as jest.MockedClass<typeof WebClient>).mockImplementation((_token?: string) => {
+      const client = {
+        oauth: {
+          v2: {
+            access: mockOAuthV2Access,
           },
-          users: {
-            info: mockUsersInfo,
-          },
-        } as any;
-        return client;
-      }
-    );
+        },
+        users: {
+          info: mockUsersInfo,
+        },
+      } as any;
+      return client;
+    });
 
     handler = new SlackOAuthHandler({
       clientId: 'test-client-id',
@@ -59,9 +56,7 @@ describe('SlackOAuthHandler', () => {
 
       expect(authUrl).toContain('https://slack.com/oauth/v2/authorize');
       expect(authUrl).toContain('client_id=test-client-id');
-      expect(authUrl).toContain(
-        'redirect_uri=https%3A%2F%2Fexample.com%2Fcallback'
-      );
+      expect(authUrl).toContain('redirect_uri=https%3A%2F%2Fexample.com%2Fcallback');
       expect(authUrl).toContain('state=test-state-123456789');
       expect(authUrl).toContain('scope=chat%3Awrite%2Cusers%3Aread');
     });
@@ -105,7 +100,8 @@ describe('SlackOAuthHandler', () => {
 
       const mockTokenResponse = {
         ok: true,
-        access_token: 'xoxp-user-token',
+        // Distinct from the user slot below so assertions prove bot-slot sourcing.
+        access_token: 'xoxb-bot-token',
         token_type: 'user',
         scope: 'chat:write,users:read',
         team: { id: 'T123456', name: 'Test Team' },
@@ -144,7 +140,11 @@ describe('SlackOAuthHandler', () => {
         const result = await handler.handleCallback(validParams);
 
         expect(result.success).toBe(true);
+        // Selected token prefers the user token (authed_user.access_token).
         expect(result.accessToken).toBe('xoxp-user-token');
+        // Bot token is sourced from the bot slot (tokenResponse.access_token),
+        // distinct from the user token, and surfaced for post-install DM auth.
+        expect(result.botAccessToken).toBe('xoxb-bot-token');
         expect(result.user).toEqual({
           id: 'U123456',
           name: 'testuser',
@@ -189,7 +189,10 @@ describe('SlackOAuthHandler', () => {
         const result = await handler.handleCallback(validParams);
 
         expect(result.success).toBe(true);
-        expect(result.accessToken).toBe('xoxp-user-token');
+        // No user token in the response, so the selected token falls back to
+        // the bot token (tokenResponse.access_token).
+        expect(result.accessToken).toBe('xoxb-bot-token');
+        expect(result.botAccessToken).toBe('xoxb-bot-token');
         expect(result.user).toBeUndefined();
         expect(mockUsersInfo).not.toHaveBeenCalled();
       });
