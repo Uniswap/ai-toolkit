@@ -1,10 +1,5 @@
 import { WebClient } from '@slack/web-api';
-import {
-  SlackClient,
-  SlackApiError,
-  createSlackClient,
-  clearSlackCaches,
-} from './client';
+import { SlackClient, SlackApiError, createSlackClient, clearSlackCaches } from './client';
 
 // Mock the Slack WebClient
 jest.mock('@slack/web-api');
@@ -15,9 +10,13 @@ jest.mock('../config', () => ({
     slackClientId: 'test-client-id',
     slackClientSecret: 'test-client-secret',
     slackRedirectUri: 'https://example.com/callback',
-    slackBotToken: 'xoxb-test-bot-token',
   },
 }));
+
+// Bot token is supplied per-request by the caller (the fresh token from the
+// OAuth exchange), not read from config. Tests pass it explicitly to the
+// SlackClient constructor to exercise the bot-client code paths.
+const TEST_BOT_TOKEN = 'xoxb-test-bot-token';
 
 describe('SlackClient', () => {
   let client: SlackClient;
@@ -41,36 +40,34 @@ describe('SlackClient', () => {
     mockAuthTest = jest.fn();
 
     // Mock WebClient constructor and methods
-    (WebClient as jest.MockedClass<typeof WebClient>).mockImplementation(
-      (_token?: string) => {
-        const webClient = {
-          oauth: {
-            v2: {
-              access: mockOAuthV2Access,
-            },
+    (WebClient as jest.MockedClass<typeof WebClient>).mockImplementation((_token?: string) => {
+      const webClient = {
+        oauth: {
+          v2: {
+            access: mockOAuthV2Access,
           },
-          conversations: {
-            open: mockConversationsOpen,
-          },
-          chat: {
-            postMessage: mockChatPostMessage,
-          },
-          users: {
-            info: mockUsersInfo,
-          },
-          auth: {
-            test: mockAuthTest,
-          },
-        } as any;
-        return webClient;
-      }
-    );
+        },
+        conversations: {
+          open: mockConversationsOpen,
+        },
+        chat: {
+          postMessage: mockChatPostMessage,
+        },
+        users: {
+          info: mockUsersInfo,
+        },
+        auth: {
+          test: mockAuthTest,
+        },
+      } as any;
+      return webClient;
+    });
 
-    client = new SlackClient();
+    client = new SlackClient(undefined, TEST_BOT_TOKEN);
   });
 
   describe('constructor', () => {
-    it('should create two WebClient instances with proper configuration', () => {
+    it('should create two WebClient instances when given a bot token', () => {
       expect(WebClient).toHaveBeenCalledTimes(2);
 
       // First call for oauth client (no token)
@@ -87,10 +84,10 @@ describe('SlackClient', () => {
         })
       );
 
-      // Second call for bot client (with bot token)
+      // Second call for bot client (with the bot token passed to the constructor)
       expect(WebClient).toHaveBeenNthCalledWith(
         2,
-        'xoxb-test-bot-token',
+        TEST_BOT_TOKEN,
         expect.objectContaining({
           retryConfig: {
             retries: 3,
@@ -102,22 +99,23 @@ describe('SlackClient', () => {
       );
     });
 
-    it('should accept an optional token parameter', () => {
+    it('should create only the oauth client when no bot token is given', () => {
+      jest.clearAllMocks();
+      new SlackClient('xoxp-user-token');
+
+      // No bot token => only the oauth client is constructed.
+      expect(WebClient).toHaveBeenCalledTimes(1);
+      expect(WebClient).toHaveBeenNthCalledWith(1, 'xoxp-user-token', expect.any(Object));
+    });
+
+    it('should accept user and bot token parameters', () => {
       const customToken = 'xoxp-user-token';
-      new SlackClient(customToken);
+      new SlackClient(customToken, TEST_BOT_TOKEN);
 
       // beforeEach creates a client (calls 1-2), then this test creates another (calls 3-4)
       // Check that calls 3-4 used the custom token and bot token
-      expect(WebClient).toHaveBeenNthCalledWith(
-        3,
-        customToken,
-        expect.any(Object)
-      );
-      expect(WebClient).toHaveBeenNthCalledWith(
-        4,
-        'xoxb-test-bot-token',
-        expect.any(Object)
-      );
+      expect(WebClient).toHaveBeenNthCalledWith(3, customToken, expect.any(Object));
+      expect(WebClient).toHaveBeenNthCalledWith(4, TEST_BOT_TOKEN, expect.any(Object));
     });
   });
 
@@ -160,9 +158,7 @@ describe('SlackClient', () => {
         error: 'invalid_code',
       });
 
-      await expect(client.exchangeCode('invalid-code')).rejects.toThrow(
-        SlackApiError
-      );
+      await expect(client.exchangeCode('invalid-code')).rejects.toThrow(SlackApiError);
       await expect(client.exchangeCode('invalid-code')).rejects.toMatchObject({
         message: 'invalid_code',
         code: 'EXCHANGE_FAILED',
@@ -172,9 +168,7 @@ describe('SlackClient', () => {
     it('should handle network errors during token exchange', async () => {
       mockOAuthV2Access.mockRejectedValue(new Error('Network error'));
 
-      await expect(client.exchangeCode('valid-code')).rejects.toThrow(
-        SlackApiError
-      );
+      await expect(client.exchangeCode('valid-code')).rejects.toThrow(SlackApiError);
       await expect(client.exchangeCode('valid-code')).rejects.toMatchObject({
         message: 'Failed to exchange authorization code',
         code: 'EXCHANGE_ERROR',
@@ -221,9 +215,7 @@ describe('SlackClient', () => {
     it('should successfully send a direct message', async () => {
       const userId = 'U123456';
       const message = 'Test message';
-      const blocks = [
-        { type: 'section', text: { type: 'mrkdwn', text: message } },
-      ];
+      const blocks = [{ type: 'section', text: { type: 'mrkdwn', text: message } }];
 
       const result = await client.sendDirectMessage(userId, message, blocks);
 
@@ -261,12 +253,8 @@ describe('SlackClient', () => {
         error: 'user_not_found',
       });
 
-      await expect(client.sendDirectMessage('U999999', 'Test')).rejects.toThrow(
-        SlackApiError
-      );
-      await expect(
-        client.sendDirectMessage('U999999', 'Test')
-      ).rejects.toMatchObject({
+      await expect(client.sendDirectMessage('U999999', 'Test')).rejects.toThrow(SlackApiError);
+      await expect(client.sendDirectMessage('U999999', 'Test')).rejects.toMatchObject({
         message: 'Failed to open direct message channel',
         code: 'OPEN_DM_FAILED',
       });
@@ -278,12 +266,8 @@ describe('SlackClient', () => {
         error: 'channel_not_found',
       });
 
-      await expect(client.sendDirectMessage('U123456', 'Test')).rejects.toThrow(
-        SlackApiError
-      );
-      await expect(
-        client.sendDirectMessage('U123456', 'Test')
-      ).rejects.toMatchObject({
+      await expect(client.sendDirectMessage('U123456', 'Test')).rejects.toThrow(SlackApiError);
+      await expect(client.sendDirectMessage('U123456', 'Test')).rejects.toMatchObject({
         message: 'channel_not_found',
         code: 'SEND_MESSAGE_FAILED',
       });
@@ -292,12 +276,8 @@ describe('SlackClient', () => {
     it('should handle network errors when opening conversation', async () => {
       mockConversationsOpen.mockRejectedValue(new Error('Network timeout'));
 
-      await expect(client.sendDirectMessage('U123456', 'Test')).rejects.toThrow(
-        SlackApiError
-      );
-      await expect(
-        client.sendDirectMessage('U123456', 'Test')
-      ).rejects.toMatchObject({
+      await expect(client.sendDirectMessage('U123456', 'Test')).rejects.toThrow(SlackApiError);
+      await expect(client.sendDirectMessage('U123456', 'Test')).rejects.toMatchObject({
         message: 'Failed to send direct message',
         code: 'DM_ERROR',
       });
@@ -306,12 +286,8 @@ describe('SlackClient', () => {
     it('should handle network errors when sending message', async () => {
       mockChatPostMessage.mockRejectedValue(new Error('Network timeout'));
 
-      await expect(client.sendDirectMessage('U123456', 'Test')).rejects.toThrow(
-        SlackApiError
-      );
-      await expect(
-        client.sendDirectMessage('U123456', 'Test')
-      ).rejects.toMatchObject({
+      await expect(client.sendDirectMessage('U123456', 'Test')).rejects.toThrow(SlackApiError);
+      await expect(client.sendDirectMessage('U123456', 'Test')).rejects.toMatchObject({
         message: 'Failed to send direct message',
         code: 'DM_ERROR',
       });
@@ -382,9 +358,7 @@ describe('SlackClient', () => {
         error: 'user_not_found',
       });
 
-      await expect(client.getUserInfo('U999999')).rejects.toThrow(
-        SlackApiError
-      );
+      await expect(client.getUserInfo('U999999')).rejects.toThrow(SlackApiError);
       await expect(client.getUserInfo('U999999')).rejects.toMatchObject({
         message: 'Failed to get user information',
         code: 'USER_INFO_FAILED',
@@ -394,9 +368,7 @@ describe('SlackClient', () => {
     it('should handle network errors', async () => {
       mockUsersInfo.mockRejectedValue(new Error('Network error'));
 
-      await expect(client.getUserInfo('U123456')).rejects.toThrow(
-        SlackApiError
-      );
+      await expect(client.getUserInfo('U123456')).rejects.toThrow(SlackApiError);
       await expect(client.getUserInfo('U123456')).rejects.toMatchObject({
         message: 'Failed to get user information',
         code: 'USER_INFO_ERROR',
@@ -480,23 +452,29 @@ describe('SlackClient', () => {
       const client = createSlackClient('xoxp-user-token');
 
       expect(client).toBeInstanceOf(SlackClient);
-      // beforeEach creates a client (calls 1-2), then this test creates another (calls 3-4)
-      expect(WebClient).toHaveBeenNthCalledWith(
-        3,
-        'xoxp-user-token',
-        expect.any(Object)
-      );
-      expect(WebClient).toHaveBeenNthCalledWith(
-        4,
-        'xoxb-test-bot-token',
-        expect.any(Object)
-      );
+      // beforeEach creates a client (calls 1-2), then this test creates another.
+      // Without a bot token, only the oauth client is constructed.
+      expect(WebClient).toHaveBeenNthCalledWith(3, 'xoxp-user-token', expect.any(Object));
+    });
+
+    it('should return a fresh non-singleton instance when a bot token is given', () => {
+      const singletonA = createSlackClient();
+      const singletonB = createSlackClient();
+      // Tokenless calls share the singleton.
+      expect(singletonA).toBe(singletonB);
+
+      // A per-request bot token must not be cached in the singleton, so each
+      // botToken call returns a fresh instance.
+      const withBotA = createSlackClient(undefined, TEST_BOT_TOKEN);
+      const withBotB = createSlackClient(undefined, TEST_BOT_TOKEN);
+      expect(withBotA).not.toBe(singletonA);
+      expect(withBotA).not.toBe(withBotB);
     });
   });
 
   describe('retry and timeout configuration', () => {
     it('should configure WebClient with retry settings', () => {
-      new SlackClient();
+      new SlackClient(undefined, TEST_BOT_TOKEN);
 
       // Verify both WebClient instances were created with retry config
       const expectedConfig = {
@@ -508,10 +486,7 @@ describe('SlackClient', () => {
         timeout: 10000,
       };
 
-      expect(WebClient).toHaveBeenCalledWith(
-        undefined,
-        expect.objectContaining(expectedConfig)
-      );
+      expect(WebClient).toHaveBeenCalledWith(undefined, expect.objectContaining(expectedConfig));
       expect(WebClient).toHaveBeenCalledWith(
         'xoxb-test-bot-token',
         expect.objectContaining(expectedConfig)

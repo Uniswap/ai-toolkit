@@ -86,7 +86,9 @@ router.get(
       let dmSent = false;
       try {
         if (result.user?.id && result.accessToken) {
-          const slackClient = createSlackClient();
+          // Authenticate the DM with the bot token freshly issued by this
+          // exchange (not a static env var, which dies under token rotation).
+          const slackClient = createSlackClient(undefined, result.botAccessToken);
           const tokenMessage = formatTokenMessage(
             result.accessToken,
             result.user.name,
@@ -154,6 +156,16 @@ router.get(
     const state = generateState();
     const oauthHandler = createOAuthHandler();
     const authUrl = oauthHandler.generateAuthUrl(state);
+
+    // Observability: record the scopes being requested on this install
+    // attempt. Parse params out of the URL so the `state` CSRF nonce
+    // doesn't end up in logs alongside the scope data.
+    const parsedUrl = new URL(authUrl);
+    logger.info('Slack OAuth authorize redirect', {
+      scope: parsedUrl.searchParams.get('scope'),
+      userScope: parsedUrl.searchParams.get('user_scope'),
+      redirectUri: parsedUrl.searchParams.get('redirect_uri'),
+    });
 
     // In production, store state in session or database
     // For now, just redirect
