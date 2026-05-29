@@ -204,8 +204,12 @@ jobs:
       # of Uniswap/ai-toolkit to test unreleased changes. Otherwise we default to THIS workflow's
       # own repo+commit (job.workflow_repository / job.workflow_sha), so the assets always match the
       # workflow YAML that is running. That removes the drift where a caller pinned `uses: ...@<SHA>`
-      # but assets were fetched from a different ref and 404'd. job.workflow_* is unavailable on
-      # GitHub Enterprise Server; this fails loudly there unless toolkit_ref is set.
+      # but assets were fetched from a different ref and 404'd. job.workflow_repository /
+      # job.workflow_sha are documented job-context properties that resolve to the reusable
+      # workflow's own repo+commit at runtime (NOT the caller's, which is what github.workflow_sha
+      # would give): https://docs.github.com/en/actions/reference/contexts-reference
+      # They are unavailable on GitHub Enterprise Server; this fails loudly there unless
+      # toolkit_ref is set.
       - name: Resolve ai-toolkit asset source
         env:
           INPUT_TOOLKIT_REF: ${{ inputs.toolkit_ref }}
