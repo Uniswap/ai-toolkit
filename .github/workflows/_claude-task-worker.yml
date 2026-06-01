@@ -89,10 +89,10 @@ on:
       model:
         description: |
           Claude model to use.
-          Options: claude-sonnet-4-6, claude-opus-4-7, claude-haiku-4-5
+          Options: claude-sonnet-4-6, claude-opus-4-8, claude-haiku-4-5-20251001
         required: false
         type: string
-        default: "claude-opus-4-7"
+        default: "claude-opus-4-8"
 
       timeout_minutes:
         description: "Maximum execution time in minutes"
@@ -577,7 +577,7 @@ jobs:
           GIT_AUTHOR_EMAIL: "github-actions[bot]@users.noreply.github.com"
           GIT_COMMITTER_NAME: "github-actions[bot]"
           GIT_COMMITTER_EMAIL: "github-actions[bot]@users.noreply.github.com"
-        uses: anthropics/claude-code-action@476e359e6203e73dad705c8b322e333fabbd7416 # v1.0.119
+        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
