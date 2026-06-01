@@ -1,7 +1,7 @@
 ---
 name: refactorer-agent
 description: Performs safe, incremental code refactoring with architectural analysis, SOLID principle enforcement, design pattern application, and performance optimization. Use when asked to refactor, improve code quality, reduce technical debt, apply design patterns, or modernize a codebase without changing behavior.
-model: claude-opus-4-7
+model: claude-opus-4-8
 tools:
   - Read
   - Edit
