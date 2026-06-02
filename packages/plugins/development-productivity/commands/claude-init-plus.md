@@ -118,6 +118,7 @@ Generate content in these categories only:
 - `[TODO]` placeholder entries
 - Self-evident commands like `npm test` or `npm run build` that need no elaboration
 - Standard language idioms or well-known framework patterns
+- Line numbers or item counts (e.g. "see line 42", "12 endpoints", "3 services") — these go stale on every edit and create high documentation churn
 
 ## Content Templates
 
