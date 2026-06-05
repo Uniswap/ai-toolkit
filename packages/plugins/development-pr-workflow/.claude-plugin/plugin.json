@@ -22,6 +22,7 @@
     "./agents/comment-resolver.md"
   ],
   "commands": [
+    "./commands/backtest-change.md",
     "./commands/linear-task-and-pr-from-changes.md",
     "./commands/review-pr.md",
     "./commands/start-linear-task.md",
