@@ -224,7 +224,7 @@ All plugins follow semantic versioning (semver). Key versioning rules:
 | claude-setup               | 1.0.4   |
 | development-codebase-tools | 2.6.0   |
 | development-planning       | 2.0.1   |
-| development-pr-workflow    | 2.1.0   |
+| development-pr-workflow    | 2.2.0   |
 | development-productivity   | 2.4.0   |
 | spec-workflow              | 2.0.1   |
 | uniswap-integrations       | 2.4.0   |
