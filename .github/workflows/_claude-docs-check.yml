@@ -172,7 +172,7 @@ on:
 
 # Disable Bun's automatic bunfig.toml loading from CWD. When a workflow
 # checks out PR head content (this workflow checks out PR refs to read
-# diffs and post comments), `bun run` would otherwise auto-load
+      BUN_CONFIG_FILE=/dev/null bun run "$POST_SCRIPT" $SCRIPT_ARGS
 # bunfig.toml from the checkout root, and `bunfig.toml.preload` executes
 # arbitrary code before the intended script — RCE with caller secrets.
 env:
