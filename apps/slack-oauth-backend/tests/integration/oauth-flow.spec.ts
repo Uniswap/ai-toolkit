@@ -15,7 +15,6 @@ jest.mock('../../src/config', () => ({
     slackClientId: 'test-client-id',
     slackClientSecret: 'test-client-secret',
     slackRedirectUri: 'https://example.com/callback',
-    slackBotToken: 'xoxb-test-bot-token',
     notionDocUrl: 'https://notion.so/setup-docs',
     environment: 'test',
   },
@@ -40,9 +39,7 @@ jest.mock('../../src/utils/logger', () => ({
 // Mock security middleware to prevent rate limiting in tests
 // We only mock the rate limiter, keep validation middleware working
 jest.mock('../../src/middleware/security', () => {
-  const actual = jest.requireActual(
-    '../../src/middleware/security'
-  ) as typeof SecurityMiddleware;
+  const actual = jest.requireActual('../../src/middleware/security') as typeof SecurityMiddleware;
   return {
     ...actual,
     oauthRateLimiter: (_req: any, _res: any, next: any) => next(),
@@ -77,27 +74,25 @@ describe('OAuth Flow Integration Tests', () => {
     mockUsersInfo = jest.fn();
 
     // Mock WebClient constructor and methods
-    (WebClient as jest.MockedClass<typeof WebClient>).mockImplementation(
-      (_token?: string) => {
-        const client = {
-          oauth: {
-            v2: {
-              access: mockOAuthV2Access,
-            },
+    (WebClient as jest.MockedClass<typeof WebClient>).mockImplementation((_token?: string) => {
+      const client = {
+        oauth: {
+          v2: {
+            access: mockOAuthV2Access,
           },
-          conversations: {
-            open: mockConversationsOpen,
-          },
-          chat: {
-            postMessage: mockChatPostMessage,
-          },
-          users: {
-            info: mockUsersInfo,
-          },
-        } as any;
-        return client;
-      }
-    );
+        },
+        conversations: {
+          open: mockConversationsOpen,
+        },
+        chat: {
+          postMessage: mockChatPostMessage,
+        },
+        users: {
+          info: mockUsersInfo,
+        },
+      } as any;
+      return client;
+    });
   });
 
   describe('GET /slack/oauth/callback - Success Flow', () => {
@@ -307,13 +302,9 @@ describe('OAuth Flow Integration Tests', () => {
 
   describe('GET /slack/oauth/authorize', () => {
     it('should generate OAuth URL and redirect', async () => {
-      const response = await request(app)
-        .get('/slack/oauth/authorize')
-        .expect(302);
+      const response = await request(app).get('/slack/oauth/authorize').expect(302);
 
-      expect(response.headers.location).toContain(
-        'https://slack.com/oauth/v2/authorize'
-      );
+      expect(response.headers.location).toContain('https://slack.com/oauth/v2/authorize');
       expect(response.headers.location).toContain('client_id=test-client-id');
       expect(response.headers.location).toContain(
         'redirect_uri=https%3A%2F%2Fexample.com%2Fcallback'

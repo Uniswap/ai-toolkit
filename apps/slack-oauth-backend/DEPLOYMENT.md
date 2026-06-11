@@ -45,9 +45,10 @@ Add these environment variables in the Vercel dashboard:
 | --------------------- | -------------------------------------------------------- | --------- |
 | `SLACK_CLIENT_ID`     | Your Slack app client ID                                 | No        |
 | `SLACK_CLIENT_SECRET` | Your Slack app client secret                             | Yes ✓     |
-| `SLACK_BOT_TOKEN`     | Bot user OAuth token (xoxb-...)                          | Yes ✓     |
 | `SESSION_SECRET`      | 32+ character random string                              | Yes ✓     |
 | `SLACK_REDIRECT_URI`  | `https://[your-project].vercel.app/slack/oauth/callback` | No        |
+
+> Note: there is no `SLACK_BOT_TOKEN`. With token rotation enabled, bot tokens expire (~12h), so the server authenticates post-install actions (DM delivery, user lookup) with the freshly-issued bot token from each OAuth exchange rather than a static env var.
 
 #### Optional Variables
 

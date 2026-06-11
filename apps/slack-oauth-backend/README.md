@@ -83,7 +83,6 @@ Edit `.env` with your credentials:
 # Required Slack Configuration
 SLACK_CLIENT_ID=your_client_id_here
 SLACK_CLIENT_SECRET=your_client_secret_here
-SLACK_BOT_TOKEN=xoxb-your-bot-token
 SLACK_REDIRECT_URI=http://localhost:3000/slack/oauth/callback
 
 # Security (generate with: openssl rand -hex 32)
@@ -316,7 +315,6 @@ The service is configured for Vercel deployment from an Nx monorepo. The configu
 
    - `SLACK_CLIENT_ID`
    - `SLACK_CLIENT_SECRET`
-   - `SLACK_BOT_TOKEN`
    - `SLACK_REDIRECT_URI` (use your Vercel deployment URL)
    - `SESSION_SECRET`
 
@@ -355,7 +353,6 @@ The service is configured for Vercel deployment from an Nx monorepo. The configu
    # Set environment variables
    heroku config:set SLACK_CLIENT_ID=xxx
    heroku config:set SLACK_CLIENT_SECRET=xxx
-   heroku config:set SLACK_BOT_TOKEN=xxx
    heroku config:set SLACK_REDIRECT_URI=https://your-app.herokuapp.com/slack/oauth/callback
 
    # Deploy
@@ -381,7 +378,6 @@ The service is configured for Vercel deployment from an Nx monorepo. The configu
      environment:
        SLACK_CLIENT_ID: ${env:SLACK_CLIENT_ID}
        SLACK_CLIENT_SECRET: ${env:SLACK_CLIENT_SECRET}
-       SLACK_BOT_TOKEN: ${env:SLACK_BOT_TOKEN}
        SLACK_REDIRECT_URI: ${env:SLACK_REDIRECT_URI}
 
    functions:
@@ -453,7 +449,6 @@ gcloud run deploy slack-oauth-backend \
 | --------------------- | -------- | ----------------------- | ------------------------------------------ |
 | `SLACK_CLIENT_ID`     | ✅       | Slack app client ID     | `123456789.987654321`                      |
 | `SLACK_CLIENT_SECRET` | ✅       | Slack app client secret | `abcdef123456`                             |
-| `SLACK_BOT_TOKEN`     | ✅       | Bot user OAuth token    | `xoxb-123456789`                           |
 | `SLACK_REDIRECT_URI`  | ✅       | OAuth redirect URL      | `https://example.com/slack/oauth/callback` |
 | `SESSION_SECRET`      | ✅       | Session encryption key  | 32+ character random string                |
 | `PORT`                | ❌       | Server port             | `3000` (default)                           |

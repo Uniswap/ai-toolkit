@@ -18,9 +18,6 @@ export interface Config {
   slackClientSecret: string;
   slackRedirectUri: string;
 
-  // Slack Bot configuration (optional - not available with token rotation)
-  slackBotToken?: string;
-
   // Security
   sessionSecret: string;
 
@@ -42,9 +39,7 @@ class ConfigurationError extends Error {
 function getRequiredEnv(key: string): string {
   const value = process.env[key];
   if (!value) {
-    throw new ConfigurationError(
-      `Missing required environment variable: ${key}`
-    );
+    throw new ConfigurationError(`Missing required environment variable: ${key}`);
   }
   return value;
 }
@@ -65,9 +60,6 @@ function createConfig(): Config {
       slackClientSecret: getRequiredEnv('SLACK_CLIENT_SECRET'),
       slackRedirectUri: getRequiredEnv('SLACK_REDIRECT_URI'),
 
-      // Slack Bot configuration (optional - not available with token rotation)
-      slackBotToken: process.env['SLACK_BOT_TOKEN'],
-
       // Security
       sessionSecret: getRequiredEnv('SESSION_SECRET'),
 
@@ -84,9 +76,7 @@ function createConfig(): Config {
   } catch (error) {
     if (error instanceof ConfigurationError) {
       console.error(`Configuration Error: ${error.message}`);
-      console.error(
-        'Please ensure all required environment variables are set.'
-      );
+      console.error('Please ensure all required environment variables are set.');
       console.error('See .env.example for required variables.');
       process.exit(1);
     }
