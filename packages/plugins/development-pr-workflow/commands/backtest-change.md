@@ -24,7 +24,7 @@ A change that *looks* right is not the same as a change the data supports. The c
 
 2. **Find the authoritative data source** and respect sampling:
    - **Metrics** (Datadog `*`, `trace.*`, CloudWatch) are ~100% — use these to count rates/volumes/percentiles.
-   - **Indexed spans / logs** keep ~all errors but often only ~1% of successes — do NOT compute success-rate or totals from span/log *counts* (off by ~100×). Use them for inspection, not denominators.
+   - **Metrics** (standard Datadog metrics, `trace.*`, CloudWatch) are ~100% — use these to count rates/volumes/percentiles.
    - For alert/page/incident questions, pull the alert system's own event history (e.g. incident.io alerts), not a proxy.
 
 3. **Pull a representative window** (typically 7–30 days; long enough to include the conditions the change targets).
