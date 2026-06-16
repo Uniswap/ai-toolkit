@@ -1,7 +1,7 @@
 ---
 description: Before opening a PR for a data-driven change (monitor threshold, alert routing/renotify, metric query, sampling rate, perf tweak), validate it against LIVE historical data — replay old-vs-new and report whether it actually achieves its goal. Refuses to ship (or redirects) when the data disproves the premise.
 argument-hint: [what you're about to change + the metric/signal it should move]
-allowed-tools: Bash(*), Read(*), Grep(*), Glob(*), Task(*), AskUserQuestion(*)
+allowed-tools: Bash(*), Read(*), Grep(*), Glob(*), AskUserQuestion(*)
 ---
 
 # Backtest a change before you PR it
@@ -23,7 +23,6 @@ A change that *looks* right is not the same as a change the data supports. The c
 1. **State the hypothesis precisely.** "Changing X will move metric M from ~A to ~B because C." Write it down. If you can't name the metric and the expected direction, stop and clarify.
 
 2. **Find the authoritative data source** and respect sampling:
-   - **Metrics** (Datadog `*`, `trace.*`, CloudWatch) are ~100% — use these to count rates/volumes/percentiles.
    - **Metrics** (standard Datadog metrics, `trace.*`, CloudWatch) are ~100% — use these to count rates/volumes/percentiles.
    - For alert/page/incident questions, pull the alert system's own event history (e.g. incident.io alerts), not a proxy.
 
@@ -41,6 +40,7 @@ A change that *looks* right is not the same as a change the data supports. The c
 ## Output
 
 A short backtest report:
+
 - **Hypothesis** and goal metric.
 - **Window + data source** (and any sampling caveat applied).
 - **Old vs new** with hard numbers and which groups changed.
