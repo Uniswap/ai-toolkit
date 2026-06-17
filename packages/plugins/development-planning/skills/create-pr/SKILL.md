@@ -20,7 +20,7 @@ Create or update pull requests with auto-generated conventional commits and desc
 ## Error Handling
 
 - **No changes / no commits ahead of target**: Stop and inform the user — there is nothing to submit
-- **PR already exists for this branch**: Switch to update mode; run `git push` to publish the latest commits (use `gt submit` for Graphite), then `gh pr edit` if the PR title or body also need updating
+- **PR already exists for this branch**: Switch to update mode; run `git push` to publish the latest commits (use `gt submit` for Graphite). If the PR title or body also need updating, **read the live body first** (`gh pr view <n> --json body -q .body`) and edit *from* it — never regenerate the body from scratch. The author may have hand-edited the description or pasted images/screenshots (`![](https://github.com/user-attachments/...)`) that exist only in the live body, not in any file; overwriting silently destroys them. Splice your change into the current body and apply with `gh pr edit <n> --body-file <tmp>`.
 - **User rejects commit message**: Re-generate with user-provided guidance, then confirm again before proceeding
 
 ## Conventional Commit Types
