@@ -28,6 +28,7 @@ claude /plugin install development-pr-workflow
 
 | Command                            | Description                                  |
 | ---------------------------------- | -------------------------------------------- |
+| `/backtest-change`                 | Validate a data-driven change vs live history before PR |
 | `/review-pr`                       | Review a pull request comprehensively        |
 | `/work-through-pr-comments`        | Methodically address PR comments             |
 | `/start-linear-task`               | Start working on a Linear task in a worktree |
