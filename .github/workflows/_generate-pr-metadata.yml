@@ -508,7 +508,7 @@ jobs:
 
             Write ONLY the single word "PASS" or "FAIL" to /tmp/quality-gate-verdict.txt.
             No explanation, no other text — just the verdict word.
-          claude_args: '--model claude-haiku-4-5-20251001 --max-turns 3'
+          claude_args: '--model claude-haiku-4-5-20251001 --max-turns 3 --allowed-tools Read,Write'
           track_progress: false
 
       - name: Parse Quality Gate Verdict
