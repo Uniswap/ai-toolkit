@@ -33,9 +33,9 @@ claude /plugin install skill-management
 
 ## Hooks
 
-| Hook                           | Event       | Description                                                                                                                                                                                                                                            |
-| ------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **pr-skill-doctor-prompt.cjs** | PostToolUse | When a PR is opened (`gh pr create`, `gt submit`/`gt create`, or the GitHub MCP `create_pull_request` tool), injects a one-time, per-session nudge asking whether you'd like to run `/skill-mine`. Never blocks the PR; asks at most once per session. |
+| Hook                           | Event       | Description                                                                                                                                                                                                                                        |
+| ------------------------------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **pr-skill-doctor-prompt.cjs** | PostToolUse | When a PR is opened (`gh pr create`, `gt submit`/`gt ss`, or the GitHub MCP `create_pull_request` tool), injects a one-time, per-session nudge asking whether you'd like to run `/skill-mine`. Never blocks the PR; asks at most once per session. |
 
 The hook is a dependency-free Node script invoked via `node ${CLAUDE_PLUGIN_ROOT}/hooks/pr-skill-doctor-prompt.cjs` — no `tsx`, `bun`, or `jq` required.
 

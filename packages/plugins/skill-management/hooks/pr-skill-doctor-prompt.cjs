@@ -6,7 +6,7 @@
  * running /skill-mine (mine this session for skills/agents worth codifying).
  *
  * Fires on:
- *   - Bash commands containing `gh pr create`, `gt submit`, or `gt create`
+ *   - Bash commands containing `gh pr create`, `gt submit`, or `gt ss`
  *   - the GitHub MCP `create_pull_request` tool
  *
  * Never blocks the PR. Asks at most once per session (sentinel file keyed by
@@ -77,7 +77,7 @@ process.stdin.on('end', () => {
 function isPrOpen(toolName, toolInput) {
   if (toolName === 'Bash') {
     const cmd = String((toolInput && toolInput.command) || '');
-    return /\bgh\s+pr\s+create\b/.test(cmd) || /\bgt\s+(submit|create)\b/.test(cmd);
+    return /\bgh\s+pr\s+create\b/.test(cmd) || /\bgt\s+(submit|ss)\b/.test(cmd);
   }
   // GitHub MCP tool names look like
   // mcp__plugin_uniswap-integrations_github__create_pull_request
