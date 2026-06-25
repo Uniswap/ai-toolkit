@@ -1,10 +1,17 @@
 import type { Request, Response, NextFunction } from 'express';
 import { Router } from 'express';
 import { createOAuthHandler } from '../oauth/handler';
-import { generateState, validateState } from '../oauth/state';
+import {
+  generateState,
+  validateState,
+  generateBrowserNonce,
+  OAUTH_STATE_COOKIE,
+} from '../oauth/state';
 import { createSlackClient } from '../slack/client';
 import { formatTokenMessage, formatSuccessPage, formatErrorPage } from '../messages/formatter';
 import { logger } from '../utils/logger';
+import { readCookie } from '../utils/cookies';
+import { config } from '../config';
 import { OAuthError, ValidationError } from '../utils/errors';
 import type { OAuthCallbackParams } from '../oauth/types';
 import {
@@ -14,6 +21,28 @@ import {
 } from '../middleware/security';
 
 const router = Router();
+
+const STATE_MAX_AGE_MS = 10 * 60 * 1000;
+
+/**
+ * Cookie options for the per-browser nonce that binds a state token to the
+ * browser that started the flow (double-submit cookie CSRF defense).
+ *
+ * - HttpOnly: not readable by page JS, so XSS cannot exfiltrate it.
+ * - SameSite=Lax: still sent on the top-level GET redirect back from Slack.
+ * - Secure: only in non-dev/test, mirroring the HTTPS enforcement in
+ *   middleware/security.ts so local HTTP testing still works.
+ * - path scoped to /slack/oauth: the cookie is only attached on OAuth routes.
+ *
+ * The same options (minus maxAge) must be passed to clearCookie for the browser
+ * to actually drop the cookie on /callback.
+ */
+const browserNonceCookieBaseOptions = {
+  httpOnly: true,
+  secure: config.nodeEnv !== 'development' && config.nodeEnv !== 'test',
+  sameSite: 'lax' as const,
+  path: '/slack/oauth',
+};
 
 /**
  * OAuth callback endpoint
@@ -55,9 +84,22 @@ router.get(
         throw new ValidationError('Missing authorization code', 'code');
       }
 
-      // Create OAuth handler with signed-state validation (CSRF protection)
+      // Read the per-browser nonce set by /authorize. Clearing it now (before
+      // any branch returns) enforces one-time use: a leaked state is useless on
+      // a second callback because the cookie is already gone.
+      const browserNonce = readCookie(req.headers.cookie, OAUTH_STATE_COOKIE);
+      res.clearCookie(OAUTH_STATE_COOKIE, browserNonceCookieBaseOptions);
+
+      // Create OAuth handler with signed-state validation (CSRF protection).
+      // The signed state must verify AND be bound to this browser's nonce
+      // (double-submit cookie), proving the callback browser is the one that
+      // started the flow.
       const oauthHandler = createOAuthHandler((state) => {
-        return typeof state === 'string' && validateState(state);
+        return (
+          typeof state === 'string' &&
+          typeof browserNonce === 'string' &&
+          validateState(state, browserNonce, STATE_MAX_AGE_MS)
+        );
       });
 
       // Handle OAuth callback
@@ -170,7 +212,18 @@ router.get(
   oauthRateLimiter,
   validateOAuthAuthorize,
   (_req: Request, res: Response) => {
-    const state = generateState();
+    // Bind this OAuth flow to the initiating browser: mint a per-browser nonce,
+    // sign it into the state token, AND set it in an HttpOnly cookie. /callback
+    // requires the cookie nonce to match the signed one (double-submit cookie),
+    // so a state minted here is useless to anyone who lacks this browser's
+    // cookie.
+    const browserNonce = generateBrowserNonce();
+    res.cookie(OAUTH_STATE_COOKIE, browserNonce, {
+      ...browserNonceCookieBaseOptions,
+      maxAge: STATE_MAX_AGE_MS,
+    });
+
+    const state = generateState(browserNonce);
     const oauthHandler = createOAuthHandler();
     const authUrl = oauthHandler.generateAuthUrl(state);
 

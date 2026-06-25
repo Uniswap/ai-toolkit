@@ -3,7 +3,7 @@ import type { Express } from 'express';
 import express from 'express';
 import { WebClient } from '@slack/web-api';
 import oauthRouter from '../../src/routes/oauth';
-import { generateState } from '../../src/oauth/state';
+import { OAUTH_STATE_COOKIE } from '../../src/oauth/state';
 import { clearSlackCaches } from '../../src/slack/client';
 import type * as SecurityMiddleware from '../../src/middleware/security';
 
@@ -18,7 +18,9 @@ jest.mock('../../src/config', () => ({
     slackRedirectUri: 'https://example.com/callback',
     sessionSecret: 'test-session-secret-deterministic-32chars',
     notionDocUrl: 'https://notion.so/setup-docs',
-    environment: 'test',
+    // nodeEnv=test keeps the browser-nonce cookie non-Secure so supertest (HTTP)
+    // round-trips it; the route reads config.nodeEnv for the Secure flag.
+    nodeEnv: 'test',
   },
 }));
 
@@ -97,9 +99,22 @@ describe('OAuth Flow Integration Tests', () => {
     });
   });
 
+  /**
+   * Drive a real /authorize to obtain a genuinely-signed, browser-bound state
+   * plus the matching nonce cookie. The callback now requires the cookie nonce
+   * to match the one signed into the state (double-submit cookie CSRF defense),
+   * so tests must replay both together.
+   */
+  async function startFlow(): Promise<{ state: string; cookie: string }> {
+    const res = await request(app).get('/slack/oauth/authorize').expect(302);
+    const setCookie = res.headers['set-cookie'] as unknown as string[];
+    const nonceEntry = setCookie.find((c) => c.startsWith(`${OAUTH_STATE_COOKIE}=`)) as string;
+    const cookie = nonceEntry.split(';')[0];
+    const state = new URL(res.headers.location as string).searchParams.get('state') as string;
+    return { state, cookie };
+  }
+
   describe('GET /slack/oauth/callback - Success Flow', () => {
-    // A real HMAC-signed state, the only kind the callback now accepts.
-    const validState = generateState();
     const validCode = 'valid-auth-code';
 
     const mockTokenResponse = {
@@ -149,9 +164,10 @@ describe('OAuth Flow Integration Tests', () => {
     });
 
     it('should complete full OAuth flow successfully', async () => {
-      const response = await request(app).get('/slack/oauth/callback').query({
+      const { state, cookie } = await startFlow();
+      const response = await request(app).get('/slack/oauth/callback').set('Cookie', cookie).query({
         code: validCode,
-        state: validState,
+        state,
       });
 
       expect(response.status).toBe(200);
@@ -184,9 +200,10 @@ describe('OAuth Flow Integration Tests', () => {
         authed_user: undefined,
       });
 
-      const response = await request(app).get('/slack/oauth/callback').query({
+      const { state, cookie } = await startFlow();
+      const response = await request(app).get('/slack/oauth/callback').set('Cookie', cookie).query({
         code: validCode,
-        state: validState,
+        state,
       });
 
       expect(response.status).toBe(200);
@@ -201,9 +218,10 @@ describe('OAuth Flow Integration Tests', () => {
     it('should continue flow even if DM sending fails', async () => {
       mockConversationsOpen.mockRejectedValue(new Error('DM failed'));
 
-      const response = await request(app).get('/slack/oauth/callback').query({
+      const { state, cookie } = await startFlow();
+      const response = await request(app).get('/slack/oauth/callback').set('Cookie', cookie).query({
         code: validCode,
-        state: validState,
+        state,
       });
 
       // Should still return success page
@@ -217,14 +235,49 @@ describe('OAuth Flow Integration Tests', () => {
     it('should handle DM message posting failure gracefully', async () => {
       mockChatPostMessage.mockRejectedValue(new Error('Message post failed'));
 
-      const response = await request(app).get('/slack/oauth/callback').query({
+      const { state, cookie } = await startFlow();
+      const response = await request(app).get('/slack/oauth/callback').set('Cookie', cookie).query({
         code: validCode,
-        state: validState,
+        state,
       });
 
       // Should still return success page
       expect(response.status).toBe(200);
       expect(response.text).toContain('Success, testuser!');
+    });
+
+    it('rejects a genuine signed state replayed with a foreign browser cookie (CSRF)', async () => {
+      const { state } = await startFlow();
+
+      const response = await request(app)
+        .get('/slack/oauth/callback')
+        .set('Cookie', `${OAUTH_STATE_COOKIE}=attacker-controlled-nonce`)
+        .query({
+          code: validCode,
+          state,
+        });
+
+      expect(response.status).toBe(400);
+      // The state_mismatch error code renders as the friendly "Security
+      // validation failed." message on the Authorization Failed page.
+      expect(response.text).toContain('Authorization Failed');
+      expect(response.text).toContain('Security validation failed.');
+      // The authorization code must never be exchanged when binding fails.
+      expect(mockOAuthV2Access).not.toHaveBeenCalled();
+    });
+
+    it('rejects a genuine signed state replayed with no cookie (one-time-use / stripped cookie)', async () => {
+      const { state } = await startFlow();
+
+      const response = await request(app).get('/slack/oauth/callback').query({
+        code: validCode,
+        state,
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.text).toContain('Authorization Failed');
+      expect(response.text).toContain('Security validation failed.');
+      expect(mockOAuthV2Access).not.toHaveBeenCalled();
     });
   });
 
@@ -271,9 +324,10 @@ describe('OAuth Flow Integration Tests', () => {
         error: 'invalid_code',
       });
 
-      const response = await request(app).get('/slack/oauth/callback').query({
+      const { state, cookie } = await startFlow();
+      const response = await request(app).get('/slack/oauth/callback').set('Cookie', cookie).query({
         code: 'invalid-code',
-        state: generateState(),
+        state,
       });
 
       expect(response.status).toBe(400);
@@ -283,9 +337,10 @@ describe('OAuth Flow Integration Tests', () => {
     it('should handle network errors during token exchange', async () => {
       mockOAuthV2Access.mockRejectedValue(new Error('Network timeout'));
 
-      const response = await request(app).get('/slack/oauth/callback').query({
+      const { state, cookie } = await startFlow();
+      const response = await request(app).get('/slack/oauth/callback').set('Cookie', cookie).query({
         code: 'valid-code',
-        state: generateState(),
+        state,
       });
 
       expect(response.status).toBe(400);
@@ -369,9 +424,10 @@ describe('OAuth Flow Integration Tests', () => {
         ts: '9999999999.999999',
       });
 
-      const response = await request(app).get('/slack/oauth/callback').query({
+      const { state, cookie } = await startFlow();
+      const response = await request(app).get('/slack/oauth/callback').set('Cookie', cookie).query({
         code: 'complete-auth-code',
-        state: generateState(),
+        state,
       });
 
       expect(response.status).toBe(200);
@@ -413,9 +469,10 @@ describe('OAuth Flow Integration Tests', () => {
         ts: '7777777777.777777',
       });
 
-      const response = await request(app).get('/slack/oauth/callback').query({
+      const { state, cookie } = await startFlow();
+      const response = await request(app).get('/slack/oauth/callback').set('Cookie', cookie).query({
         code: 'partial-auth-code',
-        state: generateState(),
+        state,
       });
 
       // Should still succeed overall
