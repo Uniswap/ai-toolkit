@@ -119,7 +119,7 @@ router.get(
           Pragma: 'no-cache',
           Expires: '0',
         });
-        res.status(400).send(errorPage);
+        res.status(400).send(errorPage); // nosemgrep: javascript.express.security.audit.xss.direct-response-write.direct-response-write -- Safe: formatErrorPage escapes all user-controlled input via escapeHtml() (formatter.ts:462); semgrep cannot trace escaping across the function boundary.
         return;
       }
 
@@ -177,7 +177,7 @@ router.get(
         Pragma: 'no-cache',
         Expires: '0',
       });
-      res.send(successPage);
+      res.send(successPage); // nosemgrep: javascript.express.security.audit.xss.direct-response-write.direct-response-write -- Safe: formatSuccessPage escapes all user-controlled input via escapeHtml() (formatter.ts:253-256); semgrep cannot trace escaping across the function boundary.
     } catch (error) {
       requestLogger.error('OAuth callback error', error);
 
@@ -193,7 +193,7 @@ router.get(
           Pragma: 'no-cache',
           Expires: '0',
         });
-        res.status(400).send(errorPage);
+        res.status(400).send(errorPage); // nosemgrep: javascript.express.security.audit.xss.direct-response-write.direct-response-write -- Safe: formatErrorPage escapes all user-controlled input via escapeHtml() (formatter.ts:462); semgrep cannot trace escaping across the function boundary.
         return;
       }
 
