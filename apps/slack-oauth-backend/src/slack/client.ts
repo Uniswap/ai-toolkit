@@ -21,7 +21,7 @@ export class SlackClient {
   private readonly botClient?: WebClient;
   private static instance?: SlackClient;
 
-  constructor(token?: string) {
+  constructor(token?: string, botToken?: string) {
     // Configure client options with retry, timeout, and connection pooling
     const clientOptions: WebClientOptions = {
       retryConfig: {
@@ -36,9 +36,13 @@ export class SlackClient {
     // Client for OAuth operations (no token needed)
     this.client = new WebClient(token, clientOptions);
 
-    // Bot client for sending messages (optional - not available with token rotation)
-    if (config.slackBotToken) {
-      this.botClient = new WebClient(config.slackBotToken, clientOptions);
+    // Bot client for post-install actions (e.g. DMs). The token is supplied
+    // per-request by the caller (the fresh bot token from the OAuth exchange),
+    // never a static env var: with token rotation a stored bot token expires
+    // (~12h) and dies on reinstall. Absent token => no bot client, and bot
+    // operations skip gracefully (token rotation mode).
+    if (botToken) {
+      this.botClient = new WebClient(botToken, clientOptions);
     }
   }
 
@@ -87,11 +91,9 @@ export class SlackClient {
         throw error;
       }
 
-      throw new SlackApiError(
-        'Failed to exchange authorization code',
-        'EXCHANGE_ERROR',
-        { originalError: error }
-      );
+      throw new SlackApiError('Failed to exchange authorization code', 'EXCHANGE_ERROR', {
+        originalError: error,
+      });
     }
   }
 
@@ -174,7 +176,9 @@ export class SlackClient {
   async getUserInfo(userId: string): Promise<UserInfoResponse | null> {
     // Skip if no bot client (token rotation mode)
     if (!this.botClient) {
-      logger.info('Skipping user info lookup - bot token not configured (token rotation mode)', { userId });
+      logger.info('Skipping user info lookup - bot token not configured (token rotation mode)', {
+        userId,
+      });
       return null;
     }
 
@@ -188,11 +192,7 @@ export class SlackClient {
         });
 
         if (!response.ok || !response.user) {
-          throw new SlackApiError(
-            'Failed to get user information',
-            'USER_INFO_FAILED',
-            response
-          );
+          throw new SlackApiError('Failed to get user information', 'USER_INFO_FAILED', response);
         }
 
         const user = response.user as any;
@@ -218,11 +218,9 @@ export class SlackClient {
           throw error;
         }
 
-        throw new SlackApiError(
-          'Failed to get user information',
-          'USER_INFO_ERROR',
-          { originalError: error }
-        );
+        throw new SlackApiError('Failed to get user information', 'USER_INFO_ERROR', {
+          originalError: error,
+        });
       }
     });
   }
@@ -242,11 +240,7 @@ export class SlackClient {
       const response = await this.botClient.auth.test();
 
       if (!response.ok) {
-        throw new SlackApiError(
-          'Authentication test failed',
-          'AUTH_TEST_FAILED',
-          response
-        );
+        throw new SlackApiError('Authentication test failed', 'AUTH_TEST_FAILED', response);
       }
 
       return {
@@ -262,11 +256,9 @@ export class SlackClient {
         throw error;
       }
 
-      throw new SlackApiError(
-        'Failed to test authentication',
-        'AUTH_TEST_ERROR',
-        { originalError: error }
-      );
+      throw new SlackApiError('Failed to test authentication', 'AUTH_TEST_ERROR', {
+        originalError: error,
+      });
     }
   }
 
@@ -338,7 +330,13 @@ export interface AuthTestResponse {
 /**
  * Create a configured Slack client instance (uses singleton for better connection reuse)
  */
-export function createSlackClient(token?: string): SlackClient {
+export function createSlackClient(token?: string, botToken?: string): SlackClient {
+  // A per-request bot token (fresh from an OAuth exchange) must never be cached
+  // in the singleton, or a later request would reuse an earlier install's token.
+  // Only the tokenless OAuth client is safe to share across requests.
+  if (botToken) {
+    return new SlackClient(token, botToken);
+  }
   return SlackClient.getInstance(token);
 }
 

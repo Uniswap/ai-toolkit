@@ -23,9 +23,12 @@ name: "[claude] Generate PR Title & Description"
 # - Pattern learning from repository history
 # - Custom prompt support
 #
-# PERMISSIONS:
-# This workflow defines its own job-level permissions (contents: read,
-# pull-requests: write). Calling workflows do NOT need to grant these.
+# PERMISSIONS REQUIRED (the calling workflow must grant its calling job at least these;
+# a reusable workflow cannot be granted more than its caller provides, so granting fewer
+# causes a silent startup_failure: a ~1s run with no logs):
+#   id-token: write
+#   contents: read
+#   pull-requests: write
 
 on:
   workflow_call:
@@ -44,7 +47,7 @@ on:
         description: "Claude model to use for generation"
         required: false
         type: string
-        default: "claude-opus-4-7"
+        default: "claude-opus-4-8"
 
       max_turns:
         description: "Maximum conversation turns for Claude. Omit to use unlimited turns."
@@ -165,18 +168,64 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout_minutes }}
 
-    # Fixed permissions (cannot be overridden by calling workflow)
+    # Permissions the CALLING workflow must grant its calling job (matching or higher).
+    # A reusable workflow cannot be granted more than its caller provides, so a caller that
+    # declares fewer makes GitHub reject the run with a silent startup_failure: a ~1s run with
+    # no logs. See .github/workflows/examples/12-generate-pr-metadata-basic.yml for a correct caller.
     permissions:
       id-token: write # Required to create ID tokens for Claude Code Action
       contents: read # Required to read repository code
       pull-requests: write # Required to update PR title and description
 
     steps:
-      # Security scanning (required for all workflows)
+      # Security scanning — flipped from audit to block.
+      # Per .github/workflows/CLAUDE.md, bullfrog must be the FIRST step in
+      # every job on a non-macOS runner ("no exceptions"), so it runs before
+      # the toolkit_ref validation below. Ordering is safe: bullfrog does not
+      # consume toolkit_ref, and the validation runs before any step that
+      # downloads action.yml or post-*.ts content using it.
+      #
+      # Audit-mode sampling identified registry.npmjs.org (bun install)
+      # and release-assets.githubusercontent.com (setup-bun) as the only
+      # first-resolution destinations, BUT bullfrog v0.8.4 audit only
+      # queues DNS *replies* (agent/queue_audit.nft); cached resolutions
+      # emit no further events. Block-mode CI then revealed three more:
+      # api.anthropic.com (runtime API), raw.githubusercontent.com
+      # (build-plugin-config fetches marketplace.json), and claude.ai
+      # (Claude SDK install + runtime telemetry, even on API-key auth).
+      # github.com / api.github.com are in bullfrog defaultDomains.
+      # Add destinations here as future block-mode CI failures reveal them.
       - name: Security Scan
         uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-domains: |
+            release-assets.githubusercontent.com
+            raw.githubusercontent.com
+            api.anthropic.com
+            claude.ai
+            downloads.claude.ai
+            registry.npmjs.org
+          enable-sudo: false
+
+      # Validate toolkit_ref BEFORE any downstream step uses it to download
+      # action.yml / post-*.ts script content from the ai-toolkit repo.
+      # Without this, an attacker-controlled ref could substitute malicious
+      # script content that runs inside this job with access to its secrets.
+      - name: Validate toolkit_ref
+        env:
+          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
+        run: |
+          case "$TOOLKIT_REF" in
+            main|next) ;;
+            *)
+              if ! printf '%s' "$TOOLKIT_REF" | grep -qE '^[0-9a-fA-F]{40}$'; then
+                echo "::error::Invalid toolkit_ref: '$TOOLKIT_REF'. Allowed: main, next, or a full 40-char SHA."
+                exit 1
+              fi
+              ;;
+          esac
+          echo "✅ toolkit_ref validated: $TOOLKIT_REF"
 
       # Checkout code with full history for pattern analysis
       # Must come before validate-claude-auth (local composite action)
@@ -431,7 +480,7 @@ jobs:
           steps.quality-gate-prep.outputs.has_user_content == 'true'
         id: quality-gate-eval
         continue-on-error: true
-        uses: anthropics/claude-code-action@476e359e6203e73dad705c8b322e333fabbd7416 # v1.0.119
+        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -465,10 +514,7 @@ jobs:
 
             Write ONLY the single word "PASS" or "FAIL" to /tmp/quality-gate-verdict.txt.
             No explanation, no other text — just the verdict word.
-          allowed_tools: |
-            Read
-            Write
-          claude_args: '--model claude-haiku-4-5 --max-turns 3'
+          claude_args: '--model claude-haiku-4-5-20251001 --max-turns 3 --allowed-tools Read,Write'
           track_progress: false
 
       - name: Parse Quality Gate Verdict
@@ -891,7 +937,7 @@ jobs:
       - name: Run Claude Code Generation
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.quality-gate.outputs.should_skip != 'true'
         id: claude
-        uses: anthropics/claude-code-action@476e359e6203e73dad705c8b322e333fabbd7416 # v1.0.119
+        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

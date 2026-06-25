@@ -1,0 +1,21 @@
+{
+  "name": "skill-management",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/plugins/skill-management",
+  "projectType": "library",
+  "tags": ["type:plugin", "scope:skill-management"],
+  "targets": {
+    "lint-markdown": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm exec markdownlint-cli2 -- 'packages/plugins/skill-management/**/*.md'"
+      }
+    },
+    "validate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node scripts/validate-plugin.cjs packages/plugins/skill-management"
+      }
+    }
+  }
+}

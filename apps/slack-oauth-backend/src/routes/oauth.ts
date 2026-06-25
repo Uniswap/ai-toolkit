@@ -1,9 +1,17 @@
 import type { Request, Response, NextFunction } from 'express';
 import { Router } from 'express';
 import { createOAuthHandler } from '../oauth/handler';
+import {
+  generateState,
+  validateState,
+  generateBrowserNonce,
+  OAUTH_STATE_COOKIE,
+} from '../oauth/state';
 import { createSlackClient } from '../slack/client';
 import { formatTokenMessage, formatSuccessPage, formatErrorPage } from '../messages/formatter';
 import { logger } from '../utils/logger';
+import { readCookie } from '../utils/cookies';
+import { config } from '../config';
 import { OAuthError, ValidationError } from '../utils/errors';
 import type { OAuthCallbackParams } from '../oauth/types';
 import {
@@ -13,6 +21,28 @@ import {
 } from '../middleware/security';
 
 const router = Router();
+
+const STATE_MAX_AGE_MS = 10 * 60 * 1000;
+
+/**
+ * Cookie options for the per-browser nonce that binds a state token to the
+ * browser that started the flow (double-submit cookie CSRF defense).
+ *
+ * - HttpOnly: not readable by page JS, so XSS cannot exfiltrate it.
+ * - SameSite=Lax: still sent on the top-level GET redirect back from Slack.
+ * - Secure: only in non-dev/test, mirroring the HTTPS enforcement in
+ *   middleware/security.ts so local HTTP testing still works.
+ * - path scoped to /slack/oauth: the cookie is only attached on OAuth routes.
+ *
+ * The same options (minus maxAge) must be passed to clearCookie for the browser
+ * to actually drop the cookie on /callback.
+ */
+const browserNonceCookieBaseOptions = {
+  httpOnly: true,
+  secure: config.nodeEnv !== 'development' && config.nodeEnv !== 'test',
+  sameSite: 'lax' as const,
+  path: '/slack/oauth',
+};
 
 /**
  * OAuth callback endpoint
@@ -54,11 +84,22 @@ router.get(
         throw new ValidationError('Missing authorization code', 'code');
       }
 
-      // Create OAuth handler with state validation
+      // Read the per-browser nonce set by /authorize. Clearing it now (before
+      // any branch returns) enforces one-time use: a leaked state is useless on
+      // a second callback because the cookie is already gone.
+      const browserNonce = readCookie(req.headers.cookie, OAUTH_STATE_COOKIE);
+      res.clearCookie(OAUTH_STATE_COOKIE, browserNonceCookieBaseOptions);
+
+      // Create OAuth handler with signed-state validation (CSRF protection).
+      // The signed state must verify AND be bound to this browser's nonce
+      // (double-submit cookie), proving the callback browser is the one that
+      // started the flow.
       const oauthHandler = createOAuthHandler((state) => {
-        // In production, validate state against session or database
-        // For now, just ensure it exists and has minimum length
-        return typeof state === 'string' && state.length >= 16;
+        return (
+          typeof state === 'string' &&
+          typeof browserNonce === 'string' &&
+          validateState(state, browserNonce, STATE_MAX_AGE_MS)
+        );
       });
 
       // Handle OAuth callback
@@ -73,6 +114,11 @@ router.get(
         // Send error page
         const errorPage = formatErrorPage(result.errorCode || 'unknown', result.error);
 
+        res.set({
+          'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+          Pragma: 'no-cache',
+          Expires: '0',
+        });
         res.status(400).send(errorPage);
         return;
       }
@@ -86,7 +132,9 @@ router.get(
       let dmSent = false;
       try {
         if (result.user?.id && result.accessToken) {
-          const slackClient = createSlackClient();
+          // Authenticate the DM with the bot token freshly issued by this
+          // exchange (not a static env var, which dies under token rotation).
+          const slackClient = createSlackClient(undefined, result.botAccessToken);
           const tokenMessage = formatTokenMessage(
             result.accessToken,
             result.user.name,
@@ -115,12 +163,20 @@ router.get(
       // Send success page with token displayed if DM failed
       // Generate refresh URL based on request host
       const refreshUrl = `${req.protocol}://${req.get('host')}/slack/refresh`;
+      // Never render the refresh token in HTML; the page can be cached by
+      // intermediaries. The access-token fallback display is the accepted
+      // compromise so the user can still copy a token if the DM failed.
       const successPage = formatSuccessPage(
         result.user?.name,
         dmSent ? undefined : result.accessToken,
-        dmSent ? undefined : result.refreshToken,
+        undefined,
         dmSent ? undefined : refreshUrl
       );
+      res.set({
+        'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+        Pragma: 'no-cache',
+        Expires: '0',
+      });
       res.send(successPage);
     } catch (error) {
       requestLogger.error('OAuth callback error', error);
@@ -132,6 +188,11 @@ router.get(
           error.message
         );
 
+        res.set({
+          'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+          Pragma: 'no-cache',
+          Expires: '0',
+        });
         res.status(400).send(errorPage);
         return;
       }
@@ -151,7 +212,24 @@ router.get(
   oauthRateLimiter,
   validateOAuthAuthorize,
   (_req: Request, res: Response) => {
-    const state = generateState();
+    // Bind this OAuth flow to the initiating browser: mint a per-browser nonce,
+    // sign it into the state token, AND set it in an HttpOnly cookie. /callback
+    // requires the cookie nonce to match the signed one (double-submit cookie),
+    // so a state minted here is useless to anyone who lacks this browser's
+    // cookie.
+    const browserNonce = generateBrowserNonce();
+    // Cookie flags are inlined (not spread) so Semgrep's matcher can see
+    // secure/httpOnly/sameSite at the call site. These MUST stay in sync with
+    // browserNonceCookieBaseOptions, which clearCookie() below uses to clear it.
+    res.cookie(OAUTH_STATE_COOKIE, browserNonce, {
+      httpOnly: true,
+      secure: config.nodeEnv !== 'development' && config.nodeEnv !== 'test',
+      sameSite: 'lax' as const,
+      path: '/slack/oauth',
+      maxAge: STATE_MAX_AGE_MS,
+    });
+
+    const state = generateState(browserNonce);
     const oauthHandler = createOAuthHandler();
     const authUrl = oauthHandler.generateAuthUrl(state);
 
@@ -160,12 +238,5 @@ router.get(
     res.redirect(authUrl);
   }
 );
-
-/**
- * Generate a random state parameter
- */
-function generateState(): string {
-  return `state_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
-}
 
 export default router;

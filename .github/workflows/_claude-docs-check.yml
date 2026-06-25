@@ -170,6 +170,14 @@ on:
         description: "Number of commits pushed when auto_commit is enabled"
         value: ${{ jobs.docs-check.outputs.commits_pushed }}
 
+# Disable Bun's automatic bunfig.toml loading from CWD. When a workflow
+# checks out PR head content (this workflow checks out PR refs to read
+# diffs and post comments), `bun run` would otherwise auto-load
+# bunfig.toml from the checkout root, and `bunfig.toml.preload` executes
+# arbitrary code before the intended script — RCE with caller secrets.
+env:
+  BUN_CONFIG_FILE: /dev/null
+
 jobs:
   docs-check:
     runs-on: ubuntu-latest
@@ -197,21 +205,51 @@ jobs:
     steps:
       # Security scanning — block mode prevents secret exfiltration if RCE is achieved.
       # Allowlist validated against Datadog (service:github-actions, 7d window).
+      # Per .github/workflows/CLAUDE.md, bullfrog must be the FIRST step in
+      # every job on a non-macOS runner ("no exceptions"), so it runs before
+      # the toolkit_ref validation below. Ordering is safe: bullfrog does not
+      # consume toolkit_ref, and the validation runs before any step that
+      # downloads action.yml or post-*.ts content using it.
       - name: Security Scan
         uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
         with:
           egress-policy: block
+          # Per-workflow tightened allowlist. Audit-mode sampling missed
+          # several destinations (raw.githubusercontent.com, claude.ai)
+          # because bullfrog v0.8.4 queues DNS *replies*
+          # (agent/queue_audit.nft) and cached resolutions emit no further
+          # events. Add domains here as block-mode CI failures reveal them.
+          # raw.githubusercontent.com: build-plugin-config fetches
+          #   marketplace.json (Uniswap/ai-toolkit/next/.claude-plugin/).
+          # claude.ai: Claude SDK install path (https://claude.ai/install.sh)
+          #   AND runtime telemetry/session lookup even on API-key auth.
           allowed-domains: |
-            github.com
-            *.github.com
-            *.githubusercontent.com
+            release-assets.githubusercontent.com
+            raw.githubusercontent.com
             api.anthropic.com
             claude.ai
-            *.claude.ai
-            bun.sh
+            downloads.claude.ai
             registry.npmjs.org
-            *.npmjs.org
           enable-sudo: false
+
+      # Validate toolkit_ref BEFORE any downstream step uses it to download
+      # action.yml / post-*.ts script content from the ai-toolkit repo.
+      # Without this, an attacker-controlled ref could substitute malicious
+      # script content that runs inside this job with access to its secrets.
+      - name: Validate toolkit_ref
+        env:
+          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
+        run: |
+          case "$TOOLKIT_REF" in
+            main|next) ;;
+            *)
+              if ! printf '%s' "$TOOLKIT_REF" | grep -qE '^[0-9a-fA-F]{40}$'; then
+                echo "::error::Invalid toolkit_ref: '$TOOLKIT_REF'. Allowed: main, next, or a full 40-char SHA."
+                exit 1
+              fi
+              ;;
+          esac
+          echo "✅ toolkit_ref validated: $TOOLKIT_REF"
 
       # Initial checkout
       - name: Checkout repository
@@ -507,18 +545,30 @@ jobs:
 
           PROMPT_EOF
 
-          # Substitute variables
-          sed -i "s|\${REPO_OWNER}|$REPO_OWNER|g" /tmp/docs-check-prompt.txt
-          sed -i "s|\${REPO_NAME}|$REPO_NAME|g" /tmp/docs-check-prompt.txt
-          sed -i "s|\${PR_NUMBER}|$PR_NUMBER|g" /tmp/docs-check-prompt.txt
-          sed -i "s|\${BASE_REF}|$BASE_REF|g" /tmp/docs-check-prompt.txt
-          sed -i "s|\${LINES_CHANGED}|$LINES_CHANGED|g" /tmp/docs-check-prompt.txt
-          sed -i "s|\${FAIL_ON_MISSING_DOCS}|$FAIL_ON_MISSING_DOCS|g" /tmp/docs-check-prompt.txt
-          sed -i "s|\${FAIL_ON_MISSING_VERSION}|$FAIL_ON_MISSING_VERSION|g" /tmp/docs-check-prompt.txt
-
-          # Insert changed files (escape for sed)
-          CHANGED_FILES_ESCAPED=$(printf '%s\n' "$CHANGED_FILES" | sed 's/[&/\]/\\&/g; s/$/\\n/' | tr -d '\n')
-          sed -i "s|\${CHANGED_FILES}|$CHANGED_FILES_ESCAPED|g" /tmp/docs-check-prompt.txt
+          # Substitute placeholders using python's str.replace.
+          #
+          # Why not sed: the previous code used `sed -i "s|\${VAR}|$VALUE|g"`
+          # with `|` as the sed delimiter. The escape applied to $CHANGED_FILES
+          # was `sed 's/[&/\]/\\&/g'`, which escapes `&`, `/`, `\` but NOT `|`
+          # (the actual delimiter). A filename in $CHANGED_FILES containing `|`
+          # — legal on Linux, not quoted by git's default `core.quotepath`
+          # since `|` is in the printable ASCII range — would break the
+          # substitution into garbage flags and cause the docs-check workflow
+          # to fail loudly or, worse, write a partial value.
+          #
+          # Python's str.replace is plain-text and immune to this class.
+          export REPO_OWNER REPO_NAME CHANGED_FILES
+          python3 - <<'PYEOF'
+          import os
+          from pathlib import Path
+          p = Path('/tmp/docs-check-prompt.txt')
+          content = p.read_text()
+          for key in ('REPO_OWNER', 'REPO_NAME', 'PR_NUMBER', 'BASE_REF',
+                      'LINES_CHANGED', 'FAIL_ON_MISSING_DOCS',
+                      'FAIL_ON_MISSING_VERSION', 'CHANGED_FILES'):
+              content = content.replace('${' + key + '}', os.environ.get(key, ''))
+          p.write_text(content)
+          PYEOF
 
           # For the diff, we'll append it separately due to size
           echo "" >> /tmp/docs-check-prompt.txt
@@ -657,7 +707,7 @@ jobs:
       # Run Claude
       - name: Run Claude Docs Check
         id: claude
-        uses: anthropics/claude-code-action@476e359e6203e73dad705c8b322e333fabbd7416 # v1.0.119
+        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -720,8 +770,11 @@ jobs:
             SCRIPT_ARGS="$SCRIPT_ARGS --auto-commit"
           fi
 
-          # Run post-processing script
-          bun run "$POST_SCRIPT" $SCRIPT_ARGS
+          # Run post-processing script. BUN_CONFIG_FILE=/dev/null is already set
+          # at the job env (line 187), but pinning it inline keeps Semgrep's
+          # bun-run-in-reusable-workflow rule satisfied and survives anyone
+          # later moving this into a step that overrides the job env.
+          BUN_CONFIG_FILE=/dev/null bun run "$POST_SCRIPT" $SCRIPT_ARGS
 
           # Check if branch was created
           if [ -f /tmp/fixup-branch-name.txt ]; then
@@ -979,7 +1032,7 @@ jobs:
       - name: Run Claude Auto-Fix
         id: claude-fix
         if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
-        uses: anthropics/claude-code-action@476e359e6203e73dad705c8b322e333fabbd7416 # v1.0.119
+        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

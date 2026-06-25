@@ -11,7 +11,7 @@ import * as https from 'https';
 import * as http from 'http';
 import * as os from 'os';
 import { displaySuccess, displayWarning, displayDebug, displayInfo } from './display';
-import { offerSlackSetup } from './slack-setup';
+import { offerSlackSetup, shSingleQuote } from './slack-setup';
 import {
   getClaudeConfigDir,
   getClaudeConfigPath,
@@ -297,11 +297,10 @@ function updateRefreshToken(newRefreshToken: string, verbose?: boolean): void {
 
   let content = fs.readFileSync(SLACK_ENV_PATH, 'utf-8');
 
-  // Replace the refresh token line
-  content = content.replace(
-    /export SLACK_REFRESH_TOKEN=.*/,
-    `export SLACK_REFRESH_TOKEN="${newRefreshToken}"`
-  );
+  // Replace the refresh token line. Use a replacement FUNCTION (not a string) so
+  // String.prototype.replace does not treat `$` in the token specially ($&, $1, $$).
+  const newLine = `export SLACK_REFRESH_TOKEN=${shSingleQuote(newRefreshToken)}`;
+  content = content.replace(/export SLACK_REFRESH_TOKEN=.*/, () => newLine);
 
   fs.writeFileSync(SLACK_ENV_PATH, content);
   displayDebug('Refresh token updated successfully', verbose);
