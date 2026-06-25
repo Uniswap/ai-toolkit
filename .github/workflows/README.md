@@ -75,7 +75,7 @@ Workflows designed to be called by other workflows using `workflow_call`. These 
 
   - Interactive AI assistance via @claude mentions
   - Works in issue comments, PR comments, review comments, and reviews
-  - Configurable models (Sonnet 4.6, Opus 4.7, Haiku 4.5)
+  - Configurable models (Sonnet 4.6, Opus 4.8, Haiku 4.5)
   - Flexible tool permissions (read-only, read-write, or custom)
   - Custom instructions for repository-specific standards
   - Fixed security settings (Bullfrog scanning, immutable permissions)

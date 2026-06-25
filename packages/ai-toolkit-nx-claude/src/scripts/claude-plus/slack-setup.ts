@@ -21,6 +21,17 @@ interface SlackCredentials {
 }
 
 /**
+ * Wrap a value in single quotes for safe interpolation into a sourced bash file.
+ *
+ * Single-quoting makes `$`, backticks, `"`, and `\` all literal/inert when the
+ * file is sourced. Embedded single quotes are handled with the POSIX idiom:
+ * close the quote, emit an escaped quote, then reopen. e.g. `a'b` -> `'a'\''b'`.
+ */
+export function shSingleQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+/**
  * Create a readline interface for user input
  */
 function createReadlineInterface(): readline.Interface {
@@ -129,8 +140,8 @@ function createSlackEnvFile(credentials: SlackCredentials): void {
 #
 # Or set these as environment variables in your shell profile.
 
-export SLACK_REFRESH_URL="${credentials.refreshUrl}"
-export SLACK_REFRESH_TOKEN="${credentials.refreshToken}"
+export SLACK_REFRESH_URL=${shSingleQuote(credentials.refreshUrl)}
+export SLACK_REFRESH_TOKEN=${shSingleQuote(credentials.refreshToken)}
 `;
 
   // Write file with restricted permissions

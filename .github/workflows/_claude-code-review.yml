@@ -37,8 +37,10 @@ name: "[claude] Claude Code Review"
 # event when re-requesting reviews from bot accounts. Use the comment trigger
 # or manual workflow_dispatch instead.
 #
-# PERMISSIONS REQUIRED (calling workflow must grant these):
-#   contents: read
+# PERMISSIONS REQUIRED (the calling workflow must grant its calling job at least these;
+# a reusable workflow cannot be granted more than its caller provides, so granting fewer
+# causes a silent startup_failure: a ~1s run with no logs):
+#   contents: write       # read code AND push commits when auto_fix is enabled
 #   pull-requests: write
 #   issues: read
 #   actions: read
@@ -270,7 +272,11 @@ jobs:
       NODE_OPTIONS: ""
       NPM_CONFIG_REGISTRY: ""
       NODE_PATH: ""
-    # Fixed permissions (cannot be overridden by calling workflow)
+    # Permissions the CALLING workflow must grant its calling job (matching or higher).
+    # A reusable workflow cannot be granted more than its caller provides, so a caller that
+    # declares fewer (e.g. contents: read when this needs contents: write for auto_fix pushes)
+    # makes GitHub reject the run with a silent startup_failure: a ~1s run with no logs.
+    # See .github/workflows/examples/08-claude-code-review-basic.yml for a correct caller.
     permissions:
       id-token: write # Required for OIDC
       contents: write # Required to read code and push fixes when auto_fix is enabled
@@ -1213,7 +1219,7 @@ jobs:
       - name: Run Claude Code Review
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
         id: claude
-        uses: anthropics/claude-code-action@476e359e6203e73dad705c8b322e333fabbd7416 # v1.0.119
+        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
         with:
           # Authentication: provide either API key or OAuth token (validated in earlier step)
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -1706,7 +1712,7 @@ jobs:
       - name: Run Claude Auto-Fix
         id: claude-fix
         if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
-        uses: anthropics/claude-code-action@476e359e6203e73dad705c8b322e333fabbd7416 # v1.0.119
+        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
