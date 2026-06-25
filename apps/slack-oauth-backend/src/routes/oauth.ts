@@ -119,7 +119,7 @@ router.get(
           Pragma: 'no-cache',
           Expires: '0',
         });
-        res.status(400).send(errorPage); // nosemgrep: javascript.express.security.audit.xss.direct-response-write.direct-response-write -- Safe: formatErrorPage escapes all user-controlled input via escapeHtml() (formatter.ts:462); semgrep cannot trace escaping across the function boundary.
+        res.status(400).send(errorPage);
         return;
       }
 
@@ -177,7 +177,7 @@ router.get(
         Pragma: 'no-cache',
         Expires: '0',
       });
-      res.send(successPage); // nosemgrep: javascript.express.security.audit.xss.direct-response-write.direct-response-write -- Safe: formatSuccessPage escapes all user-controlled input via escapeHtml() (formatter.ts:253-256); semgrep cannot trace escaping across the function boundary.
+      res.send(successPage);
     } catch (error) {
       requestLogger.error('OAuth callback error', error);
 
@@ -193,7 +193,7 @@ router.get(
           Pragma: 'no-cache',
           Expires: '0',
         });
-        res.status(400).send(errorPage); // nosemgrep: javascript.express.security.audit.xss.direct-response-write.direct-response-write -- Safe: formatErrorPage escapes all user-controlled input via escapeHtml() (formatter.ts:462); semgrep cannot trace escaping across the function boundary.
+        res.status(400).send(errorPage);
         return;
       }
 
@@ -218,8 +218,14 @@ router.get(
     // so a state minted here is useless to anyone who lacks this browser's
     // cookie.
     const browserNonce = generateBrowserNonce();
+    // Cookie flags are inlined (not spread) so Semgrep's matcher can see
+    // secure/httpOnly/sameSite at the call site. These MUST stay in sync with
+    // browserNonceCookieBaseOptions, which clearCookie() below uses to clear it.
     res.cookie(OAUTH_STATE_COOKIE, browserNonce, {
-      ...browserNonceCookieBaseOptions,
+      httpOnly: true,
+      secure: config.nodeEnv !== 'development' && config.nodeEnv !== 'test',
+      sameSite: 'lax' as const,
+      path: '/slack/oauth',
       maxAge: STATE_MAX_AGE_MS,
     });
 
