@@ -1,0 +1,17 @@
+{
+  "description": "PostToolUse hook that, once per session, nudges Claude to offer running /skill-mine when a PR is opened",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash|create_pull_request",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/pr-skill-doctor-prompt.cjs",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

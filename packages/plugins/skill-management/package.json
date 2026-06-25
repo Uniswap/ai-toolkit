@@ -1,0 +1,28 @@
+{
+  "name": "@uniswap/skill-management",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Audit, map, mine, and improve Claude Code skills, agents, and commands",
+  "author": "Uniswap Labs <ai-services@uniswap.org>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Uniswap/ai-toolkit.git",
+    "directory": "packages/plugins/skill-management"
+  },
+  "keywords": [
+    "claude-code",
+    "plugin",
+    "skills",
+    "agents",
+    "meta",
+    "ai-toolkit"
+  ],
+  "files": [
+    ".claude-plugin",
+    "skills",
+    "commands",
+    "hooks",
+    "README.md"
+  ]
+}
