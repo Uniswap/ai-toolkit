@@ -132,9 +132,11 @@ export class SlackOAuthHandler implements OAuthHandler {
         // Surface the fresh bot token so the route can authenticate post-install
         // actions (DM delivery) without a static, rotation-incompatible token.
         botAccessToken: tokenResponse.access_token,
-        // The authed user's ID straight from the exchange. Always present here,
-        // so DM delivery can target it even when the users.info enrichment below
-        // returns undefined.
+        // The authed user's ID straight from the exchange. Present on a
+        // user-token install (so DM delivery can target it even when the
+        // users.info enrichment below returns undefined), but undefined on a
+        // bot-only install where Slack returns no authed_user. The route guards
+        // for that and falls back to the success page.
         userId: tokenResponse.authed_user?.id,
         user: userInfo,
         details: {

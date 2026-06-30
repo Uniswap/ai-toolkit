@@ -154,6 +154,17 @@ router.get(
             userId: result.userId,
           });
           dmSent = true;
+        } else {
+          // Successful exchange but DM preconditions unmet: most likely a
+          // bot-only install (no user scopes granted -> no authed_user.id, so
+          // result.userId is undefined). The success-page fallback still
+          // delivers the tokens, but surface a warn so a missing-user-scope
+          // misconfiguration is diagnosable rather than inferred from the
+          // info-level 'OAuth flow successful' breadcrumb.
+          requestLogger.warn('DM skipped: missing userId or accessToken on successful exchange', {
+            hasUserId: !!result.userId,
+            hasAccessToken: !!result.accessToken,
+          });
         }
       } catch (dmError) {
         // Don't fail the flow (the success-page fallback still delivers tokens),

@@ -106,9 +106,15 @@ export interface OAuthResult {
   botAccessToken?: string;
   /**
    * Authenticated user's Slack ID, taken directly from the token exchange
-   * (authed_user.id). Always present on success, unlike `user`, which depends
-   * on a users.info enrichment call that can fail. Use this as the DM target so
-   * delivery does not hinge on enrichment succeeding.
+   * (authed_user.id). Present on a user-token install (the common case) and
+   * more reliable than `user` — which additionally depends on a users.info
+   * enrichment call that can fail. Use this as the DM target so delivery does
+   * not hinge on enrichment succeeding.
+   *
+   * Absent on a bot-only install (no user scopes granted, so Slack returns no
+   * `authed_user`); that flow still reports `success: true`. Callers must treat
+   * it as optional — when undefined, DM delivery is skipped and the success
+   * page is the only delivery channel.
    */
   userId?: string;
   /** User information if successful (enrichment; may be absent if users.info fails) */

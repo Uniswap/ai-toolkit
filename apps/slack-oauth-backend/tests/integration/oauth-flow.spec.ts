@@ -459,7 +459,8 @@ describe('OAuth Flow Integration Tests', () => {
       // User info fails (non-critical)
       mockUsersInfo.mockRejectedValue(new Error('User info failed'));
 
-      // DM operations would succeed if attempted, but won't be called
+      // DM operations succeed: the DM IS attempted here (it targets
+      // authed_user.id, not the failed enrichment), so stub them as ok.
       mockConversationsOpen.mockResolvedValue({
         ok: true,
         channel: { id: 'D777777' },
