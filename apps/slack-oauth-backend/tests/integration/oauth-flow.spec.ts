@@ -479,9 +479,20 @@ describe('OAuth Flow Integration Tests', () => {
       expect(response.status).toBe(200);
       expect(response.text).toContain('Success!'); // No username since user info failed
 
-      // DM cannot be sent without user info (no user ID available)
-      expect(mockChatPostMessage).not.toHaveBeenCalled();
-      expect(mockConversationsOpen).not.toHaveBeenCalled();
+      // users.info enrichment is non-critical. The DM is still delivered: it
+      // targets authed_user.id from the exchange (U777777), which is available
+      // even when enrichment fails. (Previously the DM was wrongly gated on the
+      // enrichment result and silently skipped here.)
+      expect(mockConversationsOpen).toHaveBeenCalledTimes(1);
+      expect(mockConversationsOpen).toHaveBeenCalledWith(
+        expect.objectContaining({ users: 'U777777' })
+      );
+      expect(mockChatPostMessage).toHaveBeenCalledTimes(1);
+      expect(mockChatPostMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          text: expect.stringContaining('xoxp-partial-token'),
+        })
+      );
     });
   });
 

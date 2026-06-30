@@ -104,7 +104,14 @@ export interface OAuthResult {
    * token rotation these expire (~12h), so callers must use it inline.
    */
   botAccessToken?: string;
-  /** User information if successful */
+  /**
+   * Authenticated user's Slack ID, taken directly from the token exchange
+   * (authed_user.id). Always present on success, unlike `user`, which depends
+   * on a users.info enrichment call that can fail. Use this as the DM target so
+   * delivery does not hinge on enrichment succeeding.
+   */
+  userId?: string;
+  /** User information if successful (enrichment; may be absent if users.info fails) */
   user?: SlackUserInfo;
   /** Error message if failed */
   error?: string;
