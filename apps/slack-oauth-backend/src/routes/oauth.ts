@@ -124,38 +124,60 @@ router.get(
       }
 
       requestLogger.info('OAuth flow successful', {
-        userId: result.user?.id,
+        userId: result.userId,
         teamId: result.user?.team_id,
       });
 
-      // Send token via Slack DM
+      // Send token via Slack DM. Target the authed user's ID from the exchange
+      // (result.userId), NOT the users.info enrichment (result.user): enrichment
+      // can fail independently, and gating delivery on it silently drops the DM
+      // even though we have everything needed to send one.
       let dmSent = false;
       try {
-        if (result.user?.id && result.accessToken) {
+        if (result.userId && result.accessToken) {
           // Authenticate the DM with the bot token freshly issued by this
           // exchange (not a static env var, which dies under token rotation).
           const slackClient = createSlackClient(undefined, result.botAccessToken);
           const tokenMessage = formatTokenMessage(
             result.accessToken,
-            result.user.name,
+            result.user?.name,
             result.refreshToken
           );
 
           await slackClient.sendDirectMessage(
-            result.user.id,
+            result.userId,
             tokenMessage.text,
             tokenMessage.blocks
           );
 
           requestLogger.info('Token sent via DM', {
-            userId: result.user.id,
+            userId: result.userId,
           });
           dmSent = true;
+        } else {
+          // Successful exchange but DM preconditions unmet: most likely a
+          // bot-only install (no user scopes granted -> no authed_user.id, so
+          // result.userId is undefined). The success-page fallback still
+          // delivers the tokens, but surface a warn so a missing-user-scope
+          // misconfiguration is diagnosable rather than inferred from the
+          // info-level 'OAuth flow successful' breadcrumb.
+          requestLogger.warn('DM skipped: missing userId or accessToken on successful exchange', {
+            hasUserId: !!result.userId,
+            hasAccessToken: !!result.accessToken,
+          });
         }
       } catch (dmError) {
-        // Log error but don't fail the flow
+        // Don't fail the flow (the success-page fallback still delivers tokens),
+        // but surface the underlying Slack error so DM failures are diagnosable
+        // instead of vanishing into a generic message.
+        const slackError =
+          (dmError as { details?: { originalError?: { data?: { error?: string } } } })?.details
+            ?.originalError?.data?.error ??
+          (dmError as { code?: string })?.code ??
+          (dmError instanceof Error ? dmError.message : 'unknown');
         requestLogger.error('Failed to send token via DM', dmError, {
-          userId: result.user?.id,
+          userId: result.userId,
+          slackError,
         });
         dmSent = false;
       }
@@ -163,13 +185,16 @@ router.get(
       // Send success page with token displayed if DM failed
       // Generate refresh URL based on request host
       const refreshUrl = `${req.protocol}://${req.get('host')}/slack/refresh`;
-      // Never render the refresh token in HTML; the page can be cached by
-      // intermediaries. The access-token fallback display is the accepted
-      // compromise so the user can still copy a token if the DM failed.
+      // Fallback delivery when the DM didn't go out: render BOTH tokens so the
+      // user can complete setup. The no-store/no-cache headers set below keep
+      // this response out of shared caches, and the access token (also a secret)
+      // is shown under those same headers, so the refresh token is no less safe
+      // to display here. Without this, a failed DM leaves the user with no way
+      // to obtain their refresh token.
       const successPage = formatSuccessPage(
         result.user?.name,
         dmSent ? undefined : result.accessToken,
-        undefined,
+        dmSent ? undefined : result.refreshToken,
         dmSent ? undefined : refreshUrl
       );
       res.set({

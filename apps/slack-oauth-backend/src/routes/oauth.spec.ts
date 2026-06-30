@@ -16,15 +16,19 @@ jest.mock('../config', () => ({
   },
 }));
 
-// Silence logging.
-jest.mock('../utils/logger', () => ({
-  logger: {
-    warn: jest.fn(),
-    info: jest.fn(),
-    error: jest.fn(),
-    child: jest.fn().mockReturnThis(),
-  },
-}));
+// Silence logging. Stable singleton so the spies survive jest.isolateModules
+// (used by createTestApp): a fresh module registry re-runs this factory, but we
+// return the same `mockLogger` object every time, so the route under test and
+// the test assertions share the same `error`/`warn` spies. `child()` returns
+// the same logger, so `requestLogger.error` IS `mockLogger.error`.
+const mockLogger = {
+  warn: jest.fn(),
+  info: jest.fn(),
+  error: jest.fn(),
+  child: jest.fn(),
+};
+mockLogger.child.mockReturnValue(mockLogger);
+jest.mock('../utils/logger', () => ({ logger: mockLogger }));
 
 // Avoid real Slack DM delivery on the success path.
 const mockSendDirectMessage = jest.fn().mockResolvedValue({ ok: true });
@@ -206,6 +210,140 @@ describe('OAuth routes — browser-bound state (double-submit cookie)', () => {
       expect(res.text).toContain('Authorization Failed');
       expect(res.text).toContain('Security validation failed.');
       expect(mockSendDirectMessage).not.toHaveBeenCalled();
+    });
+
+    it('renders BOTH access and refresh tokens on the success page when the DM fails', async () => {
+      const app = createTestApp();
+
+      // Rotation-enabled user token comes back with a refresh token.
+      (WebClient as jest.MockedClass<typeof WebClient>).mockImplementation(
+        () =>
+          ({
+            oauth: {
+              v2: {
+                access: jest.fn().mockResolvedValue({
+                  ...tokenExchangeResponse,
+                  authed_user: {
+                    ...tokenExchangeResponse.authed_user,
+                    refresh_token: 'xoxe-user-refresh-token',
+                  },
+                }),
+              },
+            },
+            users: { info: jest.fn().mockResolvedValue(userInfoResponse) },
+          } as any)
+      );
+      // DM delivery fails -> the page is the fallback and must carry both tokens,
+      // or the user has no way to obtain their refresh token (the Jun 2026 regression).
+      mockSendDirectMessage.mockRejectedValue(new Error('channel_not_found'));
+
+      const { nonce, state } = await startFlow(app);
+      const res = await request(app)
+        .get('/slack/oauth/callback')
+        .query({ code: 'valid-auth-code', state })
+        .set('Cookie', `${COOKIE_NAME}=${nonce}`)
+        .expect(200);
+
+      expect(res.text).toContain('xoxp-user-token'); // access token
+      expect(res.text).toContain('xoxe-user-refresh-token'); // refresh token (regression guard)
+      expect(res.text).toContain('Refresh Token');
+    });
+
+    it('still sends the DM via authed_user.id when users.info enrichment fails', async () => {
+      const app = createTestApp();
+
+      // Enrichment fails (users.info throws) -> handler returns user: undefined,
+      // but userId (authed_user.id) is still populated. DM must NOT be skipped.
+      (WebClient as jest.MockedClass<typeof WebClient>).mockImplementation(
+        () =>
+          ({
+            oauth: { v2: { access: jest.fn().mockResolvedValue(tokenExchangeResponse) } },
+            users: { info: jest.fn().mockRejectedValue(new Error('missing_scope')) },
+          } as any)
+      );
+      mockSendDirectMessage.mockResolvedValue({ ok: true });
+
+      const { nonce, state } = await startFlow(app);
+      await request(app)
+        .get('/slack/oauth/callback')
+        .query({ code: 'valid-auth-code', state })
+        .set('Cookie', `${COOKIE_NAME}=${nonce}`)
+        .expect(200);
+
+      expect(mockSendDirectMessage).toHaveBeenCalledTimes(1);
+      expect(mockSendDirectMessage).toHaveBeenCalledWith(
+        'U123456',
+        expect.any(String),
+        expect.anything()
+      );
+    });
+
+    it('does NOT render any token on the success page when the DM succeeds', async () => {
+      const app = createTestApp();
+
+      // Rotation-enabled token would be available, but the DM goes out, so the
+      // page must be the no-secrets variant: the fallback is gated on !dmSent,
+      // and this pins that gate so a future change can't leak secrets on the
+      // happy path.
+      (WebClient as jest.MockedClass<typeof WebClient>).mockImplementation(
+        () =>
+          ({
+            oauth: {
+              v2: {
+                access: jest.fn().mockResolvedValue({
+                  ...tokenExchangeResponse,
+                  authed_user: {
+                    ...tokenExchangeResponse.authed_user,
+                    refresh_token: 'xoxe-user-refresh-token',
+                  },
+                }),
+              },
+            },
+            users: { info: jest.fn().mockResolvedValue(userInfoResponse) },
+          } as any)
+      );
+      mockSendDirectMessage.mockResolvedValue({ ok: true });
+
+      const { nonce, state } = await startFlow(app);
+      const res = await request(app)
+        .get('/slack/oauth/callback')
+        .query({ code: 'valid-auth-code', state })
+        .set('Cookie', `${COOKIE_NAME}=${nonce}`)
+        .expect(200);
+
+      // DM was delivered, so the page shows none of the secrets.
+      expect(res.text).not.toContain('xoxp-user-token'); // access token
+      expect(res.text).not.toContain('xoxe-user-refresh-token'); // refresh token
+      expect(res.text).not.toContain('Refresh Token');
+    });
+
+    it('logs the underlying Slack error code (not the token) when the DM fails', async () => {
+      const app = createTestApp();
+
+      // Reproduce the shape of a real SlackApiError wrapping the Slack WebAPI
+      // error, whose code lives at details.originalError.data.error. The route
+      // must extract that code into `slackError`, never the token.
+      const slackApiError = Object.assign(new Error('Failed to open DM channel'), {
+        code: 'SLACK_API_ERROR',
+        details: { originalError: { data: { error: 'channel_not_found' } } },
+      });
+      mockSendDirectMessage.mockRejectedValue(slackApiError);
+
+      const { nonce, state } = await startFlow(app);
+      await request(app)
+        .get('/slack/oauth/callback')
+        .query({ code: 'valid-auth-code', state })
+        .set('Cookie', `${COOKIE_NAME}=${nonce}`)
+        .expect(200);
+
+      // logger.child() returns the same mocked logger, so logger.error is the spy.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { logger } = require('../utils/logger');
+      expect(logger.error).toHaveBeenCalledWith(
+        'Failed to send token via DM',
+        slackApiError,
+        expect.objectContaining({ slackError: 'channel_not_found' })
+      );
     });
   });
 });
