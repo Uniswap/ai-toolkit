@@ -13,6 +13,7 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 - **investigate-incident**: Investigate production incidents using Datadog logs, metrics, and traces
 - **orchestrate-deployment**: Orchestrate deployment pipelines with CI/CD configuration
 - **refine-linear-task**: Refine and enhance Linear task descriptions
+- **use-datadog**: Directs the agent to use the `pup` CLI for all Datadog observability tasks (monitors, logs, metrics, APM, incidents, etc.)
 
 ### Agents (./agents/)
 
@@ -105,7 +106,8 @@ uniswap-integrations/
 │   ├── github-setup/
 │   ├── investigate-incident/
 │   ├── orchestrate-deployment/
-│   └── refine-linear-task/
+│   ├── refine-linear-task/
+│   └── use-datadog/
 ├── agents/
 │   ├── cicd-agent.md
 │   ├── infrastructure-agent.md

@@ -18,7 +18,9 @@
     "amplitude",
     "datadog",
     "monitoring",
-    "analytics"
+    "analytics",
+    "pup",
+    "observability"
   ],
   "license": "MIT",
   "skills": [
@@ -27,7 +29,8 @@
     "./skills/github-setup",
     "./skills/investigate-incident",
     "./skills/orchestrate-deployment",
-    "./skills/refine-linear-task"
+    "./skills/refine-linear-task",
+    "./skills/use-datadog"
   ],
   "agents": [
     "./agents/cicd-agent.md",
