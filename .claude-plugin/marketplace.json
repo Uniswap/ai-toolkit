@@ -31,6 +31,11 @@
       "description": "Documentation, research, test generation, and prompt optimization tools"
     },
     {
+      "name": "skill-management",
+      "source": "./packages/plugins/skill-management",
+      "description": "Audit, map, mine, and improve your Claude Code skills, agents, and commands"
+    },
+    {
       "name": "uniswap-integrations",
       "source": "./packages/plugins/uniswap-integrations",
       "description": "External service integrations (Linear, Notion, Nx, Chrome DevTools) and deployment orchestration"

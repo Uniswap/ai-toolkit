@@ -41,6 +41,7 @@ This plugin supports two PR creation workflows:
 
 ### Commands (./commands/)
 
+- **backtest-change**: Before opening a PR for a data-driven change (monitor threshold, alert cadence, query, sampling rate, perf tweak), pull live historical data, replay old-vs-new over the same window, and gate the PR on whether the data proves the change achieves its goal
 - **review-pr**: Comprehensive multi-agent PR review for architecture, security, performance
 - **work-through-pr-comments**: Methodically work through PR comments in a conversational workflow
 - **linear-task-and-pr-from-changes**: Take local changes, create a Linear task, create a branch (optionally in a worktree), commit, and publish a PR
@@ -119,6 +120,7 @@ development-pr-workflow/
 │   ├── split-graphite-stack/
 │   └── update-graphite-stack/
 ├── commands/
+│   ├── backtest-change.md
 │   ├── linear-task-and-pr-from-changes.md
 │   ├── review-pr.md
 │   ├── start-linear-task.md

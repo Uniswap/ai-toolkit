@@ -344,10 +344,7 @@ function showGeneralMcpInstructions(installedAddons: any[]): void {
   // Show specific MCPs that were installed and need auth
   const needsAuth = installedAddons.filter(
     (addon) =>
-      addon.id === 'slack-mcp' ||
-      addon.id === 'github-mcp' ||
-      addon.id === 'aws-log-analyzer-mcp' ||
-      addon.id === 'pulumi-mcp'
+      addon.id === 'github-mcp' || addon.id === 'aws-log-analyzer-mcp' || addon.id === 'pulumi-mcp'
   );
 
   if (needsAuth.length > 0) {
@@ -358,25 +355,14 @@ function showGeneralMcpInstructions(installedAddons: any[]): void {
     console.log('');
   }
 
-  // Show specific authentication instructions for Slack, GitHub, AWS, and Pulumi
-  const hasSlack = installedAddons.some((addon) => addon.id === 'slack-mcp');
+  // Show specific authentication instructions for GitHub, AWS, and Pulumi
+  // Note: Slack MCP is now available via the uniswap-integrations plugin
   const hasGithub = installedAddons.some((addon) => addon.id === 'github-mcp');
   const hasPulumi = installedAddons.some((addon) => addon.id === 'pulumi-mcp');
-
   const hasAws = installedAddons.some((addon) => addon.id === 'aws-log-analyzer-mcp');
 
-  if (hasSlack || hasGithub || hasAws || hasPulumi) {
+  if (hasGithub || hasAws || hasPulumi) {
     console.log('📋 Specific Authentication Instructions:\n');
-
-    if (hasSlack) {
-      console.log('🔐 Slack MCP:');
-      console.log(
-        '   📖 Documentation: https://www.notion.so/uniswaplabs/Using-a-Slack-MCP-with-Claude-Claude-Code-249c52b2548b8052b901dc05d90e57fc'
-      );
-      console.log(
-        '   This guide contains detailed instructions on how to obtain your Slack bot token.\n'
-      );
-    }
 
     if (hasGithub) {
       console.log('🔐 GitHub MCP:');

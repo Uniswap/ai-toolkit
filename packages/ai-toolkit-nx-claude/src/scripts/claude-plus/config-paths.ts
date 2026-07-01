@@ -3,6 +3,11 @@
  *
  * Shared utilities for determining Claude configuration file paths.
  * Respects the CLAUDE_CONFIG_DIR environment variable when set.
+ *
+ * This module supports multiple configuration locations for backward compatibility:
+ * 1. $CLAUDE_CONFIG_DIR/claude.json (if env var is set)
+ * 2. ~/.claude.json (legacy location)
+ * 3. ~/.claude/claude.json (new default user location from `claude mcp add --scope user`)
  */
 
 import * as path from 'path';
@@ -32,6 +37,35 @@ export function getClaudeConfigPath(): string {
   }
   // Backward compatible: use ~/.claude.json when env var is not set
   return path.join(os.homedir(), '.claude.json');
+}
+
+/**
+ * Get all possible Claude configuration file paths for reading.
+ *
+ * When CLAUDE_CONFIG_DIR is set, returns ONLY that path to avoid
+ * cross-profile contamination (e.g., reading a Slack token from
+ * a different profile and treating it as valid for the active one).
+ *
+ * When CLAUDE_CONFIG_DIR is not set, returns legacy paths in priority order:
+ * 1. ~/.claude.json (legacy location)
+ * 2. ~/.claude/claude.json (new default user location)
+ *
+ * Used for backward compatibility when searching for configuration values
+ * like MCP server tokens that may exist in any of these locations.
+ */
+export function getAllClaudeConfigPaths(): string[] {
+  // When a custom config dir is set, restrict reads to the active profile only.
+  // Falling back to other locations could return tokens from a different profile,
+  // causing validation to pass while the active profile remains unconfigured.
+  if (process.env.CLAUDE_CONFIG_DIR) {
+    return [path.join(process.env.CLAUDE_CONFIG_DIR, 'claude.json')];
+  }
+
+  // No custom config dir — check legacy locations in priority order
+  return [
+    path.join(os.homedir(), '.claude.json'),
+    path.join(os.homedir(), '.claude', 'claude.json'),
+  ];
 }
 
 /**

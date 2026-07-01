@@ -97,7 +97,27 @@ export interface OAuthResult {
   accessToken?: string;
   /** Refresh token if successful (when token rotation is enabled) */
   refreshToken?: string;
-  /** User information if successful */
+  /**
+   * Bot access token freshly issued by this exchange. Used for post-install
+   * actions that must authenticate as the bot (e.g. DM delivery). Undefined if
+   * Slack did not issue a bot token for this install. Never persisted: with
+   * token rotation these expire (~12h), so callers must use it inline.
+   */
+  botAccessToken?: string;
+  /**
+   * Authenticated user's Slack ID, taken directly from the token exchange
+   * (authed_user.id). Present on a user-token install (the common case) and
+   * more reliable than `user` — which additionally depends on a users.info
+   * enrichment call that can fail. Use this as the DM target so delivery does
+   * not hinge on enrichment succeeding.
+   *
+   * Absent on a bot-only install (no user scopes granted, so Slack returns no
+   * `authed_user`); that flow still reports `success: true`. Callers must treat
+   * it as optional — when undefined, DM delivery is skipped and the success
+   * page is the only delivery channel.
+   */
+  userId?: string;
+  /** User information if successful (enrichment; may be absent if users.info fails) */
   user?: SlackUserInfo;
   /** Error message if failed */
   error?: string;

@@ -218,7 +218,7 @@ Notify Release (_notify-release.yml)
 
 | Input                           | Required | Default                          | Description                                                                        |
 | ------------------------------- | -------- | -------------------------------- | ---------------------------------------------------------------------------------- |
-| `model`                         | No       | `'claude-sonnet-4-6'`            | Claude model to use (Sonnet 4.6, Opus 4.6, or Haiku 4.5)                           |
+| `model`                         | No       | `'claude-sonnet-4-6'`            | Claude model to use (Sonnet 4.6, Opus 4.8, or Haiku 4.5)                           |
 | `allowed_tools`                 | No       | (permissive defaults, see below) | YAML string specifying which tools Claude can use (file operations, bash commands) |
 | `custom_instructions`           | No       | `'Be sure to follow rules...'`   | Additional instructions for Claude beyond CLAUDE.md files                          |
 | `timeout_minutes`               | No       | `'10'`                           | Maximum execution time in minutes (prevents runaway costs)                         |
@@ -282,7 +282,7 @@ The following settings are intentionally fixed to ensure consistent security and
 
 - **Interactive AI Assistance**: Respond to `@claude` mentions anywhere in GitHub
 - **Multiple Trigger Points**: Works in issue comments, PR comments, review comments, and reviews
-- **Configurable Model**: Choose between Sonnet 4.6 (balanced), Opus 4.6 (thorough), or Haiku 4.5 (fast)
+- **Configurable Model**: Choose between Sonnet 4.6 (balanced), Opus 4.8 (thorough), or Haiku 4.5 (fast)
 - **Flexible Tool Permissions**: Control what Claude can do (read-only, read-write, or custom)
 - **Custom Instructions**: Add repository-specific guidelines and standards
 - **Bot Filtering**: Automatically excludes bot comments to prevent loops
@@ -334,7 +334,7 @@ jobs:
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     with:
-      model: 'claude-opus-4-6'
+      model: 'claude-opus-4-8'
       timeout_minutes: '15' # Opus may need more time
 ```
 
@@ -423,7 +423,7 @@ jobs:
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     with:
-      model: 'claude-opus-4-6'
+      model: 'claude-opus-4-8'
       timeout_minutes: '15'
 ```
 
@@ -546,7 +546,7 @@ Claude says it doesn't have permission to perform action
 2. **Choose the Right Model**:
 
    - **Sonnet 4.6** (default): Best balance of speed, capability, and cost for 90% of use cases
-   - **Opus 4.6**: Reserve for complex architectural reviews or critical security analysis
+   - **Opus 4.8**: Reserve for complex architectural reviews or critical security analysis
    - **Haiku 4.5**: Fast and cost-effective for simple questions, quick lookups, or high-volume usage
 
 3. **Set Appropriate Timeouts**:
@@ -619,7 +619,7 @@ jobs:
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     with:
-      model: 'claude-opus-4-6'
+      model: 'claude-opus-4-8'
       timeout_minutes: '15'
 ```
 
@@ -640,7 +640,7 @@ claude-deep:
     contains(github.event.pull_request.labels.*.name, 'deep-analysis') &&
     # ... (rest of if condition)
   with:
-    model: 'claude-opus-4-6'
+    model: 'claude-opus-4-8'
 ```
 
 #### Integration with Other Workflows
@@ -691,7 +691,7 @@ Tips for managing Claude API costs effectively:
 
    - Haiku 4.5: Most cost-effective for simple tasks
    - Sonnet 4.6: ~$3 per 1M input tokens, ~$15 per 1M output tokens (default, recommended)
-   - Opus 4.6: ~$15 per 1M input tokens, ~$75 per 1M output tokens (reserve for complex tasks)
+   - Opus 4.8: ~$5 per 1M input tokens, ~$25 per 1M output tokens (reserve for complex tasks)
    - Typical interaction: 5K-50K tokens (mostly input)
 
 2. **Timeout Strategy**:
@@ -1022,20 +1022,20 @@ This workflow does not have outputs (reviews are submitted directly to GitHub PR
 
 **Note**: You must provide either `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`. The secrets must be passed explicitly from the calling workflow.
 
-#### Permissions Required (Fixed)
+#### Permissions Required (caller must grant these)
 
-These permissions are **fixed** in the reusable workflow and cannot be overridden:
+The **calling** workflow must grant its calling job at least these permissions. A reusable workflow cannot be granted more than its caller provides, so granting fewer (for example `contents: read` here) makes GitHub reject the run with a silent `startup_failure` (a ~1s run with no logs):
 
 ```yaml
 permissions:
   id-token: write # Required for OIDC authentication
-  contents: read # Required to read repository code
+  contents: write # Required to read code AND push commits when auto_fix is enabled
   pull-requests: write # Required to comment and submit reviews
   issues: read # Required to read PR discussions
   actions: read # Required to check CI status
 ```
 
-**Note**: You do NOT need to specify these permissions in your calling workflow - they are automatically set by the reusable workflow.
+**Note**: These must be declared on the calling job. See `.github/workflows/examples/08-claude-code-review-basic.yml` for a complete caller.
 
 #### Fixed Settings (Cannot be Overridden)
 
@@ -1117,7 +1117,7 @@ jobs:
       pr_number: ${{ github.event.pull_request.number }}
       base_ref: ${{ github.base_ref }}
       # Use Opus for PRs with 'claude-opus' label, otherwise Sonnet
-      model: ${{ contains(github.event.pull_request.labels.*.name, 'claude-opus') && 'claude-opus-4-6' || 'claude-sonnet-4-6' }}
+      model: ${{ contains(github.event.pull_request.labels.*.name, 'claude-opus') && 'claude-opus-4-8' || 'claude-sonnet-4-6' }}
       max_turns: 20 # Allow more turns for thorough Opus reviews
       timeout_minutes: 45 # Longer timeout for complex reviews
     secrets:
@@ -1501,7 +1501,7 @@ Claude submitted multiple reviews instead of updating one
 2. **Model Selection**:
 
    - **Sonnet 4.6** (default): Best balance for most PRs (~80% of use cases)
-   - **Opus 4.6**: Reserve for critical code, security-sensitive changes, or complex architectures
+   - **Opus 4.8**: Reserve for critical code, security-sensitive changes, or complex architectures
    - Use labels to let developers request deeper reviews when needed
 
 3. **Custom Prompts**:
@@ -1596,7 +1596,7 @@ jobs:
     with:
       pr_number: ${{ github.event.pull_request.number }}
       base_ref: ${{ github.base_ref }}
-      model: 'claude-opus-4-6'
+      model: 'claude-opus-4-8'
       custom_prompt_path: '.github/prompts/security-review.md'
       timeout_minutes: 60
     secrets:

@@ -106,14 +106,14 @@ export class SlackOAuthHandler implements OAuthHandler {
         );
       }
 
-      // Get user information using the bot token (if available)
-      // With token rotation, bot token may not be available
+      // Enrich with user info using the bot token freshly issued by THIS
+      // exchange. A static SLACK_BOT_TOKEN env var is incompatible with token
+      // rotation (xoxe tokens expire ~12h) and dies on every reinstall, which
+      // surfaced as `account_inactive` from users.info. The just-minted token
+      // is always valid and carries users:read.
       let userInfo: SlackUserInfo | undefined;
-      if (tokenResponse.authed_user?.id && config.slackBotToken) {
-        userInfo = await this.getUserInfo(
-          tokenResponse.authed_user.id,
-          config.slackBotToken // Use bot token to get user info
-        );
+      if (tokenResponse.authed_user?.id && tokenResponse.access_token) {
+        userInfo = await this.getUserInfo(tokenResponse.authed_user.id, tokenResponse.access_token);
       }
 
       // Prefer the User OAuth Token (xoxp) if present; otherwise fall back to the Bot token
@@ -129,6 +129,15 @@ export class SlackOAuthHandler implements OAuthHandler {
         success: true,
         accessToken: selectedToken,
         refreshToken: selectedRefreshToken,
+        // Surface the fresh bot token so the route can authenticate post-install
+        // actions (DM delivery) without a static, rotation-incompatible token.
+        botAccessToken: tokenResponse.access_token,
+        // The authed user's ID straight from the exchange. Present on a
+        // user-token install (so DM delivery can target it even when the
+        // users.info enrichment below returns undefined), but undefined on a
+        // bot-only install where Slack returns no authed_user. The route guards
+        // for that and falls back to the success page.
+        userId: tokenResponse.authed_user?.id,
         user: userInfo,
         details: {
           team: tokenResponse.team,
@@ -230,6 +239,8 @@ export function createOAuthHandler(
     clientSecret: config.slackClientSecret,
     redirectUri: config.slackRedirectUri,
     // Scopes are split between bot (xoxb) and user (xoxp) tokens.
+    // Source of truth: Slack app manifest. Keep these arrays in sync with the
+    // manifest's oauth_config.scopes.bot and oauth_config.scopes.user lists.
     botScopes: [
       'channels:history',
       'channels:read',
@@ -247,20 +258,45 @@ export function createOAuthHandler(
       'users:read',
     ],
     userScopes: [
+      'bookmarks:read',
+      'bookmarks:write',
+      'canvases:read',
+      'canvases:write',
       'channels:history',
       'channels:read',
+      'channels:write',
       'chat:write',
+      'emoji:read',
+      'files:read',
+      'files:write',
       'groups:history',
       'groups:read',
+      'groups:write',
       'im:history',
       'im:read',
       'im:write',
+      'links.embed:write',
+      'links:read',
+      'links:write',
       'mpim:history',
       'mpim:read',
+      'mpim:write',
+      'pins:read',
+      'pins:write',
       'reactions:read',
       'reactions:write',
+      'reminders:read',
+      'reminders:write',
+      'search:read',
+      'search:read.files',
+      'search:read.im',
+      'search:read.mpim',
+      'search:read.private',
+      'search:read.public',
+      'search:read.users',
       'users.profile:read',
       'users:read',
+      'users:read.email',
     ],
     validateState,
   });

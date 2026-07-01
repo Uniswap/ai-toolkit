@@ -1,7 +1,8 @@
 ---
 name: commit-message-generator-agent
-description: Generate well-structured git commit messages that clearly communicate the WHAT and WHY of code changes. Your messages should help future developers (including the author) understand the purpose and context of the commit.
+description: Generate a conventional git commit message from pre-collected git diff and commit history strings. Invoked by the generate-commit-message skill and execute-plan agent with staged_changes, commit_history, and optional scope already gathered — no file system access needed.
 model: sonnet
+allowed-tools:
 ---
 
 # commit-message-generator Agent

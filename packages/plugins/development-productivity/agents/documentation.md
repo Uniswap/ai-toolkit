@@ -131,21 +131,24 @@ For CLAUDE.md updates:
 
 ### Change Significance Scale
 
-Use this scale to determine update scope and priority:
+Use this scale to determine update scope and priority. "Updating" means capturing new
+**conventions, gotchas, or non-obvious constraints revealed by the change** — not
+cataloging what files or APIs changed.
 
-| Score | Change Type                                             | Action                                 |
-| ----- | ------------------------------------------------------- | -------------------------------------- |
-| 8-10  | Breaking changes, new public APIs, architectural shifts | Update at THIS level AND parent levels |
-| 5-7   | New features, significant refactors, dependency updates | Update at THIS level                   |
-| 2-4   | Internal refactoring, minor API additions               | Update only if affects usage patterns  |
-| 0-1   | Bug fixes, typos, formatting changes                    | Skip unless changes usage              |
+| Score | Change Type                                             | Action                                                         |
+| ----- | ------------------------------------------------------- | -------------------------------------------------------------- |
+| 8-10  | Breaking changes, new public APIs, architectural shifts | Update at THIS level AND parent levels if conventions revealed |
+| 5-7   | New features, significant refactors, dependency updates | Update at THIS level if non-obvious behavior introduced        |
+| 2-4   | Internal refactoring, minor API additions               | Update only if a gotcha or new constraint is revealed          |
+| 0-1   | Bug fixes, typos, formatting changes                    | Skip unless the fix reveals a non-obvious invariant            |
 
 **Examples:**
 
-- Renamed exported function → Score 8 (breaking change)
-- Added new optional parameter → Score 5 (new feature)
-- Refactored internal helper → Score 2 (internal)
+- Renamed exported function → Score 8 (breaking change; document new name convention if non-obvious)
+- Added new optional parameter with subtle default → Score 5 (document gotcha if default surprises)
+- Refactored internal helper (no behavior change) → Score 2 (skip unless new constraint revealed)
 - Fixed typo in error message → Score 0 (skip)
+- Added required env var to a command → Score 7 (document the env var requirement)
 
 ### Content Verification (Internal Phase)
 
@@ -225,44 +228,52 @@ Not all claims require the same verification rigor. Prioritize verification effo
 
 ### Content Generation Guidelines
 
+CLAUDE.md files should contain **conventions, gotchas, and team preferences** — not structural
+inventory. The guiding question for each entry: **"Would removing this cause Claude to make a
+mistake? If not, cut it."**
+
+**Include only:**
+
+- Non-obvious bash commands (env vars required, non-standard behavior, ordering constraints)
+- Code style rules that differ from language defaults or tool configuration
+- Testing instructions — preferred runner, non-standard patterns, known flaky suites
+- Repository etiquette (branch naming, PR conventions, required reviewers)
+- Architectural decisions specific to this project (and the reasoning behind them)
+- Developer environment quirks (required env vars, local service dependencies)
+- Common gotchas — behaviors that regularly surprise contributors
+
+**Exclude:**
+
+- File-by-file directory listings
+- Dependency version tables
+- Standard language or framework conventions Claude already knows
+- `[TODO]` placeholder entries
+- Structural overviews derivable from `git ls-files`
+
+**Length target: under 200 lines per CLAUDE.md.** If a topic warrants more detail, propose
+factoring it into `.claude/rules/<topic>.md` with optional `paths` frontmatter.
+
 #### Root CLAUDE.md Template
 
 ```markdown
-> **Last Updated:** YYYY-MM-DD
+# [Project Name]
 
-# CLAUDE.md - [Project Name]
+[1-2 sentence description of the project and its purpose]
 
-## Project Overview
+## Essential Commands
 
-[Purpose, description, key goals]
+[Only commands that are non-obvious, require env vars, or have important constraints]
+[Skip standard build/test/lint commands that work as expected]
 
-## Tech Stack
+## Conventions and Gotchas
 
-[Languages, frameworks, tools, package manager]
+[Non-obvious patterns, constraints, or behaviors specific to this project]
+[Each entry answers: "what would trip up a new contributor?"]
 
 ## Repository Structure
 
-[Tree view of major directories]
-
-## Key Modules
-
-[List of major modules/packages]
-
-## Development Workflow
-
-[Commands, scripts, testing, deployment]
-
-## Code Quality
-
-[Linting, formatting, testing setup]
-
-## Conventions and Patterns
-
-[Coding standards, naming conventions]
-
-## Documentation Management
-
-[CLAUDE.md management rules]
+[Only if the structure is non-obvious or has conventions that affect how to work in it]
+[Skip if the layout is self-evident from git ls-files]
 
 <!-- CUSTOM:START -->
 <!-- User additions preserved during updates -->
@@ -272,37 +283,23 @@ Not all claims require the same verification rigor. Prioritize verification effo
 #### Package/Module CLAUDE.md Template
 
 ```markdown
-> **Last Updated:** YYYY-MM-DD
+# [Package/Module Name]
 
-# CLAUDE.md - [Package/Module Name]
+[1-2 sentence description of this package's purpose and role in the larger system]
 
-## Overview
+## Non-Obvious Commands
 
-[Purpose and role within the larger project]
+[Package-specific commands with gotchas, required env vars, or non-standard behavior]
+[Skip self-evident commands like "npm test"]
 
-## Architecture
+## Conventions
 
-[Internal structure, design patterns]
+[Package-specific patterns or constraints not visible from reading the code]
 
-## Key Components
+## Gotchas
 
-[Major files, classes, modules]
-
-## API/Exports
-
-[Public API, exported functions/classes/types]
-
-## Dependencies
-
-[External and internal dependencies]
-
-## Usage Patterns
-
-[Common patterns, examples, best practices]
-
-## Development Guidelines
-
-[Package-specific conventions, testing approach]
+[Known surprising behaviors, footguns, or non-obvious constraints]
+[e.g., "This package must not import from @myapp/core — creates a circular dependency"]
 
 <!-- CUSTOM:START -->
 <!-- User additions preserved during updates -->

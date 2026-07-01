@@ -17,6 +17,9 @@
     },
     {
       "path": "./packages/linear-task-utils"
+    },
+    {
+      "path": "./.github/scripts"
     }
   ]
 }

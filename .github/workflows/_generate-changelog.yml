@@ -104,7 +104,7 @@ jobs:
       - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
 
       - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -146,12 +146,18 @@ jobs:
           ## Files changed:
           $DIFF_OUTPUT"
 
-          # Save to output using heredoc
+          # Save to output using a per-call unguessable heredoc delimiter
+          # (defense in depth against $GITHUB_OUTPUT duplicate-key last-write-
+          # wins injection; fail fast on openssl error or size overflow).
+          CTX_DELIM_RAND=$(openssl rand -hex 16)
+          [ -n "$CTX_DELIM_RAND" ] || { echo "::error::openssl rand returned empty" >&2; exit 1; }
+          [ "$(printf '%s' "$FULL_CONTEXT" | wc -c)" -lt 900000 ] || { echo "::error::context exceeds 900KB; would risk \$GITHUB_OUTPUT truncation" >&2; exit 1; }
+          CTX_DELIM="CONTEXT_DELIMITER_$(date +%s%N)_${CTX_DELIM_RAND}"
           {
-            echo 'context<<EOF'
+            echo "context<<${CTX_DELIM}"
             echo "$FULL_CONTEXT"
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
+            echo "${CTX_DELIM}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Load custom prompt from file
         id: load-prompt
@@ -167,12 +173,20 @@ jobs:
           # Read the prompt file
           CUSTOM_PROMPT=$(cat "$PROMPT_FILE")
 
-          # Save to output using heredoc
+          # Save to output using a per-call unguessable heredoc delimiter.
+          # $CUSTOM_PROMPT is the contents of a caller-supplied file; a
+          # caller pointing at fork-controlled content could otherwise inject
+          # a replacement entry (same class as the default-token-list bounty).
+          # Fail fast on openssl error or size overflow.
+          PROMPT_DELIM_RAND=$(openssl rand -hex 16)
+          [ -n "$PROMPT_DELIM_RAND" ] || { echo "::error::openssl rand returned empty" >&2; exit 1; }
+          [ "$(printf '%s' "$CUSTOM_PROMPT" | wc -c)" -lt 900000 ] || { echo "::error::custom prompt exceeds 900KB" >&2; exit 1; }
+          PROMPT_DELIM="PROMPT_DELIMITER_$(date +%s%N)_${PROMPT_DELIM_RAND}"
           {
-            echo 'prompt<<EOF'
+            echo "prompt<<${PROMPT_DELIM}"
             echo "$CUSTOM_PROMPT"
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
+            echo "${PROMPT_DELIM}"
+          } >> "$GITHUB_OUTPUT"
 
           echo "✅ Loaded custom prompt from $PROMPT_FILE"
 
@@ -342,12 +356,19 @@ jobs:
 
           echo "✅ AI changelog generated successfully"
 
-          # Save full response to output for parsing
+          # Save full response to output for parsing.
+          # Use a per-call unguessable heredoc delimiter so an attacker who
+          # influences the Anthropic API response (via a poisoned prompt
+          # earlier in the chain) cannot inject a replacement entry.
+          RESP_DELIM_RAND=$(openssl rand -hex 16)
+          [ -n "$RESP_DELIM_RAND" ] || { echo "::error::openssl rand returned empty" >&2; exit 1; }
+          [ "$(printf '%s' "$CHANGELOG" | wc -c)" -lt 900000 ] || { echo "::error::response exceeds 900KB" >&2; exit 1; }
+          RESP_DELIM="RESPONSE_DELIMITER_$(date +%s%N)_${RESP_DELIM_RAND}"
           {
-            echo 'response<<EOF'
+            echo "response<<${RESP_DELIM}"
             echo "$CHANGELOG"
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
+            echo "${RESP_DELIM}"
+          } >> "$GITHUB_OUTPUT"
 
           # Save format flags for parsing step
           echo "generate_slack=$GENERATE_SLACK" >> $GITHUB_OUTPUT
@@ -374,38 +395,52 @@ jobs:
             # Extract Markdown format (after "## MARKDOWN FORMAT")
             MARKDOWN_CONTENT=$(echo "$RESPONSE" | sed -n '/## MARKDOWN FORMAT/,$p' | sed '1d')
 
-            # Save both outputs
+            # Per-call unguessable delimiters; fail fast on RNG/size errors.
+            SLACK_DELIM_RAND=$(openssl rand -hex 16)
+            MD_DELIM_RAND=$(openssl rand -hex 16)
+            { [ -n "$SLACK_DELIM_RAND" ] && [ -n "$MD_DELIM_RAND" ]; } || { echo "::error::openssl rand returned empty" >&2; exit 1; }
+            [ "$(printf '%s' "$SLACK_CONTENT" | wc -c)" -lt 900000 ] || { echo "::error::slack content exceeds 900KB" >&2; exit 1; }
+            [ "$(printf '%s' "$MARKDOWN_CONTENT" | wc -c)" -lt 900000 ] || { echo "::error::markdown content exceeds 900KB" >&2; exit 1; }
+            SLACK_DELIM="SLACK_DELIMITER_$(date +%s%N)_${SLACK_DELIM_RAND}"
+            MD_DELIM="MD_DELIMITER_$(date +%s%N)_${MD_DELIM_RAND}"
             {
-              echo 'changelog_slack<<EOF'
+              echo "changelog_slack<<${SLACK_DELIM}"
               echo "$SLACK_CONTENT"
-              echo 'EOF'
-            } >> $GITHUB_OUTPUT
-
+              echo "${SLACK_DELIM}"
+            } >> "$GITHUB_OUTPUT"
             {
-              echo 'changelog_markdown<<EOF'
+              echo "changelog_markdown<<${MD_DELIM}"
               echo "$MARKDOWN_CONTENT"
-              echo 'EOF'
-            } >> $GITHUB_OUTPUT
+              echo "${MD_DELIM}"
+            } >> "$GITHUB_OUTPUT"
 
             echo "✅ Parsed both Slack and Markdown formats"
 
           elif [ "$GENERATE_SLACK" == "true" ]; then
             # Slack only - entire response is Slack format
+            SLACK_ONLY_RAND=$(openssl rand -hex 16)
+            [ -n "$SLACK_ONLY_RAND" ] || { echo "::error::openssl rand returned empty" >&2; exit 1; }
+            [ "$(printf '%s' "$RESPONSE" | wc -c)" -lt 900000 ] || { echo "::error::response exceeds 900KB" >&2; exit 1; }
+            SLACK_ONLY_DELIM="SLACK_DELIMITER_$(date +%s%N)_${SLACK_ONLY_RAND}"
             {
-              echo 'changelog_slack<<EOF'
+              echo "changelog_slack<<${SLACK_ONLY_DELIM}"
               echo "$RESPONSE"
-              echo 'EOF'
-            } >> $GITHUB_OUTPUT
+              echo "${SLACK_ONLY_DELIM}"
+            } >> "$GITHUB_OUTPUT"
 
             echo "✅ Generated Slack format"
 
           elif [ "$GENERATE_MARKDOWN" == "true" ]; then
             # Markdown only - entire response is Markdown format
+            MD_ONLY_RAND=$(openssl rand -hex 16)
+            [ -n "$MD_ONLY_RAND" ] || { echo "::error::openssl rand returned empty" >&2; exit 1; }
+            [ "$(printf '%s' "$RESPONSE" | wc -c)" -lt 900000 ] || { echo "::error::response exceeds 900KB" >&2; exit 1; }
+            MD_ONLY_DELIM="MD_DELIMITER_$(date +%s%N)_${MD_ONLY_RAND}"
             {
-              echo 'changelog_markdown<<EOF'
+              echo "changelog_markdown<<${MD_ONLY_DELIM}"
               echo "$RESPONSE"
-              echo 'EOF'
-            } >> $GITHUB_OUTPUT
+              echo "${MD_ONLY_DELIM}"
+            } >> "$GITHUB_OUTPUT"
 
             echo "✅ Generated Markdown format"
           fi
@@ -427,12 +462,17 @@ jobs:
             COMMITS="- No commits found in this range"
           fi
 
-          # Save to output (markdown format only for fallback)
+          # Save to output (markdown format only for fallback). Per-call
+          # unguessable delimiter; fail fast on RNG/size errors.
+          FALLBACK_DELIM_RAND=$(openssl rand -hex 16)
+          [ -n "$FALLBACK_DELIM_RAND" ] || { echo "::error::openssl rand returned empty" >&2; exit 1; }
+          [ "$(printf '%s' "$COMMITS" | wc -c)" -lt 900000 ] || { echo "::error::commits list exceeds 900KB" >&2; exit 1; }
+          FALLBACK_DELIM="CHANGELOG_DELIMITER_$(date +%s%N)_${FALLBACK_DELIM_RAND}"
           {
-            echo 'changelog<<EOF'
+            echo "changelog<<${FALLBACK_DELIM}"
             echo "$COMMITS"
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
+            echo "${FALLBACK_DELIM}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Summary
         if: always()

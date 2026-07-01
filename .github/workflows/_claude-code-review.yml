@@ -37,8 +37,10 @@ name: "[claude] Claude Code Review"
 # event when re-requesting reviews from bot accounts. Use the comment trigger
 # or manual workflow_dispatch instead.
 #
-# PERMISSIONS REQUIRED (calling workflow must grant these):
-#   contents: read
+# PERMISSIONS REQUIRED (the calling workflow must grant its calling job at least these;
+# a reusable workflow cannot be granted more than its caller provides, so granting fewer
+# causes a silent startup_failure: a ~1s run with no logs):
+#   contents: write       # read code AND push commits when auto_fix is enabled
 #   pull-requests: write
 #   issues: read
 #   actions: read
@@ -183,12 +185,8 @@ on:
         description: |
           Whether to install the uniswap-ai-toolkit plugins automatically.
 
-          When true (default): All 5 uniswap-ai-toolkit plugins are installed:
-          - development-planning
-          - development-pr-workflow
-          - development-codebase-tools
-          - development-productivity
-          - uniswap-integrations
+          When true (default): Plugins are discovered dynamically from marketplace.json
+          (minus any excluded via exclude_plugins).
 
           When false: No uniswap plugins are installed. Use this if you want to
           use only your own plugins via plugin_marketplaces and plugins inputs.
@@ -196,14 +194,16 @@ on:
         type: boolean
         default: true
 
-      plugin_ref:
+      exclude_plugins:
         description: |
-          Git ref of ai-toolkit to use for the build-plugin-config composite
-          action. Must be 'main' (stable) or 'next' (pre-release). Defaults to
-          'main'.
+          Newline-separated list of plugin names to exclude from auto-installation.
+          Defaults to 'uniswap-integrations'.
         required: false
         type: string
-        default: "main"
+        default: |
+          uniswap-integrations
+          spec-workflow
+          claude-setup
 
       auto_fix:
         description: |
@@ -253,13 +253,30 @@ on:
         description: "Personal Access Token with repo scope. Required for: (1) resolving review threads via GraphQL API, and (2) auto-fix pushes that trigger subsequent workflow runs. Falls back to GITHUB_TOKEN if not provided, but auto-fix pushes with GITHUB_TOKEN will NOT trigger new workflow runs."
         required: false
 
+# Disable Bun's automatic bunfig.toml loading from CWD. This workflow runs
+# `bun run` against post-review scripts; if a caller checks out PR head
+# content first, `bun run` would auto-load bunfig.toml from the checkout
+# root and `bunfig.toml.preload` would execute arbitrary code with the
+# caller's secrets. Propagates to all jobs and steps in this workflow.
+env:
+  BUN_CONFIG_FILE: /dev/null
+
 jobs:
   claude-review:
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout_minutes }}
     env:
       MAX_CLAUDE_DIFF_LINES: ${{ inputs.max_diff_lines }} # any PR with a `git diff` larger than this will be considered too large for Claude review
-    # Fixed permissions (cannot be overridden by calling workflow)
+      # Security: neutralize CWD-based config loading from attacker-controlled PR checkout
+      BUN_CONFIG_FILE: /dev/null
+      NODE_OPTIONS: ""
+      NPM_CONFIG_REGISTRY: ""
+      NODE_PATH: ""
+    # Permissions the CALLING workflow must grant its calling job (matching or higher).
+    # A reusable workflow cannot be granted more than its caller provides, so a caller that
+    # declares fewer (e.g. contents: read when this needs contents: write for auto_fix pushes)
+    # makes GitHub reject the run with a silent startup_failure: a ~1s run with no logs.
+    # See .github/workflows/examples/08-claude-code-review-basic.yml for a correct caller.
     permissions:
       id-token: write # Required for OIDC
       contents: write # Required to read code and push fixes when auto_fix is enabled
@@ -268,15 +285,58 @@ jobs:
       actions: read # Required to check CI status
 
     steps:
-      # Security scanning (required for all workflows)
+      # Security scanning — block mode prevents secret exfiltration if RCE is achieved
+      # via attacker-controlled config files (bunfig.toml, .npmrc, etc.) in fork PRs.
+      # If a legitimate host is missing, the workflow will fail loudly — update the
+      # allowlist rather than switching back to audit mode.
+      # Per .github/workflows/CLAUDE.md, bullfrog must be the FIRST step in
+      # every job on a non-macOS runner ("no exceptions"), so it runs before
+      # the toolkit_ref validation below. Ordering is safe: bullfrog does not
+      # consume toolkit_ref, and the validation runs before any step that
+      # downloads action.yml or post-*.ts content using it.
       - name: Security Scan
         uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
         with:
-          egress-policy: audit
+          egress-policy: block
+          # Per-workflow tightened allowlist. Audit-mode sampling missed
+          # several destinations because bullfrog v0.8.4 queues DNS *replies*
+          # (agent/queue_audit.nft) and cached resolutions emit no further
+          # events. Domains added below as block-mode CI failures revealed:
+          # - raw.githubusercontent.com: build-plugin-config fetches
+          #   marketplace.json from /Uniswap/ai-toolkit/next/.claude-plugin/.
+          # - claude.ai: Claude SDK install path (claude.ai/install.sh)
+          #   AND runtime telemetry/session lookup on API-key auth too.
+          allowed-domains: |
+            release-assets.githubusercontent.com
+            raw.githubusercontent.com
+            api.anthropic.com
+            claude.ai
+            downloads.claude.ai
+            registry.npmjs.org
+          enable-sudo: false
+
+      # Validate toolkit_ref BEFORE any downstream step uses it to download
+      # action.yml / post-*.ts script content from the ai-toolkit repo.
+      # Without this, an attacker-controlled ref could substitute malicious
+      # script content that runs inside this job with access to its secrets.
+      - name: Validate toolkit_ref
+        env:
+          TOOLKIT_REF: ${{ inputs.toolkit_ref }}
+        run: |
+          case "$TOOLKIT_REF" in
+            main|next) ;;
+            *)
+              if ! printf '%s' "$TOOLKIT_REF" | grep -qE '^[0-9a-fA-F]{40}$'; then
+                echo "::error::Invalid toolkit_ref: '$TOOLKIT_REF'. Allowed: main, next, or a full 40-char SHA."
+                exit 1
+              fi
+              ;;
+          esac
+          echo "✅ toolkit_ref validated: $TOOLKIT_REF"
 
       # Checkout required before using local composite actions
       - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
           fetch-depth: 50
@@ -382,24 +442,20 @@ jobs:
             echo "   Using merge base for accurate diff calculation"
           fi
 
-      # Setup Node.js and install tsx BEFORE checking out PR code.
-      # Security: PR checkout may contain a malicious .npmrc that redirects
-      # the npm registry, so all npm operations must complete first.
+      # Setup Node.js and Bun BEFORE checking out PR code.
+      # Security: PR checkout may contain malicious config files (.npmrc, bunfig.toml)
+      # that could redirect registries or execute code during tool setup.
       - name: Setup Node.js (Early)
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: "22"
+          node-version: "24"
 
-      - name: Install tsx globally (security)
-        run: |
-          npm install -g tsx
-          TSX_BIN=$(which tsx)
-          echo "TSX_BIN=$TSX_BIN" >> "$GITHUB_ENV"
-          echo "✅ Installed tsx globally at: $TSX_BIN"
+      - name: Setup Bun (Early)
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
       # Checkout the exact PR head commit (not GitHub's merge commit)
       - name: Checkout Repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
           ref: ${{ steps.pr-info.outputs.head_sha }}
@@ -412,17 +468,41 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MERGE_BASE_SHA: ${{ steps.pr-info.outputs.merge_base_sha }}
         run: |
-          git -c http.extraheader="Authorization: basic $(echo -n "x-access-token:${GITHUB_TOKEN}" | base64)" \
+          # `base64 -w 0` disables line wrapping. GNU coreutils' base64 (the
+          # default on Ubuntu runners) wraps at column 76, which inserts a
+          # literal newline into the Authorization header value once the
+          # encoded `x-access-token:${token}` exceeds 56 bytes (i.e. token
+          # length ≥ 42 chars). HTTP parses that newline as end-of-header
+          # and rejects the next line as a malformed continuation, which
+          # libcurl reports as `Failed sending HTTP request` and git exits
+          # 128. actions/checkout doesn't hit this because it builds the
+          # header in JS via Buffer.toString('base64') (no wrap).
+          git -c http.extraheader="Authorization: basic $(echo -n "x-access-token:${GITHUB_TOKEN}" | base64 -w 0)" \
             fetch --depth=1 origin "$MERGE_BASE_SHA"
           echo "✅ Fetched merge base: ${MERGE_BASE_SHA:0:12}"
 
-      # Defense-in-depth: remove any attacker-supplied binaries from PR checkout
-      - name: Remove untrusted node_modules binaries
+      # Defense-in-depth: remove attacker-supplied node_modules entirely from PR checkout
+      # This prevents binary shims, lifecycle scripts, and module resolution hijacking
+      - name: Remove untrusted node_modules
         run: |
-          if [ -d "node_modules/.bin" ]; then
-            rm -rf node_modules/.bin
-            echo "🗑️  Removed node_modules/.bin from PR checkout"
+          if [ -d "node_modules" ]; then
+            rm -rf node_modules
+            echo "🗑️  Removed node_modules from PR checkout"
           fi
+
+      # Defense-in-depth: remove attacker-supplied config files that could
+      # influence tool behavior (registry redirects, preload scripts, env injection).
+      # BUN_CONFIG_FILE=/dev/null at job level is the primary defense; this is belt-and-suspenders.
+      # Uses find to catch config files in subdirectories (bun/npm resolve config by walking up from CWD).
+      - name: Remove untrusted config files
+        run: |
+          find . -maxdepth 5 -not -path "./node_modules/*" \( \
+            -name "bunfig.toml" -o -name ".npmrc" -o -name ".yarnrc" -o \
+            -name ".yarnrc.yml" -o -name ".babelrc" -o -name ".babelrc.*" -o \
+            -name "babel.config.*" -o -name ".tool-versions" -o \
+            -name ".node-version" -o -name ".nvmrc" -o \
+            -name ".env" -o -name ".env.*" \
+          \) -print -delete 2>/dev/null || true
 
       # Download post-review script from trusted ref (never use PR checkout files)
       # Security: Always fetch from a trusted ref to prevent script tampering via PR
@@ -479,7 +559,7 @@ jobs:
       - name: Check Review Cache
         id: cache-check
         if: inputs.force_review != true
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           path: .review-cache
           # Include merge_base_sha in cache key to invalidate when the merge base changes
@@ -515,7 +595,7 @@ jobs:
           REPO_OWNER=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)
           REPO_NAME=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
 
-          "$TSX_BIN" "$POST_REVIEW_SCRIPT" \
+          bun run "$POST_REVIEW_SCRIPT" \
             --mode skipped \
             --owner "$REPO_OWNER" \
             --repo "$REPO_NAME" \
@@ -582,7 +662,7 @@ jobs:
           REPO_NAME=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
 
           # Post in-progress comment (creates or updates the bot's comment)
-          "$TSX_BIN" "$POST_REVIEW_SCRIPT" \
+          bun run "$POST_REVIEW_SCRIPT" \
             --mode in-progress \
             --owner "$REPO_OWNER" \
             --repo "$REPO_NAME" \
@@ -667,7 +747,7 @@ jobs:
       # Upload diff files as artifacts for debugging and inspection
       - name: Upload PR Diff Artifacts
         if: steps.cache-check.outputs.cache-hit != 'true'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: pr-diff-files-pr${{ inputs.pr_number }}
           path: |
@@ -717,7 +797,7 @@ jobs:
           REPO_NAME=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
 
           # Post message that PR is too large for Claude review
-          "$TSX_BIN" "$POST_REVIEW_SCRIPT" \
+          bun run "$POST_REVIEW_SCRIPT" \
             --mode too-large \
             --owner "$REPO_OWNER" \
             --repo "$REPO_NAME" \
@@ -954,7 +1034,7 @@ jobs:
           REPO_NAME=$(echo "$REPO" | cut -d'/' -f2)
 
           # Run the build-prompt script
-          "$TSX_BIN" "$BUILD_PROMPT_SCRIPT" \
+          bun run "$BUILD_PROMPT_SCRIPT" \
             --prompt-dir "/tmp/pr-review-prompts" \
             --output "/tmp/final-prompt.txt" \
             --repo-owner "$REPO_OWNER" \
@@ -987,7 +1067,7 @@ jobs:
       # Upload final prompt as artifact for debugging and inspection
       - name: Upload Final Prompt Artifact
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: final-prompt-pr${{ inputs.pr_number }}
           path: /tmp/final-prompt.txt
@@ -1110,28 +1190,27 @@ jobs:
             --allowedTools $ALLOWED_TOOLS"
 
           echo "allowed_tools=$ALLOWED_TOOLS" >> $GITHUB_OUTPUT
-          echo "claude_args<<CLAUDE_ARGS_EOF" >> $GITHUB_OUTPUT
-          echo "$CLAUDE_ARGS" >> $GITHUB_OUTPUT
-          echo "CLAUDE_ARGS_EOF" >> $GITHUB_OUTPUT
+          # Per-call unguessable heredoc delimiter; defense in depth against
+          # the $GITHUB_OUTPUT duplicate-key last-write-wins injection class.
+          # Fail fast if openssl returns empty or value exceeds 1MB cap.
+          ARGS_DELIM_RAND=$(openssl rand -hex 16)
+          [ -n "$ARGS_DELIM_RAND" ] || { echo "::error::openssl rand returned empty; refusing to write predictable delimiter" >&2; exit 1; }
+          [ "$(printf '%s' "$CLAUDE_ARGS" | wc -c)" -lt 900000 ] || { echo "::error::claude_args exceeds 900KB; would risk \$GITHUB_OUTPUT truncation" >&2; exit 1; }
+          ARGS_DELIM="CLAUDE_ARGS_DELIMITER_$(date +%s%N)_${ARGS_DELIM_RAND}"
+          echo "claude_args<<${ARGS_DELIM}" >> "$GITHUB_OUTPUT"
+          echo "$CLAUDE_ARGS" >> "$GITHUB_OUTPUT"
+          echo "${ARGS_DELIM}" >> "$GITHUB_OUTPUT"
           echo "✅ Configured structured output with JSON schema"
           echo "✅ Configured read-only tools (${#ALLOWED_TOOLS} chars)"
 
       # Build plugin configuration using shared composite action
-      # Note: GitHub Actions requires static refs in 'uses:', so we use conditional
-      # steps instead of dynamic interpolation for security and predictability.
-      - name: Build plugin configuration (main)
-        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && (inputs.plugin_ref == 'main' || inputs.plugin_ref == '')
-        id: build-plugins-main
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@main # zizmor: ignore[unpinned-uses]
+      - name: Build plugin configuration
+        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
+        id: build-plugins
+        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@bc20d5cb11941235a629ccd7e296eb6d8a4a2028 # pinned to next
         with:
           install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
-
-      - name: Build plugin configuration (next)
-        if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && inputs.plugin_ref == 'next'
-        id: build-plugins-next
-        uses: Uniswap/ai-toolkit/.github/actions/build-plugin-config@next # zizmor: ignore[unpinned-uses]
-        with:
-          install_uniswap_plugins: ${{ inputs.install_uniswap_plugins }}
+          exclude_plugins: ${{ inputs.exclude_plugins }}
 
       # Run Claude Code Action to perform the review (analysis only, outputs JSON)
       # Supports both API key and OAuth token authentication (validated in earlier step)
@@ -1140,7 +1219,7 @@ jobs:
       - name: Run Claude Code Review
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
         id: claude
-        uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6 # v1.0.75
+        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
         with:
           # Authentication: provide either API key or OAuth token (validated in earlier step)
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -1157,9 +1236,8 @@ jobs:
           allowed_bots: dependabot
           claude_args: ${{ steps.build-args.outputs.claude_args }}
           # Plugin configuration (requires claude-code-action v1.0.28+)
-          # Coalesce outputs from conditional steps (only one will have run)
-          plugin_marketplaces: ${{ steps.build-plugins-main.outputs.plugin_marketplaces || steps.build-plugins-next.outputs.plugin_marketplaces }}
-          plugins: ${{ steps.build-plugins-main.outputs.plugins || steps.build-plugins-next.outputs.plugins }}
+          plugin_marketplaces: ${{ steps.build-plugins.outputs.plugin_marketplaces }}
+          plugins: ${{ steps.build-plugins.outputs.plugins }}
           additional_permissions: |
             actions: read
 
@@ -1196,7 +1274,7 @@ jobs:
       # Upload Claude execution output as artifact for debugging
       - name: Upload Claude Execution Output
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: claude-execution-output-pr${{ inputs.pr_number }}
           path: /home/runner/work/_temp/claude-execution-output.json
@@ -1248,7 +1326,7 @@ jobs:
           # Run the post-review script (path from setup-script step)
           # REVIEW_JSON_FILE env var is passed to the script, which reads the file directly
           # This avoids shell expansion of file content (shell injection safe)
-          "$TSX_BIN" "$POST_REVIEW_SCRIPT" \
+          bun run "$POST_REVIEW_SCRIPT" \
             --owner "$REPO_OWNER" \
             --repo "$REPO_NAME" \
             --pr-number "$PR_NUMBER"
@@ -1259,7 +1337,7 @@ jobs:
       # These temp files contain the JSON payloads sent to GitHub API
       - name: Upload Post Review Debug Artifacts
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true' && always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: post-review-debug-pr${{ inputs.pr_number }}
           path: /tmp/gh-input-*.json
@@ -1519,7 +1597,7 @@ jobs:
       # Security: Only allow auto-fix for same-repo PRs (not forks)
       - name: Checkout for Auto-Fix
         if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ${{ steps.pr-branch.outputs.repo_full_name }}
           ref: ${{ steps.pr-branch.outputs.branch_name }}
@@ -1543,14 +1621,29 @@ jobs:
           fi
           git remote set-url origin "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
-      # Defense-in-depth: remove any attacker-supplied binaries from auto-fix checkout
-      - name: Remove potentially compromised bin directory (auto-fix)
+      # Defense-in-depth: remove attacker-supplied node_modules from auto-fix checkout
+      - name: Remove untrusted node_modules (auto-fix)
         if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
         run: |
-          if [ -d "node_modules/.bin" ]; then
-            rm -rf node_modules/.bin
-            echo "Removed node_modules/.bin after auto-fix checkout"
+          if [ -d "node_modules" ]; then
+            rm -rf node_modules
+            echo "Removed node_modules after auto-fix checkout"
           fi
+
+      # Defense-in-depth: remove attacker-supplied config files after auto-fix checkout.
+      # The initial checkout deletes these, but auto-fix re-checks out the PR branch,
+      # reintroducing attacker-controlled config. BUN_CONFIG_FILE=/dev/null is the primary
+      # defense; this covers the auto-fix path which has WORKFLOW_PAT access.
+      - name: Remove untrusted config files (auto-fix)
+        if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
+        run: |
+          find . -maxdepth 5 -not -path "./node_modules/*" \( \
+            -name "bunfig.toml" -o -name ".npmrc" -o -name ".yarnrc" -o \
+            -name ".yarnrc.yml" -o -name ".babelrc" -o -name ".babelrc.*" -o \
+            -name "babel.config.*" -o -name ".tool-versions" -o \
+            -name ".node-version" -o -name ".nvmrc" -o \
+            -name ".env" -o -name ".env.*" \
+          \) -print -delete 2>/dev/null || true
 
       # Build auto-fix prompt from review results
       - name: Build Auto-Fix Prompt
@@ -1619,7 +1712,7 @@ jobs:
       - name: Run Claude Auto-Fix
         id: claude-fix
         if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
-        uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6 # v1.0.75
+        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -1630,10 +1723,11 @@ jobs:
           # Use auto_fix_model if specified, otherwise use the review model
           # --allowedTools grants specific permissions for auto-fix
           # without using the blanket --dangerously-skip-permissions flag.
-          # Bash is intentionally unrestricted here (unlike docs-check's
-          # Bash(git:*)) because code-review fixes may need to run linters,
-          # formatters, type checkers, and build tools to verify the fix.
-          claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }} --allowedTools Read,Edit,Write,Grep,Glob,Bash,WebSearch,WebFetch"
+          # Bash is prefix-restricted to prevent arbitrary shell execution:
+          # - git: commit, push, status, diff operations
+          # - npm run / npx nx / bun run: linters, formatters, type checkers
+          # Bash(node:*) is intentionally excluded — it permits arbitrary JS execution.
+          claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }} --allowedTools Read,Edit,Write,Grep,Glob,Bash(git:*),Bash(npm run:*),Bash(npx nx:*),Bash(bun run:*),WebSearch,WebFetch"
           # Note: plugin_marketplaces and plugins are intentionally omitted here.
           # The marketplace and plugins were already installed by the "Run Claude Code
           # Review" step earlier in this job. Both steps share the same runner and

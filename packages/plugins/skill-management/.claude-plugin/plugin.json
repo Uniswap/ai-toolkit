@@ -1,0 +1,14 @@
+{
+  "name": "skill-management",
+  "version": "1.0.1",
+  "description": "Audit, map, mine, and improve your Claude Code skills, agents, and slash commands. Inventories your whole customization surface, flags overlaps/gaps/weak triggering descriptions, and mines sessions for workflows worth codifying into new skills or agents.",
+  "author": {
+    "name": "Uniswap Labs",
+    "email": "ai-services@uniswap.org"
+  },
+  "homepage": "https://github.com/Uniswap/ai-toolkit",
+  "keywords": ["claude-code", "skills", "agents", "commands", "meta", "curation", "ai-toolkit"],
+  "license": "MIT",
+  "skills": ["./skills/skill-doctor"],
+  "commands": ["./commands/skill-mine.md", "./commands/skill-map.md", "./commands/skill-new.md"]
+}

@@ -115,7 +115,7 @@ jobs:
       - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
 
       - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -254,11 +254,16 @@ jobs:
               exit 1
             fi
 
+            # Per-call unguessable delimiter; fail fast on RNG/size errors.
+            NOTION_DELIM_RAND=$(openssl rand -hex 16)
+            [ -n "$NOTION_DELIM_RAND" ] || { echo "::error::openssl rand returned empty" >&2; exit 1; }
+            [ "$(printf '%s' "$NOTION_CHANGELOG" | wc -c)" -lt 900000 ] || { echo "::error::notion changelog exceeds 900KB" >&2; exit 1; }
+            NOTION_DELIM="NOTION_DELIMITER_$(date +%s%N)_${NOTION_DELIM_RAND}"
             {
-              echo 'changelog_for_notion<<EOF'
+              echo "changelog_for_notion<<${NOTION_DELIM}"
               echo "$NOTION_CHANGELOG"
-              echo 'EOF'
-            } >> $GITHUB_OUTPUT
+              echo "${NOTION_DELIM}"
+            } >> "$GITHUB_OUTPUT"
           fi
 
   notify-slack:
@@ -314,28 +319,38 @@ jobs:
       - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
 
       - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
       - name: Setup Node.js for Notion publishing
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: ${{ vars.NODE_VERSION }}
           registry-url: 'https://registry.npmjs.org'
           scope: '@uniswap'
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.3.12"
+
       - name: Publish to Notion
         id: notion-publish
         continue-on-error: true
+        # Runs ai-toolkit-notion-publisher@0.0.16 from the github ref pinned below.
         run: |
           # Pass multi-line content via environment variable to avoid command-line escaping issues
-          PAGE_URL=$(npx @uniswap/ai-toolkit-notion-publisher@latest \
+          PAGE_URL=$(bunx github:Uniswap/ai-toolkit#45880f79482d5c4a0c7d48d39e1ac2c5fc783f85 \
             --title "$TITLE" \
             --content "$CONTENT" \
             --from-ref "$FROM_REF" \
             --to-ref "$TO_REF" \
             --branch "$BRANCH")
+          if [ -z "$PAGE_URL" ]; then
+            echo "::error::Notion publisher returned an empty URL"
+            exit 1
+          fi
           echo "page-url=$PAGE_URL" >> $GITHUB_OUTPUT
         env:
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}

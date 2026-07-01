@@ -6,86 +6,95 @@ model: opus
 
 # CLAUDE.md Updater
 
-Quickly synchronize CLAUDE.md files based on staged git changes.
+Synchronize CLAUDE.md files based on staged git changes, capturing conventions and gotchas
+that Claude cannot infer by reading code.
 
 ## When to Activate
 
-- After significant code changes
-- User mentions updating documentation
-- Staged changes should be documented
-- New files added that need documentation
-- Dependencies or commands changed
+- After significant code changes that reveal non-obvious patterns or constraints
+- User requests a documentation sync or CLAUDE.md update
+- Staged changes include new commands, env vars, or architectural decisions
+- A new gotcha or non-obvious behavior has been introduced
+
+## Content Model
+
+CLAUDE.md files should contain **conventions, gotchas, and team preferences** — not
+structural inventory. The guiding question for each potential entry is: **"Would removing
+this cause Claude to make a mistake?"** If not, omit it.
+
+**Include:**
+
+- Non-obvious bash commands (env vars required, non-standard behavior, ordering constraints)
+- Code style rules that differ from language defaults
+- Testing instructions and non-standard runner configuration
+- Repository etiquette (branch naming, PR conventions)
+- Architectural decisions specific to this project
+- Developer environment quirks (required env vars, local service dependencies)
+- Common gotchas — behaviors that regularly surprise contributors
+
+**Exclude:**
+
+- File-by-file directory listings (Claude can use `git ls-files`)
+- Dependency version tables (Claude can read package.json)
+- Standard language or framework conventions Claude already knows
+- `[TODO]` placeholder entries
+- Structural overviews Claude can derive from code
 
 ## Quick Process
 
-1. **Check Git**: Verify in git repository
+1. **Check Git**: Verify in git repository; determine interactive vs. automated mode
 2. **Get Staged Files**: `git diff --cached --name-status`
-3. **Group by CLAUDE.md**: Find nearest CLAUDE.md for each file
-4. **Analyze Changes**: Determine if updates needed
-5. **Show Summary**: Preview what will be updated
-6. **Apply Updates**: Write changes with user confirmation
+3. **Group by CLAUDE.md**: Find nearest CLAUDE.md ancestor for each staged file
+4. **Analyze Changes**: Ask "what does this change reveal that is non-obvious?"
+5. **Deduplication Check**: Verify proposed content is not already in ancestor CLAUDE.md files
+6. **Propose `.claude/rules/` Factoring**: Suggest a rules file if topic warrants it
+7. **Show Summary**: Preview proposed additions (interactive mode only)
+8. **Apply Updates**: Write changes after confirmation (or conservatively in automated mode)
 
 ## Update Triggers
 
-Updates triggered when:
+An update is warranted when:
 
-- New files added (status 'A')
-- package.json modified
-- project.json modified
-- Significant changes (>50 lines)
-- New exports added
+- A new non-obvious convention or pattern is introduced
+- A new command, env var, or setup step is added that is not self-evident
+- An existing documented behavior changes in a surprising way
+- A new package with cross-cutting concerns is added
+- Significant architectural changes (>50 lines) that introduce non-obvious constraints
 
-## Update Strategies
+Skip updates for: formatting changes, typos, renames with no behavior change, or anything
+that is standard language/framework convention.
 
-### New Files
+## Output Targets
 
-```markdown
-- `path/to/file.ts` - [TODO: Add description]
-```
+- **CLAUDE.md files**: Primary output — update nearest ancestor CLAUDE.md for each change
+- **`.claude/rules/<topic>.md` files**: Secondary output — when a topic-specific rule is
+  identified that would push CLAUDE.md over 200 lines or only applies to a file subset,
+  propose factoring it into a rules file with optional `paths` frontmatter
 
-### Dependencies (package.json)
+## Length Constraint
 
-```markdown
-- **package-name** (version)
-```
+Target: **under 200 lines per CLAUDE.md**. If an update would push a file over 200 lines,
+propose factoring detailed content into a `.claude/rules/<topic>.md` file instead.
 
-### Commands (project.json)
+## Automated Mode (Non-Interactive)
 
-```markdown
-- `nx command project` - [description]
-```
+When running without a human present (e.g., via a pre-commit hook):
 
-### Significant Changes
-
-```markdown
-- Modified `path/to/file.ts` (N lines changed)
-```
-
-## Performance
-
-- Single git command for detection
-- No external tools required
-- Simple file operations
-- 1-3 seconds typical
+- Only append content that is clearly missing and high-value
+- Prefer a no-op over a low-quality update
+- Do not ask questions or prompt for confirmation
+- Log what was added (or that no update was made)
 
 ## Safety
 
 - Git provides rollback (`git restore CLAUDE.md`)
-- Single confirmation prompt
-- Non-destructive (adds, doesn't remove)
-- Review with `git diff` before commit
-
-## Usage Modes
-
-**Auto-detect** (recommended):
-Analyzes staged changes automatically
-
-**Explicit**:
-Update specific path's CLAUDE.md
+- Single confirmation prompt in interactive mode
+- Review with `git diff **/*CLAUDE.md` before committing
+- Outdated entries may be pruned when a significant update is made
 
 ## Best Practices
 
 1. Stage changes first (`git add`)
 2. Review updates (`git diff **/*CLAUDE.md`)
-3. Commit together with related code
-4. Run frequently after significant changes
+3. Commit CLAUDE.md changes together with related code
+4. Treat CLAUDE.md as a living document — prune outdated entries over time

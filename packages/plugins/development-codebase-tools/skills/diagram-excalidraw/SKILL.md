@@ -8,17 +8,9 @@ model: opus
 
 Generate valid `.excalidraw` JSON files representing system architecture from codebase analysis.
 
-## When to Activate
-
-- User asks to create an architecture diagram
-- User wants to visualize system design
-- User asks for a flowchart or data flow diagram
-- User wants to document system structure visually
-- User mentions Excalidraw or diagram generation
-
 ## Quick Start
 
-Works without existing diagrams, Terraform, or specific file types. Analyzes any codebase structure.
+Works without existing diagrams, Terraform, or specific file types. Analyzes any codebase structure. If the codebase has more than ~30 distinct components, limit scope to top-level packages or services only to keep the diagram readable.
 
 ## Critical Implementation Rules
 
@@ -50,7 +42,7 @@ Works without existing diagrams, Terraform, or specific file types. Analyzes any
 
 1. **Analyze codebase structure** - Identify components, services, and relationships
 2. **Plan layout grid** - Determine rows, columns, and spacing
-3. **Generate shape elements** - Create rectangles, ellipses, text labels
+3. **Generate shape elements** - Create rectangles, ellipses, text labels; derive element IDs from component names (e.g., `api-server`, `api-server-text`) and verify all IDs are unique
 4. **Add connection arrows** - Connect components with proper edge positioning
 5. **Apply grouping** - Group related elements (namespaces, services, etc.)
 6. **Validate and write output** - Check all constraints before writing file

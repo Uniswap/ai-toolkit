@@ -8,21 +8,29 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 
 ### Skills (./skills/)
 
+- **analyze-bundle**: Analyze web application bundle size — identify heaviest modules, tree-shaking gaps, duplicate packages, and code-splitting opportunities
 - **analyze-code**: Multi-agent code explanation for architecture, patterns, security, and performance
-- **analyze-tech-debt**: Identify and prioritize technical debt with remediation plans
+- **analyze-dead-code**: Find unused exports, unreachable modules, and dead files with confidence-ranked removal guidance
+- **analyze-migrations**: Statically analyze database migration files for safety issues (locks, data loss, missing rollbacks)
+- **analyze-tech-debt**: Identify and prioritize technical debt with remediation plans. Uses a structured 6-step execution process: scope the target, collect code signals (Glob/Grep for large files, nesting, TODO/FIXME/HACK, `any` types), examine git history (high-churn files via `git log`, chronic bug areas via `git blame`), assess test presence (test-to-source file ratio), score and prioritize items by ROI, and write a Debt Metrics Dashboard + Prioritized Roadmap. Allowed tools include `Bash(git blame:*)`.
+- **analyze-test-coverage**: Measure test coverage gaps and produce a prioritized list of what to test next
+- **audit-accessibility**: Audit UI components for WCAG 2.1 AA compliance, identifying violations by severity with fix guidance
+- **debug-issue**: Systematic debugging workflow — accepts any error report (message, stack trace, or vague symptom), locates the origin, gathers context, invokes the debug-assistant-agent for root-cause analysis, and validates the fix
 - **diagram-excalidraw**: Generate Excalidraw architecture diagrams from codebase analysis
+- **mermaid-diagram**: Generate syntactically valid Mermaid.js diagrams (flowcharts, sequence, class, state, ER, Gantt, git)
 - **explore-codebase**: Deep codebase exploration with architectural understanding
 - **refactor-code**: Comprehensive refactoring with safety checks and pattern application
+- **strengthen-types**: Audit and harden TypeScript type safety — find `any`, unsafe casts, non-null assertions, and missing return types with severity-ranked findings and concrete fixes
 
 ### Agents (./agents/)
 
-- **agent-orchestrator-agent**: Centralized agent orchestration and capability matching
-- **code-explainer-agent**: Explains code architecture, patterns, and dependencies
+- **agent-orchestrator-agent**: Coordinates multiple AI agents for complex multi-step tasks; decomposes tasks into atomic units, matches each to the right specialist, and executes in parallel where possible
+- **code-explainer-agent**: Explains what code does, how it's structured, and why it's designed that way; delegates security/performance concerns to specialist agents
 - **code-generator-agent**: Generates production-ready code following patterns (delegates to test-writer-agent for tests)
-- **context-loader-agent**: Advanced context management with summarization, checkpointing, and cross-agent sharing
+- **context-loader-agent**: Read-only reconnaissance agent that discovers, reads, and summarizes a codebase area so other agents can implement or debug it correctly
 - **debug-assistant-agent**: Advanced debugging with root cause analysis
-- **pattern-learner-agent**: Learns and applies codebase patterns
-- **performance-analyzer-agent**: Analyzes performance bottlenecks and optimization opportunities
+- **pattern-learner-agent**: Extracts recurring conventions, architecture patterns, and project-specific idioms from a codebase
+- **performance-analyzer-agent**: Analyzes performance bottlenecks and optimization opportunities. Uses `model: opus` for complex multi-step analysis; has `allowed-tools: Read, Glob, Grep, Bash` for file access and shell execution during profiling workflows.
 - **refactorer-agent**: Performs safe, incremental refactoring operations
 - **security-analyzer-agent**: Identifies security vulnerabilities and recommends fixes
 - **style-enforcer-agent**: Enforces code style and conventions
@@ -78,11 +86,19 @@ development-codebase-tools/
 ├── .claude-plugin/
 │   └── plugin.json
 ├── skills/
+│   ├── analyze-bundle/
 │   ├── analyze-code/
+│   ├── analyze-dead-code/
+│   ├── analyze-migrations/
 │   ├── analyze-tech-debt/
+│   ├── analyze-test-coverage/
+│   ├── audit-accessibility/
+│   ├── debug-issue/
 │   ├── diagram-excalidraw/
+│   ├── mermaid-diagram/
 │   ├── explore-codebase/
-│   └── refactor-code/
+│   ├── refactor-code/
+│   └── strengthen-types/
 ├── agents/
 │   ├── agent-orchestrator.md
 │   ├── code-explainer.md

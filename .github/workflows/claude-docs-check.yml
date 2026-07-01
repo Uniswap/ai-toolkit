@@ -48,10 +48,15 @@ concurrency:
 
 jobs:
   docs-check:
-    # Skip if PR is from a bot (e.g., dependabot)
+    # Skip bots and fork PRs (fork code is attacker-controlled)
+    # workflow_dispatch fork check is handled inside _claude-docs-check.yml
     if: |
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' && !contains(github.event.pull_request.user.login, '[bot]'))
+      (
+        github.event_name == 'pull_request' &&
+        !contains(github.event.pull_request.user.login, '[bot]') &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      )
     permissions:
       id-token: write
       contents: write
@@ -69,9 +74,19 @@ jobs:
       fail_on_missing_version: true
       # Don't fail on missing docs (just warn)
       fail_on_missing_docs: false
-      # Use local actions since we're in ai-toolkit
-      toolkit_ref: ${{ github.head_ref || github.ref_name }}
-      plugin_ref: "next"
+      # Pin to main rather than the trigger ref. ${{ github.head_ref || github.ref_name }}
+      # would let any PR author point the worker at action.yml / post-*.ts script
+      # content from their own branch — the worker then downloads and executes
+      # that content with the workflow's secrets (RCE-with-secrets via supply
+      # chain). Self-testing changes to worker scripts is now done by landing
+      # them to `next` first and verifying there, or by invoking the
+      # workflow_dispatch entrypoint with an explicit SHA in the allowlist.
+      #
+      # External repos copying this file as a template: keep this as 'main'.
+      # The reusable worker's toolkit_ref allowlist now blocks fork-branch
+      # values, but `next` is permitted and would pick up untested worker
+      # changes; pinning to 'main' avoids that.
+      toolkit_ref: 'main'
     secrets:
       # Use OAuth token (Pro/Max) instead of API key
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

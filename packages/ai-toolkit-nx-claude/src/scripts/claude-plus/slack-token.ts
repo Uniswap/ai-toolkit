@@ -11,8 +11,13 @@ import * as https from 'https';
 import * as http from 'http';
 import * as os from 'os';
 import { displaySuccess, displayWarning, displayDebug, displayInfo } from './display';
-import { offerSlackSetup } from './slack-setup';
-import { getClaudeConfigDir, getClaudeConfigPath, isUsingCustomConfigDir } from './config-paths';
+import { offerSlackSetup, shSingleQuote } from './slack-setup';
+import {
+  getClaudeConfigDir,
+  getClaudeConfigPath,
+  getAllClaudeConfigPaths,
+  isUsingCustomConfigDir,
+} from './config-paths';
 
 interface SlackConfig {
   refreshToken: string;
@@ -71,20 +76,36 @@ function loadSlackConfig(): SlackConfig | null {
 }
 
 /**
- * Get the current Slack token from Claude config
+ * Get the current Slack token from Claude config.
+ *
+ * When CLAUDE_CONFIG_DIR is set, reads only from the active profile to
+ * avoid cross-profile contamination. Otherwise checks legacy locations:
+ * 1. ~/.claude.json (legacy location)
+ * 2. ~/.claude/claude.json (new default user location)
+ *
+ * Returns the token from the first config file that contains it.
  */
 function getCurrentToken(): string | null {
-  const configPath = getClaudeConfigPath();
-  if (!fs.existsSync(configPath)) {
-    return null;
+  const configPaths = getAllClaudeConfigPaths();
+
+  for (const configPath of configPaths) {
+    if (!fs.existsSync(configPath)) {
+      continue;
+    }
+
+    try {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      const token = config?.mcpServers?.['slack']?.env?.SLACK_BOT_TOKEN;
+      if (token) {
+        return token;
+      }
+    } catch {
+      // Continue to next config path
+      continue;
+    }
   }
 
-  try {
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    return config?.mcpServers?.['slack']?.env?.SLACK_BOT_TOKEN || null;
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 /**
@@ -276,11 +297,10 @@ function updateRefreshToken(newRefreshToken: string, verbose?: boolean): void {
 
   let content = fs.readFileSync(SLACK_ENV_PATH, 'utf-8');
 
-  // Replace the refresh token line
-  content = content.replace(
-    /export SLACK_REFRESH_TOKEN=.*/,
-    `export SLACK_REFRESH_TOKEN="${newRefreshToken}"`
-  );
+  // Replace the refresh token line. Use a replacement FUNCTION (not a string) so
+  // String.prototype.replace does not treat `$` in the token specially ($&, $1, $$).
+  const newLine = `export SLACK_REFRESH_TOKEN=${shSingleQuote(newRefreshToken)}`;
+  content = content.replace(/export SLACK_REFRESH_TOKEN=.*/, () => newLine);
 
   fs.writeFileSync(SLACK_ENV_PATH, content);
   displayDebug('Refresh token updated successfully', verbose);

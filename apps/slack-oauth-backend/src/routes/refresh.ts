@@ -14,7 +14,7 @@ const router = Router();
  */
 const refreshRateLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 10, // limit each IP to 10 requests per minute
+  max: 5, // limit each IP to 5 requests per minute
   message: 'Too many token refresh attempts, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
@@ -96,8 +96,18 @@ const validateRefreshRequest = (req: Request, res: Response, next: NextFunction)
  * Token refresh endpoint
  * POST /slack/refresh
  *
- * Exchanges a refresh token for a new access token
- * This keeps the client secret server-side for security
+ * Exchanges a refresh token for a new access token, keeping the client secret
+ * server-side.
+ *
+ * Threat model: there is no per-caller auth here, and that is intentional. The
+ * refresh_token IS the bearer credential, so possessing it is the authorization.
+ * This flow is stateless and serverless (no shared session/cookie store across
+ * Vercel instances), so a per-caller session check cannot be added without new
+ * infra. Defense is layered instead: the client_secret never leaves the server,
+ * the endpoint is IP rate-limited, and the main token-leak vector (OAuth tokens
+ * in a cacheable HTML response) is closed by the callback's no-store headers and
+ * by never rendering the refresh token in HTML. The no-store header below keeps
+ * the JSON token response out of intermediary caches as well.
  */
 router.post(
   '/',
@@ -176,6 +186,10 @@ router.post(
       });
 
       // Return the new tokens
+      res.set({
+        'Cache-Control': 'no-store',
+        Pragma: 'no-cache',
+      });
       res.json({
         ok: true,
         access_token: accessToken,

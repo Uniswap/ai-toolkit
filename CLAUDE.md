@@ -1,4 +1,4 @@
-F# CLAUDE.md - AI Toolkit Project Guidelines
+# CLAUDE.md - AI Toolkit Project Guidelines
 
 ## Core Requirements
 
@@ -73,19 +73,19 @@ The `x-prompt` property can interfere with conditional prompting logic. For fiel
 
 After making any code changes, Claude Code MUST:
 
-1. **Format the code**: Run `npx nx format:write --uncommitted` to format all uncommitted files using Prettier configuration
+1. **Format the code**: Run `bunx nx format:write --uncommitted` to format all uncommitted files using Prettier configuration
 
-   - For CI or when comparing against a specific base: `npx nx format:write --affected --base=HEAD~1`
+   - For CI or when comparing against a specific base: `bunx nx format:write --affected --base=HEAD~1`
    - This ensures consistent code style across the entire codebase
 
-2. **Lint the code**: Run `npx nx affected --target=lint --base=HEAD~1` to check for linting errors
+2. **Lint the code**: Run `bunx nx affected --target=lint --base=HEAD~1` to check for linting errors
 
    - This runs ESLint on all affected projects based on your changes
-   - If there are linting errors that can be auto-fixed, add the `--fix` flag: `npx nx affected --target=lint --base=HEAD~1 --fix`
+   - If there are linting errors that can be auto-fixed, add the `--fix` flag: `bunx nx affected --target=lint --base=HEAD~1 --fix`
 
-3. **Typecheck the code**: Run `npx nx affected --target=typecheck --base=HEAD~1` to typecheck all affected projects.
+3. **Typecheck the code**: Run `bunx nx affected --target=typecheck --base=HEAD~1` to typecheck all affected projects.
 
-4. **Lint markdown files**: After creating or updating any markdown files (.md), run `npm exec markdownlint-cli2 -- --fix "**/*.md"` to ensure all markdown files follow the project's markdown standards.
+4. **Lint markdown files**: After creating or updating any markdown files (.md), run `bunx markdownlint-cli2 --fix "**/*.md"` to ensure all markdown files follow the project's markdown standards.
 
    - This uses the `.markdownlint-cli2.jsonc` configuration file at the repository root
    - The linting will automatically fix most common formatting issues
@@ -104,35 +104,31 @@ This is the AI Toolkit monorepo that provides standardized Claude Code plugins v
 
 - Nx for monorepo management
 - TypeScript with strict settings
-- npm as the package manager
+- Bun as the package manager (npm retained only for OIDC trusted publishing in CI)
 - ESLint and Prettier for code quality
 
-### npm Version Requirement
+### Bun Package Manager
 
-**CRITICAL: This project requires npm 11.7.0**
-
-**Why npm 11.7.0?**
-
-1. **OIDC Trusted Publishing**: npm OIDC trusted publishing requires npm >= 11.5.1
-2. **Lockfile Consistency**: Using the same npm version in CI and local development prevents lockfile format changes
+**This project uses Bun as its package manager.**
 
 **Installation:**
 
 ```bash
-npm install -g npm@11.7.0
+# Install Bun (if not already installed)
+curl -fsSL https://bun.sh/install | bash
 ```
 
-**Verification:**
+**Key commands:**
 
 ```bash
-npm --version  # Should output: 11.7.0
+bun install              # Install dependencies
+bun install --frozen-lockfile  # CI-safe install (fails if bun.lock is out of date)
+bunx nx <command>        # Run Nx commands
 ```
 
-The project enforces this version through:
+**Supply chain security:** The project enforces a 3-day minimum release age for new package versions via `bunfig.toml`. Versions published less than 3 days ago are filtered out during installation.
 
-- `engines` field in package.json (warns if wrong version)
-- `engine-strict=true` in .npmrc (prevents installation with wrong version)
-- Pre-install script that checks the version
+**npm for publishing only:** The CI publish pipeline (`publish-packages.yml`) installs npm 11.7.0+ via `npm install -g npm@$NPM_VERSION` so that `npx nx release publish` can perform OIDC trusted publishing. npm OIDC requires npm >= 11.5.1, and the `workflow_ref` claim in the OIDC token must match the configured trusted workflow. The `.npmrc` file (registry config only) and the npm CLI are retained in the publish job for this purpose. Dependency installation in the publish job — and everywhere else — uses `bun install --frozen-lockfile`.
 
 ## Package Scope
 
@@ -155,6 +151,7 @@ The repository uses a plugin-based architecture where Claude Code capabilities a
 │       ├── development-planning/     # Implementation planning & execution workflows
 │       ├── development-pr-workflow/  # PR management, review, & Graphite integration
 │       ├── development-productivity/ # Documentation, research, & prompt optimization
+│       ├── skill-management/         # Curate Claude Code skills, agents, & commands
 │       ├── spec-workflow/            # Spec-driven development workflows
 │       └── uniswap-integrations/    # External service integrations (Linear, Notion, Nx)
 └── scripts/
@@ -166,7 +163,7 @@ The repository uses a plugin-based architecture where Claude Code capabilities a
 - Plugins are stored in `./packages/plugins/<plugin-name>/`
 - Each plugin is a self-contained Nx package with its own `package.json`, `project.json`, and `.claude-plugin/plugin.json`
 - The `.claude-plugin/marketplace.json` file references plugins via relative paths: `"./packages/plugins/<plugin-name>"`
-- There are 7 plugins: claude-setup, development-codebase-tools, development-planning, development-pr-workflow, development-productivity, spec-workflow, uniswap-integrations
+- There are 8 plugins: claude-setup, development-codebase-tools, development-planning, development-pr-workflow, development-productivity, skill-management, spec-workflow, uniswap-integrations
 
 **Plugin Validation:**
 
@@ -225,13 +222,14 @@ All plugins follow semantic versioning (semver). Key versioning rules:
 
 | Plugin                     | Version |
 | -------------------------- | ------- |
-| claude-setup               | 1.0.4   |
-| development-codebase-tools | 2.0.1   |
-| development-planning       | 2.0.1   |
-| development-pr-workflow    | 2.1.0   |
-| development-productivity   | 2.1.1   |
+| claude-setup               | 1.0.5   |
+| development-codebase-tools | 2.6.1   |
+| development-planning       | 2.0.7   |
+| development-pr-workflow    | 2.2.0   |
+| development-productivity   | 2.4.1   |
+| skill-management           | 1.0.1   |
 | spec-workflow              | 2.0.1   |
-| uniswap-integrations       | 2.1.0   |
+| uniswap-integrations       | 2.5.0   |
 
 **Note:** Keep this table updated when versions change.
 
@@ -391,12 +389,12 @@ These hooks leverage Nx's affected commands to only check and format files that 
 
 #### How to Use
 
-The hooks are automatically installed when you run `npm install` (via the `prepare` script in package.json). No additional setup is required.
+The hooks are automatically installed when you run `bun install` (via the `prepare` script in package.json). No additional setup is required.
 
-##### Available npm scripts
+##### Available scripts
 
-- `npm run prepare`: Installs lefthook (runs automatically after `npm install`)
-- `npm run lefthook`: Manually run lefthook commands
+- `bun run prepare`: Installs lefthook (runs automatically after `bun install`)
+- `bun run lefthook`: Manually run lefthook commands
 
 ##### Skipping hooks when needed
 
@@ -531,21 +529,20 @@ When working with GitHub Actions workflows (`.github/workflows/*.yml`), follow t
          "${{ inputs.arg2 }}"
    ```
 
-   For TypeScript scripts (requires Node.js setup):
+   For TypeScript scripts (requires Bun setup):
 
    ```yaml
-   - name: Setup Node.js
-     uses: actions/setup-node@v4
+   - name: Setup Bun
+     uses: oven-sh/setup-bun@v2
      with:
-       node-version: '22'
-       cache: 'npm'
+       bun-version: '1.3.12'
 
    - name: Install dependencies
-     run: npm ci
+     run: bun install --frozen-lockfile
 
    - name: Execute TypeScript script
      run: |
-       npx tsx .github/scripts/my-script.ts \
+       bunx tsx .github/scripts/my-script.ts \
          "${{ inputs.arg1 }}" \
          "${{ inputs.arg2 }}"
    ```
@@ -574,16 +571,17 @@ When working with GitHub Actions workflows (`.github/workflows/*.yml`), follow t
 **✅ GOOD - Published npm package:**
 
 ```yaml
-- name: Setup Node.js
-  uses: actions/setup-node@v4
+- name: Setup Bun
+  uses: oven-sh/setup-bun@v2
   with:
-    node-version: '22'
-    registry-url: 'https://registry.npmjs.org'
-    scope: '@uniswap'
+    bun-version: '1.3.12'
+
+- name: Install dependencies
+  run: bun install --frozen-lockfile
 
 - name: Publish to Notion
   run: |
-    npx @uniswap/ai-toolkit-notion-publisher \
+    bunx @uniswap/ai-toolkit-notion-publisher \
       --title "${{ inputs.title }}" \
       --content "${{ inputs.content }}"
   env:
@@ -607,6 +605,65 @@ Inline scripts are acceptable when they are:
 - Not candidates for reuse across workflows
 
 **This policy is mandatory and should be enforced during code review.**
+
+## Claude Code Hooks
+
+### PostToolUse Hook: Lint and Typecheck
+
+This project includes a Claude Code hook that automatically lints and typechecks files after Claude modifies them using the Write or Edit tools. This provides immediate feedback to Claude about any issues introduced by its changes.
+
+#### How It Works
+
+1. When Claude uses the `Write` or `Edit` tool to modify a file, the PostToolUse hook is triggered
+2. The hook script (`.github/scripts/lint-and-typecheck-hook.ts`) runs:
+   - **ESLint** on the modified file (for `.ts`, `.tsx`, `.js`, `.jsx`, `.mts`, `.cts`, `.mjs`, `.cjs` files)
+   - **TypeScript typecheck** via the affected Nx project (for TypeScript files)
+3. If issues are found, the hook exits with code 2 and provides error details to Claude
+4. Claude receives this feedback and can fix the issues before continuing
+
+#### Configuration
+
+The hook is configured in `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bunx tsx .github/scripts/lint-and-typecheck-hook.ts",
+            "timeout": 60000
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+#### Benefits
+
+- **Immediate feedback**: Claude learns about issues right after making changes
+- **Focused checking**: Only the modified file is linted, not the entire codebase
+- **Project-aware**: Uses Nx to find and typecheck the affected project
+- **Non-blocking for non-code**: Files that don't need linting (markdown, JSON, etc.) pass through without delay
+
+#### Troubleshooting
+
+If the hook is causing issues:
+
+1. Check that `tsx` is available: `bunx tsx --version`
+2. Verify ESLint is configured: `bunx eslint --version`
+3. Check the hook script exists: `ls -la .github/scripts/lint-and-typecheck-hook.ts`
+4. Run the hook manually to debug:
+
+   ```bash
+   echo '{"tool_name":"Write","tool_input":{"file_path":"path/to/file.ts"}}' | \
+     bunx tsx .github/scripts/lint-and-typecheck-hook.ts
+   ```
 
 <!-- nx configuration start-->
 <!-- Leave the start & end comments to automatically receive updates. -->
