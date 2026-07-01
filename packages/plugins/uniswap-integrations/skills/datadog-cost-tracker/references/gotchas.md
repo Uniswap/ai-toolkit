@@ -16,9 +16,9 @@ data rather than returning an error.
 **Correct pattern:**
 
 1. Omit the `env` filter entirely when querying ingestion metrics for serverless services.
-2. Before trusting an empty result, call `get_datadog_metric_context` for the metric filtered to
-   the service and check whether an `env` tag is present on that metric at all. If the tag is
-   absent from the metric context, the `env:prod` filter is the cause of the empty result.
+2. Before trusting an empty result, retrieve the metric's tag context (via the Datadog MCP server)
+   filtered to the service and check whether an `env` tag is present on that metric at all. If the
+   tag is absent from the metric context, the `env:prod` filter is the cause of the empty result.
 3. Re-run the query without the `env` filter to get the true ingestion volume.
 
 **Note:** The general investigation instructions say "resolve the service tag before trusting an

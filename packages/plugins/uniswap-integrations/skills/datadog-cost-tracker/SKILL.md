@@ -21,9 +21,9 @@ Analyze Datadog ingestion costs across logs, APM spans, and other estimated-usag
 
 2. **Read the gotchas reference first** — before issuing any queries, read `references/gotchas.md` in this skill directory. Empty results are often caused by known pitfalls (missing env tag, post-deploy baseline shifts) rather than zero actual ingestion.
 
-3. **Query estimated-usage metrics** — use `search_datadog_metrics` or `get_datadog_metric` on `datadog.estimated_usage.logs.ingested_bytes` and `datadog.estimated_usage.apm_hosts` (or `datadog.estimated_usage.ingested_spans`). Group by `service` tag.
+3. **Query estimated-usage metrics** — via the Datadog MCP server, query the estimated-usage metrics grouped by the `service` tag: `datadog.estimated_usage.logs.ingested_bytes` for log ingestion and `datadog.estimated_usage.apm.ingested_spans` for APM span ingestion. Confirm the exact metric names in your account's Metrics Explorer first — estimated-usage metric names vary by integration setup, and querying a name that does not exist returns empty rather than erroring.
 
-4. **Validate service tags** — before concluding a service has zero ingestion, call `get_datadog_metric_context` for that metric filtered to the service. Confirm the service tag actually exists on the metric. If the tag is absent, the service may emit data under a different tagging scheme.
+4. **Validate service tags** — before concluding a service has zero ingestion, retrieve the metric's tag context (via the Datadog MCP server) filtered to that service. Confirm the service tag actually exists on the metric. If the tag is absent, the service may emit data under a different tagging scheme.
 
 5. **Identify top contributors** — rank services by volume. Flag any service where volume increased >2× week-over-week.
 
