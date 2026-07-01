@@ -39,6 +39,7 @@ This plugin bundles the following MCP (Model Context Protocol) servers:
 | **investigate-incident**   | Investigate production incidents using Datadog logs, metrics, and traces |
 | **orchestrate-deployment** | Orchestrate deployment pipelines with CI/CD configuration                |
 | **refine-linear-task**     | Refine and enhance Linear task descriptions                              |
+| **use-datadog**            | Use the `pup` CLI for Datadog observability tasks                        |
 
 ## Agents
 
@@ -56,6 +57,8 @@ This plugin bundles the following MCP (Model Context Protocol) servers:
 "Help me deploy to staging"                    # triggers orchestrate-deployment skill
 "Investigate the high error rate on api-gateway"  # triggers investigate-incident skill
 "Refine this Linear task description"          # triggers refine-linear-task skill
+"Check Datadog for error logs in prod"         # triggers use-datadog skill
+"Are there any firing monitors?"               # triggers use-datadog skill
 ```
 
 ## MCP Authentication
