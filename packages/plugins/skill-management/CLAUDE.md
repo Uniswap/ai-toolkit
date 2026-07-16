@@ -28,10 +28,14 @@ session for workflows worth codifying into a new or edited skill or agent.
 
 ### Hooks (./hooks/)
 
-- **pr-skill-doctor-prompt.cjs**: PostToolUse hook (matcher `Bash|create_pull_request`). When a PR is
-  opened, injects a one-time, per-session `additionalContext` nudge asking whether the user wants to
-  run `/skill-mine`. Never blocks the PR; guarded by a session-keyed sentinel under the OS temp dir so
-  it fires at most once per session. Pure Node (`.cjs`) so it needs no `tsx`/`bun`/`jq`.
+- **pr-skill-doctor-prompt.cjs**: PostToolUse hook (matcher `Bash|mcp__.+__create_pull_request`).
+  When a PR is opened, injects a one-time, per-session `additionalContext` nudge asking whether the
+  user wants to run `/skill-mine`. Never blocks the PR; guarded by a session-keyed sentinel under the
+  OS temp dir so it fires at most once per session. Pure Node (`.cjs`) so it needs no `tsx`/`bun`/`jq`.
+  The `.+` in the matcher is load-bearing: a matcher made only of letters, digits, `_`, `-`, spaces,
+  `,`, and `|` is evaluated as a list of exact tool names, so a plain `create_pull_request` entry
+  would never match namespaced MCP tools like `mcp__github__create_pull_request`. The regex
+  metacharacters flip the whole matcher into (unanchored) regex mode.
 
 ## Design notes
 
