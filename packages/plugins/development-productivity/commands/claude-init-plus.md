@@ -18,7 +18,7 @@ focused on conventions and gotchas that Claude cannot infer from reading code, w
 topic-specific rules factored into `.claude/rules/` files and external docs referenced
 via `@path` imports rather than inlined.
 
-Use `/claude-init-plus` **once** to initialize the workspace. Use `/update-claude-md`
+Use `/claude-init-plus` **once** to initialize the workspace. Use `/sync-claude-md`
 to keep documentation current on each significant change.
 
 ## Core Node Definition
@@ -279,5 +279,5 @@ Generate a markdown report with:
 - **Working Directories**: List with status
 - **Rules Files**: Any `.claude/rules/` stubs created
 - **Errors and Warnings**: Details for any failures
-- **Next Steps**: Checklist for user follow-up, including running `/update-claude-md` after
+- **Next Steps**: Checklist for user follow-up, including running `/sync-claude-md` after
   the next significant commit

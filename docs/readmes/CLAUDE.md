@@ -136,4 +136,4 @@ When updating README files:
 
 ## Auto-Update Instructions
 
-IMPORTANT: After changes to files in this directory, Claude Code MUST run `/update-claude-md` before presenting results to ensure this documentation stays synchronized with the codebase.
+IMPORTANT: After changes to files in this directory, Claude Code MUST run `/sync-claude-md` before presenting results to ensure this documentation stays synchronized with the codebase.

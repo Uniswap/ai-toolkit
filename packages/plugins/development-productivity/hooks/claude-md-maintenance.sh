@@ -156,7 +156,7 @@ fi
 # =============================================================================
 if [ "$IS_NON_TRIVIAL" = "true" ]; then
   echo "[claude-md-maintenance] Non-trivial changes detected — injecting reminder" >&2
-  printf '{"continue": true, "suppressOutput": false, "systemMessage": "CLAUDE.md Maintenance Reminder: Significant file changes were detected in this session (new files, package.json/project.json modifications, or >50 lines changed). Consider running /update-claude-md to keep CLAUDE.md documentation in sync with the codebase changes. Skip this if changes are purely internal/non-structural."}'
+  printf '{"continue": true, "suppressOutput": false, "systemMessage": "CLAUDE.md Maintenance Reminder: Significant file changes were detected in this session (new files, package.json/project.json modifications, or >50 lines changed). Consider running /sync-claude-md to keep CLAUDE.md documentation in sync with the codebase changes. Skip this if changes are purely internal/non-structural."}'
 fi
 
 exit 0

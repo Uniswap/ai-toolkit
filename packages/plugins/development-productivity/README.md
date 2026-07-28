@@ -28,7 +28,7 @@ claude /plugin install development-productivity
 | Command             | Description                                                         |
 | ------------------- | ------------------------------------------------------------------- |
 | `/claude-init-plus` | Initialize or update CLAUDE.md files at all core nodes in workspace |
-| `/update-claude-md` | Fast CLAUDE.md sync based on staged git changes                     |
+| `/sync-claude-md` | Fast CLAUDE.md sync based on staged git changes                     |
 
 ## Agents
 
@@ -45,7 +45,7 @@ claude /plugin install development-productivity
 
 | Hook                      | Event  | Description                                                              |
 | ------------------------- | ------ | ------------------------------------------------------------------------ |
-| **claude-md-maintenance** | `Stop` | Reminds Claude to run `/update-claude-md` after significant code changes |
+| **claude-md-maintenance** | `Stop` | Reminds Claude to run `/sync-claude-md` after significant code changes |
 
 ### Enabling the CLAUDE.md Maintenance Hook
 
@@ -67,7 +67,7 @@ This hook is **opt-in** and disabled by default. To activate it for a project:
    .claude/*.local.md
    ```
 
-**What it does:** After each Claude Code session (Stop event), the hook checks git for non-trivial changes — new files, modifications to `package.json`/`project.json`, or more than 50 lines changed. If detected, it injects a reminder for Claude to run `/update-claude-md` to keep CLAUDE.md in sync. The hook is non-blocking: it never prevents Claude from finishing.
+**What it does:** After each Claude Code session (Stop event), the hook checks git for non-trivial changes — new files, modifications to `package.json`/`project.json`, or more than 50 lines changed. If detected, it injects a reminder for Claude to run `/sync-claude-md` to keep CLAUDE.md in sync. The hook is non-blocking: it never prevents Claude from finishing.
 
 ## Usage Examples
 
@@ -76,7 +76,7 @@ This hook is **opt-in** and disabled by default. To activate it for a project:
 /claude-init-plus
 
 # Quick update after changes
-/update-claude-md
+/sync-claude-md
 
 # Use skills contextually
 "Update the documentation after my changes"     # triggers update-claude-docs

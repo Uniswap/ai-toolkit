@@ -19,7 +19,7 @@ optimization tools for Claude Code.
 ### Commands (./commands/)
 
 - **claude-init-plus**: Initialize CLAUDE.md files at all core nodes in a workspace (run once to bootstrap)
-- **update-claude-md**: Sync CLAUDE.md files based on staged git changes (run before committing)
+- **sync-claude-md**: Sync CLAUDE.md files based on staged git changes (run before committing)
 
 ### Agents (./agents/)
 
@@ -32,7 +32,7 @@ optimization tools for Claude Code.
 
 ### Hooks (./hooks/)
 
-- **claude-md-maintenance.sh**: Stop hook that reminds Claude to run `/update-claude-md` after significant structural changes. Opt-in via `.claude/development-productivity.local.md` with `enabled: true`.
+- **claude-md-maintenance.sh**: Stop hook that reminds Claude to run `/sync-claude-md` after significant structural changes. Opt-in via `.claude/development-productivity.local.md` with `enabled: true`.
 
 ## CLAUDE.md Content Model (v2.2.0)
 
@@ -49,7 +49,7 @@ disclosure best practices for CLAUDE.md content:
 ## Conventions
 
 - Skills are the primary interface; agents are invoked via `Task(subagent_type:agent-name)`
-- `claude-init-plus` runs once (bootstraps); `update-claude-md` runs on each significant change
+- `claude-init-plus` runs once (bootstraps); `sync-claude-md` runs on each significant change
 - The `documentation-agent` consolidates doc-writer, claude-docs-manager, and fact-checker agents
 - `generate-tests` supports: jest, vitest, pytest, cypress, playwright
 
@@ -68,7 +68,7 @@ development-productivity/
 │   └── update-claude-docs/
 ├── commands/
 │   ├── claude-init-plus.md
-│   └── update-claude-md.md
+│   └── sync-claude-md.md
 ├── agents/
 │   ├── documentation.md
 │   ├── claude-docs-initializer.md

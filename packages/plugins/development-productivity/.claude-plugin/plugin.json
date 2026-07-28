@@ -32,5 +32,5 @@
     "./agents/researcher.md",
     "./agents/test-writer.md"
   ],
-  "commands": ["./commands/claude-init-plus.md", "./commands/update-claude-md.md"]
+  "commands": ["./commands/claude-init-plus.md", "./commands/sync-claude-md.md"]
 }

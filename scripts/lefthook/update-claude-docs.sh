@@ -18,8 +18,8 @@ if ! command -v claude &> /dev/null; then
 fi
 
 # Run Claude Code to update CLAUDE.md files
-echo "🤖 Running /update-claude-md..."
-claude -p "/update-claude-md"
+echo "🤖 Running /sync-claude-md..."
+claude -p "/sync-claude-md"
 
 # Check if any CLAUDE.md files were modified
 CHANGED_CLAUDE_FILES=$(git diff --name-only | grep "CLAUDE.md$" || true)

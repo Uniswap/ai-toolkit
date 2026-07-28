@@ -23,7 +23,7 @@ Developer guides and tutorials for the AI Toolkit. Provides in-depth documentati
 - **File**: `claude-integration.md`
 - **Purpose**: Complete guide to Claude AI integration in the AI Toolkit
 - **Topics**:
-  - CLAUDE.md auto-generation system (`/claude-init-plus`, `/update-claude-md`)
+  - CLAUDE.md auto-generation system (`/claude-init-plus`, `/sync-claude-md`)
   - Why CLAUDE.md files are important for AI context
   - Using Claude Code locally for development
   - Claude-powered GitHub Actions workflows
@@ -144,4 +144,4 @@ Future guides to be added:
 
 ## Auto-Update Instructions
 
-IMPORTANT: After changes to files in this directory, Claude Code MUST run `/update-claude-md` before presenting results to ensure this documentation stays synchronized with the codebase.
+IMPORTANT: After changes to files in this directory, Claude Code MUST run `/sync-claude-md` before presenting results to ensure this documentation stays synchronized with the codebase.

@@ -40,7 +40,7 @@ apps/slack-oauth-backend/
 
 ## Dependencies
 
-<!-- AUTO-GENERATED - Updated by /update-claude-md -->
+<!-- AUTO-GENERATED - Updated by /sync-claude-md -->
 
 - **@slack/web-api** (^7.10.0) - Official Slack Web API client for Node.js
 - **express** (^5.1.0) - Fast, unopinionated web framework for Node.js
@@ -96,4 +96,4 @@ Configure the `deploy` target in `project.json` for your platform (AWS, GCP, Azu
 
 ## Auto-Update Instructions
 
-IMPORTANT: After changes to files in this directory or subdirectories, Claude Code MUST run `/update-claude-md` before presenting results to ensure this documentation stays synchronized with the codebase.
+IMPORTANT: After changes to files in this directory or subdirectories, Claude Code MUST run `/sync-claude-md` before presenting results to ensure this documentation stays synchronized with the codebase.

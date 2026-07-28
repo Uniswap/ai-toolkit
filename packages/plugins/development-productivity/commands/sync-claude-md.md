@@ -1,11 +1,11 @@
 ---
-name: update-claude-md
+name: sync-claude-md
 description: Fast CLAUDE.md synchronization based on staged git changes
 argument-hint: [path] (optional - auto-detects from git if omitted)
 allowed-tools: Bash(git:*), Read(*), Write(*), Edit(*), Glob(*), Grep(*)
 ---
 
-# `/update-claude-md` - Fast CLAUDE.md Synchronization
+# `/sync-claude-md` - Fast CLAUDE.md Synchronization
 
 ## Purpose
 
@@ -13,14 +13,26 @@ Update CLAUDE.md files based on staged git changes. The goal is to capture **con
 gotchas, and team preferences** that Claude cannot infer by reading code — not to inventory
 files or list dependencies. Run this **before committing** whenever staged changes reveal a non-obvious
 pattern, constraint, or workflow decision.
-constraint, or workflow decision.
+
+## Not to be confused with
+
+Three things maintain CLAUDE.md and they do different jobs:
+
+| Entry point | Scope |
+|---|---|
+| `/sync-claude-md` (this command) | **Staged git changes** → update the affected CLAUDE.md files. Explicit, pre-commit |
+| `update-claude-docs` skill (same plugin) | Same job, but **auto-triggers** after significant code changes without being asked |
+| `update-claude-md` skill (Uniswap backend repo) | **Authoring individual rules** in a CLAUDE.md — "add a rule", "Claude keeps doing X wrong". Not a git-diff sync |
+
+This command was previously also named `update-claude-md`, which collided with the
+third entry above. Renamed so the three are distinguishable at the call site.
 
 ## Usage
 
 **Auto-detect mode (recommended):**
 
 ```bash
-/update-claude-md
+/sync-claude-md
 ```
 
 Analyzes staged changes and updates affected CLAUDE.md files.
@@ -28,8 +40,8 @@ Analyzes staged changes and updates affected CLAUDE.md files.
 **Explicit mode:**
 
 ```bash
-/update-claude-md apps/slack-oauth-backend
-/update-claude-md packages/plugins/development-planning
+/sync-claude-md apps/slack-oauth-backend
+/sync-claude-md packages/plugins/development-planning
 ```
 
 Updates CLAUDE.md for a specific path.
@@ -243,6 +255,6 @@ fi
 ## Relationship to `/claude-init-plus`
 
 `/claude-init-plus` runs **once** to initialize CLAUDE.md files across the workspace.
-`/update-claude-md` runs **on each significant change** to keep them current. They are
+`/sync-claude-md` runs **on each significant change** to keep them current. They are
 complementary: init creates the foundation, update maintains it. If a CLAUDE.md does not
 exist for the relevant path, run `/claude-init-plus` first.

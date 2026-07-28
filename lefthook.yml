@@ -62,4 +62,4 @@ pre-commit:
     #     - merge
     #     - rebase
     #     - run: '[ "$SKIP_CLAUDE" = "1" ] || [ "$CLAUDE_CODE" = "1" ]'
-    #   fail_text: 'Failed to update CLAUDE.md files. Please run `claude -p "/update-claude-md"` manually.'
+    #   fail_text: 'Failed to update CLAUDE.md files. Please run `claude -p "/sync-claude-md"` manually.'

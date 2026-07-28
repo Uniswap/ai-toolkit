@@ -88,7 +88,7 @@ Actions needed:
 Proceed with generation/updates? (y/n/review)
 ```
 
-#### `/update-claude-md` - Keep Docs in Sync
+#### `/sync-claude-md` - Keep Docs in Sync
 
 Intelligently updates CLAUDE.md files based on your staged git changes.
 
@@ -96,10 +96,10 @@ Intelligently updates CLAUDE.md files based on your staged git changes.
 
 ```bash
 # Auto-detect mode (recommended) - analyzes staged changes
-/update-claude-md
+/sync-claude-md
 
 # Explicit mode - target specific directory
-/update-claude-md packages/my-package
+/sync-claude-md packages/my-package
 ```
 
 **What it does:**
@@ -245,7 +245,7 @@ git commit -m "docs: initialize CLAUDE.md files"
 
 1. Make code changes as usual
 2. Stage your changes: `git add .`
-3. Update documentation: `/update-claude-md`
+3. Update documentation: `/sync-claude-md`
 4. Review updates: `git diff **/*CLAUDE.md`
 5. Commit together: `git commit -m "feat: add feature"`
 
@@ -269,7 +269,7 @@ Claude: I'll create this in packages/plugins/development-codebase-tools/agents/
 The AI Toolkit provides several custom slash commands:
 
 - `/claude-init-plus` - Initialize CLAUDE.md files
-- `/update-claude-md [path]` - Update CLAUDE.md files
+- `/sync-claude-md [path]` - Update CLAUDE.md files
 - `/work-through-pr-comments <pr-number>` - Address PR feedback
 - And more in `.claude/commands/`
 
@@ -452,7 +452,7 @@ jobs:
 
 **DO:**
 
-- ✅ Run `/update-claude-md` after significant changes
+- ✅ Run `/sync-claude-md` after significant changes
 - ✅ Keep files concise (≤2000 characters)
 - ✅ Add context about "why" decisions were made
 - ✅ Update dependency descriptions with purpose
@@ -471,7 +471,7 @@ jobs:
 **DO:**
 
 - ✅ Let Claude read CLAUDE.md files (automatic)
-- ✅ Stage changes before running `/update-claude-md`
+- ✅ Stage changes before running `/sync-claude-md`
 - ✅ Review generated code before committing
 - ✅ Use Nx commands (Claude knows them from CLAUDE.md)
 - ✅ Ask Claude to explain its reasoning
@@ -526,7 +526,7 @@ jobs:
 - Shorten dependency descriptions
 - List only top 5-10 most important dependencies
 
-**Problem**: `/update-claude-md` doesn't detect my changes
+**Problem**: `/sync-claude-md` doesn't detect my changes
 
 **Solution**: Make sure changes are staged with `git add` first.
 
@@ -534,7 +534,7 @@ jobs:
 
 **Problem**: Claude doesn't understand project structure
 
-**Solution**: Run `/claude-init-plus` if CLAUDE.md files don't exist, or `/update-claude-md` if they're outdated.
+**Solution**: Run `/claude-init-plus` if CLAUDE.md files don't exist, or `/sync-claude-md` if they're outdated.
 
 **Problem**: Claude can't find Nx commands
 
