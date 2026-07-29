@@ -15,6 +15,7 @@ description: >
   it and let the data override it. Always report old N vs new M with the window
   and data source. The /backtest-change command loads this same skill.
 allowed-tools: Bash, Read, Grep, Glob, AskUserQuestion
+model: opus
 ---
 
 # Backtest a change before you ship it
