@@ -163,7 +163,8 @@ The repository uses a plugin-based architecture where Claude Code capabilities a
 - Plugins are stored in `./packages/plugins/<plugin-name>/`
 - Each plugin is a self-contained Nx package with its own `package.json`, `project.json`, and `.claude-plugin/plugin.json`
 - The `.claude-plugin/marketplace.json` file references plugins via relative paths: `"./packages/plugins/<plugin-name>"`
-- There are 8 plugins: claude-setup, development-codebase-tools, development-planning, development-pr-workflow, development-productivity, skill-management, spec-workflow, uniswap-integrations
+- The authoritative plugin inventory is the set of directories under `packages/plugins/` and the `plugins` array in `.claude-plugin/marketplace.json` - the two must always agree. Enumerate rather than trusting a count written in prose: `find packages/plugins -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort`. See `.claude/rules/plugin-docs.md` for the parity check.
+- As of 2026-07-30 there are 8 plugins: claude-setup, development-codebase-tools, development-planning, development-pr-workflow, development-productivity, skill-management, spec-workflow, uniswap-integrations. If the enumerated output differs, it wins - update this list and the table below.
 
 **Plugin Validation:**
 
@@ -364,7 +365,7 @@ After making any changes to files in this repository, Claude Code MUST:
 
 3. **Keep stats accurate**: The overview section contains counts of total Skills, Agents, and Commands - ensure these numbers stay accurate
 
-4. **Maintain per-plugin sections**: Each of the 5 plugins has its own section listing components - update the relevant section(s) when plugins change
+4. **Maintain per-plugin sections**: Each plugin has its own section listing components - update the relevant section(s) when plugins change
 
 This ensures the external documentation stays synchronized with the actual plugin codebase.
 

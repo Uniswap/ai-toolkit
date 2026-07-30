@@ -16,7 +16,7 @@ After ANY changes to `packages/plugins/`, you MUST update the Notion Plugin Mark
 
 1. **Plugin inventory changes**: When skills, agents, commands, or MCP servers are added, removed, or renamed
 2. **Component counts**: The overview section shows totals for Skills, Agents, and Commands - keep these accurate
-3. **Per-plugin sections**: Each of the 5 plugins has its own section listing components - update the relevant section(s)
+3. **Per-plugin sections**: Each plugin has its own section listing components - update the relevant section(s)
 4. **Descriptions**: Update component descriptions when functionality changes significantly
 
 ### 2. Update Plugin CLAUDE.md Files
@@ -36,15 +36,39 @@ Before completing plugin-related work, verify:
 - [ ] Plugin `CLAUDE.md` reflects current structure
 - [ ] Notion marketplace doc is updated (if inventory changed)
 
-## The 5 Plugins
+## The Plugins
 
-For reference, these are the plugin directories:
+**Source of truth**: the directories under `packages/plugins/` and the `plugins` array in
+`.claude-plugin/marketplace.json`. Never rely on a count written in prose - including the
+snapshot below. Enumerate before acting:
 
-1. `packages/plugins/development-planning/`
-2. `packages/plugins/development-pr-workflow/`
-3. `packages/plugins/development-codebase-tools/`
-4. `packages/plugins/development-productivity/`
-5. `packages/plugins/uniswap-integrations/`
+```bash
+find packages/plugins -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort
+```
+
+The two must always agree: every plugin directory needs a matching `marketplace.json` entry, and
+vice versa. Check that invariant in one command:
+
+```bash
+diff <(find packages/plugins -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort) \
+     <(jq -r '.plugins[].name' .claude-plugin/marketplace.json | sort)
+```
+
+Any output means the inventory is inconsistent - fix that before continuing.
+
+**Snapshot** (accurate as of 2026-07-30, verify with the commands above):
+
+1. `packages/plugins/claude-setup/`
+2. `packages/plugins/development-codebase-tools/`
+3. `packages/plugins/development-planning/`
+4. `packages/plugins/development-pr-workflow/`
+5. `packages/plugins/development-productivity/`
+6. `packages/plugins/skill-management/`
+7. `packages/plugins/spec-workflow/`
+8. `packages/plugins/uniswap-integrations/`
+
+If the enumerated output above differs from this snapshot, the enumerated output wins - update
+this snapshot (and the plugin table in the root `CLAUDE.md`) as part of your change.
 
 ## When to Skip Notion Updates
 
