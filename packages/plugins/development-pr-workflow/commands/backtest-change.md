@@ -1,5 +1,5 @@
 ---
-description: Before opening a PR for a data-driven change (monitor threshold, alert routing/renotify, metric query, sampling rate, perf tweak), validate it against LIVE historical data — replay old-vs-new and report whether it actually achieves its goal. Refuses to ship (or redirects) when the data disproves the premise.
+description: Before opening a PR for a data-driven change (monitor threshold, alert routing/renotify, metric query, sampling rate, perf tweak) — or a NEW monitor, gate, or alert whose threshold must be derived from historical data — validate it against LIVE historical data: replay old-vs-new (or the proposed threshold against history, e.g. a joint rate-AND-floor replay for gate composites) and report whether it actually achieves its goal. Refuses to ship (or redirects) when the data disproves the premise.
 argument-hint: [what you're about to change + the metric/signal it should move]
 allowed-tools: Bash(*), Read(*), Grep(*), Glob(*), AskUserQuestion(*)
 ---
