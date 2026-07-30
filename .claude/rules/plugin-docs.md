@@ -47,14 +47,22 @@ find packages/plugins -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sor
 ```
 
 The two must always agree: every plugin directory needs a matching `marketplace.json` entry, and
-vice versa. Check that invariant in one command:
+vice versa. Check `source`, not just `name` - `.github/actions/validate-plugins/action.yml`
+resolves `.plugins[].source` to decide which directory to load and validate, so a copied or stale
+`source` points the marketplace at the wrong directory even when `name` looks right. Two checks:
 
 ```bash
-diff <(find packages/plugins -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort) \
-     <(jq -r '.plugins[].name' .claude-plugin/marketplace.json | sort)
+# 1. Every source resolves to a real plugin directory, and every directory is referenced once.
+diff <(find packages/plugins -mindepth 1 -maxdepth 1 -type d | sort) \
+     <(jq -r '.plugins[].source | sub("^\\./"; "")' .claude-plugin/marketplace.json | sort)
+
+# 2. Every entry's name agrees with its own source directory.
+jq -r '.plugins[] | select((.source | sub("^\\./packages/plugins/"; "")) != .name)
+       | "MISMATCH: name=\(.name) source=\(.source)"' .claude-plugin/marketplace.json
 ```
 
-Any output means the inventory is inconsistent - fix that before continuing.
+Both silent means the inventory is consistent. Any output means it is not - fix that before
+continuing.
 
 **Snapshot** (accurate as of 2026-07-30, verify with the commands above):
 
