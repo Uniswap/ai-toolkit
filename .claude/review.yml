@@ -1,0 +1,160 @@
+# review-cli config for Uniswap/ai-toolkit.
+# Schema reference: packages/review-cli/src/config.ts in Uniswap/internal-tools.
+# A missing file or invalid YAML falls back to defaults silently — review-cli
+# never blocks a review on a config error.
+
+# ─── Post policy ───────────────────────────────────
+# Only CI may write reviews. Without this, any local `gh` token with repo
+# scope could post a review into this repo's PRs; with it, a teammate
+# running `review post` locally is refused.
+post:
+  allowed_actors:
+    - github-actions
+    - github-actions[bot]
+
+# ─── Model ─────────────────────────────────────────
+# Upgrade over the retired homegrown reviewer, which ran claude-opus-4-8.
+# The bundled agents declare `model: sonnet` in frontmatter, which
+# resolve-model.ts treats as "unpinned", so this default is what actually
+# selects the model for every reviewer.
+#
+# `synthesis` gives the agent that writes the final review body a
+# different model from the reviewers feeding it. Reading this key requires
+# review-cli >= 1.10.0, which is why the workflow's fallback pin is 1.10.1.
+model:
+  default: claude-opus-5
+  synthesis: claude-fable-5
+
+# ─── Budget ────────────────────────────────────────
+# Soft PER-AGENT cap, matching Uniswap/universe and Uniswap/backend. Set
+# above the $5 default so a reviewer can actually investigate this repo's
+# larger workflow YAML and plugin diffs. `agent_max_turns` is high on
+# purpose so the budget is the binding constraint, never the turn count.
+#
+# There is deliberately no `max_budget_usd` here: as of review-cli 1.10.x
+# that key is parsed and validated but never enforced, so setting it would
+# read as a run-level ceiling while doing nothing. The real controls are
+# this per-agent cap, how many reviewers triage staffs, and the
+# `timeout-minutes` ceiling on the workflow job.
+agent_budget_usd: 10.0
+agent_max_turns: 500
+
+# ─── Limits ────────────────────────────────────────
+# Review every PR regardless of size. The retired reviewer reviewed all
+# non-automated PRs (it had a "fast review" mode for small diffs but never
+# skipped them), so a size-based skip would be a regression: a one-line
+# change to a workflow's permissions block or a plugin version bump is
+# exactly the kind of diff that matters most here. 0 disables the guard.
+trivial_threshold: 0
+
+# ─── Skip policy ───────────────────────────────────
+# Evaluated by `review-cli triage` at gate time, so a skipped PR never
+# checks out, installs, or spawns an agent.
+#
+# NOTE: this block REPLACES the corresponding defaults rather than adding
+# to them, so every prefix that should still be skipped is repeated here.
+skip:
+  branch_prefixes:
+    # GitHub merge queue's synthetic refs — already reviewed at the source PR.
+    - gh-readonly-queue/
+    # Graphite's stacked-diff bookkeeping refs, not pushed by humans.
+    - graphite-base/
+    # Graphite merge queue branches. Not a review-cli default; this repo
+    # uses Graphite, so it has to be added explicitly.
+    - gtmq
+    # Release automation (e.g. release/next-to-main-20260727-173053).
+    - release/
+    - cherry-pick/
+    # Weekly action-version bump branches opened by
+    # update-action-versions.yml. Not a review-cli default either.
+    - chore/update-action-versions-
+  # Deliberately empty, overriding the `*[bot]` default.
+  #
+  # Dependency PRs MUST be reviewed: auto-merge-dependabot in
+  # claude-code-review.yml gates squash-merge on the review job
+  # succeeding, so skipping dependabot[bot] would leave security bumps
+  # sitting unmerged. `dependabot/` and `renovate/` are likewise omitted
+  # from branch_prefixes above for the same reason.
+  #
+  # This does not weaken the bot self-trigger guard on comment triggers —
+  # that is a separate check against the bot's own login.
+  authors: []
+  # Draft filtering is done by the workflow's job-level `if:` instead.
+  #
+  # This is a single boolean, so it cannot express the carve-out this repo
+  # needs: claude-auto-tasks.yml opens DRAFT PRs via the autonomous task
+  # worker, and those must be reviewed when opened rather than waiting for
+  # a human to mark them ready for review. Leaving this `true` would skip
+  # every autonomous-task PR. The workflow gate reproduces the previous
+  # behavior exactly: review when not a draft, OR on ready_for_review, OR
+  # when the author is claude[bot].
+  drafts: false
+
+# ─── Investigation gate ────────────────────────────
+# An empty-findings APPROVE has to be backed by evidence: the minimum
+# fraction of reviewable changed files the reviewers actually opened or
+# grepped. Below the floor the verdict is demoted to COMMENT with the
+# reason stated. This is the guard against a rubber-stamp approval, which
+# the retired reviewer had no equivalent of.
+investigation:
+  min_approve_coverage:
+    light: 0
+    standard: 0.25
+    thorough: 0.5
+
+# ─── Diff summarization ───────────────────────────
+# Lockfiles are summarized rather than inlined so a dependency bump spends
+# its prompt budget on the manifest change, not on thousands of lines of
+# resolved-version churn.
+diff:
+  summarize:
+    - 'bun.lock'
+    - 'package-lock.json'
+
+# ─── Triage ────────────────────────────────────────
+# Staffing guidance for the triage agent — it decides WHICH reviewers run.
+# The house rules every reviewer reads come from the repo's CLAUDE.md
+# files, which review-cli inlines automatically; this block is only about
+# reviewer selection.
+triage:
+  guidance: |
+    Uniswap/ai-toolkit is an Nx monorepo whose product is Claude Code
+    tooling: plugins published to the Claude Code Marketplace, reusable
+    GitHub Actions workflows consumed by other Uniswap repos, and a few
+    published npm CLIs. It is TypeScript, YAML, and Markdown only.
+
+    There are no smart contracts and no financial math anywhere in this
+    repo. Never staff contract-security-reviewer or defi-risk-reviewer.
+
+    correctness-reviewer and security-reviewer are the baseline — staff
+    them on anything with logic, shell scripting, auth, token handling, or
+    CI configuration. Then add by what the diff touches:
+
+    - workflow-security-reviewer — any change under .github/workflows/,
+      .github/actions/, or .github/scripts/. Staff it even on a one-line
+      change: this repo's reusable workflows (the `_`-prefixed files) are
+      consumed by other Uniswap repos, so an unpinned action, an
+      interpolated `${{ }}` inside a `run:` block, an over-broad
+      `permissions:` scope, or a missing Bullfrog step ships to every
+      consumer at once. A one-line diff is the highest-risk shape here,
+      not the lowest.
+
+    - plugin-conventions-reviewer — any change under packages/plugins/.
+      Staff it on every such diff, including docs-only ones. The
+      mandatory version bump in .claude-plugin/plugin.json is the single
+      most commonly missed requirement in this repo and no other CI gate
+      catches a plugin edited without a bump.
+
+    - dependency-upgrade-reviewer — dependabot/renovate PRs and any diff
+      touching package.json, bun.lock, or bunfig.toml. Dependency PRs are
+      reviewed here (not skipped) because auto-merge gates on the review,
+      so this reviewer's verdict decides whether a bump lands.
+
+    - patterns-reviewer — non-trivial TypeScript under .github/scripts/
+      or packages/, especially anything that would become a shared
+      utility. Skip it on YAML-only and Markdown-only diffs.
+
+    Documentation is a first-class deliverable here, not an afterthought:
+    CLAUDE.md and README.md files are expected to track code changes in
+    the same PR. Treat a stale CLAUDE.md next to a real code change as a
+    legitimate finding rather than a nitpick.

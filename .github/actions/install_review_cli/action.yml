@@ -1,0 +1,78 @@
+name: 'Install review-cli'
+description: 'Set up Bun and install @uniswap/review-cli from GitHub Packages into an isolated $RUNNER_TEMP directory.'
+
+# Used by .github/workflows/claude-code-review.yml. Kept as a composite
+# action so the triage job and the review job install the cli the same
+# way from a single definition.
+#
+# Mirrors the equivalent action in Uniswap/universe and Uniswap/backend so
+# the three consumers stay debuggable against each other.
+
+inputs:
+  version:
+    description: '@uniswap/review-cli version to install (e.g. 1.10.1). Pin via vars.REVIEW_CLI_VERSION at the call site.'
+    required: true
+  github-token:
+    description: 'Token with packages:read scope. Typically secrets.GITHUB_TOKEN.'
+    required: true
+  bun-version:
+    description: 'Bun runtime version. Must satisfy @uniswap/review-cli engines (>=1.3.13).'
+    default: '1.3.13'
+
+outputs:
+  bin-path:
+    description: 'Absolute path to the directory containing the review-cli binary. Callers should invoke "${bin-path}/review-cli" rather than relying on $PATH.'
+    value: ${{ steps.install.outputs.bin-path }}
+
+runs:
+  using: composite
+  steps:
+    # Deliberately NOT vars.NODE_VERSION / the repo's "1.3.12" bun pin:
+    # review-cli's engines field requires bun >= 1.3.13, so this action
+    # pins its own floor independent of the rest of the repo's CI.
+    - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      with:
+        bun-version: ${{ inputs.bun-version }}
+
+    # Two reasons this can't be a plain `bun add` in the repo root:
+    #
+    #  1. Registry routing. The repo's bunfig.toml pins the whole
+    #     `@uniswap` scope to registry.npmjs.org, but
+    #     @uniswap/review-cli is published privately to GitHub
+    #     Packages. Bun (like npm) only supports per-SCOPE registry
+    #     overrides, never per-package, so there is no way to except a
+    #     single package from that route.
+    #  2. minimumReleaseAge. The repo's bunfig.toml enforces a 3-day
+    #     minimum release age as a supply-chain control, which would
+    #     silently filter out a freshly published review-cli version and
+    #     resolve to an older one than the pin requests.
+    #
+    # Both are sidestepped by installing from a scratch directory that
+    # carries its own bunfig.toml. Bun reads bunfig.toml relative to cwd,
+    # so the repo's copy never applies here and stays untouched.
+    # review-cli's transitive deps (no @uniswap/*) still come from
+    # npmjs.org via bun's built-in default.
+    #
+    # The bin path is exposed as a step output rather than appended to
+    # GITHUB_PATH: writing to GITHUB_PATH creates an implicit cross-step
+    # dependency that zizmor flags as `github-env` (a compromised earlier
+    # step could shadow later commands). An output forces each caller to
+    # opt in explicitly.
+    - name: Install @uniswap/review-cli (isolated registry context)
+      id: install
+      shell: bash
+      env:
+        GH_PACKAGES_TOKEN: ${{ inputs.github-token }}
+        REVIEW_CLI_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        install_dir="$RUNNER_TEMP/review-cli-install"
+        mkdir -p "$install_dir"
+        cat > "$install_dir/bunfig.toml" <<EOF
+        [install.scopes]
+        "@uniswap" = { url = "https://npm.pkg.github.com", token = "$GH_PACKAGES_TOKEN" }
+        EOF
+        cd "$install_dir"
+        bun init -y > /dev/null
+        bun add "@uniswap/review-cli@${REVIEW_CLI_VERSION}"
+        echo "bin-path=$install_dir/node_modules/.bin" >> "$GITHUB_OUTPUT"

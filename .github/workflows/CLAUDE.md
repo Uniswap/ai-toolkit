@@ -19,7 +19,7 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 ### Code Review & PR Management (4 workflows)
 
 - `claude-code.yml` - Responds to @claude mentions in issues and PRs
-- `claude-code-review.yml` - Automated PR code reviews with inline comments
+- `claude-code-review.yml` - Automated PR code reviews for **this** repository, via `@uniswap/review-cli`. Does not call `_claude-code-review.yml` (see [PR Code Review for this repository](#pr-code-review-for-this-repository-claude-code-reviewyml))
 - `claude-docs-check.yml` - Validates PR documentation is properly updated (CLAUDE.md, README, versions)
 - `generate-pr-title-description.yml` - Auto-generates PR titles and descriptions using Claude
 
@@ -175,6 +175,10 @@ secrets:
 ```
 
 ### PR Code Review (`_claude-code-review.yml`)
+
+> **Scope note:** this is the **reusable workflow published for other repositories**. It is fully supported and everything documented below still applies to callers. It is _not_ what ai-toolkit uses to review its own PRs — that moved to `@uniswap/review-cli`. See [PR Code Review for this repository](#pr-code-review-for-this-repository-claude-code-reviewyml).
+>
+> When changing this workflow, `build-prompt.ts`, `post-review.ts`, or `.github/prompts/pr-review/`, remember that ai-toolkit's own CI no longer exercises them. External consumers pin by commit SHA, so a regression here will not surface on an ai-toolkit PR — validate against a consumer repo (or `Uniswap/ai-sandbox`) before merging.
 
 This workflow performs automated PR code reviews using Claude AI with the following features:
 
@@ -496,6 +500,69 @@ gh workflow run "Claude Code Review" -f pr_number=123 -f force_review=false
 5. Click "Run workflow"
 
 When `force_review` is `true`, the workflow bypasses the patch-ID cache and runs a complete review even if the same code was previously reviewed.
+
+### PR Code Review for this repository (`claude-code-review.yml`)
+
+This is how ai-toolkit reviews its **own** PRs. It runs [`@uniswap/review-cli`](https://github.com/Uniswap/internal-tools/tree/main/packages/review-cli) from `Uniswap/internal-tools` and deliberately does **not** call `_claude-code-review.yml`.
+
+**Why the two coexist:** `_claude-code-review.yml` is a published product with 10+ external consumers pinned to it by commit SHA. It stays. This repo simply consumes the shared reviewer that `Uniswap/universe` and `Uniswap/backend` already use, so improvements to review quality land in one place instead of three.
+
+**Architecture — two jobs plus three supporting jobs:**
+
+| Job                     | Runs when                                       | Does                                                                                     |
+| ----------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `check-automated`       | `pull_request` only                             | Classifies automated PRs via the shared `check-automated-pr` action (title + branch)     |
+| `triage`                | Gate passes                                     | `review-cli triage` decides run/skip, resolves the PR number, fork check, 👀 ack + reply |
+| `review`                | `triage.run == true` and not a fork             | Installs the CLI + Claude binary, then `review` (analyze) followed by `post` (write)     |
+| `review-skipped`        | Automated PR that isn't a dependency PR         | Emits a `::notice::` so the run explains itself                                          |
+| `auto-merge-dependabot` | Dependabot security/bump PR after a good review | Enables squash auto-merge                                                                |
+
+**The analyze/post split matters.** `review-cli review` reads the diff, runs the agents, and persists `last-run.json`. It cannot write to GitHub — the analyze pipeline is never handed a GitHub writer. `review-cli post` is the only verb that writes. They are separate workflow steps, and `post` runs on `success() || failure()` so a partial analyze still publishes what it found.
+
+**Gotcha — the `triage` gate must read `.claude/review.yml`.** review-cli's upstream workflow template runs the gate with `--skip-config` to avoid a checkout. Do not copy that here. `--skip-config` passes **no** policy, which is not the same as "the CLI's built-in defaults":
+
+- `skip.drafts` falls back to `true`, which would skip the `claude[bot]` draft PRs the autonomous-task workflow opens
+- branch and author skips are not applied at all
+
+So the `triage` job does a sparse checkout of `.github/actions` and `.claude`, and runs the gate **without** `--skip-config`. A `Verify review config is present` step fails the job if `.claude/review.yml` is missing, because `loadConfig` treats a missing file as "use defaults" and logs nothing — a botched checkout would otherwise silently stop reviewing dependency PRs, breaking auto-merge on a green run.
+
+**Configuration lives in the repo, not in workflow inputs:**
+
+| File / setting                       | Controls                                                                                      |
+| ------------------------------------ | --------------------------------------------------------------------------------------------- |
+| `.claude/review.yml`                 | Model, per-agent budget, skip policy, investigation gate, diff summarization, triage staffing |
+| `.claude/agents/*-reviewer.md`       | Repo-specific reviewers, **added to** review-cli's bundled set (not replacing it)             |
+| `.github/actions/install_review_cli` | Installs the CLI from GitHub Packages into an isolated `$RUNNER_TEMP` dir                     |
+| `vars.REVIEW_CLI_VERSION`            | CLI version override; falls back to the pin in the workflow. Never `@latest`                  |
+| `secrets.CLAUDE_CODE_OAUTH_TOKEN`    | **Required.** `ANTHROPIC_API_KEY` is deliberately never forwarded to the review job           |
+| `secrets.DATADOG_API_KEY`            | Optional. Enables CI Visibility stamping; the step is skipped when unset                      |
+
+**Repo-specific reviewers.** review-cli ships bundled reviewers (security, correctness, patterns, dependency-upgrade, general, plus triage and synthesis). ai-toolkit adds two:
+
+- `workflow-security-reviewer` — expression injection into `run:` blocks, unpinned or dynamically-referenced actions, permission scope, missing Bullfrog steps, secret exposure through logs and artifacts, `fromJSON` coercion of `vars.*`, and breaking changes to the reusable-workflow contracts other repos depend on.
+- `plugin-conventions-reviewer` — the mandatory `.claude-plugin/plugin.json` version bump and its increment, manifest arrays drifting from the directories on disk, skills registered as commands, and skill/agent naming conventions.
+
+`triage.guidance` in `.claude/review.yml` tells triage never to staff `contract-security-reviewer` or `defi-risk-reviewer` — this repo has no Solidity.
+
+**Why `install_review_cli` needs an isolated directory:** the repo's `bunfig.toml` pins the whole `@uniswap` scope to `registry.npmjs.org`, but `@uniswap/review-cli` is private on GitHub Packages, and bun only supports per-_scope_ registry overrides. The same file also enforces a 3-day `minimumReleaseAge`, which would silently resolve a freshly pinned version to an older one. Installing from a scratch dir with its own `bunfig.toml` sidesteps both without touching the repo's copy.
+
+**Behavior preserved from the previous implementation:**
+
+- Dependency PRs are **reviewed, not skipped** (review-cli's default skip policy would skip `dependabot/`, `renovate/`, and every `*[bot]` author). `auto-merge-dependabot` gates on the review result, so skipping them would leave security bumps unmerged. Hence `skip.authors: []` and the omitted dependency branch prefixes in `.claude/review.yml`.
+- Draft PRs authored by `claude[bot]` are still reviewed on open. review-cli's `skip.drafts` is a single boolean that cannot express that carve-out, so `skip.drafts` is `false` and the draft policy lives in the `triage` job's `if:` instead.
+- Title-based automation detection (`chore(release):`, `chore(sync):`) is retained through `check-automated`, because review-cli's skip policy matches branches and authors but has no notion of PR titles.
+- Fork PRs are never reviewed. The `review` job checks out PR head code and runs an agent with Bash access; review-cli's triage has no fork concept, and the `issue_comment` / `workflow_dispatch` payloads carry no head-repo field, so the `triage` job resolves it via the API.
+- `workflow_dispatch` still accepts `pr_number` and `force_review`. `force_review` maps to `--force` (skip rebase detection), **not** `--fresh` — `--fresh` would also discard prior findings and thread decisions, losing the iterative review context.
+
+**Triggering a review without pushing code:** comment `@request-claude-review` on the PR (works on both regular and inline review comments), or dispatch manually:
+
+```bash
+gh workflow run "Claude Code Review" -f pr_number=123
+```
+
+Comment triggers are restricted to `OWNER`, `MEMBER`, and `COLLABORATOR` associations and ignore bot authors. This is enforced both by the job-level `if:` (to avoid paying for runner startup) and authoritatively inside `review-cli triage`.
+
+**Debugging a run:** every run uploads `review-cli-run-<pr>-<attempt>` containing the full run JSON (events, findings, verdict), retained 30 days. `agent-tokens` carries per-agent cost records for the agent-scorecard aggregator and must keep that exact artifact name. Locally, `review-cli last`, `review-cli artifact <pr>`, and `review-cli 123 --repo Uniswap/ai-toolkit --explain` are the fastest ways to inspect behavior; `--explain` prints the resolved agent plan and exits without calling any model.
 
 ### PR Documentation Validator (`_claude-docs-check.yml`)
 
@@ -1157,7 +1224,7 @@ These workflows are prefixed with two `__` and are only used within this reposit
 - `ci-check-pr-title.yml` - PR title format validation
 - `claude-auto-tasks.yml` - Autonomous task processing from Linear (scheduled)
 - `claude-code.yml` - Enables @claude mentions
-- `claude-code-review.yml` - Automated code reviews
+- `claude-code-review.yml` - Automated code reviews via `@uniswap/review-cli`
 - `claude-welcome.yml` - New PR welcomes
 - `dev-ai-newsletter.yml` - Weekly Dev AI Pod newsletter generation (scheduled)
 - `generate-pr-title-description.yml` - Auto-generated PR titles and descriptions
@@ -1283,10 +1350,12 @@ Workflows may define workflow-level environment variables for centralized config
 
 ```yaml
 env:
-  MAX_DIFF_LINES: 5000
+  HAS_DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY != '' }}
 ```
 
-This sets the default maximum diff line count before skipping Claude reviews (PR too large). The value is passed to all review jobs and can be overridden per job if needed.
+`secrets.*` is not a valid context in a step-level `if:`, and step-level `env:` is not applied before `if:` is evaluated. Job-level `env:` **is**, so this exposes "is Datadog configured?" to the optional CI Visibility step, which is skipped entirely when the secret is absent.
+
+> **Note:** the `MAX_DIFF_LINES` repository variable is no longer read by `claude-code-review.yml`. Since that workflow moved to `@uniswap/review-cli`, diff-size policy comes from `.claude/review.yml` (`trivial_threshold`, set to `0` so every PR is reviewed) instead of a line-count cutoff. The variable is still consumed by external callers of the reusable `_claude-code-review.yml`, which accepts a `max_diff_lines` input, so **do not delete it**.
 
 ## Conventions
 
