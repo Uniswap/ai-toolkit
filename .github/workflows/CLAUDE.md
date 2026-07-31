@@ -517,7 +517,7 @@ This is how ai-toolkit reviews its **own** PRs. It runs [`@uniswap/review-cli`](
 | `review-skipped`        | Automated PR that isn't a dependency PR         | Emits a `::notice::` so the run explains itself                                          |
 | `auto-merge-dependabot` | Dependabot security/bump PR after a good review | Enables squash auto-merge                                                                |
 
-**The analyze/post split matters.** `review-cli review` reads the diff, runs the agents, and persists `last-run.json`. The analyze pipeline is never handed a GitHub writer, so `review-cli post` is the only verb that writes. They are separate workflow steps, and `post` runs on `success() || failure()` so a partial analyze still publishes what it found.
+**The analyze/post split matters.** `review-cli review` reads the diff, runs the agents, and persists `last-run.json`. The analyze pipeline is never handed a GitHub writer, so `review-cli post` is the only verb that writes review _state_ (findings, thread resolutions, the sticky). The `react`/`reply` steps also write to the PR, but only reactions and the trigger reply. They are separate workflow steps, and `post` runs on `success() || failure()` so a partial analyze still publishes what it found.
 
 That split is a property of **the CLI**, not of the job's credentials. The `review` job declares `contents: write` (required by the `resolveReviewThread` mutation), so `GITHUB_TOKEN` during Analyze _is_ write-capable and the agent has Bash access. Do not cite the analyze/post split as evidence that the fork guard is redundant.
 
@@ -536,6 +536,17 @@ The `triage` job's checkout is deliberately **not** pinned this way. It holds no
 **Consequence, and it is intended:** edits to `.claude/review.yml` or `.claude/agents/*` take effect only once merged. A PR cannot review itself with a reviewer set it wrote. Iterate locally with `review-cli dev` rather than pushing a commit per change. There is no flag to point the CLI at a config outside the repo root — `loadConfig(repoRoot)` takes only a root — which is why the fix is a file copy rather than an argument.
 
 A corollary worth knowing before you debug it: the `review` job **cannot succeed on the PR that introduces the tooling**, because the trusted ref does not have `.claude/` or `install_review_cli` yet. The `Use trusted review config` guard fails by design, and the job goes red until that PR merges. Every PR after the bootstrap gets the real path.
+
+**The trusted checkout must stay invisible to git, or every review silently degrades.** review-cli gates its full-checkout fast path on `git status --porcelain` being empty (`gitIsWorkingTreeClean`, which counts untracked paths). `.review-tooling/` lives inside `GITHUB_WORKSPACE` and is untracked, so left as-is the tree reads dirty on **every** run and the CLI falls back to extracting only the files the diff touched, with no `.git`. Agents keep working and the run stays green, but they lose whole-repo `Read`/`Grep`/`Glob` and all git history.
+
+That hits the two reviewers this repo adds hardest, because both are told to look outside the diff: `plugin-conventions-reviewer` globs `skills/` directories a diff never touches, and `workflow-security-reviewer` greps sibling workflows for the same action pinned at an older SHA. Neither would announce the loss.
+
+Two mitigations, both needed:
+
+- `echo '/.review-tooling/' >> .git/info/exclude` hides the untracked tooling directory.
+- `git update-index --assume-unchanged` on the `.claude` paths the trusted copy reverted. `.git/info/exclude` cannot hide **tracked** files, and swapping in the trusted `.claude` makes any PR that edits `.claude/**` dirty — which would re-trigger the fallback for exactly the PRs most likely to be tuning the reviewers.
+
+The step ends by asserting `git status --porcelain` is empty and warns if it is not, because the failure is otherwise undetectable from the outside.
 
 **Steps that shell out to the CLI are gated on `steps.install-review-cli.outputs.bin-path != ''`.** That output is empty whenever the install step never ran, which is exactly what happens when an earlier step fails. Without the gate, `Post` and the reaction/reply steps still execute, resolve `"$REVIEW_CLI_BIN/review-cli"` to `/review-cli`, and fail with exit 127 — replacing the real error in the log with a meaningless one.
 
@@ -557,18 +568,20 @@ So the `triage` job does a sparse checkout of `.github/actions` and `.claude`, a
 | `secrets.CLAUDE_CODE_OAUTH_TOKEN`    | **Required.** `ANTHROPIC_API_KEY` is deliberately never forwarded to the review job                                                                 |
 | `secrets.DATADOG_API_KEY`            | Optional. Enables CI Visibility stamping; the step is skipped when unset                                                                            |
 
-**Repo-specific reviewers.** review-cli ships bundled reviewers (security, correctness, patterns, dependency-upgrade, general, plus triage and synthesis). ai-toolkit adds two:
+**Repo-specific reviewers.** review-cli ships 11 bundled agents: security, correctness, patterns, dependency-upgrade, and general reviewers; contract-security and defi-risk reviewers (neither applicable here, see `triage.guidance`); stack-security-analyst and stack-synthesis for stacked PRs; plus triage and synthesis. ai-toolkit adds two:
 
 - `workflow-security-reviewer` — expression injection into `run:` blocks, unpinned or dynamically-referenced actions, permission scope, missing Bullfrog steps, secret exposure through logs and artifacts, `fromJSON` coercion of `vars.*`, and breaking changes to the reusable-workflow contracts other repos depend on.
 - `plugin-conventions-reviewer` — the mandatory `.claude-plugin/plugin.json` version bump and its increment, manifest arrays drifting from the directories on disk, skills registered as commands, and skill/agent naming conventions.
 
 `triage.guidance` in `.claude/review.yml` tells triage never to staff `contract-security-reviewer` or `defi-risk-reviewer` — this repo has no Solidity.
 
-**Gotcha — the Analyze timeout is step-level on purpose.** The `review` job has `timeout-minutes: 20` as a hard ceiling, but a job-level timeout **cancels** the job, and `cancelled()` matches neither `success()` nor `failure()`. An overrun would therefore skip `Post` entirely, leaving the `--pre` sticky stuck on "⏳ Review running" while the `always()` reaction step flips to ❌. The `Analyze` step carries its own `timeout-minutes: 17` so an overrun becomes a _failure_, which `Post`'s gate does match, with 3 minutes of headroom for `Post` and the uploads.
+**Gotcha — the Analyze timeout is step-level on purpose.** The `review` job has `timeout-minutes: 25` as a hard ceiling, but a job-level timeout **cancels** the job, and a cancelled run matches neither `success()` nor `failure()` (only `always()` and `cancelled()`). An overrun would therefore skip `Post` entirely, leaving the `--pre` sticky stuck on "⏳ Review running" while the `always()` reaction step flips to ❌. The `Analyze` step carries its own `timeout-minutes: 17` so an overrun becomes a _failure_, which `Post`'s gate does match. The job ceiling is 25 rather than 20 so the step ceiling always fires first: a step timeout is measured from step start and the job timeout from job start, so the tail budget is `25 - setup - 17`, not a flat 3 minutes, and setup is unbounded (Bullfrog, a `fetch-depth: 0` checkout, a GitHub Packages install, a `curl | bash`). Measured setup on a real run was 35s.
+
+**The same cancellation distinction applies to the reaction and reply steps.** Both run under `always()`, which is the one gate that fires on cancellation, and `job.status` is `cancelled` there. Rendering that as ❌ / "Review failed" would tell a requester to retry a review their successor is about to finish, since concurrency cancels a comment-triggered run whenever a push supersedes it. The reaction step therefore carries `!cancelled()` and the reply step branches on `cancelled()` to post "Superseded" instead.
 
 Do **not** "fix" this by widening `Post` to `always()`. Cancellation is also how the `concurrency` group stops a superseded run, and an `always()` Post would let that dying run overwrite the sticky its successor is mid-way through writing.
 
-**Why `install_review_cli` needs an isolated directory:** the repo's `bunfig.toml` pins the whole `@uniswap` scope to `registry.npmjs.org`, but `@uniswap/review-cli` is private on GitHub Packages, and bun only supports per-_scope_ registry overrides. The same file also enforces a 3-day `minimumReleaseAge`, which would silently resolve a freshly pinned version to an older one. Installing from a scratch dir with its own `bunfig.toml` sidesteps both without touching the repo's copy.
+**Why `install_review_cli` needs an isolated directory:** the repo's `bunfig.toml` pins the whole `@uniswap` scope to `registry.npmjs.org`, but `@uniswap/review-cli` is private on GitHub Packages, and bun only supports per-_scope_ registry overrides. The same file also enforces a 3-day `minimumReleaseAge` as a supply-chain control. That age gate applies to exact version requests too, so a review-cli version published less than 3 days ago is uninstallable until it ages in (bun errors rather than downgrading; an exact pin bypasses the stability-check fallback). Installing from a scratch dir with its own `bunfig.toml` sidesteps both without touching the repo's copy.
 
 **Behavior preserved from the previous implementation:**
 

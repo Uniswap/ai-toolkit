@@ -352,7 +352,7 @@ custom_instructions: |
 - Auto-resolution when a finding is fixed; a thread with a human reply is never auto-resolved
 - Idempotent across force-pushes (tree SHA → patch ID → hunk digest), so a pure rebase costs nothing
 - Sticky summary comment carrying review history between runs
-- An investigation gate: an empty-findings APPROVE is demoted to COMMENT unless the reviewers actually opened enough of the changed files
+- An investigation gate: an empty-findings APPROVE is demoted to COMMENT unless the reviewers actually opened enough of the changed files (which is why `verdict.allowed` lists COMMENT; without it the demotion is computed and discarded)
 
 **Configuration:**
 

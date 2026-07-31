@@ -53,7 +53,7 @@ These are not a checklist to walk. They are what you find when you ask: can untr
 
 **Type coercion of repository variables.** `vars.*` values are always strings, even when they hold a number. Passing one straight into a `type: number` reusable-workflow input is a type mismatch; `fromJSON(vars.X || '5000')` is the correct form. The same applies to booleans and JSON arrays.
 
-**Inline script sprawl.** This repo requires complex logic (roughly 50+ lines, API calls, multi-function bash) to live in `.github/scripts/` rather than inline YAML, with `set -euo pipefail` and header documentation. Judge by complexity, not line count alone: a 30-line script making authenticated API calls and parsing JSON belongs in a file; a 25-line sequence of git commands may not. Say which it is and why.
+**Inline script sprawl.** This repo requires complex logic (roughly 50+ lines, API calls, multi-function bash) to live in `.github/scripts/` rather than inline YAML, with `set -euo pipefail` and header documentation. The repo's own thresholds: under 20 lines is explicitly acceptable inline, 50+ or API-calling logic must be extracted. The 20-50 band is unspecified, so judge it by complexity and say which it is and why: a 30-line script making authenticated API calls and parsing JSON belongs in a file; a 25-line sequence of git commands may not.
 
 **Reusable-workflow contract changes.** Removing or renaming an input, removing a `secrets:` entry, changing a default, or tightening a required field is a breaking change for external callers. Flag it and say what a consumer would see. Adding an optional input with a safe default is not breaking.
 

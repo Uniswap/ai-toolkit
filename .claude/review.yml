@@ -28,8 +28,12 @@ model:
 # ─── Budget ────────────────────────────────────────
 # Soft PER-AGENT cap, matching Uniswap/universe and Uniswap/backend. Set
 # above the $5 default so a reviewer can actually investigate this repo's
-# larger workflow YAML and plugin diffs. `agent_max_turns` is high on
-# purpose so the budget is the binding constraint, never the turn count.
+# larger workflow YAML and plugin diffs.
+#
+# Both values below apply to PUSH-DRIVEN runs only. `review --force` (every
+# comment trigger and every workflow_dispatch) substitutes the CLI's force
+# defaults of $20 and 200 turns unless --budget/--max-turns are passed, so a
+# human-requested review gets a HIGHER budget and a LOWER turn cap than these.
 #
 # There is deliberately no `max_budget_usd` here: as of review-cli 1.10.x
 # that key is parsed and validated but never enforced, so setting it would
@@ -90,12 +94,27 @@ skip:
   # when the author is claude[bot].
   drafts: false
 
+# ─── Verdicts ──────────────────────────────────────
+# COMMENT must be listed for the investigation gate below to do anything.
+# The demotion in approve-gate.ts is `wantsDemotion && allowedVerdicts
+# .includes('COMMENT')`, and the default `verdict.allowed` is
+# [APPROVE, REQUEST_CHANGES] — so without COMMENT here the gate computes the
+# demotion, discards it, appends a warning paragraph to the sticky, and lets
+# the APPROVE stand. The guard would be advisory prose rather than a verdict.
+#
+# Safe for dependency auto-merge: `auto-merge-dependabot` gates on
+# `needs.review.result == 'success'` (job status), not on the verdict, and
+# the bot's review is not one of the required checks on `next`.
+verdict:
+  allowed: [APPROVE, REQUEST_CHANGES, COMMENT]
+
 # ─── Investigation gate ────────────────────────────
 # An empty-findings APPROVE has to be backed by evidence: the minimum
 # fraction of reviewable changed files the reviewers actually opened or
 # grepped. Below the floor the verdict is demoted to COMMENT with the
-# reason stated. This is the guard against a rubber-stamp approval, which
-# the retired reviewer had no equivalent of.
+# reason stated (which requires COMMENT in `verdict.allowed` above). This is
+# the guard against a rubber-stamp approval, which the retired reviewer had
+# no equivalent of.
 investigation:
   min_approve_coverage:
     light: 0

@@ -44,8 +44,9 @@ runs:
     #     single package from that route.
     #  2. minimumReleaseAge. The repo's bunfig.toml enforces a 3-day
     #     minimum release age as a supply-chain control, which would
-    #     silently filter out a freshly published review-cli version and
-    #     resolve to an older one than the pin requests.
+    #     make a freshly published review-cli version uninstallable until
+    #     it ages in. The gate applies to exact requests too, so bun errors
+    #     rather than silently downgrading.
     #
     # Both are sidestepped by installing from a scratch directory that
     # carries its own bunfig.toml. Bun reads bunfig.toml relative to cwd,
@@ -75,4 +76,15 @@ runs:
         cd "$install_dir"
         bun init -y > /dev/null
         bun add "@uniswap/review-cli@${REVIEW_CLI_VERSION}"
+
+        # Consumers gate on `bin-path != ''` to avoid resolving
+        # "$REVIEW_CLI_BIN/review-cli" to "/review-cli" and dying on exit 127.
+        # That gate cannot catch a `bun add` that succeeds without linking the
+        # shim (a future major renaming its `bin` key, or a bun bin-linking
+        # change): bin-path would be non-empty and every gate would pass.
+        # Verify the binary is actually there and executable.
+        if [ ! -x "$install_dir/node_modules/.bin/review-cli" ]; then
+          echo "::error::bun add succeeded but $install_dir/node_modules/.bin/review-cli is missing or not executable"
+          exit 1
+        fi
         echo "bin-path=$install_dir/node_modules/.bin" >> "$GITHUB_OUTPUT"

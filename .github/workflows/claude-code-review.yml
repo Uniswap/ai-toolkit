@@ -250,10 +250,25 @@ jobs:
       # auto-merge) with a green run and no signal. Fail loudly instead.
       - name: Verify review config is present
         run: |
+          set -euo pipefail
           if [ ! -s .claude/review.yml ]; then
             echo "::error::.claude/review.yml missing from the sparse checkout. The triage gate would silently fall back to defaults that skip dependency PRs and drafts."
             exit 1
           fi
+          # `-s` catches missing and empty but NOT malformed, and `loadConfig`
+          # treats invalid YAML identically to a missing file: defaults, no
+          # log line. Assert the parse and the value auto-merge depends on.
+          # Fail-closed: absent python3/PyYAML fails the step rather than
+          # waving the config through.
+          python3 - <<'PY'
+          import sys, yaml
+          with open('.claude/review.yml') as fh:
+              cfg = yaml.safe_load(fh)
+          if not isinstance(cfg, dict):
+              sys.exit('review.yml did not parse to a mapping')
+          if cfg.get('skip', {}).get('authors') != []:
+              sys.exit('skip.authors is not [] — dependency PRs would be skipped at the gate, breaking auto-merge-dependabot')
+          PY
 
       - name: Decide whether to run
         id: gate
@@ -261,6 +276,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REVIEW_CLI_BIN: ${{ steps.install-review-cli.outputs.bin-path }}
         run: '"$REVIEW_CLI_BIN/review-cli" triage --from-github-actions'
+
+      # A declining gate is otherwise a fully green, fully PR-invisible
+      # no-review: `review` is skipped and nothing annotates why. That is
+      # exactly the path a mis-scoped skip prefix or a defaulted config takes,
+      # so it is the one that must not look like a silent no-op. Mirrors what
+      # `review-skipped` does for the check-automated path.
+      - name: Note that the gate declined
+        if: steps.gate.outputs.run != 'true'
+        run: echo "::notice::AI review skipped by review-cli triage. See the \"Decide whether to run\" step log for the policy that matched, and .claude/review.yml for the skip block."
 
       # Fork guard. The review job checks out PR head code and runs an
       # agent with Bash tool access, so a fork PR must never reach it.
@@ -328,17 +352,28 @@ jobs:
 
             This comment will update when the review completes. Findings will appear in the sticky summary above.
           REVIEW_CLI_BIN: ${{ steps.install-review-cli.outputs.bin-path }}
+        # `set -uo pipefail` without `-e` on purpose: continue-on-error should
+        # surface a failure as a warning, and an explicit non-zero exit is what
+        # produces the annotation. Without any of this a failed `reply` fell
+        # through to the trailing `if`, which returns 0 when the file is
+        # absent, so the step reported SUCCESS and the failure was invisible.
         run: |
+          set -uo pipefail
           OUT="$RUNNER_TEMP/reply-id.txt"
-          "$REVIEW_CLI_BIN/review-cli" reply \
+          if ! "$REVIEW_CLI_BIN/review-cli" reply \
             --repo "$GH_REPO" \
             --pr "$PR_NUMBER" \
             --event "$EVENT_NAME" \
             --in-reply-to "$COMMENT_ID" \
             --body "$REPLY_BODY" \
-            --out-id "$OUT"
+            --out-id "$OUT"; then
+            echo "::warning::could not post the running-state reply; the 👀 reaction is the only acknowledgement this run will give"
+            exit 1
+          fi
           if [ -s "$OUT" ]; then
             echo "id=$(cat "$OUT")" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::posted a running-state reply but could not capture its id; it will never be updated with the terminal verdict"
           fi
 
   review:
@@ -356,9 +391,16 @@ jobs:
       packages: read # pull @uniswap/review-cli
       pull-requests: write # post review comments + resolve threads
       issues: write # comment reactions + sticky comment
-    # Hard ceiling. agent_budget_usd in .claude/review.yml is the soft cap;
-    # this is the safety net if the CLI hangs.
-    timeout-minutes: 20
+    # Hard ceiling. agent_budget_usd in .claude/review.yml is the real cost
+    # control; this is only the safety net if the CLI hangs. Set to 25 rather
+    # than 20 so the step-level ceiling on Analyze (17) always fires FIRST:
+    # a step timeout is measured from step start and the job timeout from job
+    # start, so the tail budget is `25 - setup - 17`, and setup is not bounded
+    # anywhere (Bullfrog, a fetch-depth-0 checkout, a GitHub Packages install,
+    # and a curl|bash). Measured setup on a real run was 35s, but a slow
+    # Packages fetch must not be able to invert the two ceilings — see the
+    # Analyze step for why a job-level timeout firing first strands the sticky.
+    timeout-minutes: 25
     env:
       # `secrets.*` is not a valid context in a step-level `if:`, and
       # step-level `env:` is not applied before `if:` is evaluated — but
@@ -433,12 +475,59 @@ jobs:
       - name: Use trusted review config
         run: |
           set -euo pipefail
-          if [ ! -s .review-tooling/.claude/review.yml ]; then
-            echo "::error::.claude/review.yml missing from the trusted checkout. Analyze would silently fall back to CLI defaults: wrong model, no investigation gate, neither repo-specific reviewer."
-            exit 1
-          fi
+
+          # `.review-tooling/` lives inside GITHUB_WORKSPACE and is untracked,
+          # and review-cli gates its full-checkout fast path on
+          # `git status --porcelain` being empty. Left visible to git, the tree
+          # reads dirty on EVERY run and the CLI silently falls back to
+          # extracting only the files the diff touched, with no .git — which
+          # strips the agents' whole-repo Read/Grep/Glob and history access.
+          # Both reviewers this repo adds depend on out-of-diff reads
+          # (plugin-conventions globs skills/ dirs, workflow-security greps
+          # sibling workflows), so the degradation is invisible and total.
+          echo '/.review-tooling/' >> .git/info/exclude
+
+          for f in review.yml \
+                   agents/workflow-security-reviewer.md \
+                   agents/plugin-conventions-reviewer.md; do
+            if [ ! -s ".review-tooling/.claude/$f" ]; then
+              echo "::error::.claude/$f missing from the trusted checkout. Analyze would run without it: wrong model, no investigation gate, or a reviewer named in triage.guidance that does not exist on disk."
+              exit 1
+            fi
+          done
+
+          # `-s` catches missing and empty but NOT malformed. `loadConfig`
+          # treats invalid YAML exactly like a missing file: returns defaults,
+          # logs nothing. Those defaults skip dependency PRs, every *[bot]
+          # author, and drafts, which breaks auto-merge-dependabot on a green
+          # run. Assert the parse AND the one value that gate depends on.
+          # Fail-closed by design: if python3/PyYAML is absent the step fails
+          # loudly rather than waving the config through.
+          python3 - <<'PY'
+          import sys, yaml
+          with open('.review-tooling/.claude/review.yml') as fh:
+              cfg = yaml.safe_load(fh)
+          if not isinstance(cfg, dict):
+              sys.exit('review.yml did not parse to a mapping')
+          if cfg.get('skip', {}).get('authors') != []:
+              sys.exit('skip.authors is not [] — dependency PRs would be skipped, breaking auto-merge-dependabot')
+          if not cfg.get('model', {}).get('default'):
+              sys.exit('model.default missing — every reviewer would fall back to the CLI default model')
+          PY
+
           rm -rf .claude
           cp -R .review-tooling/.claude .claude
+
+          # The trusted copy reverts any `.claude/**` the PR edited, leaving
+          # those TRACKED files dirty — which .git/info/exclude cannot cover
+          # and which would re-trigger the extraction fallback above. Hide
+          # exactly those paths from `git status` so PRs touching .claude/**
+          # still get whole-repo reads.
+          git diff --name-only -- .claude | xargs -r git update-index --assume-unchanged
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::warning::working tree is not clean; review-cli will extract diff-only files and agents will lose whole-repo reads"
+            git status --porcelain
+          fi
 
       - name: Install review-cli
         id: install-review-cli
@@ -516,11 +605,14 @@ jobs:
       # Analyze. Reads the diff, runs the agents, persists last-run.json.
       #
       # review-cli's own pipeline does not write to GitHub here: the analyze
-      # path is never handed a GitHub writer, which is why `post` below is
-      # the only verb that mutates the PR. That is a property of the CLI,
-      # NOT of this step's environment — the job declares `contents: write`,
-      # so GITHUB_TOKEN here IS write-capable and the agent has Bash access.
-      # Do not cite this comment to justify relaxing the fork guard.
+      # path is never handed a GitHub writer, which is why `post` below is the
+      # only verb that writes review STATE — findings, thread resolutions, the
+      # sticky. (The react/reply steps in this workflow also write to the PR,
+      # but only reactions and the trigger reply.) That is a property of the
+      # CLI, NOT of this step's environment — the job declares
+      # `contents: write`, so GITHUB_TOKEN here IS write-capable and the agent
+      # has Bash access. Do not cite this comment to justify relaxing the fork
+      # guard.
       #
       # It does READ the diff via `gh`, which needs GITHUB_TOKEN; without it
       # the diff comes back empty and the run short-circuits on "PR has no
@@ -528,14 +620,21 @@ jobs:
       #
       # Trigger context arrives from the triage job's outputs through
       # `env:` and is appended as argv entries, never interpolated into the
-      # script, so a malicious comment body cannot break out into the
-      # shell. `--force` is passed for explicit human requests (comment
-      # trigger, or manual dispatch with force_review) to skip rebase
-      # detection. `--fresh` is deliberately NOT used: it would also
-      # discard prior findings and thread decisions, losing the iterative
-      # review context that makes re-reviews coherent.
+      # script, so a malicious comment body cannot break out into the shell.
+      #
+      # `--force` is passed for explicit human requests (comment trigger, or
+      # manual dispatch with force_review). It does more than skip rebase
+      # detection: it also bypasses both diff size guards, re-staffs reviewers
+      # from scratch rather than reusing the prior agentSet, and — because no
+      # --budget/--max-turns is passed — substitutes the CLI's force defaults
+      # ($20 per agent, 200 turns) for `agent_budget_usd`/`agent_max_turns` in
+      # .claude/review.yml, which therefore bind on push-driven runs only.
+      #
+      # `--fresh` is deliberately NOT used: it would also discard prior
+      # findings and thread decisions, losing the iterative review context
+      # that makes re-reviews coherent.
       - name: Analyze
-        # Step ceiling, deliberately BELOW the job's 20-minute
+        # Step ceiling, deliberately BELOW the job's 25-minute
         # `timeout-minutes`. A job-level timeout CANCELS the job, and
         # `if: success() || failure()` on Post does not match a cancelled
         # run — so an overrun here would skip Post entirely, leaving the
@@ -544,7 +643,12 @@ jobs:
         # overrun a failure, which Post's gate does match. Do NOT "fix"
         # that gate with `always()` instead: a concurrency-cancelled run
         # would then overwrite the sticky its successor is mid-way through
-        # writing. 3 minutes of headroom left for Post and the uploads.
+        # writing.
+        #
+        # This must fire before the job's 25-minute ceiling. Tail budget is
+        # `25 - setup - 17`, NOT a flat 3 minutes: a step timeout runs from
+        # step start, the job timeout from job start. Measured setup was 35s,
+        # leaving ~7 minutes for Post and the uploads (which took 13s).
         timeout-minutes: 17
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -670,9 +774,16 @@ jobs:
 
       # Swap the 👀 ack for ✅/❌. --clear-prior-ack removes the eyes
       # first so the comment carries a single terminal signal.
+      #
+      # `!cancelled()` is load-bearing. `always()` is the one gate that runs on
+      # cancellation, and `job.status` is `cancelled` there — which the
+      # success/failure branch below would render as ❌. Concurrency cancels
+      # this run whenever a push supersedes a comment-triggered review, so
+      # without this the requester gets a ❌ on a review that a successor is
+      # about to complete. The successor owns the terminal signal; stay quiet.
       - name: Update reaction (✅ / ❌) on comment trigger
         if: |
-          always() &&
+          always() && !cancelled() &&
           needs.triage.outputs.comment_id != '' &&
           steps.install-review-cli.outputs.bin-path != ''
         continue-on-error: true
@@ -702,6 +813,15 @@ jobs:
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # `job.status` is one of success / failure / cancelled. The third
+          # value is why this is not a two-way branch: the step runs under
+          # `always()`, which fires on cancellation too, and concurrency
+          # cancels a comment-triggered run whenever a push supersedes it.
+          # Reporting that as "Review failed" would tell the requester to
+          # retry a review their successor is about to finish.
+          #
+          # `cancelled()` is deliberately NOT used here — it is only valid in
+          # a job or step `if:`, not in `env:` (actionlint catches this).
           OUTCOME: ${{ job.status }}
           GH_REPO: ${{ github.repository }}
           REPLY_ID: ${{ needs.triage.outputs.reply_id }}
@@ -709,7 +829,9 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           REVIEW_CLI_BIN: ${{ steps.install-review-cli.outputs.bin-path }}
         run: |
-          if [ "$OUTCOME" = "success" ]; then
+          if [ "$OUTCOME" = "cancelled" ]; then
+            BODY="↻ **Superseded** · a newer push took over this review · [view run ↗](${RUN_URL})"
+          elif [ "$OUTCOME" = "success" ]; then
             BODY="✅ **Reviewed** · [view run ↗](${RUN_URL}) · scroll up for the full summary."
           else
             BODY="⚠ **Review failed** · [view run ↗](${RUN_URL}) · scroll up for the partial state, or comment \`@request-claude-review\` to retry."
@@ -729,8 +851,10 @@ jobs:
       needs.check-automated.outputs.is_automated == 'true' &&
       needs.check-automated.outputs.category != 'deps'
     runs-on: ubuntu-latest
-    permissions:
-      contents: read # no checkout; the minimum GITHUB_TOKEN scope
+    # No checkout, no API calls — this job runs Bullfrog and two echoes, and
+    # fetching a SHA-pinned external action needs no token scope. `{}` is the
+    # real floor, matching the workflow-level default above.
+    permissions: {}
     steps:
       - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
 
