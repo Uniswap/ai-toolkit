@@ -586,7 +586,15 @@ jobs:
       # findings, resolves fixed threads, upserts the sticky. Runs even
       # when Analyze failed so it can publish the most recent saved state.
       - name: Post
-        if: success() || failure()
+        # `bin-path` is empty whenever the install step never ran — which
+        # happens when an earlier step (the trusted-config guard) failed.
+        # Without this check, Post runs anyway and dies on
+        # `/review-cli: No such file or directory` (exit 127), replacing the
+        # real error with a meaningless one. Skip instead, so the failure
+        # the developer sees is the one that actually happened.
+        if: |
+          (success() || failure()) &&
+          steps.install-review-cli.outputs.bin-path != ''
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
@@ -665,7 +673,8 @@ jobs:
       - name: Update reaction (✅ / ❌) on comment trigger
         if: |
           always() &&
-          needs.triage.outputs.comment_id != ''
+          needs.triage.outputs.comment_id != '' &&
+          steps.install-review-cli.outputs.bin-path != ''
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -688,7 +697,8 @@ jobs:
       - name: Update threaded reply with terminal state
         if: |
           always() &&
-          needs.triage.outputs.reply_id != ''
+          needs.triage.outputs.reply_id != '' &&
+          steps.install-review-cli.outputs.bin-path != ''
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

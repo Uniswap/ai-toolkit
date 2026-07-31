@@ -535,6 +535,10 @@ The `triage` job's checkout is deliberately **not** pinned this way. It holds no
 
 **Consequence, and it is intended:** edits to `.claude/review.yml` or `.claude/agents/*` take effect only once merged. A PR cannot review itself with a reviewer set it wrote. Iterate locally with `review-cli dev` rather than pushing a commit per change. There is no flag to point the CLI at a config outside the repo root — `loadConfig(repoRoot)` takes only a root — which is why the fix is a file copy rather than an argument.
 
+A corollary worth knowing before you debug it: the `review` job **cannot succeed on the PR that introduces the tooling**, because the trusted ref does not have `.claude/` or `install_review_cli` yet. The `Use trusted review config` guard fails by design, and the job goes red until that PR merges. Every PR after the bootstrap gets the real path.
+
+**Steps that shell out to the CLI are gated on `steps.install-review-cli.outputs.bin-path != ''`.** That output is empty whenever the install step never ran, which is exactly what happens when an earlier step fails. Without the gate, `Post` and the reaction/reply steps still execute, resolve `"$REVIEW_CLI_BIN/review-cli"` to `/review-cli`, and fail with exit 127 — replacing the real error in the log with a meaningless one.
+
 **Gotcha — the `triage` gate must read `.claude/review.yml`.** review-cli's upstream workflow template runs the gate with `--skip-config` to avoid a checkout. Do not copy that here. `--skip-config` passes **no** policy, which is not the same as "the CLI's built-in defaults":
 
 - `skip.drafts` falls back to `true`, which would skip the `claude[bot]` draft PRs the autonomous-task workflow opens
