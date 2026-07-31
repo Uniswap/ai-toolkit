@@ -166,8 +166,12 @@ triage:
 
     - dependency-upgrade-reviewer — dependabot/renovate PRs and any diff
       touching package.json, bun.lock, or bunfig.toml. Dependency PRs are
-      reviewed here (not skipped) because auto-merge gates on the review,
-      so this reviewer's verdict decides whether a bump lands.
+      reviewed here rather than skipped because `auto-merge-dependabot`
+      needs this job to run and succeed before it enables auto-merge, and
+      because a bump nobody reads is the whole risk. Be accurate rather
+      than lenient, but note the gate is the job RESULT, not the verdict:
+      REQUEST_CHANGES does not by itself stop a bump, so say plainly in the
+      finding when a bump should not land.
 
     - patterns-reviewer — non-trivial TypeScript under .github/scripts/
       or packages/, especially anything that would become a shared

@@ -544,9 +544,12 @@ That hits the two reviewers this repo adds hardest, because both are told to loo
 Two mitigations, both needed:
 
 - `echo '/.review-tooling/' >> .git/info/exclude` hides the untracked tooling directory.
+- `echo '/.claude/' >> .git/info/exclude` for the files the trusted copy lands that are **not tracked at the PR head** — every `.claude/**` file added after that branch was cut. `git diff --name-only` never lists untracked paths, so the next mitigation structurally cannot reach these. This one bites hardest on the merge of the PR that introduces `.claude/` at all, because every already-open PR then gets `??` entries.
 - `git update-index --assume-unchanged` on the `.claude` paths the trusted copy reverted. `.git/info/exclude` cannot hide **tracked** files, and swapping in the trusted `.claude` makes any PR that edits `.claude/**` dirty — which would re-trigger the fallback for exactly the PRs most likely to be tuning the reviewers.
 
 The step ends by asserting `git status --porcelain` is empty and warns if it is not, because the failure is otherwise undetectable from the outside.
+
+**A second-order consequence of making that work, accepted deliberately.** review-cli's post-synthesis `verifyFindings` pass is gated on `workspaceShape == 'working-tree'`, so it was effectively dead in this repo's CI while the tree was always dirty. With the tree clean it runs, and it resolves cited files from the workspace — where `.claude` is now the pre-PR copy. On a PR that _adds_ a `.claude/**` file, a finding against that file is dropped as "file not readable at HEAD"; on one that lengthens a file, a finding past the trusted copy's EOF is dropped as "beyond file end". Both drops are logged rather than silent, and only reviewer-tuning PRs can reach them. Do not "fix" this by skipping the swap: that hands config and agent prompts back to the PR author, which is the trust inversion the swap exists to close. A real carve-out needs an upstream change.
 
 **Steps that shell out to the CLI are gated on `steps.install-review-cli.outputs.bin-path != ''`.** That output is empty whenever the install step never ran, which is exactly what happens when an earlier step fails. Without the gate, `Post` and the reaction/reply steps still execute, resolve `"$REVIEW_CLI_BIN/review-cli"` to `/review-cli`, and fail with exit 127 — replacing the real error in the log with a meaningless one.
 

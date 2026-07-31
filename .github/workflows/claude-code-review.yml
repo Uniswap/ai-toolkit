@@ -487,6 +487,17 @@ jobs:
           # sibling workflows), so the degradation is invisible and total.
           echo '/.review-tooling/' >> .git/info/exclude
 
+          # `/.claude/` too, for the third way this step dirties the tree.
+          # The trusted copy lands files that may not be TRACKED at the PR
+          # head — every `.claude/**` file added after that branch was cut,
+          # which on this migration's merge day means review.yml and both
+          # agents for every already-open PR. Those arrive as `??` entries,
+          # and `git diff --name-only` never lists untracked paths, so the
+          # assume-unchanged pass below structurally cannot reach them.
+          # Excluding the directory hides only untracked files; tracked
+          # modifications still show, so that pass is still needed.
+          echo '/.claude/' >> .git/info/exclude
+
           for f in review.yml \
                    agents/workflow-security-reviewer.md \
                    agents/plugin-conventions-reviewer.md; do
@@ -515,6 +526,18 @@ jobs:
               sys.exit('model.default missing — every reviewer would fall back to the CLI default model')
           PY
 
+          # Known consequence of the swap, accepted: restoring the clean tree
+          # also re-enables review-cli's post-synthesis `verifyFindings` pass,
+          # which is gated on workspaceShape == 'working-tree' and was
+          # therefore dead in CI while the tree was always dirty. It resolves
+          # cited files from this workspace, where `.claude` is now the
+          # pre-PR copy — so on a PR that ADDS a `.claude/**` file, a finding
+          # against it is dropped as "file not readable at HEAD", and on one
+          # that lengthens a file, a finding past the trusted copy's EOF is
+          # dropped as "beyond file end". Both drops are logged, not silent,
+          # and only reviewer-tuning PRs can hit them. A carve-out needs an
+          # upstream change; do not "fix" it by skipping the swap, which
+          # would hand config and agent prompts back to the PR author.
           rm -rf .claude
           cp -R .review-tooling/.claude .claude
 
@@ -780,7 +803,14 @@ jobs:
       # success/failure branch below would render as ❌. Concurrency cancels
       # this run whenever a push supersedes a comment-triggered review, so
       # without this the requester gets a ❌ on a review that a successor is
-      # about to complete. The successor owns the terminal signal; stay quiet.
+      # about to complete.
+      #
+      # Note what skipping does NOT do: no successor replaces the 👀. Only a
+      # `pull_request` run can cancel this one (`cancel-in-progress` is scoped
+      # to that event), and such a run has an empty `comment_id`, so it never
+      # reaches this step. The ack stays until someone clears it. That is the
+      # deliberate trade — a stale 👀 is better than a false ❌, and the reply
+      # step below carries the real "Superseded" signal.
       - name: Update reaction (✅ / ❌) on comment trigger
         if: |
           always() && !cancelled() &&
