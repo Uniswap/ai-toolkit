@@ -526,7 +526,12 @@ That split is a property of **the CLI**, not of the job's credentials. The `revi
 1. **Availability.** A local `uses: ./.github/actions/...` resolves out of the checked-out workspace. Any PR branched before `install_review_cli` landed does not contain it, so resolving the installer from the PR head fails with `Can't find 'action.yml'` on every open PR until it rebases.
 2. **Trust.** The job holds `CLAUDE_CODE_OAUTH_TOKEN` and a `contents: write` token, and the agent's prompts _are_ `.claude/agents/*.md`. Sourcing the installer shell or the agent set from the head branch lets a PR author rewrite both. Note that `.github/actions/**` is **not** covered by the `workflow` token scope that guards `.github/workflows/**`, so that gate does not help.
 
-Order matters: the trusted checkout must come **after** the PR-head checkout, because `actions/checkout` runs `git clean -ffdx` on its target and a workspace-root checkout running second would delete `.review-tooling/`.
+Two mechanics that are easy to get wrong:
+
+- **`ref:` must be explicit.** Omitting `ref:` does **not** mean "the default branch". `actions/checkout` falls back to `GITHUB_SHA`, which on a `pull_request` event is the _merge commit_ (base + head) and on `issue_comment` / `workflow_dispatch` is the default branch. An unpinned "trusted" checkout is therefore head-influenced on exactly the trigger that matters most. The trusted checkout pins `ref: ${{ github.event.repository.default_branch }}`.
+- **Order matters.** The trusted checkout must come **after** the PR-head checkout, because `actions/checkout` runs `git clean -ffdx` on its target and a workspace-root checkout running second would delete `.review-tooling/`.
+
+The `triage` job's checkout is deliberately **not** pinned this way. It holds no `CLAUDE_CODE_OAUTH_TOKEN` and runs no agent, so the worst case is a PR altering its own review eligibility rather than executing code with a credential. Note that the fork guard in that job deliberately does not read config — it resolves the head repo through the API — so it cannot be disabled from the PR branch.
 
 **Consequence, and it is intended:** edits to `.claude/review.yml` or `.claude/agents/*` take effect only once merged. A PR cannot review itself with a reviewer set it wrote. Iterate locally with `review-cli dev` rather than pushing a commit per change. There is no flag to point the CLI at a config outside the repo root — `loadConfig(repoRoot)` takes only a root — which is why the fix is a file copy rather than an argument.
 

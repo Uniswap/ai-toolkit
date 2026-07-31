@@ -212,6 +212,16 @@ jobs:
       # (skipping the claude[bot] draft PRs this repo must review) while
       # branch and author skips are simply not applied. Reading the real
       # config is what makes the policy in .claude/review.yml effective.
+      #
+      # Deliberately NOT pinned to the default branch, unlike the review
+      # job's tooling checkout. With no `ref:` this resolves to GITHUB_SHA
+      # (the merge commit on `pull_request`, the default branch on
+      # issue_comment / workflow_dispatch), so a PR can influence the skip
+      # policy the gate reads. That is proportionate here: this job holds
+      # no CLAUDE_CODE_OAUTH_TOKEN and runs no agent, so the worst case is
+      # a PR changing its own review eligibility, not code execution with a
+      # credential. The fork guard below deliberately does not rely on
+      # config — it resolves the head repo through the API instead.
       - name: Checkout repository (config + composite action)
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -390,9 +400,15 @@ jobs:
       # MUST come after the PR-head checkout: `actions/checkout` runs
       # `git clean -ffdx` on its target, so checking out the workspace root
       # second would delete this directory.
+      # `ref:` is REQUIRED and must be explicit. Omitting it does not mean
+      # "the default branch" — checkout falls back to GITHUB_SHA, which on
+      # a `pull_request` event is the merge commit (base + head), so the
+      # head branch would still influence the contents and this checkout
+      # would not be trusted at all.
       - name: Checkout review tooling (trusted ref)
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
           path: .review-tooling
           sparse-checkout: |
