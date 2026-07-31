@@ -517,7 +517,18 @@ This is how ai-toolkit reviews its **own** PRs. It runs [`@uniswap/review-cli`](
 | `review-skipped`        | Automated PR that isn't a dependency PR         | Emits a `::notice::` so the run explains itself                                          |
 | `auto-merge-dependabot` | Dependabot security/bump PR after a good review | Enables squash auto-merge                                                                |
 
-**The analyze/post split matters.** `review-cli review` reads the diff, runs the agents, and persists `last-run.json`. It cannot write to GitHub — the analyze pipeline is never handed a GitHub writer. `review-cli post` is the only verb that writes. They are separate workflow steps, and `post` runs on `success() || failure()` so a partial analyze still publishes what it found.
+**The analyze/post split matters.** `review-cli review` reads the diff, runs the agents, and persists `last-run.json`. The analyze pipeline is never handed a GitHub writer, so `review-cli post` is the only verb that writes. They are separate workflow steps, and `post` runs on `success() || failure()` so a partial analyze still publishes what it found.
+
+That split is a property of **the CLI**, not of the job's credentials. The `review` job declares `contents: write` (required by the `resolveReviewThread` mutation), so `GITHUB_TOKEN` during Analyze _is_ write-capable and the agent has Bash access. Do not cite the analyze/post split as evidence that the fork guard is redundant.
+
+**Gotcha — the `review` job's tooling must come from the trusted ref, not the PR head.** The `review` job checks out `refs/pull/N/head` because that is the content under analysis. Everything that _acts on_ that content is checked out separately from the default ref into `.review-tooling/`, and the job then replaces the workspace `.claude` with the trusted copy. Two independent reasons:
+
+1. **Availability.** A local `uses: ./.github/actions/...` resolves out of the checked-out workspace. Any PR branched before `install_review_cli` landed does not contain it, so resolving the installer from the PR head fails with `Can't find 'action.yml'` on every open PR until it rebases.
+2. **Trust.** The job holds `CLAUDE_CODE_OAUTH_TOKEN` and a `contents: write` token, and the agent's prompts _are_ `.claude/agents/*.md`. Sourcing the installer shell or the agent set from the head branch lets a PR author rewrite both. Note that `.github/actions/**` is **not** covered by the `workflow` token scope that guards `.github/workflows/**`, so that gate does not help.
+
+Order matters: the trusted checkout must come **after** the PR-head checkout, because `actions/checkout` runs `git clean -ffdx` on its target and a workspace-root checkout running second would delete `.review-tooling/`.
+
+**Consequence, and it is intended:** edits to `.claude/review.yml` or `.claude/agents/*` take effect only once merged. A PR cannot review itself with a reviewer set it wrote. Iterate locally with `review-cli dev` rather than pushing a commit per change. There is no flag to point the CLI at a config outside the repo root — `loadConfig(repoRoot)` takes only a root — which is why the fix is a file copy rather than an argument.
 
 **Gotcha — the `triage` gate must read `.claude/review.yml`.** review-cli's upstream workflow template runs the gate with `--skip-config` to avoid a checkout. Do not copy that here. `--skip-config` passes **no** policy, which is not the same as "the CLI's built-in defaults":
 
@@ -528,14 +539,14 @@ So the `triage` job does a sparse checkout of `.github/actions` and `.claude`, a
 
 **Configuration lives in the repo, not in workflow inputs:**
 
-| File / setting                       | Controls                                                                                      |
-| ------------------------------------ | --------------------------------------------------------------------------------------------- |
-| `.claude/review.yml`                 | Model, per-agent budget, skip policy, investigation gate, diff summarization, triage staffing |
-| `.claude/agents/*-reviewer.md`       | Repo-specific reviewers, **added to** review-cli's bundled set (not replacing it)             |
-| `.github/actions/install_review_cli` | Installs the CLI from GitHub Packages into an isolated `$RUNNER_TEMP` dir                     |
-| `vars.REVIEW_CLI_VERSION`            | CLI version override; falls back to the pin in the workflow. Never `@latest`                  |
-| `secrets.CLAUDE_CODE_OAUTH_TOKEN`    | **Required.** `ANTHROPIC_API_KEY` is deliberately never forwarded to the review job           |
-| `secrets.DATADOG_API_KEY`            | Optional. Enables CI Visibility stamping; the step is skipped when unset                      |
+| File / setting                       | Controls                                                                                                                                            |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.claude/review.yml`                 | Model, per-agent budget, skip policy, investigation gate, diff summarization, triage staffing                                                       |
+| `.claude/agents/*-reviewer.md`       | Repo-specific reviewers, **added to** review-cli's bundled set (not replacing it)                                                                   |
+| `.github/actions/install_review_cli` | Installs the CLI from GitHub Packages into an isolated `$RUNNER_TEMP` dir. In the `review` job it is resolved from the trusted ref, not the PR head |
+| `vars.REVIEW_CLI_VERSION`            | CLI version override; falls back to the pin in the workflow. Never `@latest`                                                                        |
+| `secrets.CLAUDE_CODE_OAUTH_TOKEN`    | **Required.** `ANTHROPIC_API_KEY` is deliberately never forwarded to the review job                                                                 |
+| `secrets.DATADOG_API_KEY`            | Optional. Enables CI Visibility stamping; the step is skipped when unset                                                                            |
 
 **Repo-specific reviewers.** review-cli ships bundled reviewers (security, correctness, patterns, dependency-upgrade, general, plus triage and synthesis). ai-toolkit adds two:
 
@@ -543,6 +554,10 @@ So the `triage` job does a sparse checkout of `.github/actions` and `.claude`, a
 - `plugin-conventions-reviewer` — the mandatory `.claude-plugin/plugin.json` version bump and its increment, manifest arrays drifting from the directories on disk, skills registered as commands, and skill/agent naming conventions.
 
 `triage.guidance` in `.claude/review.yml` tells triage never to staff `contract-security-reviewer` or `defi-risk-reviewer` — this repo has no Solidity.
+
+**Gotcha — the Analyze timeout is step-level on purpose.** The `review` job has `timeout-minutes: 20` as a hard ceiling, but a job-level timeout **cancels** the job, and `cancelled()` matches neither `success()` nor `failure()`. An overrun would therefore skip `Post` entirely, leaving the `--pre` sticky stuck on "⏳ Review running" while the `always()` reaction step flips to ❌. The `Analyze` step carries its own `timeout-minutes: 17` so an overrun becomes a _failure_, which `Post`'s gate does match, with 3 minutes of headroom for `Post` and the uploads.
+
+Do **not** "fix" this by widening `Post` to `always()`. Cancellation is also how the `concurrency` group stops a superseded run, and an `always()` Post would let that dying run overwrite the sticky its successor is mid-way through writing.
 
 **Why `install_review_cli` needs an isolated directory:** the repo's `bunfig.toml` pins the whole `@uniswap` scope to `registry.npmjs.org`, but `@uniswap/review-cli` is private on GitHub Packages, and bun only supports per-_scope_ registry overrides. The same file also enforces a 3-day `minimumReleaseAge`, which would silently resolve a freshly pinned version to an older one. Installing from a scratch dir with its own `bunfig.toml` sidesteps both without touching the repo's copy.
 

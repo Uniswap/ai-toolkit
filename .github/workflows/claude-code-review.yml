@@ -363,15 +363,70 @@ jobs:
       # branch, so an unpinned checkout would review `next` instead of the
       # PR and then skip on "all hunks identical". fetch-depth: 0 so the
       # CLI can diff against the merge base.
+      #
+      # This is the CONTENT UNDER ANALYSIS and nothing more. Every piece of
+      # tooling that acts on it comes from the trusted checkout below.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
           persist-credentials: false
           ref: refs/pull/${{ needs.triage.outputs.pr_number }}/head
 
+      # Reviewer tooling from the DEFAULT ref, never the PR head. Two
+      # separate reasons, both load-bearing:
+      #
+      #  1. Availability. `.github/actions/install_review_cli` does not
+      #     exist on branches cut before it landed, so resolving it out of
+      #     the PR head fails with "Can't find 'action.yml'" on every open
+      #     PR until that PR rebases.
+      #  2. Trust. This job holds CLAUDE_CODE_OAUTH_TOKEN and a
+      #     `contents: write` token, and runs an agent with Bash access
+      #     whose prompts ARE `.claude/agents/*.md`. Sourcing the installer
+      #     shell or the agent set from the head branch would let a PR
+      #     author rewrite both. Note that `.github/actions/**` is NOT
+      #     covered by the `workflow` token scope that guards
+      #     `.github/workflows/**`, so that gate does not help here.
+      #
+      # MUST come after the PR-head checkout: `actions/checkout` runs
+      # `git clean -ffdx` on its target, so checking out the workspace root
+      # second would delete this directory.
+      - name: Checkout review tooling (trusted ref)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          path: .review-tooling
+          sparse-checkout: |
+            .github/actions
+            .claude
+          sparse-checkout-cone-mode: false
+
+      # Swap the head's `.claude` for the trusted copy. review-cli's
+      # `loadConfig(repoRoot)` takes only a repo root — there is no flag to
+      # read config from somewhere else — so the config and agent files
+      # have to be in place on disk before Analyze runs.
+      #
+      # Consequence, and it is intended: edits to review.yml or the agent
+      # files take effect only once merged, so a PR cannot review itself
+      # with a reviewer set it wrote. Iterate locally with `review-cli dev`
+      # instead of pushing a commit per change.
+      #
+      # Guarded because `loadConfig` treats a missing file as "use
+      # defaults" and says nothing. Those defaults skip dependency PRs and
+      # drafts and staff neither repo-specific reviewer, all on a green
+      # run — the same silent-degradation trap the triage gate guards.
+      - name: Use trusted review config
+        run: |
+          set -euo pipefail
+          if [ ! -s .review-tooling/.claude/review.yml ]; then
+            echo "::error::.claude/review.yml missing from the trusted checkout. Analyze would silently fall back to CLI defaults: wrong model, no investigation gate, neither repo-specific reviewer."
+            exit 1
+          fi
+          rm -rf .claude
+          cp -R .review-tooling/.claude .claude
+
       - name: Install review-cli
         id: install-review-cli
-        uses: ./.github/actions/install_review_cli
+        uses: ./.review-tooling/.github/actions/install_review_cli
         with:
           version: ${{ vars.REVIEW_CLI_VERSION || '1.10.1' }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -443,10 +498,17 @@ jobs:
         run: '"$REVIEW_CLI_BIN/review-cli" post "$PR_NUMBER" --repo "$GH_REPO" --pre'
 
       # Analyze. Reads the diff, runs the agents, persists last-run.json.
-      # Structurally cannot write to GitHub — the analyze pipeline is never
-      # handed a GitHub writer. It does READ the diff via `gh`, which needs
-      # GITHUB_TOKEN; without it the diff comes back empty and the run
-      # short-circuits on "PR has no changes".
+      #
+      # review-cli's own pipeline does not write to GitHub here: the analyze
+      # path is never handed a GitHub writer, which is why `post` below is
+      # the only verb that mutates the PR. That is a property of the CLI,
+      # NOT of this step's environment — the job declares `contents: write`,
+      # so GITHUB_TOKEN here IS write-capable and the agent has Bash access.
+      # Do not cite this comment to justify relaxing the fork guard.
+      #
+      # It does READ the diff via `gh`, which needs GITHUB_TOKEN; without it
+      # the diff comes back empty and the run short-circuits on "PR has no
+      # changes".
       #
       # Trigger context arrives from the triage job's outputs through
       # `env:` and is appended as argv entries, never interpolated into the
@@ -457,6 +519,17 @@ jobs:
       # discard prior findings and thread decisions, losing the iterative
       # review context that makes re-reviews coherent.
       - name: Analyze
+        # Step ceiling, deliberately BELOW the job's 20-minute
+        # `timeout-minutes`. A job-level timeout CANCELS the job, and
+        # `if: success() || failure()` on Post does not match a cancelled
+        # run — so an overrun here would skip Post entirely, leaving the
+        # `--pre` sticky stuck on "⏳ Review running" while the `always()`
+        # reaction step flips to ❌. Timing out at the step level makes the
+        # overrun a failure, which Post's gate does match. Do NOT "fix"
+        # that gate with `always()` instead: a concurrency-cancelled run
+        # would then overwrite the sticky its successor is mid-way through
+        # writing. 3 minutes of headroom left for Post and the uploads.
+        timeout-minutes: 17
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
