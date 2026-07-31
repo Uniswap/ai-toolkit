@@ -314,6 +314,31 @@ To differentiate skills from agents and avoid naming conflicts:
 
 Commands (standalone `.md` files in `./commands/`) follow the same verb-noun pattern as skills since they are also user-invocable actions.
 
+## AI Code Review of This Repository
+
+PRs in this repository are reviewed by [`@uniswap/review-cli`](https://github.com/Uniswap/internal-tools/tree/main/packages/review-cli), the shared reviewer also used by `Uniswap/universe` and `Uniswap/backend`. It is driven by `.github/workflows/claude-code-review.yml`.
+
+| File                                 | Purpose                                                                                 |
+| ------------------------------------ | --------------------------------------------------------------------------------------- |
+| `.claude/review.yml`                 | Review policy: model, per-agent budget, skip rules, investigation gate, triage staffing |
+| `.claude/agents/*-reviewer.md`       | Repo-specific reviewers, **added to** review-cli's bundled set                          |
+| `.github/actions/install_review_cli` | Installs the pinned CLI from GitHub Packages                                            |
+
+Two repo-specific reviewers encode this repository's house rules so they are enforced on every PR rather than living only in documentation:
+
+- `workflow-security-reviewer` — the GitHub Actions rules in [GitHub Actions Best Practices](#github-actions-best-practices) below (expression injection, SHA pinning, `fromJSON` coercion, Bullfrog steps, script separation), plus breaking changes to the reusable workflows other repos consume.
+- `plugin-conventions-reviewer` — the [Mandatory Version Bumping](#mandatory-version-bumping) rule and the skill/agent naming conventions above.
+
+**When you change those rules, update the matching reviewer.** A convention that lives only in this file is advisory; one encoded in a reviewer is checked. Full detail in [`.github/workflows/CLAUDE.md`](.github/workflows/CLAUDE.md#pr-code-review-for-this-repository-claude-code-reviewyml).
+
+> **Not to be confused with** `_claude-code-review.yml`, the reusable review workflow this repo _publishes_ for other repositories. It is still supported and unchanged; ai-toolkit just no longer calls it for its own PRs. Its prompt sections live in `.github/prompts/pr-review/` and are unrelated to the reviewers above.
+
+To review a PR locally without posting anything:
+
+```bash
+review-cli 123 --repo Uniswap/ai-toolkit
+```
+
 ## Documentation Management
 
 ### CLAUDE.md File Management

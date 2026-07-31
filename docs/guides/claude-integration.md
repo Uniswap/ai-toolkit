@@ -300,7 +300,7 @@ The repository includes three Claude-powered GitHub Actions workflows:
 2. **claude-code-review.yml** - Automated PR code reviews
 3. **claude-welcome.yml** - Welcome messages for new PRs
 
-All workflows use reusable workflow templates in `.github/workflows/_claude-*.yml`.
+`claude-code.yml` and `claude-welcome.yml` call reusable workflow templates in `.github/workflows/_claude-*.yml`. `claude-code-review.yml` is the exception: it runs [`@uniswap/review-cli`](https://github.com/Uniswap/internal-tools/tree/main/packages/review-cli) directly. The `_claude-code-review.yml` reusable workflow is still published and supported for other repositories to call, but ai-toolkit no longer uses it for its own PRs.
 
 ### 1. Interactive Assistant (claude-code.yml)
 
@@ -337,46 +337,61 @@ custom_instructions: |
 
 **Purpose**: Provide formal GitHub PR reviews with inline comments
 
+**Implementation**: [`@uniswap/review-cli`](https://github.com/Uniswap/internal-tools/tree/main/packages/review-cli) from `Uniswap/internal-tools`, the same reviewer used by `Uniswap/universe` and `Uniswap/backend`. It runs a triage agent that picks specialist reviewers per PR, runs them in parallel, deduplicates their findings, and posts them as inline review threads.
+
 **Triggers:**
 
-- PR opened
-- PR synchronized (new commits)
-- PR marked ready for review
+- PR opened, synchronized (new commits), reopened, or marked ready for review
+- Any PR comment or inline review comment containing `@request-claude-review` (restricted to OWNER/MEMBER/COLLABORATOR)
+- Manual `workflow_dispatch` with a PR number
 
 **Features:**
 
 - Formal reviews (APPROVE/REQUEST_CHANGES/COMMENT)
-- Inline comments on specific code lines
-- Auto-resolution of fixed issues
-- Iterative review tracking
-- Patch-ID based caching (no duplicate reviews after rebase)
+- One inline thread per finding, deduplicated by `file:line:category`
+- Auto-resolution when a finding is fixed; a thread with a human reply is never auto-resolved
+- Idempotent across force-pushes (tree SHA → patch ID → hunk digest), so a pure rebase costs nothing
+- Sticky summary comment carrying review history between runs
+- An investigation gate: an empty-findings APPROVE is demoted to COMMENT unless the reviewers actually opened enough of the changed files (which is why `verdict.allowed` lists COMMENT; without it the demotion is computed and discarded)
 
 **Configuration:**
 
-```yaml
-model: 'claude-haiku-4-5' # Cost-effective for reviews
-timeout_minutes: 20
-# Optional: restrict to read-only tools
-allowed_tools: 'Read,Grep,Glob,Bash(git log),Bash(git diff)'
-```
+Behavior is configured in the repository, not in workflow inputs:
+
+| File                              | Controls                                                                      |
+| --------------------------------- | ----------------------------------------------------------------------------- |
+| `.claude/review.yml`              | Model, per-agent budget, skip policy, investigation gate, triage staffing     |
+| `.claude/agents/*-reviewer.md`    | Repo-specific reviewers, added to review-cli's bundled set                    |
+| `vars.REVIEW_CLI_VERSION`         | Pinned CLI version (falls back to the pin in the workflow)                    |
+| `secrets.CLAUDE_CODE_OAUTH_TOKEN` | Required. `ANTHROPIC_API_KEY` is deliberately not forwarded to the review job |
+| `secrets.DATADOG_API_KEY`         | Optional. Enables Datadog CI Visibility stamping                              |
+
+ai-toolkit ships two repo-specific reviewers on top of the bundled ones:
+
+- `workflow-security-reviewer` — GitHub Actions expression injection, action pinning, permission scope, missing Bullfrog steps, and breaking changes to the reusable-workflow contracts other repos consume
+- `plugin-conventions-reviewer` — the mandatory `.claude-plugin/plugin.json` version bump, manifest arrays drifting from directories on disk, and skill/agent naming conventions
 
 **Example review:**
 
 ```
 Review Status: REQUEST_CHANGES
 
-General Comments:
-- Good implementation of the authentication system
-- Consider adding error handling for edge cases
-- Missing tests for the new endpoints
+Summary (sticky comment, updated in place on every run):
+  Reviewed 3 files. Two findings, one carried over from the previous run.
 
-Inline Comments:
-  src/auth/handler.ts:42
-  ⚠️ This function should validate the token format before parsing
+Inline threads (one per finding):
+  .github/workflows/publish-packages.yml:88
+  [critical · workflow-security] `github.event.pull_request.title` is
+  interpolated into this `run:` block, so a PR title can execute
+  arbitrary shell with the job's token. Pass it via `env:` and
+  reference "$PR_TITLE" instead.
 
-  src/auth/handler.ts:67
-  💡 Consider extracting this logic into a separate utility function
+  packages/plugins/development-planning/.claude-plugin/plugin.json:3
+  [warning · plugin-conventions] A skill was added under skills/ but
+  version is still 2.0.7. A new skill is a minor bump: 2.1.0.
 ```
+
+Findings the developer fixes are resolved automatically on the next run. A thread that a human has replied to is never auto-resolved. Finding nothing is a valid outcome and produces an APPROVE with no inline threads.
 
 ### 3. Welcome Message (claude-welcome.yml)
 
