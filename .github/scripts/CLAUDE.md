@@ -2,7 +2,13 @@
 
 ## Purpose
 
-TypeScript scripts used by GitHub Actions workflows for automated PR reviews and other CI/CD tasks. These scripts are designed to be testable and maintainable while being usable both locally (within ai-toolkit) and remotely (downloaded by external repositories).
+TypeScript scripts used by GitHub Actions workflows for automated PR reviews and other CI/CD tasks. These scripts are designed to be testable and maintainable, and are downloaded at runtime by external repositories that call this repo's reusable workflows.
+
+> **Scope note for `build-prompt.ts` and `post-review.ts`:** these two power the reusable `_claude-code-review.yml`, which external repositories still call and which remains fully supported. They are **not** used to review ai-toolkit's own PRs — that runs `@uniswap/review-cli` (see [PR Code Review for this repository](../workflows/CLAUDE.md#pr-code-review-for-this-repository-claude-code-reviewyml)).
+>
+> The practical consequence: a regression in these scripts will **not** show up on an ai-toolkit PR, because ai-toolkit's CI no longer exercises them. Consumers pin the reusable workflow by commit SHA, so they will not pick up a break until they bump. Rely on `build-prompt.spec.ts` for unit coverage and validate end-to-end against a consumer repo (or `Uniswap/ai-sandbox`) before merging changes here.
+>
+> `post-docs-check.ts` is unaffected — it belongs to `_claude-docs-check.yml`, which ai-toolkit does still use.
 
 ## Scripts
 

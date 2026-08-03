@@ -75,7 +75,7 @@ Workflows designed to be called by other workflows using `workflow_call`. These 
 
   - Interactive AI assistance via @claude mentions
   - Works in issue comments, PR comments, review comments, and reviews
-  - Configurable models (Sonnet 5, Opus 4.8, Haiku 4.5)
+  - Configurable models (Sonnet 5, Opus 5, Haiku 4.5)
   - Flexible tool permissions (read-only, read-write, or custom)
   - Custom instructions for repository-specific standards
   - Fixed security settings (Bullfrog scanning, immutable permissions)
@@ -95,15 +95,18 @@ Workflows designed to be called by other workflows using `workflow_call`. These 
 
 - **claude-code-review.yml**:
 
+  - Powered by [`@uniswap/review-cli`](https://github.com/Uniswap/internal-tools/tree/main/packages/review-cli), not by this repo's `_claude-code-review.yml`. That reusable workflow still exists and is still supported for external consumers; ai-toolkit simply no longer calls it for its own PRs.
   - Formal GitHub reviews (APPROVE/REQUEST_CHANGES/COMMENT) for merge protection
-  - Inline comments on specific lines of code
-  - Auto-resolution of comments when issues are fixed
-  - Patch-ID based caching to skip rebases (no duplicate reviews)
-  - Iterative reviews track previous comments
-  - Custom prompts with automatic verdict injection
-  - Merge queue filtering (skips gh-readonly-queue branches)
-  - Supports model selection (Sonnet/Opus via labels)
-  - Fixed security settings (Bullfrog scanning, immutable permissions)
+  - Inline review threads, one per finding, deduplicated by `file:line:category` fingerprint
+  - Auto-resolution of threads when a finding is fixed, and never auto-resolves a thread a human has replied to
+  - Idempotent across force-pushes via a three-level change check (tree SHA → patch ID → hunk digest), so a pure rebase costs nothing
+  - Sticky summary comment carrying review history between runs
+  - Parallel specialist reviewers selected per-PR by a triage agent, including two ai-toolkit-specific reviewers (`workflow-security-reviewer`, `plugin-conventions-reviewer`)
+  - Comment trigger (`@request-claude-review`) restricted to OWNER/MEMBER/COLLABORATOR, with 👀 → ✅/❌ reaction lifecycle
+  - Automated-PR filtering via the shared `check-automated-pr` action; dependency PRs are reviewed on purpose so auto-merge can gate on the result
+  - Fork PRs are never reviewed (the review job checks out PR head code)
+  - Configured by `.claude/review.yml` and `.claude/agents/*-reviewer.md`
+  - Fixed security settings (Bullfrog scanning, per-job least-privilege permissions)
 
 - **generate-changelog.yml**:
 
