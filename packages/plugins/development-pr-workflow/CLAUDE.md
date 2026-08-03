@@ -35,13 +35,14 @@ This plugin supports two PR creation workflows:
 
 - **resolve-all-prs**: Batch resolve issues across all your open PRs in parallel with auto-commit/push
 - **resolve-pr-issues**: Orchestrated PR issue resolution — triages inline comments, review bodies, and CI failures, then dispatches `comment-resolver-agent` subagents per file group for code changes and posts replies for items that don't need action
+- **backtest-change**: Gate a data-driven change (monitor threshold, alert cadence, query, sampling rate, perf tweak) on live historical data — replay old-vs-new over the same window and refuse to ship when the data disproves the premise. **Auto-triggers** whenever someone proposes a measurable change and names a number; the number is treated as a hypothesis, not a specification
 - **review-code**: Comprehensive code review for architecture, security, performance, and style
 - **split-graphite-stack**: Split monolithic branches into logical PR stacks
 - **update-graphite-stack**: Update Graphite PR stacks by resolving comments and syncing
 
 ### Commands (./commands/)
 
-- **backtest-change**: Before opening a PR for a data-driven change (monitor threshold, alert cadence, query, sampling rate, perf tweak), pull live historical data, replay old-vs-new over the same window, and gate the PR on whether the data proves the change achieves its goal
+- **backtest-change**: Thin wrapper — deliberate, argument-taking entry point for the `backtest-change` skill above. The workflow lives in the skill so it can fire unprompted; a slash command only runs when explicitly typed
 - **review-pr**: Comprehensive multi-agent PR review for architecture, security, performance
 - **work-through-pr-comments**: Methodically work through PR comments in a conversational workflow
 - **linear-task-and-pr-from-changes**: Take local changes, create a Linear task, create a branch (optionally in a worktree), commit, and publish a PR
@@ -114,6 +115,7 @@ development-pr-workflow/
 ├── .claude-plugin/
 │   └── plugin.json
 ├── skills/
+│   ├── backtest-change/
 │   ├── resolve-all-prs/
 │   ├── resolve-pr-issues/
 │   ├── review-code/
