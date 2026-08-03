@@ -46,7 +46,7 @@ on:
         type: choice
         options:
           - 'claude-sonnet-5'
-          - 'claude-opus-4-8'
+          - 'claude-opus-5'
       target_branch:
         description: 'Base branch for the PR'
         required: false

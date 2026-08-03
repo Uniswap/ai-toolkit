@@ -435,7 +435,7 @@ with:
   pr_number: ${{ github.event.pull_request.number }}
   base_ref: ${{ github.base_ref }}
   auto_fix: true # Enable automatic fixing of issues
-  auto_fix_model: 'claude-opus-4-8' # Use Opus for better fixes (optional)
+  auto_fix_model: 'claude-opus-5' # Use Opus for better fixes (optional)
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
   WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }} # Required for pushing fixes
@@ -745,7 +745,7 @@ uses: Uniswap/ai-toolkit/.github/workflows/_claude-docs-check.yml@main
 with:
   pr_number: ${{ github.event.pull_request.number }}
   auto_fix: true # Enable automatic fixing of documentation issues
-  auto_fix_model: 'claude-opus-4-8' # Use Opus for better fixes (optional)
+  auto_fix_model: 'claude-opus-5' # Use Opus for better fixes (optional)
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
   WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }} # Required for pushing fixes
@@ -1055,14 +1055,14 @@ If both are provided, OAuth token takes precedence. At least one authentication 
 
 **Configuration:**
 
-| Input                     | Default           | Description                                     |
-| ------------------------- | ----------------- | ----------------------------------------------- |
-| `model`                   | `claude-opus-4-8` | Claude model to use                             |
-| `max_turns`               | `150`             | Maximum conversation turns                      |
-| `debug_mode`              | `true`            | Show full Claude output                         |
-| `timeout_minutes`         | `60`              | Job timeout                                     |
-| `pr_type`                 | `draft`           | Type of PR to create: "draft" or "published"    |
-| `install_uniswap_plugins` | `true`            | Auto-install uniswap plugins (false to opt out) |
+| Input                     | Default         | Description                                     |
+| ------------------------- | --------------- | ----------------------------------------------- |
+| `model`                   | `claude-opus-5` | Claude model to use                             |
+| `max_turns`               | `150`           | Maximum conversation turns                      |
+| `debug_mode`              | `true`          | Show full Claude output                         |
+| `timeout_minutes`         | `60`            | Job timeout                                     |
+| `pr_type`                 | `draft`         | Type of PR to create: "draft" or "published"    |
+| `install_uniswap_plugins` | `true`          | Auto-install uniswap plugins (false to opt out) |
 
 **Validation Behavior:**
 
@@ -1096,7 +1096,7 @@ with:
   issue_url: ${{ matrix.issue_url }}
   branch_name: ${{ matrix.branch_name }}
   target_branch: 'next'
-  model: 'claude-opus-4-8'
+  model: 'claude-opus-5'
   debug_mode: true
   pr_type: 'draft' # or 'published' for non-draft PRs
 secrets:
@@ -1116,7 +1116,7 @@ with:
   issue_url: ${{ matrix.issue_url }}
   branch_name: ${{ matrix.branch_name }}
   target_branch: 'next'
-  model: 'claude-opus-4-8'
+  model: 'claude-opus-5'
   debug_mode: true
   pr_type: 'draft'
 secrets:
@@ -1208,7 +1208,7 @@ gh workflow run update-action-versions.yml
 gh workflow run update-action-versions.yml -f dry_run=true
 
 # Use Opus model
-gh workflow run update-action-versions.yml -f model=claude-opus-4-8
+gh workflow run update-action-versions.yml -f model=claude-opus-5
 ```
 
 **Usage example (API Key):**
@@ -1344,7 +1344,7 @@ gh workflow run dev-ai-newsletter.yml -f dry_run=true
 gh workflow run dev-ai-newsletter.yml -f days_back=14
 
 # Use Opus model for better quality
-gh workflow run dev-ai-newsletter.yml -f model=claude-opus-4-8
+gh workflow run dev-ai-newsletter.yml -f model=claude-opus-5
 
 # Post to specific Slack channels
 gh workflow run dev-ai-newsletter.yml -f slack_post_channel_ids="C091XE1DNP2,C094URH6C13"
