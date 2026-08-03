@@ -409,7 +409,7 @@ jobs:
 
           # Add allowed tools (camelCase format)
           if [[ -n "$INPUT_ALLOWED_TOOLS" ]]; then
-            ARGS="$ARGS--allowedTools $INPUT_ALLOWED_TOOLS"$'\n'
+            ARGS="$ARGS--allowedTools \"$INPUT_ALLOWED_TOOLS\""$'\n'
           fi
 
           # Add disallowed tools

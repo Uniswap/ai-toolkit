@@ -683,7 +683,7 @@ jobs:
           CLAUDE_ARGS="$CLAUDE_ARGS --json-schema '$COMPACT_SCHEMA'"
 
           # Read-only tools
-          CLAUDE_ARGS="$CLAUDE_ARGS --allowedTools Read,Grep,Glob,Bash(git log:*),Bash(git diff:*),Bash(git show:*)"
+          CLAUDE_ARGS="$CLAUDE_ARGS --allowedTools \"Read,Grep,Glob,Bash(git log:*),Bash(git diff:*),Bash(git show:*)\""
 
           # Per-call unguessable heredoc delimiter; defense in depth against
           # the $GITHUB_OUTPUT duplicate-key last-write-wins injection class.

@@ -1187,7 +1187,7 @@ jobs:
           COMPACT_SCHEMA=$(echo "$JSON_SCHEMA" | jq -c .)
           CLAUDE_ARGS="$CLAUDE_ARGS
             --json-schema '$COMPACT_SCHEMA'
-            --allowedTools $ALLOWED_TOOLS"
+            --allowedTools \"$ALLOWED_TOOLS\""
 
           echo "allowed_tools=$ALLOWED_TOOLS" >> $GITHUB_OUTPUT
           # Per-call unguessable heredoc delimiter; defense in depth against
@@ -1727,7 +1727,7 @@ jobs:
           # - git: commit, push, status, diff operations
           # - npm run / npx nx / bun run: linters, formatters, type checkers
           # Bash(node:*) is intentionally excluded — it permits arbitrary JS execution.
-          claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }} --allowedTools Read,Edit,Write,Grep,Glob,Bash(git:*),Bash(npm run:*),Bash(npx nx:*),Bash(bun run:*),WebSearch,WebFetch"
+          claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }} --allowedTools \"Read,Edit,Write,Grep,Glob,Bash(git:*),Bash(npm run:*),Bash(npx nx:*),Bash(bun run:*),WebSearch,WebFetch\""
           # Note: plugin_marketplaces and plugins are intentionally omitted here.
           # The marketplace and plugins were already installed by the "Run Claude Code
           # Review" step earlier in this job. Both steps share the same runner and

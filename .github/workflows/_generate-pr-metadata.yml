@@ -902,7 +902,7 @@ jobs:
           fi
 
           CLAUDE_ARGS="$CLAUDE_ARGS
-            --allowedTools $ALLOWED_TOOLS"
+            --allowedTools \"$ALLOWED_TOOLS\""
 
           echo "allowed_tools=$ALLOWED_TOOLS" >> $GITHUB_OUTPUT
           # Per-call unguessable heredoc delimiter; defense in depth against
