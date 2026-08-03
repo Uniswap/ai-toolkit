@@ -35,10 +35,12 @@ This plugin bundles the following MCP (Model Context Protocol) servers:
 | Skill                      | Description                                                              |
 | -------------------------- | ------------------------------------------------------------------------ |
 | **daily-standup**          | Generate daily standup reports from GitHub and Linear activity           |
+| **datadog-cost-tracker**   | Analyze Datadog ingestion costs by service using estimated-usage metrics |
 | **github-setup**           | Configure GitHub Personal Access Token for MCP server                    |
 | **investigate-incident**   | Investigate production incidents using Datadog logs, metrics, and traces |
 | **orchestrate-deployment** | Orchestrate deployment pipelines with CI/CD configuration                |
 | **refine-linear-task**     | Refine and enhance Linear task descriptions                              |
+| **use-datadog**            | Use the `pup` CLI for Datadog observability tasks                        |
 
 ## Agents
 
@@ -56,6 +58,8 @@ This plugin bundles the following MCP (Model Context Protocol) servers:
 "Help me deploy to staging"                    # triggers orchestrate-deployment skill
 "Investigate the high error rate on api-gateway"  # triggers investigate-incident skill
 "Refine this Linear task description"          # triggers refine-linear-task skill
+"Check Datadog for error logs in prod"         # triggers use-datadog skill
+"Are there any firing monitors?"               # triggers use-datadog skill
 ```
 
 ## MCP Authentication
@@ -80,6 +84,7 @@ Some MCP servers require authentication:
 #### Slack Setup
 
 1. **Obtain a Slack Bot Token**:
+
    - Visit <https://ai-toolkit-slack-oauth-backend.vercel.app/>
    - Click "Add to Slack" and authorize the app
    - Copy the Access Token (starts with `xoxp-...`)
@@ -110,6 +115,7 @@ For detailed Slack setup documentation, see: <https://www.notion.so/uniswaplabs/
 #### GitHub Setup
 
 1. **Create a Personal Access Token**:
+
    - Go to <https://github.com/settings/tokens?type=beta>
    - Click "Generate new token" (Fine-grained recommended)
    - Set permissions: Contents (R/W), Issues (R/W), Pull requests (R/W)

@@ -9,10 +9,12 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 ### Skills (./skills/)
 
 - **daily-standup**: Generate daily standup reports from GitHub and Linear activity
+- **datadog-cost-tracker**: Analyze Datadog ingestion costs by service using estimated-usage metrics, flagging anomalous growth and reduction opportunities
 - **github-setup**: Configure GitHub Personal Access Token for the GitHub MCP server
 - **investigate-incident**: Investigate production incidents using Datadog logs, metrics, and traces
 - **orchestrate-deployment**: Orchestrate deployment pipelines with CI/CD configuration
 - **refine-linear-task**: Refine and enhance Linear task descriptions
+- **use-datadog**: Directs the agent to use the `pup` CLI for all Datadog observability tasks (monitors, logs, metrics, APM, incidents, etc.)
 
 ### Agents (./agents/)
 
@@ -102,10 +104,12 @@ uniswap-integrations/
 │   └── plugin.json
 ├── skills/
 │   ├── daily-standup/
+│   ├── datadog-cost-tracker/
 │   ├── github-setup/
 │   ├── investigate-incident/
 │   ├── orchestrate-deployment/
-│   └── refine-linear-task/
+│   ├── refine-linear-task/
+│   └── use-datadog/
 ├── agents/
 │   ├── cicd-agent.md
 │   ├── infrastructure-agent.md
