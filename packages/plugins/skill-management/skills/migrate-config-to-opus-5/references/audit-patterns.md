@@ -27,7 +27,7 @@ Config written to push delegation harder ("use subagents proactively", "delegate
 
 **Keep (policy):** cost-routing tables (cheap models for mechanical steps — that's economics), and adversarial-review/verification dispatches the user explicitly wants in fresh contexts. If the user has such a policy, write the cap language _with an explicit carve-out_ naming it, or the cap will silently eat the gate.
 
-**Related stale fact:** pre-2026 configs often justify model routing with "Opus costs ~5x Sonnet". Claude 5 pricing (as of 2026-08): Opus 5 $5/$25 per MTok vs Sonnet 5 $3/$15 → ~1.7x. Haiku ($1/$5) is still ~5x under Opus. Update any cost-ratio claims and thresholds derived from them — and verify current pricing at docs.claude.com before writing new ones.
+**Related stale fact:** pre-2026 configs often justify model routing with "Opus costs ~5x Sonnet". Claude 5 pricing (as of 2026-08): Opus 5 $5/$25 per MTok vs Sonnet 5 $3/$15 → ~1.7x — but Sonnet 5 has introductory pricing of $2/$10 through 2026-08-31, so the ratio is ~2.5x until then. Haiku ($1/$5) is still ~5x under Opus. Don't rewrite a cost-ratio claim to a number that goes stale in weeks: verify current pricing at docs.claude.com before writing the replacement.
 
 ## Delta 3 — Literal instruction-following: emphasis and filters over-apply
 
@@ -55,12 +55,12 @@ Effort settings do not shorten visible text; only explicit length instructions d
 
 ## Mechanical checks (no judgment, just fix)
 
-- **Model IDs:** `/usr/bin/grep -rE 'claude-(opus|sonnet|haiku)-[0-9]' <scope>` across scripts, CI, statuslines, agent frontmatter, scheduled-task registrations. Current IDs (as of 2026-08): `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-4-5`. Aliases (`opus`, `sonnet`, `haiku`) are self-updating — prefer them where a pin isn't required.
+- **Model IDs:** `/usr/bin/grep -rE 'claude-(opus|sonnet|haiku)-[0-9]|claude-[0-9]' <scope>` across scripts, CI, statuslines, agent frontmatter, scheduled-task registrations. The second alternative catches Claude 3.x-era IDs (`claude-3-opus-20240229`, `claude-3-5-sonnet-20241022`), where the version precedes the tier — those retired, now-404 pins are exactly what a pre-Opus-5 config is most likely to carry. Current IDs (as of 2026-08): `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-4-5`. Aliases (`opus`, `sonnet`, `haiku`) are self-updating — prefer them where a pin isn't required.
 - **Context-window logic:** scripts branching on model ID for window size. All current non-Haiku models are 1M; Haiku 4.5 is 200K. Keying "haiku → 200K, else 1M" beats enumerating model names. Test with synthetic payloads for both branches.
 - **API params:** `budget_tokens` is rejected with a 400 on the Claude 5 family — replace `thinking: {type: "enabled", budget_tokens: N}` with `thinking: {type: "adaptive"}`. Also flag hardcoded `temperature` alongside thinking, and Priority Tier assumptions (not supported on Opus 5).
-- **Dead weight:** vendored commands referencing nonexistent agents, archive directories, `.backup`/`.bak` settings snapshots (these often pin old models), marketplace entries pointing at dead repos. Delete; git holds history.
+- **Dead weight:** vendored commands referencing nonexistent agents, archive directories, `.backup`/`.bak` settings snapshots (these often pin old models), marketplace entries pointing at dead repos. Delete outright only when the surface is a git repo — git holds history there. On a non-git surface (a plain `~/.claude` is the common case) deletion is unrecoverable, so treat dead-weight removal as a user decision, or confirm an external backup (Time Machine, sync) before deleting.
 - **Third-party plugins:** their prompts carry the same 4.x-era patterns but are not yours to edit. Check each plugin's upstream for explicit Opus 5 retuning evidence; disable or flag the ones without it, and flag (don't disable) the ones the user authors — those are theirs to retune.
 
 ## Settings that need a user decision
 
-- **effortLevel** (Claude Code setting): Opus 5's default is xhigh; low/medium are unusually strong on this model, so a pinned `high` from the 4.x era is worth revisiting. Never change this one mechanically — present the trade (cost/latency vs depth) in the Step 3 interview and let the user pick; log a checkpoint to revisit after a week of use.
+- **effortLevel** (Claude Code setting): Claude Code defaults Opus 5 to xhigh (the raw API default is high — don't conflate the two); low/medium are unusually strong on this model, so a pinned `high` from the 4.x era is worth revisiting. Never change this one mechanically — present the trade (cost/latency vs depth) in the Step 3 interview and let the user pick; log a checkpoint to revisit after a week of use.
