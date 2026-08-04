@@ -18,7 +18,7 @@ Ask the user which surface to migrate, via AskUserQuestion:
 
 If the user picked global and `~/.claude` is a git repo shared across machines, every path fix must be machine-agnostic (`$HOME`, `~/`, resolver scripts) — a literal home-dir path that is correct on this machine is silently wrong on the others.
 
-In the same interview, ask one execution question: apply edits directly with granular commits (the default), or propose the full diff for review first. For project scope on a shared repo, apply the edits on a new branch and deliver them as a PR rather than committing to the checked-out branch — matching this plugin's skill-doctor delivery rule.
+In the same interview, ask one execution question: apply edits directly with granular commits (the default), or propose the full diff for review first. For project scope on a shared repo, apply the edits on a new branch off the repo's default branch (`origin/main` or equivalent, not the current checkout) and deliver them as a PR — matching this plugin's skill-doctor delivery rule.
 
 ## Step 1 — Inventory
 
