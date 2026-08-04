@@ -511,7 +511,7 @@ Worried about Anthropic API costs
 
 **Solutions**:
 
-- Use `claude-sonnet-5` (default) instead of Opus for most tasks (~80% cheaper)
+- Use `claude-sonnet-5` (default) instead of Opus for most tasks (~40% cheaper: $3/$15 vs $5/$25 per MTok)
 - Reduce `timeout_minutes` to limit execution time (default: 10)
 - The workflow includes concurrency control to prevent duplicate runs
 - Monitor usage at console.anthropic.com
