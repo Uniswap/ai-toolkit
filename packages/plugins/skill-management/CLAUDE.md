@@ -5,7 +5,9 @@
 This plugin is the curation/triage layer over a user's whole Claude Code customization surface —
 their skills, agents, and slash commands. It inventories everything (the user's own dirs plus
 installed marketplaces), flags overlaps, gaps, and weak triggering descriptions, and mines the current
-session for workflows worth codifying into a new or edited skill or agent.
+session for workflows worth codifying into a new or edited skill or agent. It also owns
+model-generation migrations of a full Claude Code config (CLAUDE.md, rules, settings, hooks,
+statusline, CI scripts) via the migrate-config-to-opus-5 skill.
 
 ## Plugin Components
 
@@ -17,6 +19,14 @@ session for workflows worth codifying into a new or edited skill or agent.
   never auto-applies. Bundles `references/analysis-rubric.md` (good-description shape, overlap
   judgment, skill-vs-agent-vs-rule decision) and `scripts/inventory.py` (cheap inventory + quality
   flags, no pip installs).
+- **migrate-config-to-opus-5**: Audits and migrates a Claude Code configuration (CLAUDE.md, rules,
+  skills, commands, agents, settings.json, hooks, statusline, CI scripts) for Claude Opus 5's
+  behavioral changes. Interviews for scope first (global `~/.claude` vs the current project),
+  inventories the surface, classifies findings (fix mechanically / rewrite / user decision / leave
+  alone), and executes with granular commits plus a verification probe. Bundles
+  `references/audit-patterns.md` — the four behavioral deltas (verification, delegation, literal
+  instruction-following, output length) with search patterns and fix shapes, plus mechanical checks
+  (stale model IDs, pricing ratios, API params).
 
 ### Commands (./commands/)
 

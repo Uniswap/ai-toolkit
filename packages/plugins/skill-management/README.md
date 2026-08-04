@@ -5,7 +5,9 @@ Audit, map, mine, and improve your Claude Code skills, agents, and slash command
 This plugin is the curation layer over your whole Claude Code customization surface. It inventories
 every skill / agent / command you have (your own dirs plus installed marketplaces), flags overlaps,
 gaps, and weak triggering descriptions, and mines the current session for workflows worth codifying
-into a new or edited skill or agent.
+into a new or edited skill or agent. It also covers model-generation migrations: auditing a full
+Claude Code config (CLAUDE.md, rules, settings, hooks, CI scripts) for behavioral changes in a new
+model family like Opus 5.
 
 ## Installation
 
@@ -19,9 +21,10 @@ claude /plugin install skill-management
 
 ## Skills
 
-| Skill            | Description                                                                                                                                                     |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **skill-doctor** | Orchestrator/triage over your skills, agents, and commands: inventory, analyze, mine, and improve. The commands below are thin entry points into its run modes. |
+| Skill                        | Description                                                                                                                                                                                                                                                                                                                                                                      |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **skill-doctor**             | Orchestrator/triage over your skills, agents, and commands: inventory, analyze, mine, and improve. The commands below are thin entry points into its run modes.                                                                                                                                                                                                                  |
+| **migrate-config-to-opus-5** | Audit and migrate a Claude Code configuration (CLAUDE.md, rules, skills, commands, agents, settings, hooks, CI scripts) for Claude Opus 5's behavioral changes — removes 4.x-era compensations (over-verification ceremony, delegation nudges, confidence filters), fixes stale model IDs/pricing, and interviews you on anything that might be policy rather than compensation. |
 
 ## Commands
 
