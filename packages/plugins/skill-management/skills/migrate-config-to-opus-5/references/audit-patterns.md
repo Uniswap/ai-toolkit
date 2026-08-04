@@ -27,7 +27,7 @@ Config written to push delegation harder ("use subagents proactively", "delegate
 
 **Keep (policy):** cost-routing tables (cheap models for mechanical steps — that's economics), and adversarial-review/verification dispatches the user explicitly wants in fresh contexts. If the user has such a policy, write the cap language _with an explicit carve-out_ naming it, or the cap will silently eat the gate.
 
-**Related stale fact:** pre-2026 configs often justify model routing with "Opus costs ~5x Sonnet". Claude 5 pricing: Opus 5 $5/$25 per MTok vs Sonnet 5 $3/$15 → ~1.7x. Haiku ($1/$5) is still ~5x under Opus. Update any cost-ratio claims and thresholds derived from them.
+**Related stale fact:** pre-2026 configs often justify model routing with "Opus costs ~5x Sonnet". Claude 5 pricing (as of 2026-08): Opus 5 $5/$25 per MTok vs Sonnet 5 $3/$15 → ~1.7x. Haiku ($1/$5) is still ~5x under Opus. Update any cost-ratio claims and thresholds derived from them — and verify current pricing at docs.claude.com before writing new ones.
 
 ## Delta 3 — Literal instruction-following: emphasis and filters over-apply
 
@@ -55,7 +55,7 @@ Effort settings do not shorten visible text; only explicit length instructions d
 
 ## Mechanical checks (no judgment, just fix)
 
-- **Model IDs:** `/usr/bin/grep -rE 'claude-(opus|sonnet|haiku)-[0-9]' <scope>` across scripts, CI, statuslines, agent frontmatter, scheduled-task registrations. Current IDs: `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-4-5`. Aliases (`opus`, `sonnet`, `haiku`) are self-updating — prefer them where a pin isn't required.
+- **Model IDs:** `/usr/bin/grep -rE 'claude-(opus|sonnet|haiku)-[0-9]' <scope>` across scripts, CI, statuslines, agent frontmatter, scheduled-task registrations. Current IDs (as of 2026-08): `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-4-5`. Aliases (`opus`, `sonnet`, `haiku`) are self-updating — prefer them where a pin isn't required.
 - **Context-window logic:** scripts branching on model ID for window size. All current non-Haiku models are 1M; Haiku 4.5 is 200K. Keying "haiku → 200K, else 1M" beats enumerating model names. Test with synthetic payloads for both branches.
 - **API params:** `budget_tokens` is rejected with a 400 on the Claude 5 family — replace `thinking: {type: "enabled", budget_tokens: N}` with `thinking: {type: "adaptive"}`. Also flag hardcoded `temperature` alongside thinking, and Priority Tier assumptions (not supported on Opus 5).
 - **Dead weight:** vendored commands referencing nonexistent agents, archive directories, `.backup`/`.bak` settings snapshots (these often pin old models), marketplace entries pointing at dead repos. Delete; git holds history.

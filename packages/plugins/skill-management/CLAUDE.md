@@ -5,7 +5,9 @@
 This plugin is the curation/triage layer over a user's whole Claude Code customization surface —
 their skills, agents, and slash commands. It inventories everything (the user's own dirs plus
 installed marketplaces), flags overlaps, gaps, and weak triggering descriptions, and mines the current
-session for workflows worth codifying into a new or edited skill or agent.
+session for workflows worth codifying into a new or edited skill or agent. It also owns
+model-generation migrations of a full Claude Code config (CLAUDE.md, rules, settings, hooks,
+statusline, CI scripts) via the migrate-config-to-opus-5 skill.
 
 ## Plugin Components
 

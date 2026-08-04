@@ -5,7 +5,9 @@ Audit, map, mine, and improve your Claude Code skills, agents, and slash command
 This plugin is the curation layer over your whole Claude Code customization surface. It inventories
 every skill / agent / command you have (your own dirs plus installed marketplaces), flags overlaps,
 gaps, and weak triggering descriptions, and mines the current session for workflows worth codifying
-into a new or edited skill or agent.
+into a new or edited skill or agent. It also covers model-generation migrations: auditing a full
+Claude Code config (CLAUDE.md, rules, settings, hooks, CI scripts) for behavioral changes in a new
+model family like Opus 5.
 
 ## Installation
 
