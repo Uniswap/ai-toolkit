@@ -96,8 +96,15 @@ For each finding:
 ## Security Metrics
 - Attack surface: external/authenticated/public/admin endpoint counts
 - Security controls: implemented/partial/missing
-- Estimated security debt in hours
 ```
+
+**Length and scope.** Include only the phases the findings actually reach: a `targeted` or
+`vulnerability` scope that surfaced three issues gets Phase 1 and nothing else — do not
+manufacture a 6-month roadmap to fill the template. Cap detailed findings at roughly 4 lines
+each beyond the evidence snippet, and keep the executive summary under 10 lines.
+
+Do not report an hours estimate for remediation effort or "security debt". You have no data
+on this team's velocity, and a fabricated hour count reads as a measurement.
 
 ## Error Handling
 
