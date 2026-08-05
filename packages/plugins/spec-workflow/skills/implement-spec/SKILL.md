@@ -60,7 +60,7 @@ Invoke it with comprehensive context including:
 The orchestrator will:
 
 - Discover all available agents
-- Use **agent-capability-analyst** for optimal matching
+- Match tasks to agents by capability
 - Coordinate specialized agents for each task
 - Handle parallel execution groups
 
@@ -75,6 +75,8 @@ Execute tasks sequentially without orchestration:
 
 ### Phase 3: Task Execution
 
+Each list below is a menu of agents that fit that task type, not a team to staff in full. Pick only the ones the task actually needs, and do the work directly rather than spawning an agent when it would finish in a handful of tool calls. **Ceiling: at most 4 concurrent agents at any moment** - a ceiling, not a quota.
+
 For each task, coordinate:
 
 1. **Code Implementation Tasks**: code-generator-agent, test-writer-agent, documentation-agent
@@ -84,19 +86,21 @@ For each task, coordinate:
 
 ### Phase 4: Quality Gates
 
-Between task groups, apply quality checks:
+Between task groups, apply the quality checks the changes actually call for:
 
 - **Code Quality**: style-enforcer-agent, security-analyzer-agent, performance-analyzer-agent
 - **Test Coverage**: agent-tester-agent, test-writer-agent
-- **Documentation**: documentation-agent, review-plan
+- **Documentation**: documentation-agent
+
+Prefer running the project's own test, lint, and typecheck commands over spawning an agent to judge quality - a tool result is evidence, an agent's opinion of code it just read is not.
 
 ## Output Format
 
-Return structured results:
+Return structured results, under roughly 400 words:
 
-- **Summary**: spec name, tasks completed/remaining, execution time
+- **Summary**: spec name, tasks completed/remaining
 - **Execution Plan**: phases, tasks, agents, execution type
-- **Results**: per-task status, agent used, duration, quality metrics
+- **Results**: per-task status, agent used, and the observed result of any test/lint/typecheck run (quote the command output; do not report a score or metric you did not measure)
 - **Next Steps**: remaining tasks, blockers, recommendations
 
 ## Examples
