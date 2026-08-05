@@ -98,18 +98,13 @@ For each changed file, I read the actual diff to understand:
 
 #### Step 4: Nx Project Graph Analysis (if applicable)
 
-```typescript
-// Get affected Nx projects
-const affectedProjects = await Bash(
-  `npx nx show projects --affected --base="${BASE_BRANCH}" --head="${CURRENT_BRANCH}"`
-);
-
-// Get project details to understand dependencies
-for (const project of affectedProjects) {
-  const details = await mcp__nx_mcp__nx_project_details({ project });
-  // Analyze project dependencies to inform split boundaries
-}
+```bash
+# Get affected Nx projects
+npx nx show projects --affected --base="$BASE_BRANCH" --head="$CURRENT_BRANCH"
 ```
+
+Then call `mcp__nx-mcp__nx_project_details` once per project returned, to read its
+dependencies and inform the split boundaries.
 
 This helps me:
 
@@ -319,6 +314,10 @@ I score each PR on reviewability (1-10):
 - Should be split further
 
 ## Example Analysis Output
+
+The example below shows the **structure** of a split plan, not its target length. It is
+deliberately long so every section appears at least once; a real plan for a 4-PR stack
+runs far shorter. Do not pad output to match it.
 
 ```markdown
 # Stack Split Analysis
@@ -556,7 +555,6 @@ PR #4b: feat(web): add user management UI
 - **Average PR size**: ~350 lines (reduced from ~540)
 - **Average reviewability score**: 7.8/10 (up from 6.5/10)
 - **Parallel review opportunities**: 1 pair (PR #3b and PR #4a)
-- **Estimated total review time**: 2-3 hours (vs 3-4 hours for original structure)
 
 ## Summary
 
@@ -572,7 +570,6 @@ PR #4b: feat(web): add user management UI
 2. Isolated risky refactor
 3. Parallel review opportunity
 4. Average reviewability score: 7.8/10
-5. Faster review velocity expected
 
 ### Implementation Plan
 
@@ -608,7 +605,9 @@ When deciding how to split, I consider:
 
 ## Output Format
 
-My output is structured markdown that includes:
+My output is structured markdown. Budget roughly 10-15 lines per proposed PR and keep the
+whole plan under about 150 lines — a split plan the author will not read is a split plan
+that does not get executed. Rationale is 1-2 sentences, not a paragraph. It includes:
 
 1. **Executive Summary**: High-level overview of the analysis
 2. **Commit Categorization**: Breakdown of commits by type and scope
@@ -618,18 +617,15 @@ My output is structured markdown that includes:
 6. **Recommendations**: Any improvements to the proposed structure
 7. **Implementation Plan**: Specific `gt split` commands to execute
 
-## Quality Checks
+## Constraints on a Valid Split
 
-Before presenting my plan, I verify:
+These bound the plan as I build it, not as a checklist afterward:
 
-- [ ] No PR has a reviewability score below 4
-- [ ] Dependencies form a valid DAG (no cycles)
-- [ ] Each PR has a clear, single primary purpose
-- [ ] Total number of PRs is reasonable (2-6 typically)
-- [ ] PR sizes are relatively balanced
-- [ ] Tests are grouped with their implementations
-- [ ] Documentation updates are included with relevant changes
-- [ ] No PR is trivially small (< 50 lines) unless it's purely foundational
+- Dependencies must form a valid DAG — a cycle means the split boundary is wrong
+- Each PR has one clear primary purpose
+- No PR scores below 4 on reviewability; 2-6 PRs total is the usual range
+- Tests ship with their implementations; docs ship with the change they describe
+- No trivially small PR (< 50 lines) unless it is purely foundational
 
 ## Notes
 

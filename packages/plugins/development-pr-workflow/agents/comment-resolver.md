@@ -71,6 +71,12 @@ You receive a set of review comments that have already been triaged as needing c
 
 ### Output Format
 
+This report lands in the orchestrator's context, so keep it tight: one line per field, and
+2-3 sentences maximum in `Notes`. Do not restate the comment text or paste diffs.
+
+Report on **every** comment you were given, including ones you could not resolve — an
+omitted comment reads to the orchestrator as a resolved one.
+
 Return a structured report:
 
 ```
