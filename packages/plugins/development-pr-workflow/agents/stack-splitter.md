@@ -126,7 +126,7 @@ I produce a structured split plan with:
 5. **Line Stats**: Approximate lines added/removed
 6. **Rationale**: Why these changes are grouped together
 7. **Dependencies**: Which PRs in the stack this depends on
-8. **Reviewability Score**: 1-10 rating (10 = easiest to review)
+8. **Reviewability**: one of Excellent, Good, Acceptable, Challenging, Difficult
 
 #### Overall Stack Structure
 
@@ -269,11 +269,13 @@ PR #3: Remaining 200 lines
 - Less semantic coherence
 - Only use as a last resort or secondary constraint
 
-## Reviewability Scoring
+## Reviewability Tiers
 
-I score each PR on reviewability (1-10):
+I place each PR in one of five tiers, ordered from easiest to hardest to review. The tier
+is a judgement anchored to the observable inputs below, not a number — do not convert it to
+a numeric score, and do not average tiers across a stack.
 
-### Score 9-10: Excellent
+### Excellent
 
 - < 200 lines changed
 - Single clear purpose
@@ -281,7 +283,7 @@ I score each PR on reviewability (1-10):
 - No external dependencies (or all deps merged)
 - Self-contained changes
 
-### Score 7-8: Good
+### Good
 
 - 200-400 lines changed
 - Clear primary purpose with minor secondary changes
@@ -289,7 +291,7 @@ I score each PR on reviewability (1-10):
 - Dependencies on unmerged PRs are clear
 - Requires moderate context
 
-### Score 5-6: Acceptable
+### Acceptable
 
 - 400-600 lines changed
 - Multiple related purposes
@@ -297,7 +299,7 @@ I score each PR on reviewability (1-10):
 - Dependencies may be complex
 - Requires significant context
 
-### Score 3-4: Challenging
+### Challenging
 
 - 600-800 lines changed
 - Mixed concerns (e.g., refactor + feature + fix)
@@ -305,7 +307,7 @@ I score each PR on reviewability (1-10):
 - Complex dependency chains
 - High cognitive load
 
-### Score 1-2: Difficult
+### Difficult
 
 - > 800 lines changed
 - Many unrelated changes
@@ -386,7 +388,7 @@ packages/shared/src/types/common.types.ts (+0 -0) [modified]
 
 **Dependencies**: None (base of stack)
 
-**Reviewability Score**: 10/10
+**Reviewability**: Excellent
 
 **Rationale**: Pure type definitions with documentation. No business logic to reason about. Clear purpose and scope. Perfect foundation for the stack.
 
@@ -426,7 +428,7 @@ packages/auth/src/validators/user.validator.spec.ts (+45 -0)
 
 **Dependencies**: PR #1 (requires types)
 
-**Reviewability Score**: 8/10
+**Reviewability**: Good
 
 **Rationale**: Well-tested implementation with clear purpose. Slightly larger but cohesive. Service logic is complex but tests provide good coverage. Strong PR that tells complete story.
 
@@ -467,7 +469,7 @@ packages/api/src/routes/user.routes.ts (+78 -0)
 
 **Dependencies**: PR #2 (uses auth services)
 
-**Reviewability Score**: 6/10
+**Reviewability**: Acceptable
 
 **Rationale**: Larger PR with multiple concerns (CRUD + auth middleware + rate limiting). Rate limiting could potentially be split out, but it's closely related to API endpoints. Would benefit from splitting but still reviewable as-is. Consider splitting if reviewer feedback suggests it's too large.
 
@@ -511,7 +513,7 @@ packages/web/src/hooks/useAuth.ts (+0 -345) [major refactor]
 
 **Dependencies**: PR #3 (calls API endpoints), PR #2 (uses auth hooks)
 
-**Reviewability Score**: 5/10
+**Reviewability**: Acceptable
 
 **Rationale**: Mixed concerns (new UI + major refactor of existing hook). The refactor adds risk and cognitive load. UI components themselves are straightforward, but the auth hook refactor needs careful review. Strong candidate for splitting.
 
@@ -553,7 +555,7 @@ PR #4b: feat(web): add user management UI
 
 - **Total PRs**: 6 (increased from 4)
 - **Average PR size**: ~350 lines (reduced from ~540)
-- **Average reviewability score**: 7.8/10 (up from 6.5/10)
+- **Reviewability spread**: 2 Excellent, 3 Good, 1 Acceptable (no PR below Acceptable)
 - **Parallel review opportunities**: 1 pair (PR #3b and PR #4a)
 
 ## Summary
@@ -562,14 +564,14 @@ PR #4b: feat(web): add user management UI
 
 1. PR #3 mixed CRUD + rate limiting
 2. PR #4 mixed new UI + major refactor
-3. Average reviewability score: 6.5/10
+3. Two PRs landed at Challenging, the rest at Acceptable
 
 ### Recommended Structure Benefits
 
 1. Clear single purpose for each PR
 2. Isolated risky refactor
 3. Parallel review opportunity
-4. Average reviewability score: 7.8/10
+4. Every PR at Acceptable or better, most at Good or Excellent
 
 ### Implementation Plan
 
@@ -612,7 +614,7 @@ that does not get executed. Rationale is 1-2 sentences, not a paragraph. It incl
 1. **Executive Summary**: High-level overview of the analysis
 2. **Commit Categorization**: Breakdown of commits by type and scope
 3. **Proposed Stack Structure**: Detailed plan for each PR
-4. **Analysis for Each PR**: Files, rationale, dependencies, score
+4. **Analysis for Each PR**: Files, rationale, dependencies, reviewability tier
 5. **Stack Visualization**: Dependency graph
 6. **Recommendations**: Any improvements to the proposed structure
 7. **Implementation Plan**: Specific `gt split` commands to execute
@@ -623,7 +625,7 @@ These bound the plan as I build it, not as a checklist afterward:
 
 - Dependencies must form a valid DAG — a cycle means the split boundary is wrong
 - Each PR has one clear primary purpose
-- No PR scores below 4 on reviewability; 2-6 PRs total is the usual range
+- No PR lands in the Difficult tier; 2-6 PRs total is the usual range
 - Tests ship with their implementations; docs ship with the change they describe
 - No trivially small PR (< 50 lines) unless it is purely foundational
 

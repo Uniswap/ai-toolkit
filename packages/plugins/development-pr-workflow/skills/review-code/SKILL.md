@@ -45,8 +45,10 @@ Parse from request:
 | **Comprehensive** | up to 8       | Deep multi-phase analysis        |
 
 These are ceilings, not quotas. Staff only the dimensions the diff actually raises — a
-CSS-only change does not need a security agent, and a diff with no new dependencies does
-not need a dependency pass. Do not spawn an agent for analysis that would finish in a
+change that touches no code, config, or capability grants does not need a security agent,
+and a diff with no new dependencies does not need a dependency pass. "Docs-only" is not the
+same test: markdown frontmatter can carry `allowed-tools` grants, so a docs diff can still
+change what a component is permitted to do. Do not spawn an agent for analysis that would finish in a
 handful of direct tool calls; read the diff yourself instead.
 
 ## Orchestration Strategy
@@ -137,8 +139,8 @@ Combine insights from all agents:
 Report every genuine finding. Mark each with a severity rather than dropping it — do not
 omit a finding because it is low-severity, because you are unsure it is a real problem, or
 because the list is getting long. Uncertainty is a note on the finding ("possible", "worth
-confirming"), not a reason to discard it. Filter at presentation time via `--focus` /
-`--severity`, never at discovery time.
+confirming"), not a reason to discard it. Filtering by severity or concern happens at
+presentation time, when the reader decides what to act on, never at discovery time.
 
 Keep each finding to 2-4 sentences and each section to what a reviewer can act on. The
 summary should fit on one screen.

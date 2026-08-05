@@ -96,8 +96,11 @@ Deep multi-agent analysis using **development-codebase-tools:agent-orchestrator-
 
 The pipeline below is the **maximum** staffing for a broad, cross-cutting diff — not a
 roster to complete. Skip any phase the diff does not raise, and drop individual agents
-within a phase for the same reason: a docs-only change needs neither the security nor the
-performance pass, and a diff touching one file rarely needs impact analysis at all. Every
+within a phase for the same reason: a change that touches no code, config, or capability
+grants needs neither the security nor the performance pass, and a diff touching one file
+rarely needs impact analysis at all. Note that "docs-only" is not the same test — markdown
+frontmatter can carry `allowed-tools` grants, so a docs diff can still change what a
+component is permitted to do. Every
 agent lives in a sibling plugin, so the `plugin:agent-name` qualifier is required.
 
 ```typescript
@@ -148,8 +151,8 @@ agent lives in a sibling plugin, so the `plugin:agent-name` qualifier is require
 Report every genuine finding. Assign each a severity rather than dropping it — do not omit
 a finding because it is minor, because you are unsure it is real, or because the list is
 getting long. Record uncertainty on the finding itself ("possible", "worth confirming").
-The `--focus` and `--severity` flags filter what is *presented*; they never narrow what is
-looked for.
+Filtering by severity or concern happens at presentation time, when the reader decides what
+to act on. It never narrows what is looked for.
 
 Every numeric field below must come from a tool you actually ran. If the measurement was
 not taken, omit the field — do not estimate it. Keep each finding to 2-4 sentences.
