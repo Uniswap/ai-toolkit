@@ -1,7 +1,7 @@
 ---
 description: Orchestrate comprehensive pull request review using specialized agents for architecture, security, performance, testing, and maintainability analysis.
 argument-hint: [branch|commit-range] [--depth standard|comprehensive] [--suggest-fixes] [--check-coverage]
-allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git branch:*), Bash(git log:*), Bash(git show:*), Task(subagent_type:agent-orchestrator-agent), Task(subagent_type:*), Read(*), Grep(*)
+allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git branch:*), Bash(git log:*), Bash(git show:*), Task(subagent_type:development-codebase-tools:agent-orchestrator-agent), Task(subagent_type:*), Read(*), Grep(*)
 ---
 
 ## Inputs
@@ -61,25 +61,29 @@ Orchestrate comprehensive PR review through multi-agent coordination:
 
 ### Standard Review (Default)
 
-Quick, focused review of key concerns:
+Quick, focused review of key concerns. Every agent below lives in a sibling plugin, so the
+`plugin:agent-name` qualifier is required — a bare name will not resolve. This is the
+maximum staffing, not a roster to complete: skip any agent whose dimension the diff does
+not raise, and read the diff directly when that answers the question faster than a
+subagent would.
 
 ```typescript
 {
   sequential: [
     {
-      agent: 'code-explainer-agent',
+      agent: 'development-codebase-tools:code-explainer-agent',
       task: 'Analyze changed files for intent and patterns',
     },
     {
-      agent: 'security-analyzer-agent',
+      agent: 'development-codebase-tools:security-analyzer-agent',
       task: 'Quick vulnerability scan',
     },
     {
-      agent: 'style-enforcer-agent',
+      agent: 'development-codebase-tools:style-enforcer-agent',
       task: 'Check style compliance',
     },
     {
-      agent: 'test-writer-agent',
+      agent: 'development-productivity:test-writer-agent',
       task: 'Identify missing test coverage',
     },
   ];
@@ -88,52 +92,67 @@ Quick, focused review of key concerns:
 
 ### Comprehensive Review (--depth comprehensive)
 
-Deep multi-agent analysis using **agent-orchestrator-agent** (from development-codebase-tools plugin):
+Deep multi-agent analysis using **development-codebase-tools:agent-orchestrator-agent**.
+
+The pipeline below is the **maximum** staffing for a broad, cross-cutting diff — not a
+roster to complete. Skip any phase the diff does not raise, and drop individual agents
+within a phase for the same reason: a docs-only change needs neither the security nor the
+performance pass, and a diff touching one file rarely needs impact analysis at all. Every
+agent lives in a sibling plugin, so the `plugin:agent-name` qualifier is required.
 
 ```typescript
 {
-  // agent-orchestrator-agent is provided by development-codebase-tools plugin
+  // Provided by the development-codebase-tools plugin.
   // Fallback: If unavailable, execute phases sequentially without orchestration
-  orchestrator: "agent-orchestrator-agent",
+  orchestrator: "development-codebase-tools:agent-orchestrator-agent",
   phases: [
     {
       name: "Impact Analysis",
       parallel: [
-        { agent: "code-explainer-agent", focus: "change-intent" },
-        { agent: "context-loader-agent", focus: "affected-systems" }
+        { agent: "development-codebase-tools:code-explainer-agent", focus: "change-intent" },
+        { agent: "development-codebase-tools:context-loader-agent", focus: "affected-systems" }
       ]
     },
     {
       name: "Quality Assessment",
       parallel: [
-        { agent: "plan-reviewer-agent", focus: "design-consistency" },
-        { agent: "security-analyzer-agent", focus: "vulnerability-assessment" },
-        { agent: "performance-analyzer-agent", focus: "performance-impact" },
-        { agent: "style-enforcer-agent", focus: "code-standards" }
+        { agent: "development-planning:plan-reviewer-agent", focus: "design-consistency" },
+        { agent: "development-codebase-tools:security-analyzer-agent", focus: "vulnerability-assessment" },
+        { agent: "development-codebase-tools:performance-analyzer-agent", focus: "performance-impact" },
+        { agent: "development-codebase-tools:style-enforcer-agent", focus: "code-standards" }
       ]
     },
     {
       name: "Test & Documentation",
       parallel: [
-        { agent: "test-writer-agent", focus: "coverage-gaps" },
-        { agent: "agent-tester-agent", focus: "regression-testing" },
-        { agent: "documentation-agent", focus: "documentation-updates" }
+        { agent: "development-productivity:test-writer-agent", focus: "coverage-gaps" },
+        { agent: "development-productivity:agent-tester-agent", focus: "regression-testing" },
+        { agent: "development-productivity:documentation-agent", focus: "documentation-updates" }
       ]
     },
     {
       name: "Fix Generation",
       sequential: [
-        { agent: "refactorer-agent", focus: "improvement-suggestions" },
-        { agent: "migration-assistant-agent", focus: "breaking-changes" }
+        { agent: "development-codebase-tools:refactorer-agent", focus: "improvement-suggestions" },
+        { agent: "uniswap-integrations:migration-assistant-agent", focus: "breaking-changes" }
       ]
     }
   ]
 }
 ```
 
-**Fallback (if agent-orchestrator-agent is not available)**: Execute each phase sequentially, invoking agents directly without parallel coordination. The review will still cover all aspects but may take longer.
+**Fallback (if the orchestrator agent is not available)**: Execute each phase sequentially, invoking agents directly without parallel coordination. The review will still cover all aspects but may take longer.
 
 ## Output Format
+
+Report every genuine finding. Assign each a severity rather than dropping it — do not omit
+a finding because it is minor, because you are unsure it is real, or because the list is
+getting long. Record uncertainty on the finding itself ("possible", "worth confirming").
+The `--focus` and `--severity` flags filter what is *presented*; they never narrow what is
+looked for.
+
+Every numeric field below must come from a tool you actually ran. If the measurement was
+not taken, omit the field — do not estimate it. Keep each finding to 2-4 sentences.
 
 ```typescript
 {
@@ -147,12 +166,14 @@ Deep multi-agent analysis using **agent-orchestrator-agent** (from development-c
     };
     risk: {
       overall: 'low' | 'medium' | 'high' | 'critical';
+      // Qualitative bands, not scores. A 0-10 number here would be an unmeasured
+      // estimate dressed up as data. Omit any dimension the diff does not touch.
       breakdown: {
-        architecture: number; // 0-10 scale
-        security: number;
-        performance: number;
-        maintainability: number;
-        testing: number;
+        architecture?: 'low' | 'medium' | 'high';
+        security?: 'low' | 'medium' | 'high';
+        performance?: 'low' | 'medium' | 'high';
+        maintainability?: 'low' | 'medium' | 'high';
+        testing?: 'low' | 'medium' | 'high';
       };
     };
     recommendation: 'approve' | 'request-changes' | 'comment';
@@ -228,20 +249,25 @@ Deep multi-agent analysis using **agent-orchestrator-agent** (from development-c
       line: number;
       impact: 'high' | 'medium' | 'low';
       optimization: string;
-      benchmark?: string; // Expected improvement
+      benchmark?: string; // Only if an actual benchmark was run
     }>;
-    complexity: {
-      before: number; // Cyclomatic complexity
+    // Include ONLY if a complexity tool was actually run against both revisions
+    // (eslint complexity rule, `lizard`, `radon`, etc.). Cite the tool. An
+    // eyeballed cyclomatic number is a fabrication — omit the field instead.
+    complexity?: {
+      tool: string;
+      before: number;
       after: number;
-      delta: string; // e.g., "+15%", "-5%"
     };
   };
 
   testingReview: {
-    coverage: {
-      current: number; // Current coverage %
-      required: number; // Required coverage %
-      gap: number; // Coverage gap
+    // Include ONLY when a real coverage run produced these numbers. Omit the whole
+    // block when no coverage report was generated — never estimate a percentage.
+    coverage?: {
+      source: string; // Command or report file the numbers came from
+      current: number; // Measured coverage %
+      required?: number; // From project config, if one sets a threshold
       uncoveredFiles: Array<{
         file: string;
         uncoveredLines: number[];
@@ -254,7 +280,8 @@ Deep multi-agent analysis using **agent-orchestrator-agent** (from development-c
       generatedTests?: string; // Generated test code
     }>;
     testQuality: {
-      score: number; // 0-100
+      // Qualitative band. A 0-100 score has no measured input behind it.
+      assessment: 'strong' | 'adequate' | 'thin' | 'absent';
       issues: string[]; // e.g., "No edge case testing", "Missing mocks"
     };
   };

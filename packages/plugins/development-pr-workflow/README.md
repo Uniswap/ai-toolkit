@@ -30,7 +30,7 @@ claude /plugin install development-pr-workflow
 | Command                            | Description                                             |
 | ---------------------------------- | ------------------------------------------------------- |
 | `/backtest-change`                 | Validate a data-driven change vs live history before PR |
-| `/review-pr`                       | Review a pull request comprehensively                   |
+| `/review-pr`                       | Review a branch or commit range comprehensively         |
 | `/work-through-pr-comments`        | Methodically address PR comments                        |
 | `/start-linear-task`               | Start working on a Linear task in a worktree            |
 | `/linear-task-and-pr-from-changes` | Create Linear task and PR from local changes            |
@@ -64,8 +64,8 @@ This plugin handles **steps 6-7** of the canonical development workflow:
 ## Usage Examples
 
 ```bash
-# Review an open PR
-/review-pr 123
+# Review a branch or commit range (not a PR number)
+/review-pr feature/new-api --depth comprehensive
 
 # Work through review comments
 /work-through-pr-comments
