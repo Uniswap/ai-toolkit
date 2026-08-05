@@ -4,40 +4,52 @@
 
 ### By Domain
 
-Select agents based on technical domains in the task:
+Select agents based on technical domains in the task. The names below are the dispatch names
+(`Task(subagent_type:<name>)`) of agents that ship in this marketplace:
 
-- **Frontend**: frontend-developer, react-specialist, css-expert
-- **Backend**: backend-architect, api-documenter, graphql-architect
-- **Database**: database-optimizer, sql-pro, database-admin
-- **Security**: security-analyzer, security-analyzer
-- **Performance**: performance-engineer, performance-analyzer
-- **Testing**: test-writer, test-automator
-- **DevOps**: deployment-engineer, cloud-architect, cicd-agent
+| Domain                   | Agents                                          |
+| ------------------------ | ----------------------------------------------- |
+| Codebase context         | `context-loader-agent`, `code-explainer-agent`  |
+| Conventions and patterns | `pattern-learner-agent`, `style-enforcer-agent` |
+| Security                 | `security-analyzer-agent`                       |
+| Performance              | `performance-analyzer-agent`                    |
+| Testing                  | `test-writer-agent`                             |
+| Refactors and migrations | `refactorer-agent`, `migration-assistant-agent` |
+| CI/CD and infrastructure | `cicd-agent`, `infrastructure-agent`            |
+| Documentation            | `documentation-agent`                           |
+| External research        | `researcher-agent`                              |
+| Debugging                | `debug-assistant-agent`                         |
+
+Before dispatching an agent that is not in this table, confirm it exists - a name that does not
+match an agent's frontmatter `name:` fails at dispatch:
+
+```bash
+grep -rhE '^name: ' packages/plugins/*/agents/ | sort -u
+```
 
 ### By Complexity
 
-- **Simple tasks**: 3-4 agents covering core domain + review
-- **Medium tasks**: 5-7 agents covering domain + adjacent concerns
-- **Complex tasks**: 8-10 agents for comprehensive coverage
+These are **ceilings, not quotas**. Staff only the domains the task actually raises. If the
+analysis would finish in a handful of direct tool calls, do it yourself instead of spawning an
+agent for it.
+
+- **Simple tasks**: up to 2 agents, and often zero
+- **Medium tasks**: up to 5 agents covering the domains in play
+- **Complex tasks**: up to 10 agents
 
 ### Example Combinations
 
 **"Add user authentication with JWT"**
 
-- security-analyzer (auth expertise)
-- backend-architect (API design)
-- database-optimizer (user storage)
-- frontend-developer (login UI)
-- test-writer (auth testing)
+- `context-loader-agent` (existing auth surface and conventions)
+- `security-analyzer-agent` (token handling, storage, session risks)
+- `test-writer-agent` (auth test coverage)
 
-**"Migrate monolith to microservices"**
+**"Migrate a legacy module to the new API"**
 
-- backend-architect (service boundaries)
-- cloud-architect (infrastructure)
-- database-optimizer (data partitioning)
-- performance-engineer (scalability)
-- devops-troubleshooter (deployment)
-- security-analyzer (service communication)
+- `migration-assistant-agent` (migration path)
+- `pattern-learner-agent` (target-side conventions)
+- `performance-analyzer-agent` (only if the migration has a measured performance stake)
 
 ## Multi-Round Discussion Protocol
 
