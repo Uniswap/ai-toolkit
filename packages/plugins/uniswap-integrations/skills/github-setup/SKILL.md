@@ -92,8 +92,12 @@ set -Ux GITHUB_PERSONAL_ACCESS_TOKEN "ghp_your_token_here"
 After setting the token, restart Claude Code and verify:
 
 ```bash
-# Verify token is set
-echo "Token configured: $([ -n \"$GITHUB_PERSONAL_ACCESS_TOKEN\" ] && echo 'Yes' || echo 'No')"
+# Verify token is set (presence only — never echo the value itself)
+if [ -n "$GITHUB_PERSONAL_ACCESS_TOKEN" ]; then
+  echo "GitHub token is set (length: ${#GITHUB_PERSONAL_ACCESS_TOKEN} chars)"
+else
+  echo "GitHub token is NOT set"
+fi
 ```
 
 Then run `/mcp` in Claude Code to see the GitHub MCP server listed.
@@ -104,13 +108,19 @@ Then run `/mcp` in Claude Code to see the GitHub MCP server listed.
 
 If the GitHub MCP server reports a missing token:
 
-1. Verify the environment variable is set:
+1. Verify the environment variable is set. Check for presence and length only — never echo the
+   token itself, since anything printed here lands in the terminal transcript and in any session
+   log, which means the token has to be rotated:
 
    ```bash
-   echo $GITHUB_PERSONAL_ACCESS_TOKEN
+   if [ -n "$GITHUB_PERSONAL_ACCESS_TOKEN" ]; then
+     echo "GitHub token is set (length: ${#GITHUB_PERSONAL_ACCESS_TOKEN} chars)"
+   else
+     echo "GitHub token is NOT set"
+   fi
    ```
 
-2. If empty, check your shell profile contains the export
+2. If not set, check your shell profile contains the export
 
 3. Source your profile or restart the terminal:
 
