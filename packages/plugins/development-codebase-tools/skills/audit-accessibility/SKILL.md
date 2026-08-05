@@ -1,6 +1,6 @@
 ---
 description: Audit UI components and pages for accessibility (a11y) issues. Use when user says "check accessibility", "audit a11y compliance", "find WCAG violations", "is this component accessible", "run an accessibility audit", or "check screen reader support".
-allowed-tools: Read, Grep, Glob, Bash(npx axe:*), Bash(npx pa11y:*), Bash(npx lighthouse:*), Bash(npx jest:*), Bash(node -e:*), Task
+allowed-tools: Read, Grep, Glob, Bash(npx axe:*), Bash(npx pa11y:*), Bash(npx lighthouse:*), Bash(npx jest:*), Bash(node -e:*)
 model: sonnet
 ---
 

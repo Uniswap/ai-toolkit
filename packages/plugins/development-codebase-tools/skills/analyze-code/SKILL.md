@@ -19,7 +19,11 @@ Provide comprehensive code explanation through multi-agent analysis for architec
    - `overview` — request uses words like "quick", "summary", "briefly", "what does this do"
    - `deep` — request mentions "security", "performance", "vulnerabilities", "thorough", "deep", "comprehensive"
    - `architectural` — request mentions "architecture", "system", "how does this fit", "overall design"
-   - Default to `deep` when depth is ambiguous
+   - **Default to `overview` when depth is ambiguous.** `deep` spawns three agents; running
+     that for "what does this file do" costs three context loads to answer a one-agent
+     question. Escalate to `deep` only on evidence — the user asked for it, `overview`
+     surfaced a concrete security or performance concern, or the target is a trust boundary
+     (auth, payments, external input parsing).
 
 4. **Dispatch agents** based on depth:
 
@@ -48,7 +52,8 @@ Provide comprehensive code explanation through multi-agent analysis for architec
 
 ## Output Includes
 
-- **Summary**: Purpose, complexity, maintainability score
+- **Summary**: Purpose and the concrete complexity signals observed (function count, nesting
+  depth, file length). Do not emit a maintainability score — there is no measurement behind it.
 - **Architecture**: Patterns, layers, coupling analysis
 - **Functionality**: Main purpose, data flow, side effects
 - **Dependencies**: Imports, exports, circular dependencies

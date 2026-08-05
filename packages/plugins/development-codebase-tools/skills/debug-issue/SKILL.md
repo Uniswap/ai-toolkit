@@ -79,7 +79,16 @@ value in gathering everything available if you already understand the problem.
 
 ## Step 4: Analyze with debug-assistant-agent
 
-Invoke the `debug-assistant-agent` with the structured context. Format your prompt to the agent as:
+**Fix it yourself and skip this step** when Step 3's evidence already confirmed the hypothesis
+and the fix is contained: a null guard, a typo, a wrong comparison operator, an obviously
+missing await, a stale import. Handing a one-line fix to an agent costs a full context load to
+tell you what you already know. Note in your summary that you diagnosed it directly.
+
+Delegate when the cause is still genuinely open after Step 3, the failure spans components,
+it reproduces only intermittently, or your first fix did not hold.
+
+When you do delegate, invoke the `debug-assistant-agent` with the structured context. Format
+your prompt to the agent as:
 
 ```
 error: <exact error message and type, or "no explicit error — symptom: ...">
@@ -98,9 +107,10 @@ note both and proceed with the more likely one — you can revisit if the first 
 
 ## Step 5: Apply and Validate
 
-Apply the agent's recommended fix, then confirm it works:
+Apply the fix, then confirm it works. The fix is whichever Step 4 produced: your own, if you
+diagnosed it directly, or the agent's recommendation, if you delegated.
 
-1. Make the code changes the agent recommended (Edit/Write the affected files).
+1. Make the code changes (Edit/Write the affected files).
 2. Run the relevant test or reproduce the original trigger.
 3. If the error is gone, summarize for the user:
    - Root cause in plain language
