@@ -341,6 +341,16 @@ review-cli 123 --repo Uniswap/ai-toolkit
 
 ## Documentation Management
 
+### Deliverable Length
+
+Match the length of written deliverables to what the task needs. This covers everything Claude Code authors as a file or a posted artifact: CLAUDE.md and README.md updates, plan and spec documents, changelog entries, Notion pages, PR bodies, and review summaries.
+
+- Cover the substance the reader actually needs to act on.
+- Skip filler sections, redundant summaries that restate the section above, and boilerplate padding.
+- Prefer editing an existing section over appending a parallel one that repeats it.
+
+This is a real constraint rather than a style preference: reasoning-effort settings do not shorten authored files, so length only comes down when it is asked for explicitly. Unbounded docs are also expensive here, since the plugin CLAUDE.md files load into the context of every session that touches those packages.
+
 ### CLAUDE.md File Management
 
 After making any changes to files in this repository, Claude Code MUST:
