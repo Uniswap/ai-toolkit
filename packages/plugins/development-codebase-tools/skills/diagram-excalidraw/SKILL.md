@@ -12,9 +12,10 @@ Generate valid `.excalidraw` JSON files representing system architecture from co
 
 Works without existing diagrams, Terraform, or specific file types. Analyzes any codebase structure. If the codebase has more than ~30 distinct components, limit scope to top-level packages or services only to keep the diagram readable.
 
-## Critical Implementation Rules
+## Implementation Constraints
 
-**Four non-negotiable constraints:**
+These are the constraints for this skill, stated once. Apply them while generating; they are
+not repeated as a checklist afterward.
 
 1. **No Diamond Shapes**: Diamond arrow connections are broken in raw Excalidraw JSON. Use styled rectangles instead:
 
@@ -33,10 +34,17 @@ Works without existing diagrams, Terraform, or specific file types. Analyzes any
    - `"roughness": 0`
 
 4. **Edge Positioning**: Arrows must start/end at shape edges, not centers:
+
    - Top: `(x + width/2, y)`
    - Bottom: `(x + width/2, y + height)`
    - Left: `(x, y + height/2)`
    - Right: `(x + width, y + height/2)`
+
+5. **Unique element IDs**, and every label needs both halves of the binding in rule 2.
+
+The output is a JSON file, so the one check worth doing is the one you cannot do from memory:
+confirm the written file parses. Everything else above is a generation-time constraint, not a
+post-hoc review item.
 
 ## Generation Workflow
 
@@ -45,7 +53,7 @@ Works without existing diagrams, Terraform, or specific file types. Analyzes any
 3. **Generate shape elements** - Create rectangles, ellipses, text labels; derive element IDs from component names (e.g., `api-server`, `api-server-text`) and verify all IDs are unique
 4. **Add connection arrows** - Connect components with proper edge positioning
 5. **Apply grouping** - Group related elements (namespaces, services, etc.)
-6. **Validate and write output** - Check all constraints before writing file
+6. **Write the output file** - then confirm it parses as JSON
 
 ## Input Parsing
 
@@ -66,16 +74,6 @@ Generate a valid `.excalidraw` JSON file with:
 - Correct arrow connections at shape edges
 - Logical groupings with dashed rectangles
 
-## Validation Checklist
-
-Before writing output, verify:
-
-- [ ] No duplicate element IDs
-- [ ] All labels have proper shape-text bindings
-- [ ] No diamond shapes used
-- [ ] All arrows positioned at shape edges
-- [ ] JSON is valid and properly formatted
-
 ## Reference Documentation
 
 For detailed implementation guidance, see:
@@ -84,4 +82,4 @@ For detailed implementation guidance, see:
 - [Arrow Routing Guide](references/arrows.md) - Arrow positioning and patterns
 - [Color Palettes](references/colors.md) - Component type color schemes
 - [Examples](references/examples.md) - Layout patterns and templates
-- [Validation Rules](references/validation.md) - Pre-output verification
+- [Validation Rules](references/validation.md) - Debugging a diagram that renders wrong
