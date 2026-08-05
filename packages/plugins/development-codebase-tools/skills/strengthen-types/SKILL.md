@@ -68,21 +68,34 @@ Infer the source root from `tsconfig.json#include` / `tsconfig.json#rootDir`, or
 Every listing command below ends in `head -20` or `head -30`. That truncation is for
 readability of the listing only — it is **not** a finding filter. For each category, run the
 same pipeline again with `| wc -l` instead of `| head -N` and record the true total, so a
-category with 400 `any` occurrences is never reported as 30. Carry both numbers into the
-Step 5 summary table (`shown / total`), and if total > shown, say so explicitly rather than
+category with 400 `any` occurrences is never reported as 30.
+
+**Both halves of `shown / total` must be the same unit — occurrences.** The listing pipelines
+below all use `grep -rn` without `-l`, so each output line is one occurrence, and `wc -l` on the
+untruncated pipeline counts occurrences too. Never pair a `-l` (one line per file) listing with
+an occurrence count; that reads as "30 of 400" when it is really 30 files of 400 occurrences.
+File counts are a separate, separately-labeled number. Carry `occurrences shown / occurrences
+total` into the Step 5 summary table, and if total > shown, say so explicitly rather than
 letting the truncated list read as complete.
 
 **Explicit `any`** — the most common type escape hatch:
 
 ```bash
 grep -rn ": any\b\|<any>\|Array<any>\|Promise<any>\|Record<string, any>" \
-  src/ --include="*.ts" --include="*.tsx" -l | head -30
+  src/ --include="*.ts" --include="*.tsx" | head -30
 ```
 
-Count total occurrences separately from file count:
+Total occurrences (same pipeline, untruncated):
 
 ```bash
 grep -rn ": any\b\|<any>\|Array<any>\|Promise<any>\|Record<string, any>" \
+  src/ --include="*.ts" --include="*.tsx" | wc -l
+```
+
+Files affected — a distinct number, reported under its own label, never as the `total` above:
+
+```bash
+grep -rl ": any\b\|<any>\|Array<any>\|Promise<any>\|Record<string, any>" \
   src/ --include="*.ts" --include="*.tsx" | wc -l
 ```
 
@@ -189,9 +202,14 @@ LOW       │        N │             M
 ──────────┼──────────┼───────────────
 Total     │        N │             M
 
-Pattern totals (from wc -l, not the truncated listings):
-  explicit any: N   as-casts: N   non-null: N   suppressions: N
-  broad params: N   missing return types: N
+Pattern totals — OCCURRENCES (from wc -l on the untruncated listing pipeline),
+reported as "shown / total" where both halves are occurrence counts:
+  explicit any: S/N   as-casts: S/N   non-null: S/N   suppressions: S/N
+  broad params: S/N   missing return types: S/N
+
+Files affected per pattern (grep -rl | wc -l) — a different unit, never mixed
+into the shown/total pair above:
+  explicit any: M   as-casts: M   non-null: M   suppressions: M
 
 tsconfig strictness: [strict: off] [noImplicitAny: off] [strictNullChecks: on]
 Baseline tsc errors: N

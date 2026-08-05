@@ -107,9 +107,10 @@ note both and proceed with the more likely one — you can revisit if the first 
 
 ## Step 5: Apply and Validate
 
-Apply the agent's recommended fix, then confirm it works:
+Apply the fix, then confirm it works. The fix is whichever Step 4 produced: your own, if you
+diagnosed it directly, or the agent's recommendation, if you delegated.
 
-1. Make the code changes the agent recommended (Edit/Write the affected files).
+1. Make the code changes (Edit/Write the affected files).
 2. Run the relevant test or reproduce the original trigger.
 3. If the error is gone, summarize for the user:
    - Root cause in plain language

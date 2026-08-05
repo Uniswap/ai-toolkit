@@ -114,7 +114,20 @@ on this team's velocity, and a fabricated hour count reads as a measurement.
 
 ## Risk Scoring
 
-Use CVSS 3.1 base score as the primary metric. Apply business impact multipliers (revenue/reputation/regulatory/data sensitivity: 1.0-2.0x). Adjust for existing controls effectiveness and exploit maturity. Response SLAs: Critical → immediate, High → 24h, Medium → 7d, Low → 30d.
+Use the CVSS 3.1 base score as the primary metric, and publish the vector string alongside it so
+the score is reproducible.
+
+Do **not** scale that score by a business-impact multiplier. You have no measurement of this
+organization's revenue, reputation, or regulatory exposure, so a 1.0-2.0x factor is an invented
+number — and multiplying it into a figure still labeled CVSS presents a guess as a standard score.
+Report business impact as prose in the finding's Impact field instead, where it reads as judgment.
+
+If context genuinely changes the severity, express it through CVSS 3.1's own temporal and
+environmental metrics (exploit code maturity, remediation level, the security requirement
+modifiers) and show the full modified vector. That is part of the published rubric and stays
+reproducible; a bare multiplier is not.
+
+Response SLAs: Critical → immediate, High → 24h, Medium → 7d, Low → 30d.
 
 ## Communication Guidelines
 

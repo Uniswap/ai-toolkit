@@ -12,14 +12,14 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 - **analyze-code**: Multi-agent code explanation for architecture, patterns, security, and performance
 - **analyze-dead-code**: Find unused exports, unreachable modules, and dead files with confidence-ranked removal guidance
 - **analyze-migrations**: Statically analyze database migration files for safety issues (locks, data loss, missing rollbacks)
-- **analyze-tech-debt**: Identify and prioritize technical debt with remediation plans. Uses a structured 6-step execution process: scope the target, collect code signals (Glob/Grep for large files, nesting, TODO/FIXME/HACK, `any` types), examine git history (high-churn files via `git log`, chronic bug areas via `git blame`), assess test presence (test-to-source file ratio), rank items by evidence-cited impact and effort bands, and write a Debt Metrics Dashboard + Prioritized Roadmap. Allowed tools include `Bash(git blame:*)`. Deliberately emits no hours estimate or ROI figure — both operands of the old ROI formula were invented.
+- **analyze-tech-debt**: Identify and prioritize technical debt with remediation plans. Uses a structured 6-step execution process: scope the target, collect code signals (Glob/Grep for large files, nesting, TODO/FIXME/HACK, `any` types), examine git history (high-churn files via `git log`, chronic bug areas via `git blame`), assess test presence (test-to-source file ratio), rank items by evidence-cited impact band plus observed blast radius, and write a Debt Metrics Dashboard + Prioritized Roadmap. Allowed tools include `Bash(git blame:*)`. Deliberately emits no hours estimate or ROI figure — both operands of the old ROI formula were invented. The roadmap groups items as Mechanical / Structural / Architectural (files touched, interface changed, tests present) rather than by a guessed cost.
 - **analyze-test-coverage**: Measure test coverage gaps and produce a prioritized list of what to test next
 - **audit-accessibility**: Audit UI components for WCAG 2.1 AA compliance, identifying violations by severity with fix guidance
 - **debug-issue**: Systematic debugging workflow — accepts any error report (message, stack trace, or vague symptom), locates the origin, gathers context, invokes the debug-assistant-agent for root-cause analysis, and validates the fix
 - **diagram-excalidraw**: Generate Excalidraw architecture diagrams from codebase analysis
 - **mermaid-diagram**: Generate syntactically valid Mermaid.js diagrams (flowcharts, sequence, class, state, ER, Gantt, git)
 - **explore-codebase**: Deep codebase exploration with architectural understanding
-- **refactor-code**: Comprehensive refactoring with safety checks and pattern application
+- **refactor-code**: Comprehensive refactoring with safety checks and pattern application. Validation is mandatory: either the tests covering the touched code run and pass, or — when no test covers it — `code-explainer-agent` reviews the before/after pair for behavior equivalence. `allowed-tools` grants the formatter/linter/test runner prefixes those steps require, so the instructions are actually runnable.
 - **strengthen-types**: Audit and harden TypeScript type safety — find `any`, unsafe casts, non-null assertions, and missing return types with severity-ranked findings and concrete fixes
 
 ### Agents (./agents/)
