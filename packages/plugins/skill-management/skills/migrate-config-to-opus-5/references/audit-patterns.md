@@ -2,6 +2,8 @@
 
 What to search for, why it's now wrong, and the fix shape. Patterns come from Anthropic's Opus 5 prompting guide, the 4.8→5 migration guide, and a full migration of a large real-world config (2026-08-04).
 
+The **Search for** terms below are cues for the Step 2 subagents reading each file, plus a main-thread completeness cross-check — not a substitute for reading. Prose that compensates for a 4.x failure mode rarely contains a greppable keyword.
+
 ## Delta 1 — Verification: the model self-verifies unprompted
 
 Opus 4.x under-verified, so configs accumulated verification pressure. Opus 5 verifies on its own; standing re-verify instructions now cause over-verification — wasted tokens, no quality gain. Anthropic's guidance is to delete them.

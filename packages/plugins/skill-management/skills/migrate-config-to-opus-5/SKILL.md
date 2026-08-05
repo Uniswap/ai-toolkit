@@ -31,9 +31,18 @@ Enumerate the chosen surface before judging any of it. For a large surface, disp
 
 Environment note: in Claude Code's Bash, bare `grep` is an embedded ugrep that silently skips gitignored files and any file with invalid UTF-8. Use `/usr/bin/grep` for every search whose result drives a decision.
 
-## Step 2 — Audit against the Opus 5 deltas
+## Step 2 — Audit against the Opus 5 deltas (subagent fan-out)
 
-Read `references/audit-patterns.md` and scan the inventory against it. It covers the four behavioral deltas (verification, delegation, literal instruction-following, output length), the mechanical checks (stale model IDs and pricing, API params, dead weight), and the settings that need a user decision (effortLevel), with search patterns and fix shapes.
+Read `references/audit-patterns.md` first. It covers the four behavioral deltas (verification, delegation, literal instruction-following, output length), the mechanical checks (stale model IDs and pricing, API params, dead weight), and the settings that need a user decision (effortLevel), with search patterns and fix shapes.
+
+The audit itself is read-every-file, not search. Grep finds only what a pattern anticipates (model IDs, API params); the behavioral deltas live in prose that no regex matches — a reviewer prompt's confidence filter, a rule's verification ceremony, a delegation nudge. Deploy subagents to do the reading:
+
+- Partition the Step 1 inventory into batches of related files (a rules directory, one plugin's skills, the CI scripts) — one subagent per batch, sized so each agent reads every assigned file in full.
+- Give each subagent its file list, the full text of `references/audit-patterns.md`, and this contract: read each file completely, audit it against the reference's deltas, mechanical checks, and user-decision settings, and report back per-file structured findings — file, location, quoted current text, proposed specific change (replacement text, "delete", or "keep as policy"), classification (the four buckets below), and a one-line rationale. A file with no findings is reported as audited-clean, not skipped. No subagent may judge a file it did not read.
+- Run the reference's mechanical grep sweeps in the main thread as a completeness cross-check: a hit in a file no subagent reported on means a batch was missed — re-dispatch that batch; never patch a file straight from a grep hit.
+- The main thread verifies before acting: spot-check each proposed edit against the actual file, dedupe overlapping findings, then carry them into Steps 3–4. Subagent findings are evidence, not conclusions.
+
+For a tiny surface (a project config of a handful of files), one subagent — or inline reading — is fine; the contract stays the same: every file read in full, every file accounted for.
 
 Classify every finding as one of:
 
