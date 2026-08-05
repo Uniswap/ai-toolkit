@@ -22,8 +22,10 @@ statusline, CI scripts) via the migrate-config-to-opus-5 skill.
 - **migrate-config-to-opus-5**: Audits and migrates a Claude Code configuration (CLAUDE.md, rules,
   skills, commands, agents, settings.json, hooks, statusline, CI scripts) for Claude Opus 5's
   behavioral changes. Interviews for scope first (global `~/.claude` vs the current project),
-  inventories the surface, classifies findings (fix mechanically / rewrite / user decision / leave
-  alone), and executes with granular commits plus a verification probe. Bundles
+  inventories the surface, fans out subagents that read every in-scope file in full and report
+  structured findings (grep sweeps serve only as a completeness cross-check), classifies findings
+  (fix mechanically / rewrite / user decision / leave alone), and executes with granular commits
+  plus a verification probe. Bundles
   `references/audit-patterns.md` — the four behavioral deltas (verification, delegation, literal
   instruction-following, output length) with search patterns and fix shapes, plus mechanical checks
   (stale model IDs, pricing ratios, API params).

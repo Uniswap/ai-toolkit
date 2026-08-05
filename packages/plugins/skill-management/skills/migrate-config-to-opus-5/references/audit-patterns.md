@@ -2,6 +2,8 @@
 
 What to search for, why it's now wrong, and the fix shape. Patterns come from Anthropic's Opus 5 prompting guide, the 4.8→5 migration guide, and a full migration of a large real-world config (2026-08-04).
 
+The **Search for** terms below are cues for the Step 2 subagents reading each file, plus a main-thread completeness cross-check — not a substitute for reading. Prose that compensates for a 4.x failure mode rarely contains a greppable keyword.
+
 ## Delta 1 — Verification: the model self-verifies unprompted
 
 Opus 4.x under-verified, so configs accumulated verification pressure. Opus 5 verifies on its own; standing re-verify instructions now cause over-verification — wasted tokens, no quality gain. Anthropic's guidance is to delete them.
@@ -55,10 +57,10 @@ Effort settings do not shorten visible text; only explicit length instructions d
 
 ## Mechanical checks (no judgment, just fix)
 
-- **Model IDs:** `/usr/bin/grep -rE 'claude-(opus|sonnet|haiku)-[0-9]|claude-[0-9]' <scope>` across scripts, CI, statuslines, agent frontmatter, scheduled-task registrations. The second alternative catches Claude 3.x-era IDs (`claude-3-opus-20240229`, `claude-3-5-sonnet-20241022`), where the version precedes the tier — those retired, now-404 pins are exactly what a pre-Opus-5 config is most likely to carry. Current IDs (as of 2026-08): `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-4-5`. Aliases (`opus`, `sonnet`, `haiku`) are self-updating — prefer them where a pin isn't required.
+- **Model IDs:** `/usr/bin/grep -rE 'claude-(opus|sonnet|haiku|fable|mythos)-[0-9]|claude-[0-9]' <scope>` across scripts, CI, statuslines, agent frontmatter, scheduled-task registrations. The second alternative catches Claude 3.x-era IDs (`claude-3-opus-20240229`, `claude-3-5-sonnet-20241022`), where the version precedes the tier — those retired, now-404 pins are exactly what a pre-Opus-5 config is most likely to carry. Current IDs (as of 2026-08): `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-4-5` (plus `claude-fable-5` where the top tier is wanted). Aliases (`opus`, `sonnet`, `haiku`) are self-updating — prefer them where a pin isn't required.
 - **Context-window logic:** scripts branching on model ID for window size. All current non-Haiku models are 1M; Haiku 4.5 is 200K. Keying "haiku → 200K, else 1M" beats enumerating model names. Test with synthetic payloads for both branches.
 - **API params:** `budget_tokens` is rejected with a 400 on the Claude 5 family — replace `thinking: {type: "enabled", budget_tokens: N}` with `thinking: {type: "adaptive"}`. Also flag hardcoded `temperature` alongside thinking, and Priority Tier assumptions (not supported on Opus 5).
-- **Dead weight:** vendored commands referencing nonexistent agents, archive directories, `.backup`/`.bak` settings snapshots (these often pin old models), marketplace entries pointing at dead repos. Delete outright only when the surface is a git repo — git holds history there. On a non-git surface (a plain `~/.claude` is the common case) deletion is unrecoverable, so treat dead-weight removal as a user decision, or confirm an external backup (Time Machine, sync) before deleting.
+- **Dead weight:** vendored commands referencing nonexistent agents, archive directories, `.backup`/`.bak` settings snapshots (these often pin old models), marketplace entries pointing at dead repos. Delete outright only when the surface is a git repo with a clean tree — git holds history there. On a non-git surface (a plain `~/.claude` is the common case) deletion is unrecoverable, so list the candidates for the Step 3 interview instead of deleting, or confirm an external backup (Time Machine, sync) first.
 - **Third-party plugins:** their prompts carry the same 4.x-era patterns but are not yours to edit. Check each plugin's upstream for explicit Opus 5 retuning evidence; disable or flag the ones without it, and flag (don't disable) the ones the user authors — those are theirs to retune.
 
 ## Settings that need a user decision
