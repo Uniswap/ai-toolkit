@@ -60,7 +60,7 @@ Present the "user decision" findings via AskUserQuestion (batch related ones; re
 - One granular commit per logical change (if the surface is a git repo). Never one big migration commit — the user needs to be able to revert a single decision.
 - For shared/synced files, apply the machine-agnostic path rule from Step 0.
 - When editing `settings.json`, validate with `python3 -c "import json; json.load(open('...'))"` after every edit, and check `git diff` first so pre-existing drift from other sessions is named in the commit message rather than silently swept in.
-- Delete dead things outright (superseded commands, archives, backup files) when the surface is a git repo with a clean tree — git history is the recovery path, and "kept for recovery" copies keep loading into context. Uncommitted or untracked dead weight has no history to fall back on: commit it first or route it to the Step 3 interview. On a non-git surface, deletion is unrecoverable: list the candidates for the Step 3 interview instead, or confirm the user has a backup (Time Machine, sync) before deleting.
+- Delete dead things outright (superseded commands, archives, backup files) when the surface is a git repo with a clean tree — git history is the recovery path, and "kept for recovery" copies keep loading into context. Uncommitted or untracked dead weight has no history to fall back on: commit it first, or hold it for a follow-up AskUserQuestion. On a non-git surface, deletion is unrecoverable: ask the user (a follow-up AskUserQuestion listing the candidates) or confirm an external backup (Time Machine, sync) before deleting. Ideally these candidates were already surfaced in Step 3 — this is the fallback for ones discovered mid-execution.
 
 ## Step 5 — Verify and set a checkpoint
 
