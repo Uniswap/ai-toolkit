@@ -82,6 +82,8 @@ If changes affect external integrations:
 
 ## Output Format
 
+Keep the report under 40 lines. It is read by the agent that dispatched this one, so spend the space on failures rather than restating passing checks.
+
 ```
 ## Verification Results
 
@@ -172,6 +174,8 @@ Review recently changed code and simplify without changing behavior.
 - Run tests after changes
 
 ## Output Format
+
+Keep the report under 40 lines. Show snippets only for changes a reviewer could not infer from the description.
 
 ````
 
@@ -271,18 +275,19 @@ Verify documentation is current:
 
 ## Output Format
 
+Keep the report under 30 lines. Report only fields you actually measured; omit a line rather than guessing a value for it.
+
 ```
 ## Build Validation Report
 
 ### Build Status
 - Clean build: [PASS/FAIL]
-- Build time: [X seconds]
-- Bundle size: [X KB] ([+/- Y KB] from main)
+- Build time: [X seconds, only if you timed the build]
+- Bundle size: [X KB, only if the analyze step ran. Omit the delta unless you also built the base branch to compare against.]
 
 ### Dependency Status
-- Total dependencies: X
-- Peer warnings: [list]
-- Vulnerabilities: [npm audit results]
+- Peer warnings: [list from `npm ls`]
+- Vulnerabilities: [omit this line unless you ran `npm audit`]
 
 ### Pre-PR Checklist
 - [ ] Build passes
@@ -348,6 +353,8 @@ Based on analysis:
 - Mitigations: [how to address risks]
 
 ## Output Format
+
+Keep the analysis under 60 lines. Two or three options is enough; do not pad the list to look thorough.
 
 ````
 
@@ -452,6 +459,8 @@ Assist with diagnosing and resolving production issues.
 - Prevention measures
 
 ## Output Format
+
+Keep the analysis under 40 lines. During an active incident, the summary and the resolution are what get read.
 ```
 
 ## Incident Analysis

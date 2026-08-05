@@ -62,9 +62,11 @@ The key insight: Claude Code is powerful by default. The goal of configuration i
 - Use inline bash to pre-compute context (git status, etc.)
 - Reduces back-and-forth with the model
 
-### 5. Opus 4.8 (Most Capable)
+### 5. Opus (Most Capable)
 
 > "The model choice is unambiguous: Opus 4.8 for everything."
+
+_(Quoted as written. The current flagship is Opus 5; the point about always reaching for the most capable Opus still stands.)_
 
 **Rationale:**
 
@@ -135,7 +137,7 @@ Boris runs:
 | ------------------------------------ | ------------------------------------- |
 | `git add .`                          | Add files individually                |
 | Skip verification                    | Always verify before marking complete |
-| Use Sonnet for complex tasks         | Use Opus 4.8                          |
+| Use Sonnet for complex tasks         | Use Opus 5                            |
 | Skip plan mode                       | Start in plan mode, iterate on plan   |
 | Ignore mistakes                      | Add to CLAUDE.md immediately          |
 | Use `--dangerously-skip-permissions` | Use `/permissions` for pre-approval   |
