@@ -32,6 +32,9 @@ Investigate production incidents by querying Datadog for logs, metrics, and trac
 
 ## Output Format
 
+Keep the report under ~500 words outside quoted log lines and metric values. Evidence is what
+earns length; narration is not. Omit a section that has nothing to report rather than padding it.
+
 **Incident Summary**
 
 - What happened, when it started, and estimated user/system impact

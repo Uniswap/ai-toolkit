@@ -1,6 +1,6 @@
 ---
 description: Refine and enhance Linear task descriptions. Use when user says "refine this Linear task", "improve task description", "make this task clearer", "enhance Linear issue", or needs to improve clarity, completeness, and actionability of Linear issues.
-allowed-tools: Read(*), Glob(*), Grep(*), Task(subagent_type:Explore), WebSearch(*), WebFetch(*), mcp__linear__linear_search_issues(*), mcp__linear__linear_update_issue(*), mcp__linear__linear_add_comment(*)
+allowed-tools: Read(*), Glob(*), Grep(*), Task(subagent_type:Explore), WebSearch(*), WebFetch(*), mcp__linear__get_issue(*), mcp__linear__list_issues(*), mcp__linear__save_issue(*), mcp__linear__save_comment(*)
 ---
 
 # Linear Task Refiner
@@ -37,7 +37,7 @@ Parse from request:
 
 ### Phase 1: Fetch and Analyze Current Task
 
-1. **Fetch Issue Details** via Linear MCP tools
+1. **Fetch Issue Details** via `mcp__linear__get_issue` (or `mcp__linear__list_issues` when resolving an issue from a partial reference)
 2. **Display Current State**: Show issue details and description
 3. **Analyze for Gaps**: Evaluate against criteria:
    - Clarity: Is the problem/goal clearly stated?
@@ -75,8 +75,8 @@ Create comprehensive, well-structured description:
 
 ### Phase 5: Update Linear (with approval)
 
-1. **Update Issue Description** via Linear MCP
-2. **Add Comment** (optional): Note the refinement
+1. **Update Issue Description** via `mcp__linear__save_issue`
+2. **Add Comment** (optional) via `mcp__linear__save_comment`: note the refinement
 3. **Confirm Success**: Provide issue URL
 
 ## Focus Areas

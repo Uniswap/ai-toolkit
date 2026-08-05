@@ -1,8 +1,9 @@
 ---
 description: Orchestrate deployment pipelines, infrastructure setup, and CI/CD configuration using specialized deployment agents.
 argument-hint: <target> [--strategy blue-green|canary|rolling] [--environment dev|staging|prod] [--dry-run]
-allowed-tools: Read(*), Write(*), Task(subagent_type:cicd-agent), Task(subagent_type:infrastructure-agent), Task(subagent_type:agent-orchestrator-agent)
-# Note: agent-orchestrator-agent is from development-codebase-tools plugin (optional - see fallback below)
+allowed-tools: Read(*), Write(*), Task(subagent_type:cicd-agent), Task(subagent_type:infrastructure-agent), Task(subagent_type:development-codebase-tools:agent-orchestrator-agent)
+# Note: agent-orchestrator-agent is from the development-codebase-tools plugin, so it needs the
+# plugin-qualified dispatch name (optional - see fallback below)
 ---
 
 ## Inputs
@@ -36,7 +37,9 @@ Orchestrate complete deployment workflow through specialized agents:
 
 ## Orchestration Strategy
 
-> **Note**: This skill uses **agent-orchestrator-agent** from the development-codebase-tools plugin when available. If not installed, the skill will execute infrastructure-agent and cicd-agent sequentially instead of in parallel coordination.
+> **Note**: This skill uses **development-codebase-tools:agent-orchestrator-agent** when that plugin is installed. If not, execute infrastructure-agent and cicd-agent sequentially instead of in parallel coordination.
+
+**Delegate only when the work warrants it.** The agent split below is a ceiling, not a quota: at most one infrastructure-agent and one cicd-agent per deployment. When a phase finishes in a handful of direct tool calls (reading an existing workflow file, a single `kubectl rollout status`, a dry-run with no infrastructure changes), do it inline rather than spawning an agent for it.
 
 ### Phase 1: Pre-Deployment Analysis
 
@@ -179,8 +182,13 @@ Use **cicd-agent** for observability setup:
       loadBalancing: object;
       networking: object;
     };
-    costs: {
-      estimated: string; // Monthly cost estimate
+    // Omit `costs` entirely unless a real pricing source was queried (cloud pricing API,
+    // `infracost breakdown`, an existing billing dashboard). Do not derive a monthly figure
+    // from instance types and rate cards you recalled rather than read - a fabricated number
+    // reads as measured once it lands in the report.
+    costs?: {
+      estimated: string; // Monthly cost estimate, with the source that produced it
+      source: string; // e.g. "infracost breakdown", "AWS Pricing API"
       breakdown: object;
     };
   };
