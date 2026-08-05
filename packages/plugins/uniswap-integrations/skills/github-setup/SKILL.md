@@ -92,8 +92,12 @@ set -Ux GITHUB_PERSONAL_ACCESS_TOKEN "ghp_your_token_here"
 After setting the token, restart Claude Code and verify:
 
 ```bash
-# Verify token is set
-echo "Token configured: $([ -n \"$GITHUB_PERSONAL_ACCESS_TOKEN\" ] && echo 'Yes' || echo 'No')"
+# Verify token is set (presence only — never echo the value itself)
+if [ -n "$GITHUB_PERSONAL_ACCESS_TOKEN" ]; then
+  echo "GitHub token is set (length: ${#GITHUB_PERSONAL_ACCESS_TOKEN} chars)"
+else
+  echo "GitHub token is NOT set"
+fi
 ```
 
 Then run `/mcp` in Claude Code to see the GitHub MCP server listed.
