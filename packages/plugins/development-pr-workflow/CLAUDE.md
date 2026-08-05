@@ -27,7 +27,7 @@ This plugin supports two PR creation workflows:
 **Graphite-only features:**
 
 - `stack-splitter-agent` - Requires Graphite for PR stacking
-- `graphite-stack-updater` - Requires Graphite for stack management
+- `update-graphite-stack` (skill) - Requires Graphite for stack management
 
 ## Plugin Components
 
@@ -102,10 +102,13 @@ This ensures consistent worktree behavior across all tooling and avoids duplicat
 
 ## Integration Notes
 
-- Skills are the primary interface for all workflows (all have `user-invocable: true`)
-- Skills can be invoked via `/skill-name` or auto-discovered based on context
+- Skills are the primary interface for all workflows
+- Skills can be invoked via `/skill-name` or auto-discovered based on context. The two
+  files under `shared/` set `user-invocable: false` because they are includes, not entry points
 - Agents are auto-discovered from the `agents/` directory
-- Skills invoke agents via `Task(subagent_type:agent-name)`
+- Skills invoke agents via `Task(subagent_type:agent-name)`, where the name is the agent's
+  frontmatter `name:` (not its filename). Agents in another plugin need the
+  `plugin-name:agent-name` form — e.g. `development-codebase-tools:security-analyzer-agent`
 - Graphite MCP enables stacked PR workflows
 
 ## File Structure

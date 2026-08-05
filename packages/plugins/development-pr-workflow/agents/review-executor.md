@@ -79,6 +79,13 @@ You are an expert PR review specialist that analyzes GitHub pull requests, addre
 
 ### Output Format
 
+This response lands in the caller's context. Keep every string field to one or two
+sentences and omit optional sections that have nothing in them. Do not paste diffs or CI
+logs into the report — cite the file or the check name instead.
+
+List every comment you were given, including any you could not address. A comment left out
+of `comments_analysis` reads to the caller as handled.
+
 Return a structured response with:
 
 ```json
@@ -130,8 +137,13 @@ Return a structured response with:
 
 ## Example Usage
 
-```
-/agent review-executor-agent
+Dispatched as a subagent, not as a slash command:
+
+```text
+Task(
+  subagent_type: "development-pr-workflow:review-executor-agent",
+  prompt: "Resolve all issues on PR #123 in owner/repo. ..."
+)
 ```
 
 ## Implementation Notes

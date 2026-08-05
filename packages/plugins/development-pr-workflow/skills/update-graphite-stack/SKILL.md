@@ -8,7 +8,7 @@ model: opus
 
 Automate Graphite PR stack updates by resolving comments and syncing PRs.
 
-> **Note:** This skill requires Graphite CLI (`gt`) as PR stacking is a Graphite-specific concept. For standard Git workflows, use the `pr-issue-resolver` skill to address PR comments on individual PRs.
+> **Note:** This skill requires Graphite CLI (`gt`) as PR stacking is a Graphite-specific concept. For standard Git workflows, use the `resolve-pr-issues` skill to address PR comments on individual PRs.
 
 ## When to Activate
 
@@ -24,7 +24,7 @@ Automate Graphite PR stack updates by resolving comments and syncing PRs.
 - **Repository initialized** with Graphite: `gt repo init`
 - **Existing Graphite stack** with PRs to update
 
-> **Why Graphite-only?** This skill manages PR stacks, which is a Graphite-specific workflow. For standard Git workflows, use `pr-issue-resolver` to address comments on individual PRs.
+> **Why Graphite-only?** This skill manages PR stacks, which is a Graphite-specific workflow. For standard Git workflows, use `resolve-pr-issues` to address comments on individual PRs.
 
 ## What It Does
 
@@ -67,10 +67,6 @@ Progress summary with:
 - Comments resolved per PR
 - Remaining unresolved items
 - Stack synchronization status
-
-## Optional Follow-up
-
-After updates, can invoke **refactorer-agent** to verify changes maintain quality.
 
 ## Examples
 
