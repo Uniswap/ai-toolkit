@@ -206,9 +206,14 @@ Create a structured PR description:
 
 ### 6. Create or Update PR
 
-**If a GitHub MCP server is configured**, use its create-pull-request and update-pull-request tools
-with the title, body, base and head branches. Take the exact tool names from your available-tools
-list. Otherwise use the CLI path below.
+**If `--use-graphite` is set**, submit through Graphite regardless of which MCP servers are
+present - a GitHub PR created outside `gt` leaves the branch untracked and the stack unregistered.
+If a Graphite MCP server is configured, pass the `gt submit` command below to its command-runner
+tool; otherwise run it via bash. Skip the GitHub MCP path entirely.
+
+**Otherwise, if a GitHub MCP server is configured**, use its create-pull-request and
+update-pull-request tools with the title, body, base and head branches. Take the exact tool names
+from your available-tools list. Failing both, use the CLI path below.
 
 **Standard Git + GitHub CLI (Default):**
 

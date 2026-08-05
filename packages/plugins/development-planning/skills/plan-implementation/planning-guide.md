@@ -7,28 +7,30 @@
 Select agents based on technical domains in the task. The names below are the dispatch names
 (`Task(subagent_type:<name>)`) of agents that ship in this marketplace:
 
-| Domain                   | Agents                                          |
-| ------------------------ | ----------------------------------------------- |
-| Codebase context         | `context-loader-agent`, `code-explainer-agent`  |
-| Conventions and patterns | `pattern-learner-agent`, `style-enforcer-agent` |
-| Security                 | `security-analyzer-agent`                       |
-| Performance              | `performance-analyzer-agent`                    |
-| Testing                  | `test-writer-agent`                             |
-| Refactors and migrations | `refactorer-agent`, `migration-assistant-agent` |
-| CI/CD and infrastructure | `cicd-agent`, `infrastructure-agent`            |
-| Documentation            | `documentation-agent`                           |
-| External research        | `researcher-agent`                              |
-| Debugging                | `debug-assistant-agent`                         |
+| Domain                   | Agents                                                                                                |
+| ------------------------ | ----------------------------------------------------------------------------------------------------- |
+| Codebase context         | `development-codebase-tools:context-loader-agent`, `development-codebase-tools:code-explainer-agent`  |
+| Conventions and patterns | `development-codebase-tools:pattern-learner-agent`, `development-codebase-tools:style-enforcer-agent` |
+| Security                 | `development-codebase-tools:security-analyzer-agent`                                                  |
+| Performance              | `development-codebase-tools:performance-analyzer-agent`                                               |
+| Testing                  | `development-productivity:test-writer-agent`                                                          |
+| Refactors and migrations | `development-codebase-tools:refactorer-agent`, `uniswap-integrations:migration-assistant-agent`       |
+| CI/CD and infrastructure | `uniswap-integrations:cicd-agent`, `uniswap-integrations:infrastructure-agent`                        |
+| Documentation            | `development-productivity:documentation-agent`                                                        |
+| External research        | `development-productivity:researcher-agent`                                                           |
+| Debugging                | `development-codebase-tools:debug-assistant-agent`                                                    |
+
+Every agent above ships from a different plugin than this one, so each is addressed in its
+qualified `plugin-name:agent-name` form. The `agent-name` half comes from the agent's frontmatter
+`name:` field; marketplace agents carry an `-agent` suffix. Agents defined in the user's own
+project (`.claude/agents/`) are addressed bare, with no plugin prefix.
 
 Before dispatching an agent that is not in this table, confirm it appears in the agent inventory
 available in the current session - the agent types listed in your own context are the authoritative
-set, and a name that is not among them fails at dispatch. Do not try to verify a name by searching
-the filesystem: these agents ship from installed plugins rather than from the user's project, so a
+set, and a name that is not among them fails at dispatch. That check is also what catches a table
+entry whose owning plugin is not installed here. Do not try to verify a name by searching the
+filesystem: these agents ship from installed plugins rather than from the user's project, so a
 repo-relative search returns nothing even when the agent is available.
-
-Dispatch names come from an agent's frontmatter `name:` field; marketplace agents carry an `-agent`
-suffix. Agents from a different plugin are addressed as `plugin-name:agent-name`, for example
-`development-codebase-tools:security-analyzer-agent`.
 
 ### By Complexity
 
@@ -44,15 +46,16 @@ agent for it.
 
 **"Add user authentication with JWT"**
 
-- `context-loader-agent` (existing auth surface and conventions)
-- `security-analyzer-agent` (token handling, storage, session risks)
-- `test-writer-agent` (auth test coverage)
+- `development-codebase-tools:context-loader-agent` (existing auth surface and conventions)
+- `development-codebase-tools:security-analyzer-agent` (token handling, storage, session risks)
+- `development-productivity:test-writer-agent` (auth test coverage)
 
 **"Migrate a legacy module to the new API"**
 
-- `migration-assistant-agent` (migration path)
-- `pattern-learner-agent` (target-side conventions)
-- `performance-analyzer-agent` (only if the migration has a measured performance stake)
+- `uniswap-integrations:migration-assistant-agent` (migration path)
+- `development-codebase-tools:pattern-learner-agent` (target-side conventions)
+- `development-codebase-tools:performance-analyzer-agent` (only if the migration has a measured
+  performance stake)
 
 ## Multi-Round Discussion Protocol
 
