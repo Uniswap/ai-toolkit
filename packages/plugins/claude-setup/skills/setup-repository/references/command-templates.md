@@ -299,13 +299,16 @@ git status
 git diff
 ````
 
-### 2. Stage All Changes
+### 2. Stage the Changed Files
 
 ```bash
-git add -A
+git add [file1] [file2] ...
 ```
 
-**Note:** This stages everything. Use /commit-push-pr for more control.
+**Note:** Even in the quick path, stage files individually. `git add -A` sweeps in
+untracked files you never reviewed — build artifacts, local scratch files, and
+`.env` files that a missing `.gitignore` entry left visible. Use `/commit-push-pr`
+when you want the fuller review flow.
 
 ### 3. Generate and Commit
 
