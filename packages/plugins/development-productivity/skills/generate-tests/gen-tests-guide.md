@@ -1,7 +1,7 @@
 ---
 description: Generate comprehensive tests with advanced testing strategies, scenario generation, and edge case identification using the enhanced test-writer agent.
 argument-hint: [paths...] [--framework jest|vitest|pytest|cypress|playwright] [--type unit|integration|e2e|all] [--strategy standard|scenario|property|mutation|accessibility] [--requirements "user stories"]
-allowed-tools: Read(*), Grep(*), Task(subagent_type:test-writer-agent), Task(subagent_type:context-loader-agent)
+allowed-tools: Read(*), Grep(*), Task(subagent_type:test-writer-agent), Task(subagent_type:development-codebase-tools:context-loader-agent)
 ---
 
 ## Inputs
@@ -52,9 +52,13 @@ For complex test generation (multiple files or --type all), use orchestration:
      - **security-analyzer-agent** for security test cases (if applicable)
 
 3. **Quality Assurance Phase**:
-   - Validate test coverage completeness
+   - Name the behaviors you did NOT write a test for, and why
    - Check for test anti-patterns
    - Ensure proper mocking strategies
+
+**When to skip the orchestration above:** a single file, or a handful of files in one module,
+is faster and more accurate done directly. The agent list below is a menu of what is available,
+not a set of steps to work through — invoke only the agents the specific task needs.
 
 ## Delegation
 
@@ -71,22 +75,25 @@ Invoke **test-writer-agent** with:
 
 ### Complex Case (multiple files or integration/e2e)
 
-**If agent-orchestrator-agent is available** (from development-codebase-tools plugin):
+The orchestrator and the loader/analyzer agents live in the **development-codebase-tools**
+plugin, so dispatch them with the cross-plugin form
+`Task(subagent_type: development-codebase-tools:<agent-name>)`. `test-writer-agent` is in this
+plugin and needs no prefix.
 
-Invoke it to coordinate:
+**If `development-codebase-tools:agent-orchestrator-agent` is available**, invoke it to coordinate:
 
-- **context-loader-agent**: Build comprehensive understanding
+- **development-codebase-tools:context-loader-agent**: Build comprehensive understanding
 - **test-writer-agent**: Generate test scenarios and implementations
-- **security-analyzer-agent**: Add security test cases (for APIs)
-- **performance-analyzer-agent**: Add performance benchmarks (for critical paths)
+- **development-codebase-tools:security-analyzer-agent**: Add security test cases (for APIs)
+- **development-codebase-tools:performance-analyzer-agent**: Add performance benchmarks (for critical paths)
 
-**Fallback (if agent-orchestrator-agent is not available)**:
+**Fallback (if the orchestrator is not available)**:
 
 Execute agents sequentially:
 
-1. First invoke **context-loader-agent** to gather context
+1. First invoke **development-codebase-tools:context-loader-agent** to gather context
 2. Then invoke **test-writer-agent** with the gathered context
-3. Optionally invoke **security-analyzer-agent** for API endpoints
+3. Optionally invoke **development-codebase-tools:security-analyzer-agent** for API endpoints
 4. Aggregate results manually
 
 ## Output Format
@@ -96,9 +103,15 @@ Execute agents sequentially:
   summary: string; // Overview of test generation strategy
   testStrategy: {
     approach: string; // Selected testing approach
-    coverage: number; // Estimated coverage percentage
-    edgeCasesIdentified: number;
-    scenariosGenerated: number;
+    // Coverage is only reported when a coverage tool actually ran and produced a
+    // number. This skill's allowed-tools include no Bash, so it cannot run one --
+    // in that case emit 'not_measured' and say which command the user should run.
+    // Never estimate a coverage percentage; a guessed number reads as a
+    // measurement and is not one.
+    coverage: number | 'not_measured';
+    coverageSource?: string; // Command whose output produced the number
+    edgeCasesIdentified: number; // Count of edge cases you actually enumerated below
+    scenariosGenerated: number; // Count of scenarios you actually generated below
   };
   suggestedTests: Array<{
     file: string; // Test file path
