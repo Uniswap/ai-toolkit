@@ -203,7 +203,11 @@ Duplicates that appear in multiple versions often land in the bundle multiple ti
 
 ### Tree-Shaking Issues
 
-Scan for import patterns that defeat tree-shaking:
+Scan for import patterns that defeat tree-shaking. The `head -N` on each grep below truncates
+the listing for readability — it is not a finding filter. Re-run each with `| wc -l` and report
+the true count, so 40 namespace imports are never written up as 20. (The `head -N` on the
+`ls -lhS` / `du | sort -rh` commands above is different: those are size-sorted, so truncating
+genuinely keeps the largest.)
 
 ```bash
 # Namespace imports (import * as X) — barrel imports that pull in everything
@@ -266,7 +270,11 @@ List each module with size, category (dep / app code), and a one-line note:
 
 ### Actionable Recommendations
 
-List only findings with a concrete fix. Sort by estimated size saving (largest first):
+Sort by estimated size saving (largest first). Report every heavy module you found, not only
+the ones you have a fix for — a 90 KB dependency with no obvious replacement is still the most
+useful thing in the report, and dropping it at write-up time hides the biggest number on the
+page. Put those under a **Known cost, no fix identified** heading with the size and why the
+usual remedies do not apply, so the reader can make their own call.
 
 ```
 ## Critical (>20 KB gzip saving each)
@@ -299,7 +307,7 @@ List only findings with a concrete fix. Sort by estimated size saving (largest f
 ### [smaller items]
 ```
 
-If no actionable findings are found, state that explicitly: "The bundle is well-optimized. No significant savings identified."
+If no actionable findings are found, state that explicitly: "The bundle is well-optimized. No significant savings identified." Say which modules you inspected to reach that conclusion, so "nothing found" is distinguishable from "nothing looked at".
 
 ## Options
 
