@@ -20,12 +20,15 @@ Select agents based on technical domains in the task. The names below are the di
 | External research        | `researcher-agent`                              |
 | Debugging                | `debug-assistant-agent`                         |
 
-Before dispatching an agent that is not in this table, confirm it exists - a name that does not
-match an agent's frontmatter `name:` fails at dispatch:
+Before dispatching an agent that is not in this table, confirm it appears in the agent inventory
+available in the current session - the agent types listed in your own context are the authoritative
+set, and a name that is not among them fails at dispatch. Do not try to verify a name by searching
+the filesystem: these agents ship from installed plugins rather than from the user's project, so a
+repo-relative search returns nothing even when the agent is available.
 
-```bash
-grep -rhE '^name: ' packages/plugins/*/agents/ | sort -u
-```
+Dispatch names come from an agent's frontmatter `name:` field; marketplace agents carry an `-agent`
+suffix. Agents from a different plugin are addressed as `plugin-name:agent-name`, for example
+`development-codebase-tools:security-analyzer-agent`.
 
 ### By Complexity
 

@@ -22,7 +22,7 @@ Create clear, actionable implementation plans through collaborative multi-agent 
 
 1. **Analyze Context**: Understand the task, leverage any prior exploration
 2. **Select Agents**: Choose specialists for the dimensions the task actually raises, up to 10
-3. **Collaborative Discussion**: 2-3 rounds of multi-agent refinement
+3. **Collaborative Discussion**: Multi-agent refinement, up to the round ceiling in the table below
 4. **Synthesize Plan**: Generate comprehensive implementation plan
 5. **Output File**: Write plan to `.claude-output/plan-[timestamp].md`
 
