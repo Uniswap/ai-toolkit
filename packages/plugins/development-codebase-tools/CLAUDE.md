@@ -12,7 +12,7 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 - **analyze-code**: Multi-agent code explanation for architecture, patterns, security, and performance
 - **analyze-dead-code**: Find unused exports, unreachable modules, and dead files with confidence-ranked removal guidance
 - **analyze-migrations**: Statically analyze database migration files for safety issues (locks, data loss, missing rollbacks)
-- **analyze-tech-debt**: Identify and prioritize technical debt with remediation plans. Uses a structured 6-step execution process: scope the target, collect code signals (Glob/Grep for large files, nesting, TODO/FIXME/HACK, `any` types), examine git history (high-churn files via `git log`, chronic bug areas via `git blame`), assess test presence (test-to-source file ratio), score and prioritize items by ROI, and write a Debt Metrics Dashboard + Prioritized Roadmap. Allowed tools include `Bash(git blame:*)`.
+- **analyze-tech-debt**: Identify and prioritize technical debt with remediation plans. Uses a structured 6-step execution process: scope the target, collect code signals (Glob/Grep for large files, nesting, TODO/FIXME/HACK, `any` types), examine git history (high-churn files via `git log`, chronic bug areas via `git blame`), assess test presence (test-to-source file ratio), rank items by evidence-cited impact and effort bands, and write a Debt Metrics Dashboard + Prioritized Roadmap. Allowed tools include `Bash(git blame:*)`. Deliberately emits no hours estimate or ROI figure — both operands of the old ROI formula were invented.
 - **analyze-test-coverage**: Measure test coverage gaps and produce a prioritized list of what to test next
 - **audit-accessibility**: Audit UI components for WCAG 2.1 AA compliance, identifying violations by severity with fix guidance
 - **debug-issue**: Systematic debugging workflow — accepts any error report (message, stack trace, or vague symptom), locates the origin, gathers context, invokes the debug-assistant-agent for root-cause analysis, and validates the fix
@@ -24,7 +24,7 @@ This plugin provides codebase exploration, refactoring, and quality analysis too
 
 ### Agents (./agents/)
 
-- **agent-orchestrator-agent**: Coordinates multiple AI agents for complex multi-step tasks; decomposes tasks into atomic units, matches each to the right specialist, and executes in parallel where possible
+- **agent-orchestrator-agent**: Coordinates multiple AI agents for complex multi-step tasks; decomposes tasks into atomic units, matches each to the right specialist, and executes in parallel where possible. Bounded by explicit delegation ceilings (4 agents per parallel group, 8 dispatches per run, 2 levels of recursion, 1 meta-agent) plus a when-NOT-to-delegate section
 - **code-explainer-agent**: Explains what code does, how it's structured, and why it's designed that way; delegates security/performance concerns to specialist agents
 - **code-generator-agent**: Generates production-ready code following patterns (delegates to test-writer-agent for tests)
 - **context-loader-agent**: Read-only reconnaissance agent that discovers, reads, and summarizes a codebase area so other agents can implement or debug it correctly
@@ -77,7 +77,18 @@ Projects using alternative formatters (Biome, dprint, etc.) would have their for
 - Agents are auto-discovered from the `agents/` directory
 - Skills invoke agents via `Task(subagent_type:agent-name)`
 - The post-edit-lint hook requires `CLAUDE_POST_EDIT_LINT=1` to be enabled
-- Cross-plugin delegation uses `Task(subagent_type:plugin-name:skill-name)`
+- Cross-plugin delegation uses `Task(subagent_type:plugin-name:agent-name)`
+
+**`subagent_type` names an AGENT, never a skill.** The value must match an agent's
+frontmatter `name:` field, which is not necessarily its filename — `agents/context-loader.md`
+declares `name: context-loader-agent`, so the dispatch value is `context-loader-agent`. Skills
+are not dispatchable through `Task` at all; they are invoked as slash commands. Enumerate the
+real names before writing a dispatch:
+
+```bash
+find packages/plugins -path '*/agents/*.md' \
+  -exec sh -c 'printf "%s -> " "$1"; grep -m1 "^name:" "$1"' _ {} \;
+```
 
 ## File Structure
 
@@ -111,6 +122,7 @@ development-codebase-tools/
 │   ├── security-analyzer.md
 │   └── style-enforcer.md
 ├── hooks/
+│   ├── hooks.json
 │   └── post-edit-lint.sh
 ├── project.json
 ├── package.json
