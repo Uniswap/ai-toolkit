@@ -46,8 +46,8 @@ The hook is a dependency-free Node script invoked via `node ${CLAUDE_PLUGIN_ROOT
 
 `/skill-map`, `/skill-mine`, and `/skill-new` are thin prompts that invoke the **skill-doctor** skill
 in a specific run mode. The skill does the _finding_ — what to add, merge, fix, or codify — then hands
-the deep work to the tools that own it (`skill-creator` for drafting/evals, `agent-optimizer` /
-`prompt-engineer` for agent tuning). It never auto-applies a change: it proposes a prioritized menu and
+the deep work to the tools that own it (`skill-creator` for drafting/evals,
+`development-productivity:prompt-engineer-agent` for agent tuning). It never auto-applies a change: it proposes a prioritized menu and
 lets you pick. Personal config under `~/.claude/{skills,agents,commands}` is edited in place; skill /
 agent / command files that live inside a git repo are delivered as a **draft PR** off the repo's
 default branch.
