@@ -1,6 +1,6 @@
 ---
 description: Generate comprehensive tests for code. Use when user says "write tests for this function", "add unit tests to this file", "generate integration tests for the API", "I need test coverage for this module", or "create e2e tests for the checkout flow".
-allowed-tools: Read, Grep, Glob, Task(subagent_type:test-writer-agent), Task(subagent_type:development-codebase-tools:context-loader-agent), Task(subagent_type:development-codebase-tools:security-analyzer-agent)
+allowed-tools: Read, Grep, Glob, Task(subagent_type:test-writer-agent), Task(subagent_type:development-codebase-tools:agent-orchestrator-agent), Task(subagent_type:development-codebase-tools:context-loader-agent), Task(subagent_type:development-codebase-tools:security-analyzer-agent), Task(subagent_type:development-codebase-tools:performance-analyzer-agent)
 model: sonnet
 ---
 

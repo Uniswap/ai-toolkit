@@ -48,8 +48,9 @@ Optimize prompts for better AI model performance using engineering techniques.
 - Prompt chaining strategies
 - Sampling parameter tuning — parameters are provider-specific. `frequency_penalty` and
   `presence_penalty` are OpenAI-only and are rejected by the Anthropic Messages API. On the
-  Claude 5 family, `temperature` is rejected when extended thinking is enabled, and
-  `budget_tokens` is not accepted (use `thinking: {type: "adaptive"}`).
+  Claude 5 family, `temperature`, `top_p`, and `top_k` are removed entirely — sending any of them
+  returns a 400 whether or not thinking is enabled, so never recommend them for a Claude 5 target.
+  `budget_tokens` is also rejected (use `thinking: {type: "adaptive"}`).
 - Token budget management
 
 ### 5. RAG Integration

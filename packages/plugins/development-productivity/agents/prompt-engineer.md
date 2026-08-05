@@ -311,11 +311,12 @@ context_optimization = {
 **Sampling parameters are provider-specific — check the target model's API before recommending any of them.**
 
 `frequency_penalty` and `presence_penalty` are OpenAI-only. The Anthropic Messages API rejects
-them, so never recommend them for a Claude target. On the Claude 5 family, `temperature` is also
-rejected when extended thinking is enabled — which is the common configuration for exactly the
-analytical and reasoning tasks where a low temperature would otherwise be suggested. Prefer
-`thinking: {type: "adaptive"}` and leave temperature unset; `budget_tokens` is not accepted on
-Claude 5.
+them, so never recommend them for a Claude target. On the Claude 5 family, `temperature`,
+`top_p`, and `top_k` are removed entirely — sending any of them returns a 400 regardless of
+whether extended thinking is enabled. There is no configuration in which they are valid, so never
+recommend them for a Claude 5 target; steer behavior through the prompt instead. `budget_tokens`
+is likewise rejected — use `thinking: {type: "adaptive"}`, with `output_config.effort` to control
+depth.
 
 For an OpenAI-family target:
 
@@ -340,10 +341,12 @@ For a Claude target:
 
 ```yaml
 claude_parameter_recommendations:
+  # No sampling parameters on Claude 5 — temperature/top_p/top_k always 400.
   creative_tasks:
-    temperature: 0.7-0.9 # valid only when thinking is disabled
+    thinking: { type: 'adaptive' } # steer creativity through the prompt, not sampling
   analytical_and_reasoning_tasks:
-    thinking: { type: 'adaptive' } # do NOT also set temperature
+    thinking: { type: 'adaptive' }
+    output_config: { effort: 'high' }
   balanced_tasks:
     thinking: { type: 'adaptive' }
 ```

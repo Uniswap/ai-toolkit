@@ -1,7 +1,7 @@
 ---
 description: Generate comprehensive tests with advanced testing strategies, scenario generation, and edge case identification using the enhanced test-writer agent.
 argument-hint: [paths...] [--framework jest|vitest|pytest|cypress|playwright] [--type unit|integration|e2e|all] [--strategy standard|scenario|property|mutation|accessibility] [--requirements "user stories"]
-allowed-tools: Read(*), Grep(*), Task(subagent_type:test-writer-agent), Task(subagent_type:development-codebase-tools:context-loader-agent)
+allowed-tools: Read, Grep, Glob, Task(subagent_type:test-writer-agent), Task(subagent_type:development-codebase-tools:agent-orchestrator-agent), Task(subagent_type:development-codebase-tools:context-loader-agent), Task(subagent_type:development-codebase-tools:security-analyzer-agent), Task(subagent_type:development-codebase-tools:performance-analyzer-agent)
 ---
 
 ## Inputs
@@ -39,7 +39,7 @@ For complex test generation (multiple files or --type all), use orchestration:
 
 1. **Context Loading Phase**:
 
-   - Invoke **context-loader-agent** to understand the codebase area
+   - Invoke **development-codebase-tools:context-loader-agent** to understand the codebase area
    - Identify dependencies and integration points
    - Gather existing test patterns
 
@@ -48,8 +48,9 @@ For complex test generation (multiple files or --type all), use orchestration:
    - For unit tests: Direct delegation to **test-writer-agent**
    - For integration/e2e: Coordinate multiple agents:
      - **test-writer-agent** for test scenarios
-     - **context-loader-agent** for API/database schemas
-     - **security-analyzer-agent** for security test cases (if applicable)
+     - **development-codebase-tools:context-loader-agent** for API/database schemas
+     - **development-codebase-tools:security-analyzer-agent** for security test cases (if
+       applicable)
 
 3. **Quality Assurance Phase**:
    - Name the behaviors you did NOT write a test for, and why
