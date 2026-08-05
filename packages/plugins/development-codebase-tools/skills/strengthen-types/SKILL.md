@@ -1,6 +1,6 @@
 ---
 description: Audit and harden TypeScript type safety by finding and fixing weak typing patterns. Always use this skill whenever the user says "strengthen types", "improve TypeScript types", "fix any types", "type safety audit", "remove any from the codebase", "tighten TypeScript", "find unsafe casts", "harden types", "type hardening", "clean up TypeScript types", "get rid of type assertions", "fix non-null assertions", "improve type coverage", "find implicit any", "type-safe refactor", "add missing return types", "reduce ts-ignore", "eliminate type suppression", "TypeScript strict mode cleanup", "fix weak types", "find type holes", "our types are too loose", or any request to make the codebase more type-safe. Also trigger when the user is migrating to strict mode, preparing to enable `noImplicitAny` or `strictNullChecks`, or doing a type-quality pass before a major release.
-allowed-tools: Read, Glob, Grep, Bash(npx tsc:*), Bash(npx eslint:*), Bash(npm run:*), Bash(find:*), Bash(git diff:*), Task
+allowed-tools: Read, Glob, Grep, Bash(npx tsc:*), Bash(npx eslint:*), Bash(npm run:*), Bash(find:*), Bash(git diff:*)
 model: sonnet
 ---
 
@@ -64,6 +64,13 @@ Run targeted grep searches to find each category. Search within the source direc
 Infer the source root from `tsconfig.json#include` / `tsconfig.json#rootDir`, or default to `src/`.
 
 ### Pattern inventory
+
+Every listing command below ends in `head -20` or `head -30`. That truncation is for
+readability of the listing only — it is **not** a finding filter. For each category, run the
+same pipeline again with `| wc -l` instead of `| head -N` and record the true total, so a
+category with 400 `any` occurrences is never reported as 30. Carry both numbers into the
+Step 5 summary table (`shown / total`), and if total > shown, say so explicitly rather than
+letting the truncated list read as complete.
 
 **Explicit `any`** — the most common type escape hatch:
 
@@ -181,6 +188,10 @@ MEDIUM    │        N │             M
 LOW       │        N │             M
 ──────────┼──────────┼───────────────
 Total     │        N │             M
+
+Pattern totals (from wc -l, not the truncated listings):
+  explicit any: N   as-casts: N   non-null: N   suppressions: N
+  broad params: N   missing return types: N
 
 tsconfig strictness: [strict: off] [noImplicitAny: off] [strictNullChecks: on]
 Baseline tsc errors: N

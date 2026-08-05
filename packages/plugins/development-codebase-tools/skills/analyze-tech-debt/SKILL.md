@@ -6,7 +6,7 @@ model: opus
 
 # Technical Debt Analyzer
 
-Identify, quantify, and prioritize technical debt with ROI-based remediation plans.
+Identify and prioritize technical debt with evidence-ranked remediation plans.
 
 ## When to Activate
 
@@ -22,7 +22,9 @@ Identify, quantify, and prioritize technical debt with ROI-based remediation pla
 2. **Collect code signals** — Use `Glob` and `Grep` to find: files over 500 lines, deeply nested code (≥4 levels of indentation), `TODO`/`FIXME`/`HACK` comments, and `any` types in TypeScript files.
 3. **Examine git history** — Run `git log --since="6 months ago" --format="%H %s" --stat` to identify high-churn files. Run `git log --oneline --grep="fix\|bug\|hotfix" -- <path>` on suspect files to spot chronic bug areas.
 4. **Assess test presence** — Use `Glob("**/*.test.*")` and `Glob("**/*.spec.*")` to find test files. Cross-reference with source files to identify untested modules. Compute the test-to-source file ratio (test file count / source file count) as a proxy for testing density — not a statement of line coverage.
-5. **Score and prioritize each item** — Assign impact (hours/month lost), effort (hours to fix), and risk (critical/high/medium/low). Compute ROI = (monthly_impact × 12) / effort.
+5. **Rank each item** — Rate impact and effort on a **high / medium / low** band, and risk as critical/high/medium/low. Ground each band in the signals you actually collected (commit count, file size, nesting depth, missing tests), and cite that signal alongside the band.
+
+   Do **not** estimate hours lost per month or hours to fix, and do not compute an ROI number from them. You have no data on this team's velocity; a formula over two invented inputs produces a figure that reads as measured and is not. Rank by band, cite the evidence, and let the reader supply their own effort numbers.
 6. **Write the report** — Output a Debt Metrics Dashboard followed by a Prioritized Roadmap. Categorize items as Quick Wins (high ROI, <4h effort), Medium-Term, or Long-Term.
 
 ## Debt Categories
@@ -53,10 +55,10 @@ Identify, quantify, and prioritize technical debt with ROI-based remediation pla
 
 ## Impact Assessment
 
-Calculates real cost:
+Rate each item against evidence you collected, not against invented cost figures:
 
-- Development velocity impact (hours/month)
-- Quality impact (bug rate, fix time)
+- Velocity impact band (high/medium/low), justified by churn and complexity signals
+- Quality signal: count of fix/bug/hotfix commits touching the file
 - Risk assessment (critical/high/medium/low)
 
 ## Output Format
@@ -80,22 +82,16 @@ test_to_source_ratio:
 
 ### Prioritized Roadmap
 
-- **Quick Wins**: High ROI, <4h effort (Week 1–2)
-- **Medium-Term**: Refactors and feature-level changes (Month 1–3)
-- **Long-Term**: Architecture changes (Quarter 2–4)
+- **Quick Wins**: high impact band, low effort band — single-file, mechanical changes
+- **Medium-Term**: refactors and feature-level changes
+- **Long-Term**: architecture changes
 
 ### Per-Item Format
 
-Each item includes: location, description, estimated effort, monthly velocity savings, ROI %, and recommended fix.
-
-### ROI Calculations
-
-Each item includes:
-
-- Effort estimate
-- Monthly savings
-- ROI percentage
-- Payback period
+Each item includes: location, description, impact band, effort band, the specific signal
+that justifies each band (e.g. "47 commits in 6 months, 12 of them fix commits"), and the
+recommended fix. Cap the roadmap at the 20 highest-impact items and target under 200 lines;
+say how many items were left out so nothing looks hidden.
 
 ## Examples
 
