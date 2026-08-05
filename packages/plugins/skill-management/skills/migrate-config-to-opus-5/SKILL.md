@@ -71,3 +71,5 @@ Present the "user decision" findings via AskUserQuestion (batch related ones; re
 ## Output
 
 End with: scope migrated, a per-commit list of what changed and why, findings deliberately left alone (with the policy reason), anything out of reach (other machines, external repos), and the checkpoint date.
+
+Keep it to what the user has to act on — one line per commit, one line per left-alone finding. No restated summary of the audit, no filler sections.
