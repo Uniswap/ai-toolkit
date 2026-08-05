@@ -51,6 +51,16 @@ disclosure best practices for CLAUDE.md content:
 - Skills are the primary interface; agents are invoked via `Task(subagent_type:agent-name)`
 - `claude-init-plus` runs once (bootstraps); `update-claude-md` runs on each significant change
 - The `documentation-agent` consolidates doc-writer, claude-docs-manager, and fact-checker agents
+- **Documentation verification is inline, never a second-agent pass.** Both
+  `documentation-agent` and `claude-docs-initializer-agent` verify claims against the repository
+  as they write, and flag anything they could not confirm on an `unverified_claims` list. The
+  initializer no longer emits `requires_verification: true`, and callers must not invoke
+  `documentation-agent` as a fact-checker over another agent's output.
+- **Numbers in agent output require measured inputs.** No self-assigned quality scores, no
+  coverage percentages against an unenumerable whole, no predicted improvement percentages for
+  something that was never run. Report qualitatively, or emit an explicit `not_measured`.
+- `/claude-init-plus` generation is sequential — never one subagent per package. A subagent
+  cannot see what a sibling wrote, which silently breaks Hierarchy Deduplication.
 - `generate-tests` supports: jest, vitest, pytest, cypress, playwright
 
 ## File Structure

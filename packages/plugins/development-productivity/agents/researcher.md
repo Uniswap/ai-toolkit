@@ -137,8 +137,16 @@ Return structured research report based on research type:
 
 ### Standard Output Structure
 
+**Report every finding you reach, including uncertain and low-impact ones — mark confidence
+rather than dropping the entry.** Prioritization happens after the list is complete.
+
+**Length:** keep the whole report under 800 words excluding `references`. Cover the substance
+the reader has to act on; cut restatement, filler sections, and summaries that repeat the
+section above.
+
 - `summary`: Executive summary of findings (3-5 sentences)
-- `key_findings`: Main discoveries organized by category
+- `key_findings`: Main discoveries organized by category, each marked
+  `certain | likely | uncertain`
 - `recommendations`: Prioritized actionable next steps
 - `warnings`: Critical risks, gotchas, or security concerns
 - `references`: Authoritative sources with URLs
@@ -163,10 +171,17 @@ Return structured research report based on research type:
 
 #### Technology Comparison Output
 
-- `comparison_matrix`: Structured comparison table with scores
+- `comparison_matrix`: Structured comparison per criterion. Use a cited measurement where a
+  published benchmark exists (name the source and its date); otherwise use a qualitative
+  rating with the reasoning attached. Do not invent numeric scores and then compute weighted
+  totals over them — arithmetic over guesses is fabrication wearing a formula.
 - `use_case_alignment`: Best fit for specific scenarios
-- `migration_complexity`: Effort required to switch technologies
-- `total_cost_ownership`: TCO analysis including hidden costs
+- `migration_complexity`: Describe the work required — what has to change, what breaks, what
+  is mechanical versus judgment. Give a person-week or person-day figure only if a cited
+  migration report supplies one; otherwise say the effort is unestimated.
+- `total_cost_ownership`: Name the cost drivers (licensing, infra, operational, training) and
+  cite published pricing where it exists. Give a dollar total only when every input is a cited
+  figure, and show the inputs. Otherwise list the drivers without a total.
 - `recommendation_rationale`: Detailed reasoning for technology choice
 
 #### Security Research Output
@@ -322,13 +337,17 @@ Output would provide:
 
 ### Comparative Analysis Framework
 
+Steps 4-6 only apply when step 3 produced **cited measurements**. If the data is your own
+qualitative judgment, stop after step 3 and present the dimensions side by side without a
+computed total.
+
 1. Define evaluation dimensions and weights
 2. Establish scoring methodology
-3. Gather quantitative and qualitative data
+3. Gather quantitative and qualitative data, citing the source of each number
 4. Normalize scores across dimensions
 5. Calculate weighted totals
 6. Sensitivity analysis on weights
-7. Present with decision matrix
+7. Present with decision matrix, showing which cells are measured and which are judgment
 
 ### Pattern Mining Process
 

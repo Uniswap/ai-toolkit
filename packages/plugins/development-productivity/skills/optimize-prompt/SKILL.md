@@ -44,10 +44,13 @@ Optimize prompts for better AI model performance using engineering techniques.
 
 ### 4. Model-Specific Optimization
 
-- GPT-4 best practices
-- Claude optimization techniques
+- Techniques for the target model family, checked against its current API rather than recalled
 - Prompt chaining strategies
-- Temperature/parameter tuning
+- Sampling parameter tuning — parameters are provider-specific. `frequency_penalty` and
+  `presence_penalty` are OpenAI-only and are rejected by the Anthropic Messages API. On the
+  Claude 5 family, `temperature`, `top_p`, and `top_k` are removed entirely — sending any of them
+  returns a 400 whether or not thinking is enabled, so never recommend them for a Claude 5 target.
+  `budget_tokens` is also rejected (use `thinking: {type: "adaptive"}`).
 - Token budget management
 
 ### 5. RAG Integration

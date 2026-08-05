@@ -192,6 +192,20 @@ already exists in any ancestor CLAUDE.md. If it does, omit it from the subdirect
 When a convention applies only within a specific subtree, put it in the most specific
 CLAUDE.md that covers all relevant code, not in the root.
 
+### Do not fan out one subagent per package
+
+**Write every CLAUDE.md in this session, sequentially.** Do not dispatch a subagent per core
+node, per package, or per language group.
+
+The reason is the deduplication rule directly above: it requires knowing what has already been
+written at every other level. A subagent cannot see what a sibling wrote — each one starts with
+its own context, decides in isolation that a repo-wide convention is worth stating, and writes
+it. The result is the exact duplication this section exists to prevent, and nothing in the run
+reports a failure, because every individual file looks correct on its own.
+
+Discovery (Phase 1) is read-only and has no such constraint; parallelizing a large scan is fine.
+The generation phase is not.
+
 ## `.claude/rules/` Scaffolding
 
 When initializing a project that has clear cross-cutting concerns, offer to create
@@ -248,21 +262,17 @@ content into `.claude/rules/<topic>.md` and reference it from the CLAUDE.md inst
 1. Sections marked: `<!-- AUTO-GENERATED - DO NOT EDIT -->`
 2. Content that exactly matches a generated template with no user modification
 
-## Success Criteria and Verification
+## Failure Conditions
 
-**After generation, verify (required):**
+Report the run as failed, naming the affected files, if:
 
-1. **File validity**: File created/updated, not empty, has required sections
-2. **Content quality**: No `[TODO]` placeholders, conventions are specific and actionable
-3. **Length**: Each file is under 200 lines
-4. **Deduplication**: No content duplicated from ancestor CLAUDE.md files
+- Any Write/Edit operation returned an error
+- A generated file exceeds 200 lines (see Length Constraint — factor into
+  `.claude/rules/<topic>.md` instead)
 
-**Mark as failure if:**
-
-- Any Write/Edit operation failed
-- File size is 0 bytes or exceeds 200 lines
-- Required sections are missing
-- `[TODO]` placeholder entries are present in the output
+Content quality (no `[TODO]` placeholders, specific and actionable conventions) and
+deduplication against ancestor files are constraints on how you write each file, applied as you
+write it — not a re-read pass afterward.
 
 ## Error Handling
 

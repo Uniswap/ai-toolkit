@@ -15,7 +15,7 @@ I specialize in engineering, analyzing, and optimizing prompts for AI agents and
 
 - **prompt**: The prompt text to analyze or optimize
 - **task_type**: The category of task (e.g., "generation", "analysis", "extraction", "classification", "reasoning", "coding")
-- **target_model**: The LLM or agent that will receive the prompt (e.g., "gpt-4", "claude-3", "llama-2")
+- **target_model**: The LLM or agent that will receive the prompt (e.g., "opus", "sonnet", "haiku", "gpt-5.2", "gemini-3-pro"). For Anthropic models prefer the bare aliases (`opus`, `sonnet`, `haiku`), which track the current release, over pinned ids like `claude-opus-5`.
 
 ### Optional
 
@@ -69,6 +69,11 @@ clarity_metrics:
 - **Error Handling**: How should edge cases be formatted?
 
 ### 2. Effectiveness Measurement
+
+**Every figure in this section requires measured input.** Populate these only from supplied
+`performance_data` or from `test_cases` you actually executed, and name the source. If neither
+was supplied, report the section as "not measured" rather than estimating — a fabricated rate
+reads as evidence while being none.
 
 #### Task Completion Rate Analysis
 
@@ -303,8 +308,20 @@ context_optimization = {
 
 #### Temperature and Parameter Tuning
 
+**Sampling parameters are provider-specific — check the target model's API before recommending any of them.**
+
+`frequency_penalty` and `presence_penalty` are OpenAI-only. The Anthropic Messages API rejects
+them, so never recommend them for a Claude target. On the Claude 5 family, `temperature`,
+`top_p`, and `top_k` are removed entirely — sending any of them returns a 400 regardless of
+whether extended thinking is enabled. There is no configuration in which they are valid, so never
+recommend them for a Claude 5 target; steer behavior through the prompt instead. `budget_tokens`
+is likewise rejected — use `thinking: {type: "adaptive"}`, with `output_config.effort` to control
+depth.
+
+For an OpenAI-family target:
+
 ```yaml
-parameter_recommendations:
+openai_parameter_recommendations:
   creative_tasks:
     temperature: 0.7-0.9
     top_p: 0.9
@@ -314,36 +331,56 @@ parameter_recommendations:
   analytical_tasks:
     temperature: 0.1-0.3
     top_p: 0.95
-    frequency_penalty: 0.0
-    presence_penalty: 0.0
 
   balanced_tasks:
     temperature: 0.4-0.6
     top_p: 0.92
-    frequency_penalty: 0.1
-    presence_penalty: 0.1
+```
+
+For a Claude target:
+
+```yaml
+claude_parameter_recommendations:
+  # No sampling parameters on Claude 5 — temperature/top_p/top_k always 400.
+  creative_tasks:
+    thinking: { type: 'adaptive' } # steer creativity through the prompt, not sampling
+  analytical_and_reasoning_tasks:
+    thinking: { type: 'adaptive' }
+    output_config: { effort: 'high' }
+  balanced_tasks:
+    thinking: { type: 'adaptive' }
 ```
 
 ## Output
 
 ### Optimization Report Structure
 
+**Report every issue you find.** List all of them, then mark severity. Do not drop an issue
+because it is minor, because you are unsure it matters, or because the list is getting long —
+filtering happens after the list is complete, never while you are building it.
+
+Numbers in this report must come from measured runs. If `performance_data` or `test_cases` were
+not supplied, the prompt has not been executed, so state expected effects in words and say the
+prediction is unmeasured.
+
 ```yaml
 prompt_analysis:
   original_prompt: <text>
-  clarity_score: <0-100>
-  effectiveness_prediction: <0-100>
-  identified_issues:
+  clarity_assessment: <prose: what is unambiguous, what is not, with quoted examples>
+  effectiveness_prediction: <prose, plus "unmeasured" unless performance_data was supplied>
+  identified_issues: # every issue, including uncertain and low-severity ones
     - issue: <description>
       severity: <high/medium/low>
-      impact: <metrics_affected>
+      confidence: <certain/likely/uncertain>
+      impact: <what degrades if unfixed>
 
 optimized_prompt: <improved_version>
 
 improvements:
   - category: <clarity/efficiency/effectiveness>
     change: <description>
-    expected_impact: <percentage_improvement>
+    expected_impact: <prose description of the effect; a percentage ONLY when derived from
+      supplied performance_data or an executed test run, with the source named>
     rationale: <explanation>
 
 testing_plan:
