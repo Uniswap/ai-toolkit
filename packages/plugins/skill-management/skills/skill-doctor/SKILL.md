@@ -8,9 +8,9 @@ description: >
   skills do I have", "suggest skill improvements", "are any of my skills
   redundant", "clean up my skills", "turn this into a skill", "should this be a
   skill or an agent", "codify this workflow", or invokes /skill-map, /skill-mine,
-  or /skill-new. Also use PROACTIVELY after finishing a multi-step workflow that
-  the user is likely to repeat (especially right after opening a PR) to ask
-  whether it should become a skill or agent. It inventories every
+  or /skill-new. Also applies after finishing a multi-step workflow the user is
+  likely to repeat (especially right after opening a PR), to ask whether it
+  should become a skill or agent. It inventories every
   skill/agent/command across the user's own dirs AND all installed marketplaces,
   flags overlaps / gaps / weak triggering descriptions, and — when there's real
   prior work in the session — proposes new or edited skills/agents grounded in
