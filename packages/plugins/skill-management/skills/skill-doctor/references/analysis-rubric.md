@@ -3,6 +3,13 @@
 Heuristics for the analysis + mining passes. Keep judgments concrete and tied to
 the inventory data; don't invent problems.
 
+Precision and coverage are both required, and they pull against each other.
+"Don't invent problems" constrains what you _assert_, not what you _look at_ —
+report every issue you actually found, including ones you are unsure about or
+judge low-severity, and mark that uncertainty rather than dropping the finding.
+An audit that silently omits a real issue fails the same way as one that
+fabricates a fake one, and the omission is harder to notice.
+
 ## What a good triggering description looks like
 
 The `description` is the _only_ thing Claude sees when deciding whether to
