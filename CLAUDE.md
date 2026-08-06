@@ -163,7 +163,8 @@ The repository uses a plugin-based architecture where Claude Code capabilities a
 - Plugins are stored in `./packages/plugins/<plugin-name>/`
 - Each plugin is a self-contained Nx package with its own `package.json`, `project.json`, and `.claude-plugin/plugin.json`
 - The `.claude-plugin/marketplace.json` file references plugins via relative paths: `"./packages/plugins/<plugin-name>"`
-- There are 8 plugins: claude-setup, development-codebase-tools, development-planning, development-pr-workflow, development-productivity, skill-management, spec-workflow, uniswap-integrations
+- The authoritative plugin inventory is the set of directories under `packages/plugins/` and the `plugins` array in `.claude-plugin/marketplace.json` - the two must always agree. Enumerate rather than trusting a count written in prose: `find packages/plugins -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort`. See `.claude/rules/plugin-docs.md` for the parity check.
+- As of 2026-07-30 there are 8 plugins: claude-setup, development-codebase-tools, development-planning, development-pr-workflow, development-productivity, skill-management, spec-workflow, uniswap-integrations. If the enumerated output differs, it wins - update this list and the table below.
 
 **Plugin Validation:**
 
@@ -222,14 +223,14 @@ All plugins follow semantic versioning (semver). Key versioning rules:
 
 | Plugin                     | Version |
 | -------------------------- | ------- |
-| claude-setup               | 1.0.5   |
-| development-codebase-tools | 2.6.2   |
-| development-planning       | 2.0.7   |
-| development-pr-workflow    | 2.2.0   |
-| development-productivity   | 2.4.1   |
-| skill-management           | 1.0.2   |
-| spec-workflow              | 2.0.1   |
-| uniswap-integrations       | 2.6.0   |
+| claude-setup               | 1.1.0   |
+| development-codebase-tools | 2.7.0   |
+| development-planning       | 2.1.0   |
+| development-pr-workflow    | 2.4.1   |
+| development-productivity   | 2.5.0   |
+| skill-management           | 1.3.0   |
+| spec-workflow              | 2.1.0   |
+| uniswap-integrations       | 2.7.0   |
 
 **Note:** Keep this table updated when versions change.
 
@@ -313,7 +314,42 @@ To differentiate skills from agents and avoid naming conflicts:
 
 Commands (standalone `.md` files in `./commands/`) follow the same verb-noun pattern as skills since they are also user-invocable actions.
 
+## AI Code Review of This Repository
+
+PRs in this repository are reviewed by [`@uniswap/review-cli`](https://github.com/Uniswap/internal-tools/tree/main/packages/review-cli), the shared reviewer also used by `Uniswap/universe` and `Uniswap/backend`. It is driven by `.github/workflows/claude-code-review.yml`.
+
+| File                                 | Purpose                                                                                 |
+| ------------------------------------ | --------------------------------------------------------------------------------------- |
+| `.claude/review.yml`                 | Review policy: model, per-agent budget, skip rules, investigation gate, triage staffing |
+| `.claude/agents/*-reviewer.md`       | Repo-specific reviewers, **added to** review-cli's bundled set                          |
+| `.github/actions/install_review_cli` | Installs the pinned CLI from GitHub Packages                                            |
+
+Two repo-specific reviewers encode this repository's house rules so they are enforced on every PR rather than living only in documentation:
+
+- `workflow-security-reviewer` — the GitHub Actions rules in [GitHub Actions Best Practices](#github-actions-best-practices) below (expression injection, SHA pinning, `fromJSON` coercion, Bullfrog steps, script separation), plus breaking changes to the reusable workflows other repos consume.
+- `plugin-conventions-reviewer` — the [Mandatory Version Bumping](#mandatory-version-bumping) rule and the skill/agent naming conventions above.
+
+**When you change those rules, update the matching reviewer.** A convention that lives only in this file is advisory; one encoded in a reviewer is checked. Full detail in [`.github/workflows/CLAUDE.md`](.github/workflows/CLAUDE.md#pr-code-review-for-this-repository-claude-code-reviewyml).
+
+> **Not to be confused with** `_claude-code-review.yml`, the reusable review workflow this repo _publishes_ for other repositories. It is still supported and unchanged; ai-toolkit just no longer calls it for its own PRs. Its prompt sections live in `.github/prompts/pr-review/` and are unrelated to the reviewers above.
+
+To review a PR locally without posting anything:
+
+```bash
+review-cli 123 --repo Uniswap/ai-toolkit
+```
+
 ## Documentation Management
+
+### Deliverable Length
+
+Match the length of written deliverables to what the task needs. This covers everything Claude Code authors as a file or a posted artifact: CLAUDE.md and README.md updates, plan and spec documents, changelog entries, Notion pages, PR bodies, and review summaries.
+
+- Cover the substance the reader actually needs to act on.
+- Skip filler sections, redundant summaries that restate the section above, and boilerplate padding.
+- Prefer editing an existing section over appending a parallel one that repeats it.
+
+This is a real constraint rather than a style preference: reasoning-effort settings do not shorten authored files, so length only comes down when it is asked for explicitly. Unbounded docs are also expensive here, since the plugin CLAUDE.md files load into the context of every session that touches those packages.
 
 ### CLAUDE.md File Management
 
@@ -364,7 +400,7 @@ After making any changes to files in this repository, Claude Code MUST:
 
 3. **Keep stats accurate**: The overview section contains counts of total Skills, Agents, and Commands - ensure these numbers stay accurate
 
-4. **Maintain per-plugin sections**: Each of the 5 plugins has its own section listing components - update the relevant section(s) when plugins change
+4. **Maintain per-plugin sections**: Each plugin has its own section listing components - update the relevant section(s) when plugins change
 
 This ensures the external documentation stays synchronized with the actual plugin codebase.
 

@@ -4,40 +4,58 @@
 
 ### By Domain
 
-Select agents based on technical domains in the task:
+Select agents based on technical domains in the task. The names below are the dispatch names
+(`Task(subagent_type:<name>)`) of agents that ship in this marketplace:
 
-- **Frontend**: frontend-developer, react-specialist, css-expert
-- **Backend**: backend-architect, api-documenter, graphql-architect
-- **Database**: database-optimizer, sql-pro, database-admin
-- **Security**: security-analyzer, security-analyzer
-- **Performance**: performance-engineer, performance-analyzer
-- **Testing**: test-writer, test-automator
-- **DevOps**: deployment-engineer, cloud-architect, cicd-agent
+| Domain                   | Agents                                                                                                |
+| ------------------------ | ----------------------------------------------------------------------------------------------------- |
+| Codebase context         | `development-codebase-tools:context-loader-agent`, `development-codebase-tools:code-explainer-agent`  |
+| Conventions and patterns | `development-codebase-tools:pattern-learner-agent`, `development-codebase-tools:style-enforcer-agent` |
+| Security                 | `development-codebase-tools:security-analyzer-agent`                                                  |
+| Performance              | `development-codebase-tools:performance-analyzer-agent`                                               |
+| Testing                  | `development-productivity:test-writer-agent`                                                          |
+| Refactors and migrations | `development-codebase-tools:refactorer-agent`, `uniswap-integrations:migration-assistant-agent`       |
+| CI/CD and infrastructure | `uniswap-integrations:cicd-agent`, `uniswap-integrations:infrastructure-agent`                        |
+| Documentation            | `development-productivity:documentation-agent`                                                        |
+| External research        | `development-productivity:researcher-agent`                                                           |
+| Debugging                | `development-codebase-tools:debug-assistant-agent`                                                    |
+
+Every agent above ships from a different plugin than this one, so each is addressed in its
+qualified `plugin-name:agent-name` form. The `agent-name` half comes from the agent's frontmatter
+`name:` field; marketplace agents carry an `-agent` suffix. Agents defined in the user's own
+project (`.claude/agents/`) are addressed bare, with no plugin prefix.
+
+Before dispatching an agent that is not in this table, confirm it appears in the agent inventory
+available in the current session - the agent types listed in your own context are the authoritative
+set, and a name that is not among them fails at dispatch. That check is also what catches a table
+entry whose owning plugin is not installed here. Do not try to verify a name by searching the
+filesystem: these agents ship from installed plugins rather than from the user's project, so a
+repo-relative search returns nothing even when the agent is available.
 
 ### By Complexity
 
-- **Simple tasks**: 3-4 agents covering core domain + review
-- **Medium tasks**: 5-7 agents covering domain + adjacent concerns
-- **Complex tasks**: 8-10 agents for comprehensive coverage
+These are **ceilings, not quotas**. Staff only the domains the task actually raises. If the
+analysis would finish in a handful of direct tool calls, do it yourself instead of spawning an
+agent for it.
+
+- **Simple tasks**: up to 2 agents, and often zero
+- **Medium tasks**: up to 5 agents covering the domains in play
+- **Complex tasks**: up to 10 agents
 
 ### Example Combinations
 
 **"Add user authentication with JWT"**
 
-- security-analyzer (auth expertise)
-- backend-architect (API design)
-- database-optimizer (user storage)
-- frontend-developer (login UI)
-- test-writer (auth testing)
+- `development-codebase-tools:context-loader-agent` (existing auth surface and conventions)
+- `development-codebase-tools:security-analyzer-agent` (token handling, storage, session risks)
+- `development-productivity:test-writer-agent` (auth test coverage)
 
-**"Migrate monolith to microservices"**
+**"Migrate a legacy module to the new API"**
 
-- backend-architect (service boundaries)
-- cloud-architect (infrastructure)
-- database-optimizer (data partitioning)
-- performance-engineer (scalability)
-- devops-troubleshooter (deployment)
-- security-analyzer (service communication)
+- `uniswap-integrations:migration-assistant-agent` (migration path)
+- `development-codebase-tools:pattern-learner-agent` (target-side conventions)
+- `development-codebase-tools:performance-analyzer-agent` (only if the migration has a measured
+  performance stake)
 
 ## Multi-Round Discussion Protocol
 

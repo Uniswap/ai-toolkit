@@ -61,7 +61,8 @@ For each extracted pattern, assign a confidence level:
 
 ### 4. Report Findings
 
-Structure the output as a **Pattern Report**:
+Structure the output as a **Pattern Report**. Cap it at the 15 most useful patterns and target
+under 200 lines; cite 3 examples per pattern, not every occurrence found.
 
 ```markdown
 # Codebase Pattern Report

@@ -8,9 +8,9 @@ description: >
   skills do I have", "suggest skill improvements", "are any of my skills
   redundant", "clean up my skills", "turn this into a skill", "should this be a
   skill or an agent", "codify this workflow", or invokes /skill-map, /skill-mine,
-  or /skill-new. Also use PROACTIVELY after finishing a multi-step workflow that
-  the user is likely to repeat (especially right after opening a PR) to ask
-  whether it should become a skill or agent. It inventories every
+  or /skill-new. Also applies after finishing a multi-step workflow the user is
+  likely to repeat (especially right after opening a PR), to ask whether it
+  should become a skill or agent. It inventories every
   skill/agent/command across the user's own dirs AND all installed marketplaces,
   flags overlaps / gaps / weak triggering descriptions, and — when there's real
   prior work in the session — proposes new or edited skills/agents grounded in
@@ -26,11 +26,11 @@ the deep work to the tools that already own it. **Reuse, don't reinvent:**
 - **Creating or iterating a skill (drafting, evals, description optimization, packaging)** → invoke the `skill-creator` skill if it's
   installed (it ships in Anthropic's agent-skills marketplace and bundles
   `improve_description.py`, `run_loop.py`, `package_skill.py`, `quick_validate.py`).
-- **Tuning an agent's prompt** → delegate to the `agent-optimizer` or `prompt-engineer` agents.
-- **Scoring an agent's capabilities / team fit** → the `agent-capability-analyst` agent.
-- **Cataloging agents** → the `claude-agent-discovery` agent.
+- **Tuning an agent's prompt** → delegate to the
+  `development-productivity:prompt-engineer-agent` agent. Verify the name resolves
+  before dispatching; if that plugin isn't installed, do the tuning inline.
 - **"This is really a standing rule, not a skill"** → write it into the relevant
-  `CLAUDE.md` (e.g. via an `update-claude-md` skill) or the project's memory store.
+  `CLAUDE.md` (e.g. via the `/update-claude-md` command) or the project's memory store.
 - **Auditing / cleaning up the memory store itself** (orphans vs `MEMORY.md`, stale
   memories, dedupe, "scope memories into skills") → the `memory-doctor` skill if
   installed, the sibling of this one for the memory surface. skill-doctor _reads_
@@ -108,7 +108,13 @@ Reason over the map (not the raw files). Produce a **prioritized, numbered list*
 of suggested improvements. For each: target file, problem, proposed change, and
 whether it's `writable`. Cover:
 
-- **Overlaps / duplicates.** Use the `duplicate_names` and
+The script's flags are a starting point, not the boundary of the audit. Read the
+whole map and report every genuine issue you see, including ones the script did
+not flag — the flags are keyword and threshold heuristics, so a real overlap or a
+weak description can sit in an unflagged row. Rank at the end; do not filter
+during discovery.
+
+- **Overlaps / duplicates.** Start from the `duplicate_names` and
   `near_duplicate_descriptions` flags. Ignore `mirror-only` duplicates
   (marketplace↔plugin-cache are just install mirrors of the same upstream item).
   Focus on `[editable]` collisions and genuinely distinct skills doing the same
@@ -116,13 +122,15 @@ whether it's `writable`. Cover:
 - **Gaps.** Recurring needs with no skill. Cross-reference the project's memory
   store if one exists — many feedback memories encode repeated corrections that
   may deserve a skill.
-- **Trigger-quality.** Use `weak_or_missing_description` and
-  `no_trigger_language`. For the handful of **writable** items you'll actually
-  propose changing, deep-read them **via a subagent** (Explore or general-purpose)
-  so main context stays bounded — ask the subagent to return the current
-  description + body summary + a tightened description proposal. For rigorous
-  triggering work, hand the item to skill-creator's `improve_description.py` /
-  `run_loop.py` loop.
+- **Trigger-quality.** Start from `weak_or_missing_description` and
+  `no_trigger_language`, and flag any other description that reads weak on the
+  rubric. Deep-read the **writable** items you'll actually propose changing. Read
+  them directly when there are only a few (a handful of reads is cheaper inline
+  than a dispatch); delegate to a single Explore or general-purpose subagent only
+  when the set is large enough that reading it inline would crowd out main
+  context — ask that subagent to return the current description + body summary +
+  a tightened description proposal per item. For rigorous triggering work, hand
+  the item to skill-creator's `improve_description.py` / `run_loop.py` loop.
 - **Oversized bodies.** `oversized_body` items (>500 lines) are candidates for
   progressive disclosure (move detail into `references/`).
 
@@ -153,11 +161,14 @@ turn that motivates it. Vague "you could add a skill for X" proposals aren't use
 ### Step 5 — Present & apply (all modes)
 
 Show the consolidated, prioritized menu. Mark each item `[editable]` or
-`[read-only]`. Let the user choose. Then, for accepted items only:
+`[read-only]`. Keep each entry to a line or two — target, problem, proposed change
+— so the menu stays scannable; detail belongs in the follow-up on the items the
+user picks. Let the user choose. Then, for accepted items only:
 
 - New/iterated skill → `skill-creator` skill.
-- Agent prompt tuning → `agent-optimizer` / `prompt-engineer` agents.
-- Standing rule → an `update-claude-md` skill or a memory file.
+- Agent prompt tuning → the `development-productivity:prompt-engineer-agent` agent
+  (inline if that plugin isn't installed).
+- Standing rule → the `/update-claude-md` command or a memory file.
 - Direct small edits (e.g. a tightened description):
   - under `~/.claude/…` (non-git) → edit in place; show the before/after first.
   - inside a git repo → open a **draft PR** per "Delivering changes once

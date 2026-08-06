@@ -13,7 +13,6 @@ Update CLAUDE.md files based on staged git changes. The goal is to capture **con
 gotchas, and team preferences** that Claude cannot infer by reading code — not to inventory
 files or list dependencies. Run this **before committing** whenever staged changes reveal a non-obvious
 pattern, constraint, or workflow decision.
-constraint, or workflow decision.
 
 ## Usage
 
@@ -199,11 +198,9 @@ In **automated mode**, skip confirmation and apply only if the proposed update p
 Write the updated CLAUDE.md content. For new `.claude/rules/` files, create them at the
 nearest `.claude/` directory in the ancestry tree (or at the repository root if none exists).
 
-After writing, verify:
-
-- Line count is under 200 for each modified CLAUDE.md
-- No content duplicated from ancestor CLAUDE.md files
-- No `[TODO]` placeholder entries
+Deduplication (Step 6) and the no-`[TODO]` rule are constraints on what you write, applied
+before the write — not a re-read pass afterward. The 200-line overflow case is handled under
+Error Handling below.
 
 ### Step 11: Show Completion
 

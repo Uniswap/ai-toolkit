@@ -67,6 +67,14 @@ The skills in this plugin primarily use these MCP tools:
 - `mcp__spec-workflow__get-steering-context` - Load steering documents
 - `mcp__spec-workflow__get-template-context` - Get document templates
 
+## Agent Staffing Conventions
+
+Both skills name rosters of specialized agents per phase. Those rosters are menus, not teams to staff in full:
+
+- At most 4 concurrent agents at any moment. That is a ceiling, not a quota.
+- Staff only the dimensions the work raises; do the work directly when it would finish in a handful of tool calls.
+- Loop exit conditions must be observable (test/lint/typecheck run and passed, reviewer findings applied or explicitly rejected), never a numeric quality score the model would have to invent.
+
 ## Development Guidelines
 
 ### Adding New Skills

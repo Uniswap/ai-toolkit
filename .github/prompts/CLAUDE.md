@@ -9,8 +9,11 @@ Markdown prompt templates used by GitHub Actions workflows to customize Claude A
 ### Code Review
 
 - **pr-review/** - Modular PR review prompt sections (see [PR Review Modular Architecture](#pr-review-modular-architecture) below)
+
   - `fixed/` - Always-included sections (numbered 1-3, 13-15, 17-19)
   - `overridable/` - Sections consumers can replace (numbered 4-12, 16)
+
+  > **Scope note:** `pr-review/` feeds the reusable `_claude-code-review.yml`, which external repositories call and which remains fully supported. These sections do **not** shape reviews of ai-toolkit's own PRs — those run `@uniswap/review-cli`, whose reviewer prompts live in `.claude/agents/*-reviewer.md` and whose policy lives in `.claude/review.yml`. Editing a file here changes review behavior for consumers only; editing `.claude/agents/` changes it for this repo only. See [PR Code Review for this repository](../workflows/CLAUDE.md#pr-code-review-for-this-repository-claude-code-reviewyml).
 
 ### PR Metadata Generation
 

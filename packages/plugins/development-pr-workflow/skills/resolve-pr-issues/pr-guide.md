@@ -201,7 +201,7 @@ Use the inline comment as the canonical item (it has file/line context). Discard
 
 | Item Type                              | Agent                                            | Notes                                                                |
 | -------------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------- |
-| Inline comments (grouped by file)      | `development-pr-workflow:comment-resolver-agent` | One agent per file group                                             |
+| Inline comments (grouped by file)      | `development-pr-workflow:comment-resolver-agent` | One agent per file group; cap at 3 concurrent agents                 |
 | Review body items (with file location) | `development-pr-workflow:comment-resolver-agent` | Grouped with that file's inline comments                             |
 | Review body items (no file location)   | `development-pr-workflow:comment-resolver-agent` | Batch up to 3 items per agent; receives full PR diff                 |
 | CI failures (specific file)            | `development-pr-workflow:comment-resolver-agent` | Include CI logs in prompt                                            |

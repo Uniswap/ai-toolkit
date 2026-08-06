@@ -1,7 +1,7 @@
 ---
 description: Methodically work through GitHub pull request comments in a conversational workflow, analyzing each comment, presenting solution options, gathering your decisions, and implementing approved changes.
 argument-hint: <pr-number> OR <owner/repo> <pr-number>
-allowed-tools: Bash(*), Read(*), Write(*), Edit(*), Grep(*), Glob(*), AskUserQuestion(*), mcp__github__get_pull_request(*), mcp__github__get_pull_request_comments(*), mcp__github__get_pull_request_reviews(*)
+allowed-tools: Bash(*), Read(*), Write(*), Edit(*), Grep(*), Glob(*), AskUserQuestion(*), mcp__github__pull_request_read(*)
 ---
 
 # Work Through PR Comments
@@ -38,11 +38,12 @@ This command implements a **conversational, methodical workflow** for addressing
 
 ### Step 2: Fetch PR Data
 
-Fetch all PR-related data in parallel:
+Fetch all PR-related data in parallel via `mcp__github__pull_request_read`, which
+consolidates what used to be three separate tools:
 
-- PR details (title, author, state)
-- Inline comments (code review comments)
-- Review comments (from review body)
+- PR details (title, author, state) — `method: "get"`
+- Inline comments (code review comments) — `method: "get_review_comments"`
+- Reviews and their bodies — `method: "get_reviews"`
 
 ### Step 3: Organize and Categorize Comments
 

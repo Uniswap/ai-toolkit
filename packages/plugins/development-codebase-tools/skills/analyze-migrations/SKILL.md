@@ -49,6 +49,13 @@ For ORM-based migrations (Rails, Django, Alembic, TypeORM), translate operations
 
 Analyze each migration for the following patterns. Evaluate against both PostgreSQL and MySQL semantics unless the stack is known.
 
+**The three tables below are a starting checklist, not an allowlist.** They cover the common
+cases; they do not enumerate every way a migration can lock a table or lose data. If a
+migration does something dangerous that no row describes — a stored-procedure change, a
+partition swap, a trigger that rewrites rows, a vendor-specific DDL — report it anyway at the
+severity you judge appropriate and say it was found outside the checklist. A finding you drop
+because it has no matching row is a production incident the report failed to prevent.
+
 ### CRITICAL — causes table locks or data loss
 
 | Pattern                                     | Risk                                                   | Detection                                                                                               |

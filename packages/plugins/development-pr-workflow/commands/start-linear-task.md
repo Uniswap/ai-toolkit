@@ -1,7 +1,7 @@
 ---
 description: Start working on a new Linear task by creating a worktree environment. Either provide an existing Linear ticket ID or describe the work to create a new task.
 argument-hint: [<ticket-id> | --prompt "<description>"] [--team <id>] [--trunk <branch>] [--use-graphite true/false] [--start-working] [--start-prompt "<prompt>"]
-allowed-tools: Bash(*), Read(*), Write(*), AskUserQuestion(*), mcp__graphite__run_gt_cmd(*), mcp__github__create_pull_request(*), mcp__linear__create_issue(*), mcp__linear__get_issue(*), mcp__linear__get_user(*), mcp__linear__list_teams(*), mcp__linear__list_projects(*), mcp__linear__list_issue_labels(*)
+allowed-tools: Bash(*), Read(*), Write(*), AskUserQuestion(*), mcp__graphite__run_gt_cmd(*), mcp__github__create_pull_request(*), mcp__linear__save_issue(*), mcp__linear__get_issue(*), mcp__linear__get_user(*), mcp__linear__list_teams(*), mcp__linear__list_projects(*), mcp__linear__list_issue_labels(*)
 ---
 
 # Start Linear Task Workflow
@@ -90,7 +90,7 @@ AskUserQuestion:
 
 ### Phase 2: Fetch Linear User and Teams (REQUIRED)
 
-**CRITICAL: Before presenting ANY prompts, you MUST fetch the Linear user to get the username for branch prefix options.**
+**Fetch the Linear user before presenting any prompts** — the username supplies the branch-prefix options.
 
 ```
 # Get current Linear user (for assignee and username prefix)
@@ -118,7 +118,7 @@ Follow the shared configuration collection instructions in `@../shared/linear-ta
 - `WORKTREE_BASE` from `--worktree_base` (if provided)
 - `DUE_DATE` from `--due-date` (if provided)
 
-**IMPORTANT: When prompting for branch prefix, the first option MUST be the user's personal namespace:**
+**When prompting for branch prefix, the first option is the user's personal namespace:**
 
 ```
 Branch Prefix options:
@@ -187,7 +187,7 @@ As a [user type], I want [goal/capability] so that [benefit/value].
 **Create the task:**
 
 ```
-mcp__linear__create_issue with:
+mcp__linear__save_issue with:
 - team: TEAM
 - title: <generated from PROMPT or user-provided>
 - description: <generated user story>
@@ -403,7 +403,7 @@ Or with Graphite (if USE_GRAPHITE was enabled):
 ### With full configuration
 
 ```
-/start-linear-task DEV-456 --trunk develop --branch-prefix feature --skip-graphite
+/start-linear-task DEV-456 --trunk develop --branch-prefix feature --use-graphite false
 ```
 
 ### Interactive mode (no arguments)

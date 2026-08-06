@@ -1,6 +1,6 @@
 ---
 description: Generate comprehensive tests for code. Use when user says "write tests for this function", "add unit tests to this file", "generate integration tests for the API", "I need test coverage for this module", or "create e2e tests for the checkout flow".
-allowed-tools: Read, Grep, Glob, Task(subagent_type:test-writer-agent), Task(subagent_type:context-loader-agent), Task(subagent_type:security-analyzer-agent)
+allowed-tools: Read, Grep, Glob, Task(subagent_type:test-writer-agent), Task(subagent_type:development-codebase-tools:agent-orchestrator-agent), Task(subagent_type:development-codebase-tools:context-loader-agent), Task(subagent_type:development-codebase-tools:security-analyzer-agent), Task(subagent_type:development-codebase-tools:performance-analyzer-agent)
 model: sonnet
 ---
 
@@ -22,7 +22,9 @@ Generate comprehensive tests with advanced testing strategies, scenario generati
 2. **Select Strategy**: Choose testing approach based on code type
 3. **Generate Tests**: Create tests with appropriate framework
 4. **Identify Edge Cases**: Boundary conditions and error handling
-5. **Output Files**: Write test files with full coverage
+5. **Return Files**: Return the test file contents as artifacts. This skill has no Write tool
+   and no Bash, so it cannot write to disk or measure coverage — do not claim a coverage
+   figure, and name the behaviors you did not write a test for.
 
 ## Options
 
@@ -58,7 +60,11 @@ Invoke **test-writer-agent** agent with:
 - `testType`: Testing strategy
 - `requirements`: User stories (if provided)
 
-For complex scenarios, coordinate with **context-loader-agent** and **security-analyzer-agent**.
+For a single file or a few files in one module, invoke `test-writer-agent` directly — that is
+the common case. Only for work spanning several areas, coordinate with
+**development-codebase-tools:context-loader-agent** and
+**development-codebase-tools:security-analyzer-agent** (both live in another plugin, hence the
+prefix).
 
 ## Examples
 

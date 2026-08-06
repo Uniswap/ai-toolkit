@@ -48,9 +48,9 @@ jobs:
       # MODEL SELECTION
       # Choose the Claude model based on your needs:
       # - claude-sonnet-5: Latest, best balance (RECOMMENDED)
-      # - claude-opus-4-8: Most capable, slower, higher cost
+      # - claude-opus-5: Most capable, slower, higher cost
       # - claude-haiku-4-5: Fast, cost-effective for simpler tasks
-      model: "claude-opus-4-8"
+      model: "claude-opus-5"
 
       # TIMEOUT CONFIGURATION
       # Set maximum execution time in minutes
@@ -256,7 +256,7 @@ jobs:
 #     secrets:
 #       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 #     with:
-#       model: 'claude-opus-4-8'  # Thorough for code review
+#       model: 'claude-opus-5'  # Thorough for code review
 #       timeout_minutes: '15'
 #
 # -------------------
@@ -289,7 +289,7 @@ jobs:
 #     secrets:
 #       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 #     with:
-#       model: 'claude-opus-4-8'
+#       model: 'claude-opus-5'
 #       timeout_minutes: '30'
 #       custom_instructions: |
 #         Perform a comprehensive codebase audit focusing on:
@@ -368,7 +368,7 @@ jobs:
 # Solution:
 #   1. Verify model name exactly matches available models:
 #      - claude-sonnet-5
-#      - claude-opus-4-8
+#      - claude-opus-5
 #      - claude-haiku-4-5
 #   2. Check Anthropic API key has access to requested model
 #   3. Review Anthropic console for API limits or restrictions
@@ -417,8 +417,12 @@ jobs:
 #
 # 1. **Choose the right model**:
 #    - Haiku 4.5: Most cost-effective for simple tasks and high-volume usage
-#    - Sonnet 5: Best balance for most tasks (~80% cheaper than Opus)
-#    - Opus: Reserve for complex analysis or critical reviews
+#      ($1/$5 per MTok — still ~5x cheaper than Opus 5)
+#    - Sonnet 5: Best balance for most tasks ($3/$15 per MTok, ~40% cheaper
+#      than Opus 5)
+#    - Opus 5: $5/$25 per MTok. The Opus/Sonnet gap narrowed sharply with the
+#      Claude 5 family, so reserve Opus for complex analysis or critical
+#      reviews on judgment grounds rather than on cost grounds alone.
 #
 # 2. **Set appropriate timeouts**:
 #    - 5 minutes for simple questions

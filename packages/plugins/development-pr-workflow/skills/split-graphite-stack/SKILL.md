@@ -77,14 +77,14 @@ Each PR should:
 **Commits:** 3 commits
 **Files:** 5 files (+123 -12)
 **Rationale:** Foundational types that other changes depend on
-**Reviewability Score:** 9/10
+**Reviewability:** Excellent
 
 #### PR #2: `feat: implement JWT service`
 
 **Commits:** 5 commits
 **Files:** 12 files (+456 -89)
 **Dependencies:** PR #1
-**Reviewability Score:** 7/10
+**Reviewability:** Good
 
 [... continues for each PR ...]
 ```

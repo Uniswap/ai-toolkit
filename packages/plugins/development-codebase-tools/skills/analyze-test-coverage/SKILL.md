@@ -58,6 +58,12 @@ Build a table of files with their line coverage %, branch coverage %, and uncove
 
 ## Step 4: Score and Rank Coverage Gaps
 
+**Score every file that produced coverage data.** Do not drop files by a coverage threshold
+before scoring — the whole point of the criticality signals below is to surface the 85%-covered
+file whose uncovered lines are the auth-failure branch. A pre-filter would delete exactly that
+finding before it could be ranked. If `--min-coverage` is supplied, apply it to the ranked
+list at the end of Step 5, and report how many files it removed.
+
 Don't sort by raw line count. Sort by **criticality of what's untested**:
 
 **Criticality signals (check each uncovered file/function for these):**
@@ -120,7 +126,7 @@ Pass the agent:
 | Flag                 | Description                                                     |
 | -------------------- | --------------------------------------------------------------- |
 | `--target <path>`    | Limit analysis to a subdirectory or file                        |
-| `--min-coverage <N>` | Only report files below N% (default: 80)                        |
+| `--min-coverage <N>` | Drop files at or above N% from the final list (default: off)    |
 | `--top <N>`          | How many files to include in the prioritized list (default: 10) |
 | `--fix`              | After reporting, invoke test-writer for the top 3 gaps          |
 | `--skip-run`         | Skip running coverage tools; parse existing reports only        |

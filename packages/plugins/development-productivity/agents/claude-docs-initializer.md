@@ -9,7 +9,7 @@ description: Discover repository structure and create initial CLAUDE.md document
 
 Perform deep repository analysis to understand structure, patterns, and architecture, then create comprehensive CLAUDE.md documentation files at all appropriate levels using a batched approach with human approval checkpoints. This agent initializes documentation for repositories that don't have existing CLAUDE.md files.
 
-**Batching Strategy**: To prevent overwhelming PRs and enable review, this agent creates documentation in small batches (1-2 files per batch) with approval checkpoints between batches. **YOU MUST ENSURE that each batch's content is verified by the documentation-agent before presentation to the user.** This is done by returning output with `requires_verification: true` flag so the main Claude Code agent automatically invokes the fact-checker.
+**Batching Strategy**: To prevent overwhelming PRs and enable review, this agent creates documentation in small batches (1-2 files per batch) with approval checkpoints between batches. Verification is your own inline responsibility (see step 6): check each claim against the repository as you write it, and flag any claim you could not confirm on the `unverified_claims` list for that batch. Do not hand the batch to a second agent for a verification pass.
 
 ## Inputs
 
@@ -293,9 +293,9 @@ so the rule only activates when Claude works with relevant files.
 
 ### 6. Pre-Generation Verification
 
-**CRITICAL: Before generating ANY documentation content, verify facts**:
+**Before generating documentation content, verify facts against the repository.**
 
-This prevents hallucinations at the source by ensuring all documentation claims are based on actual filesystem and codebase state.
+This prevents hallucinations at the source by ensuring documentation claims are based on actual filesystem and codebase state. Any claim you cannot confirm this way still gets written only if it is genuinely useful — and then it goes on that file's `unverified_claims` list, never into the prose as if it were established.
 
 **Verification Steps for Each Directory to be Documented**:
 
@@ -438,18 +438,17 @@ directory_facts:
 - Apply pre-generation verification (check paths, dependencies exist)
 - Ensure content follows templates and guidelines
 
-**Step 2: Return Batch for Verification**
+**Step 2: Return Batch for Review**
 
 - **Do NOT write files yet**
-- **REQUIRED**: Return batch content with `requires_verification: true` flag
-- **CRITICAL**: The main Claude Code agent MUST invoke the documentation-agent automatically when it sees this flag
+- Return batch content along with `unverified_claims` — every statement in this batch you
+  could not confirm against the repository, with the check you attempted
 - Include batch metadata (batch number, total batches, files in batch)
-- The documentation-agent will verify accuracy before user approval
 
 **Step 3: Await Approval** (handled by main agent)
 
-- Main agent presents batch with verification results
-- User reviews accuracy scores and inaccuracy reports
+- Main agent presents the batch and its flagged claims
+- User reviews the flagged claims and the content
 - User approves, rejects, skips, or requests edits
 
 **Step 4: Process Approval Response**
@@ -487,14 +486,14 @@ directory_facts:
 1. Create single CLAUDE.md at area root only (single batch)
 2. Synthesize completedContext from leaf agents
 3. Focus on area-wide architecture and patterns
-4. Still requires verification and approval
+4. Still requires inline verification and user approval
 
 **For Repository Root Documentation**:
 
 1. Create single CLAUDE.md at repository root only (single batch)
 2. Synthesize completedContext from all area agents
 3. Provide system-wide architectural overview
-4. Still requires verification and approval
+4. Still requires inline verification and user approval
 
 **Cross-Reference Management**:
 
@@ -543,7 +542,6 @@ summary: |
 ```yaml
 phase: 'batch_execution'
 success: boolean
-requires_verification: true # Signal to main agent to invoke fact-checker
 current_batch:
   batch_number: number
   total_batches: number
@@ -552,6 +550,9 @@ current_batch:
       content: string # Full CLAUDE.md content
       type: 'root|package|module|feature'
       summary: string # What this file documents
+      unverified_claims: # Statements written but NOT confirmed against the repo
+        - claim: string
+          why_unverified: string # What check was attempted, or why none was possible
 
   next_batch_preview: # Optional, if more batches remain
     batch_number: number
@@ -622,7 +623,10 @@ createdFiles:
     summary: string
 
 coordinationContext: |
-  Natural language string with important findings for sibling agents or future reference.
+  Natural language findings for sibling agents or future reference. **Cap at 200 words.**
+  This string is loaded into another agent's context, so include only what a sibling could
+  not cheaply rediscover itself: cross-cutting conventions, inter-package constraints, and
+  gotchas. Omit file inventories, dependency lists, and per-package restatements.
   Example: "Repository uses Nx monorepo with 8 packages. Core packages (@myapp/auth, @myapp/api) provide authentication and API utilities. Frontend packages use React 18 with Next.js 14. Backend uses Express with TypeScript. All packages follow similar structure with src/, tests/, and proper TypeScript configuration."
 
 skippedAreas: # Areas intentionally not documented
@@ -734,7 +738,7 @@ For repositories with 1000+ files:
 
 ## Critical Constraints
 
-**MANDATORY VERIFICATION**: YOU MUST ensure the main Claude Code agent invokes the documentation-agent for EVERY batch by returning `requires_verification: true` in your output. The documentation-agent MUST verify documentation accuracy before files are written. This is not optional.
+**INLINE VERIFICATION**: Verify claims yourself as you write them, against the repository (step 6). Any claim you could not confirm goes on that file's `unverified_claims` list before the batch is returned. Do not delegate a verification pass to a second agent — a fresh agent re-reading your prose sees the same text you just wrote, without the evidence you gathered while writing it.
 
 **HIERARCHICAL AWARENESS**: This agent operates at different levels based on target:
 

@@ -27,7 +27,7 @@ This is **Step 3** of the implementation workflow:
 1. **Load Plan**: Read the plan file
 2. **Analyze**: Check completeness and conciseness
 3. **Validate Scope**: Ensure no extras beyond requirements
-4. **Identify Risks**: Find critical implementation risks
+4. **Identify Risks**: Report the implementation risks you find, each with a severity
 5. **Check Alignment**: Verify against codebase patterns
 6. **Provide Feedback**: Actionable improvement suggestions
 
@@ -40,7 +40,7 @@ Returns structured review:
 - **Concerns**: Issues with severity and suggestions
 - **Gaps**: Missing critical elements
 - **Improvements**: Enhancement recommendations
-- **Feasibility**: Complexity, risks, timeline estimate
+- **Feasibility**: Complexity and risks with severity
 - **Alignment**: Pattern compliance check
 - **Scope Validation**: Requirements adherence
 
@@ -52,7 +52,7 @@ Returns structured review:
 
 ## Context Integration
 
-Automatically uses context from prior `/explore` when available:
+Automatically uses context from a prior `explore-codebase` run when available:
 
 - Key components and responsibilities
 - Existing patterns and conventions
