@@ -21,18 +21,20 @@ Create clear, actionable implementation plans through collaborative multi-agent 
 ## Quick Process
 
 1. **Analyze Context**: Understand the task, leverage any prior exploration
-2. **Select Agents**: Choose 3-10 specialists based on task complexity
-3. **Collaborative Discussion**: 2-3 rounds of multi-agent refinement
+2. **Select Agents**: Choose specialists for the dimensions the task actually raises, up to 10
+3. **Collaborative Discussion**: Multi-agent refinement, up to the round ceiling in the table below
 4. **Synthesize Plan**: Generate comprehensive implementation plan
 5. **Output File**: Write plan to `.claude-output/plan-[timestamp].md`
 
 ## Complexity-Based Planning
 
-| Task Type                              | Agents | Rounds | Plan Length    |
-| -------------------------------------- | ------ | ------ | -------------- |
-| Simple (bug fix, minor feature)        | 3-4    | 1-2    | ~100-200 lines |
-| Medium (features, refactors)           | 5-7    | 2-3    | ~200-400 lines |
-| Complex (architecture, major features) | 8-10   | 2-3    | ~400-600 lines |
+Agent and round counts are **ceilings, not quotas**. Staff only the dimensions the task actually raises, and do not spawn an agent for analysis that would finish in a handful of direct tool calls - plan the simple case yourself.
+
+| Task Type                              | Agents (max) | Rounds (max) | Plan Length    |
+| -------------------------------------- | ------------ | ------------ | -------------- |
+| Simple (bug fix, minor feature)        | up to 2      | 1            | ~100-200 lines |
+| Medium (features, refactors)           | up to 5      | 2            | ~200-400 lines |
+| Complex (architecture, major features) | up to 10     | 3            | ~400-600 lines |
 
 ## Plan Structure
 
