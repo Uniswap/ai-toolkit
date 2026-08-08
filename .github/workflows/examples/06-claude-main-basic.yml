@@ -136,7 +136,7 @@ jobs:
 #       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 #     with:
 #       # allowed_tools is a comma-separated list (no newlines)
-#       allowed_tools: "Read,Grep,Glob,Bash(git status),Bash(git log*),Bash(git diff*),Bash(npm list),Bash(npm outdated)"
+#       allowed_tools: "Read,Grep,Glob,Bash(git status),Bash(git log:*),Bash(git diff:*),Bash(npm list),Bash(npm outdated)"
 #
 # -------------------
 # Example 4: Extended Timeout for Complex Tasks
@@ -263,7 +263,7 @@ jobs:
 # Key differences from universe:
 # - Reusable workflow pattern (uses: instead of inline)
 # - Updated default model (Sonnet 5 by default)
-# - More permissive default tools (includes write_file, edit_file)
+# - More permissive default tools (includes Write, Edit)
 # - Fixed security and permission settings
 # - Centralized in ai-toolkit for organization-wide consistency
 # - Additional model options (Haiku 4.5 for cost-effective usage)

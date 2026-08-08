@@ -98,8 +98,8 @@ jobs:
       #
       # allowed_tools is a comma-separated list (no newlines/comments) — see
       # the _claude-main.yml input description for the full tool catalog.
-      # write_file/edit_file (Write/Edit) are deliberately excluded below.
-      allowed_tools: "Read,Grep,Glob,Bash(git status),Bash(git log*),Bash(git diff*),Bash(git show*),Bash(git branch*),Bash(git remote*),Bash(npm list*),Bash(npm outdated),Bash(yarn list*),Bash(pnpm list*),Bash(npm run --silent),Bash(node --version),Bash(npm --version),Bash(ls*),Bash(pwd),Bash(find*),Bash(wc*),Bash(grep*),Bash(awk*),Bash(sed*)"
+      # Write/Edit are deliberately excluded below.
+      allowed_tools: "Read,Grep,Glob,Bash(git status),Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git branch:*),Bash(git remote:*),Bash(npm list:*),Bash(npm outdated),Bash(yarn list:*),Bash(pnpm list:*),Bash(npm run --silent),Bash(node --version),Bash(npm --version),Bash(ls:*),Bash(pwd),Bash(find:*),Bash(wc:*),Bash(grep:*),Bash(awk:*),Bash(sed:*)"
 
 # -----------------------------------------------------------------------------
 # ALTERNATIVE CONFIGURATIONS
@@ -127,7 +127,7 @@ jobs:
 #       model: 'claude-sonnet-5'
 #       timeout_minutes: '10'
 #       # allowed_tools is a comma-separated list (no newlines)
-#       allowed_tools: "Read,Write,Edit,Grep,Glob,Bash(git status),Bash(git diff*),Bash(npm list),Bash(npm test),Bash(npm run build)"
+#       allowed_tools: "Read,Write,Edit,Grep,Glob,Bash(git status),Bash(git diff:*),Bash(npm list),Bash(npm test),Bash(npm run build)"
 #
 # -------------------
 # Configuration 3: Ultra-Restrictive (Code Review Only)
@@ -238,33 +238,31 @@ jobs:
 # TOOL CONFIGURATION REFERENCE
 # -----------------------------------------------------------------------------
 #
-# Complete list of available tools for allowed_tools configuration:
+# allowed_tools is a comma-separated list (no newlines). Complete list of
+# available tools for allowed_tools configuration:
 #
 # FILE OPERATIONS:
-#   - read_file          # Read file contents
-#   - write_file         # Create/overwrite files
-#   - edit_file          # Make targeted edits to existing files
-#   - list_files         # List directory contents
-#   - search_files       # Search for files by name pattern
-#   - search_code        # Search code content
-#   - grep               # Search file contents with regex
-#   - glob               # File pattern matching
+#   - Read                # Read file contents
+#   - Write               # Create/overwrite files
+#   - Edit                # Make targeted edits to existing files
+#   - Grep                # Search file contents with regex
+#   - Glob                # File pattern matching
 #
 # BASH COMMANDS:
-#   - Bash(*)            # Allow all bash commands (PERMISSIVE)
+#   - Bash               # Allow all bash commands (PERMISSIVE)
 #   - Bash(command)      # Allow specific command
-#   - Bash(command*)     # Allow command with any arguments
+#   - Bash(command:*)    # Allow command with any arguments
 #   - Bash(command arg)  # Allow command with specific argument
 #
 # Examples of bash restrictions:
-#   - Bash(git *)              # All git commands
-#   - Bash(git diff*)          # Only git diff variants
-#   - Bash(npm list)           # Exact command only
-#   - Bash(npm test)           # Exact command only
-#   - Bash(node --version)     # Exact command with specific args
+#   - Bash(git *)               # All git commands
+#   - Bash(git diff:*)          # Only git diff variants
+#   - Bash(npm list)            # Exact command only
+#   - Bash(npm test)            # Exact command only
+#   - Bash(node --version)      # Exact command with specific args
 #
-# Security note: Be careful with Bash(*) as it allows any command execution.
-# Prefer explicit allowlists for production environments.
+# Security note: Be careful with unrestricted Bash as it allows any command
+# execution. Prefer explicit allowlists for production environments.
 #
 
 # -----------------------------------------------------------------------------
@@ -273,9 +271,9 @@ jobs:
 #
 # Problem: Claude says it can't perform an action
 # Solution: Check allowed_tools configuration. Add the required tool:
-#   - For file writes: add write_file or edit_file
-#   - For bash commands: add Bash(command) or Bash(*)
-#   - For file searches: ensure grep, glob, or search_files are included
+#   - For file writes: add Write or Edit
+#   - For bash commands: add Bash(command) or Bash
+#   - For file searches: ensure Grep or Glob are included
 #
 # Problem: Custom instructions not being followed
 # Solution:
@@ -331,7 +329,7 @@ jobs:
 #    - Monitor usage in Anthropic console
 #
 # 4. **Code Modification**:
-#    - If allowing write_file/edit_file, ensure you have:
+#    - If allowing Write/Edit, ensure you have:
 #      - Branch protection rules
 #      - Required PR reviews
 #      - CI checks before merge
