@@ -353,20 +353,9 @@ jobs:
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     with:
-      allowed_tools: |
-        # File operations (READ-ONLY)
-        - read_file
-        - list_files
-        - search_files
-        - search_code
-        - grep
-        - glob
-
-        # Limited bash commands (read-only)
-        - Bash(git status)
-        - Bash(git log*)
-        - Bash(git diff*)
-        - Bash(npm list)
+      # allowed_tools is a comma-separated list (no newlines) — see the
+      # _claude-main.yml input description for the full tool catalog.
+      allowed_tools: 'Read,Grep,Glob,Bash(git status),Bash(git log*),Bash(git diff*),Bash(npm list)'
 ```
 
 #### Example: Custom Instructions for Your Codebase
@@ -493,14 +482,9 @@ Claude modified files when I only wanted analysis
 
 ```yaml
 with:
-  allowed_tools: |
-    # Read-only file operations
-    - read_file
-    - list_files
-    - search_files
-    - grep
-
-    # No write_file or edit_file
+  # allowed_tools is a comma-separated list (no newlines) — omitting
+  # write/edit tools keeps Claude read-only.
+  allowed_tools: 'Read,Grep,Glob'
 ```
 
 **Issue: API rate limit or cost concerns**

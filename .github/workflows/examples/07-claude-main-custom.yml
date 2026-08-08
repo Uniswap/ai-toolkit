@@ -95,47 +95,11 @@ jobs:
       # ALLOWED TOOLS
       # Customize which operations Claude can perform
       # This example shows a RESTRICTIVE configuration for read-only analysis
-      allowed_tools: |
-        # File operations (READ-ONLY)
-        - read_file
-        - list_files
-        - search_files
-        - search_code
-        - grep
-        - glob
-
-        # Code analysis (read-only)
-        # NOTE: write_file and edit_file are deliberately excluded
-
-        # Git operations (read-only)
-        - Bash(git status)
-        - Bash(git log*)
-        - Bash(git diff*)
-        - Bash(git show*)
-        - Bash(git branch*)
-        - Bash(git remote*)
-
-        # Package management (read-only)
-        - Bash(npm list*)
-        - Bash(npm outdated)
-        - Bash(yarn list*)
-        - Bash(pnpm list*)
-
-        # Build/test information (read-only)
-        - Bash(npm run --silent)  # List available scripts
-        - Bash(node --version)
-        - Bash(npm --version)
-
-        # File system navigation
-        - Bash(ls*)
-        - Bash(pwd)
-        - Bash(find*)
-        - Bash(wc*)
-
-        # Text processing for analysis
-        - Bash(grep*)
-        - Bash(awk*)
-        - Bash(sed*)
+      #
+      # allowed_tools is a comma-separated list (no newlines/comments) — see
+      # the _claude-main.yml input description for the full tool catalog.
+      # write_file/edit_file (Write/Edit) are deliberately excluded below.
+      allowed_tools: "Read,Grep,Glob,Bash(git status),Bash(git log*),Bash(git diff*),Bash(git show*),Bash(git branch*),Bash(git remote*),Bash(npm list*),Bash(npm outdated),Bash(yarn list*),Bash(pnpm list*),Bash(npm run --silent),Bash(node --version),Bash(npm --version),Bash(ls*),Bash(pwd),Bash(find*),Bash(wc*),Bash(grep*),Bash(awk*),Bash(sed*)"
 
 # -----------------------------------------------------------------------------
 # ALTERNATIVE CONFIGURATIONS
@@ -151,19 +115,8 @@ jobs:
 #     with:
 #       model: 'claude-sonnet-5'
 #       timeout_minutes: '10'
-#       allowed_tools: |
-#         # File operations (read AND write)
-#         - read_file
-#         - write_file
-#         - edit_file
-#         - list_files
-#         - search_files
-#         - search_code
-#         - grep
-#         - glob
-#
-#         # All bash commands
-#         - Bash(*)
+#       # allowed_tools is a comma-separated list (no newlines)
+#       allowed_tools: "Read,Write,Edit,Grep,Glob,Bash"
 #
 # -------------------
 # Configuration 2: Balanced (Read + Limited Write)
@@ -173,22 +126,8 @@ jobs:
 #     with:
 #       model: 'claude-sonnet-5'
 #       timeout_minutes: '10'
-#       allowed_tools: |
-#         # File operations (read and write)
-#         - read_file
-#         - write_file
-#         - edit_file
-#         - list_files
-#         - search_files
-#         - grep
-#         - glob
-#
-#         # Limited bash (no destructive commands)
-#         - Bash(git status)
-#         - Bash(git diff*)
-#         - Bash(npm list)
-#         - Bash(npm test)
-#         - Bash(npm run build)
+#       # allowed_tools is a comma-separated list (no newlines)
+#       allowed_tools: "Read,Write,Edit,Grep,Glob,Bash(git status),Bash(git diff*),Bash(npm list),Bash(npm test),Bash(npm run build)"
 #
 # -------------------
 # Configuration 3: Ultra-Restrictive (Code Review Only)
@@ -201,14 +140,9 @@ jobs:
 #       custom_instructions: |
 #         You are in READ-ONLY mode for code review.
 #         Provide suggestions and analysis but do not attempt file modifications.
-#       allowed_tools: |
-#         # Only basic file reading
-#         - read_file
-#         - list_files
-#         - search_files
-#         - grep
-#
-#         # No bash commands at all
+#       # allowed_tools is a comma-separated list (no newlines);
+#       # no Bash tools at all
+#       allowed_tools: "Read,Grep,Glob"
 #
 # -------------------
 # Configuration 4: Custom Secret Name

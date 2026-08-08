@@ -66,10 +66,8 @@ jobs:
 
       # OPTIONAL: Custom allowed tools (default: permissive set allowing read/write)
       # See Example 3 below for restricting to read-only operations
-      # allowed_tools: |
-      #   - read_file
-      #   - list_files
-      #   - Bash(git *)
+      # allowed_tools is a comma-separated list (no newlines)
+      # allowed_tools: "Read,Glob,Bash(git *)"
 # -----------------------------------------------------------------------------
 # CUSTOMIZATION EXAMPLES
 # -----------------------------------------------------------------------------
@@ -137,21 +135,8 @@ jobs:
 #     secrets:
 #       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 #     with:
-#       allowed_tools: |
-#         # File operations (read-only)
-#         - read_file
-#         - list_files
-#         - search_files
-#         - search_code
-#         - grep
-#         - glob
-#
-#         # Limited bash commands (read-only operations)
-#         - Bash(git status)
-#         - Bash(git log*)
-#         - Bash(git diff*)
-#         - Bash(npm list)
-#         - Bash(npm outdated)
+#       # allowed_tools is a comma-separated list (no newlines)
+#       allowed_tools: "Read,Grep,Glob,Bash(git status),Bash(git log*),Bash(git diff*),Bash(npm list),Bash(npm outdated)"
 #
 # -------------------
 # Example 4: Extended Timeout for Complex Tasks
