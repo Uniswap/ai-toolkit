@@ -1,6 +1,6 @@
 {
   "name": "development-pr-workflow",
-  "version": "2.4.1",
+  "version": "2.5.0",
   "description": "Pull request review, issue resolution, and Graphite stack management",
   "author": {
     "name": "Uniswap Labs",
