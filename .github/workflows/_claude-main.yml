@@ -457,7 +457,7 @@ jobs:
       # Supports both API key and OAuth token authentication (validated in earlier step)
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@9db594c7a0e82298c121c18b7f08aa1579ce7341 # v1.0.185
+        uses: anthropics/claude-code-action@6b082c41935b4c8a3b8b0ef85ba4ba4d9eeb8975 # v1.0.189
         with:
           # Authentication: provide either API key or OAuth token (validated in earlier step)
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
