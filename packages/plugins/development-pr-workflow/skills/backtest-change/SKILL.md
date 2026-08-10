@@ -1,19 +1,6 @@
 ---
 name: backtest-change
-description: >
-  Validate a data-driven change against LIVE historical data before it ships —
-  replay old-vs-new over a real window, report whether it achieves its goal, and
-  refuse to ship when the data disproves the premise. Fires whenever someone
-  proposes a measurable change and names a number: "add a monitor at 700MB",
-  "set the threshold to N", "warn at X / critical at Y", "alert when it exceeds
-  N", "raise the timeout to 5s", "change the sampling rate", "bump the cache
-  TTL", "tighten this alert", "loosen the threshold", "this should reduce the
-  noise", "that will fix the p95" — and before opening any PR for a monitor
-  threshold, alert routing or renotify cadence, metric/log/trace query, sampling
-  rate, rate limit, autoscaling parameter, or a perf change with a latency or
-  throughput target. A proposed number is a hypothesis, not a decision: backtest
-  it and let the data override it. Always report old N vs new M with the window
-  and data source. The /backtest-change command loads this same skill.
+description: Validate a data-driven change against LIVE historical data before it ships — replay old-vs-new over a real window, report whether it achieves its goal, and refuse to ship when the data disproves the premise. Fires whenever someone proposes a measurable change and names a number — "add a monitor at 700MB", "set the threshold to N", "warn at X / critical at Y", "raise the timeout to 5s", "change the sampling rate", "tighten this alert", "this should reduce the noise" — and before opening any PR for a monitor threshold, alert routing or renotify cadence, metric/log/trace query, sampling rate, rate limit, autoscaling parameter, or a perf change with a latency or throughput target. Fires for a brand-new monitor, deploy gate, or alert just as it does for an edit to an existing one, including the joint replay of every condition in a composite (e.g. rate AND floor together). A proposed number is a hypothesis, not a decision — backtest it and let the data override it.
 allowed-tools: Bash, Read, Grep, Glob, AskUserQuestion
 model: opus
 ---
@@ -92,6 +79,10 @@ post-merge validation.
    both the old and the new condition against the historical series and count
    transitions. Identify *which groups/series* change, not just the aggregate.
    For a brand-new monitor, "old" is 0 — say so explicitly rather than omitting it.
+   For a composite (a gate combining, say, a rate condition and a traffic floor),
+   replay the conditions *jointly* over the same window. Each one alone will fire
+   on windows the composite would have suppressed, so per-condition counts
+   overstate what the gate actually does.
 
 5. **Separate the two populations.** The threshold's whole job is to divide
    incident from healthy. Report the highest *legitimate* value observed and the
