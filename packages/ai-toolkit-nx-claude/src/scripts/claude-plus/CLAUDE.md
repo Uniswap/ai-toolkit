@@ -5,8 +5,11 @@
 The `claude-plus` script is an enhanced launcher for Claude Code that improves developer experience by automating pre-launch tasks:
 
 1. MCP server selection (via claude-mcp-helper)
-2. Slack OAuth token validation and refresh
-3. Claude Code launch
+2. Claude Code launch
+
+Slack OAuth is no longer handled here. Slack is a hosted OAuth MCP server
+(`https://mcp.slack.com/mcp`) that users connect through `/mcp`; the token
+wizard and refresh flow this script used to own were removed in favor of it.
 
 ## Architecture
 
@@ -15,8 +18,7 @@ src/scripts/claude-plus/
 ├── index.ts          # CLI entry point, argument parsing, orchestration
 ├── display.ts        # Colorized console output utilities
 ├── mcp-selector.ts   # MCP server selector integration
-├── slack-token.ts    # Slack OAuth token management
-├── slack-setup.ts    # Interactive Slack OAuth setup wizard
+├── config-paths.ts   # Claude config path resolution
 ├── claude-launcher.ts # Claude Code process spawning
 ├── README.md         # User documentation
 └── CLAUDE.md         # This file (AI assistant documentation)
@@ -26,18 +28,20 @@ src/scripts/claude-plus/
 
 ### index.ts - CLI Entry Point
 
-**Purpose**: Main entry point that orchestrates the three-step startup flow.
+**Purpose**: Main entry point that orchestrates the two-step startup flow.
 
 **Key Features**:
 
-- Argument parsing for CLI flags (--skip-mcp, --skip-slack, --dry-run, --verbose)
+- Argument parsing for CLI flags (--skip-mcp, --dry-run, --verbose)
+- Removed Slack flags (--skip-slack, --setup-slack) are swallowed so they never
+  reach the `claude` binary, and warned about once after the header
 - Sequential step execution with status display
 - Error handling with clean exit codes
 
 **Flow**:
 
 ```typescript
-main() -> parseArgs() -> [runMcpSelector] -> [validateAndRefreshSlackToken] -> [launchClaude]
+main() -> parseArgs() -> [runMcpSelector] -> [launchClaude]
 ```
 
 ### display.ts - Display Utilities
@@ -87,39 +91,10 @@ This ensures that `@next` releases of `ai-toolkit-nx-claude` use the matching `@
 
 **Key Pattern**: Uses `spawn` with `stdio: 'inherit'` to allow interactive terminal control.
 
-### slack-token.ts - Slack Token Management
+### config-paths.ts - Claude Config Path Resolution
 
-**Purpose**: Validates and refreshes Slack OAuth tokens using a backend service.
-
-**Key Functions**:
-
-```typescript
-// Main entry point
-export async function validateAndRefreshSlackToken(verbose?: boolean): Promise<void>;
-
-// Internal functions
-function loadSlackConfig(): SlackConfig | null;
-function getCurrentToken(): string | null;
-async function testToken(token: string, verbose?: boolean): Promise<boolean>;
-async function refreshOAuthToken(
-  config: SlackConfig,
-  verbose?: boolean
-): Promise<{ accessToken; refreshToken? }>;
-function updateClaudeConfig(newToken: string, verbose?: boolean): void;
-function updateRefreshToken(newRefreshToken: string, verbose?: boolean): void;
-```
-
-**Configuration Sources**:
-
-1. Environment variables: `CLAUDE_CONFIG_DIR`, `SLACK_REFRESH_URL`, `SLACK_REFRESH_TOKEN`
-2. File: `~/.config/claude-code/slack-env.sh` (parsed for export statements)
-
-**Token Storage**:
-
-- Access token: Searched in multiple locations (see below) → `mcpServers["slack"].env.SLACK_BOT_TOKEN`
-- Refresh token: `~/.config/claude-code/slack-env.sh` (updated in-place)
-
-**CLAUDE_CONFIG_DIR Support & Backward Compatibility**:
+**Purpose**: Centralizes resolution of the Claude Code configuration path so
+every module agrees on which profile is in play.
 
 The config path utilities are centralized in `config-paths.ts`:
 
@@ -154,88 +129,6 @@ export function isUsingCustomConfigDir(): boolean {
   return !!process.env.CLAUDE_CONFIG_DIR;
 }
 ```
-
-**Multiple Config Location Support**:
-
-The `getCurrentToken()` function searches for the Slack token in multiple locations for backward compatibility:
-
-1. `$CLAUDE_CONFIG_DIR/claude.json` (if env var is set)
-2. `~/.claude.json` (legacy location from addons generator)
-3. `~/.claude/claude.json` (new default user location from `claude mcp add --scope user`)
-
-This ensures that users who previously installed the Slack MCP via the addons generator (which used the legacy location) continue to work, while also supporting users who install the uniswap-integrations plugin or use the new default config location.
-
-**API Endpoints**:
-
-- Token validation: `GET https://slack.com/api/auth.test` (direct Slack API call)
-- Token refresh: `POST {SLACK_REFRESH_URL}/slack/refresh` (backend endpoint)
-  - Request: `{ refresh_token: string }`
-  - Response: `{ ok: boolean, access_token: string, refresh_token?: string }`
-
-**Architecture Change**: Previously called Slack's OAuth API directly with client credentials. Now calls a backend service that securely handles the OAuth flow, keeping client credentials on the backend.
-
-**Important**: Slack refresh tokens are single-use. After each refresh, the new refresh token must be saved.
-
-### slack-setup.ts - Interactive Setup Wizard
-
-**Purpose**: Provides an interactive setup wizard for first-time users to configure Slack OAuth settings.
-
-**OAuth Backend URL**: `https://ai-toolkit-slack-oauth-backend.vercel.app`
-
-**Key Functions**:
-
-```typescript
-// Main setup wizard entry point
-export async function runSlackSetupWizard(verbose?: boolean): Promise<boolean>;
-
-// Offer setup when config is missing (called from slack-token.ts)
-export async function offerSlackSetup(verbose?: boolean): Promise<boolean>;
-
-// Check if config file exists
-export function slackEnvExists(): boolean;
-```
-
-**Behavior**:
-
-1. Displays step-by-step instructions with the OAuth backend URL
-2. Guides user to visit the OAuth backend, authorize with Slack, and copy tokens
-3. Prompts for Backend Refresh URL (with default pre-filled) and Refresh Token
-4. Creates `~/.config/claude-code/` directory with 700 permissions
-5. Writes `slack-env.sh` file with 600 permissions (owner read/write only)
-6. Returns true if setup completed, false if skipped/cancelled
-
-**Setup Instructions Shown to User**:
-
-```
-📋 Step-by-Step Instructions:
-
-  Step 1: Visit the OAuth Setup Page
-    • Open: https://ai-toolkit-slack-oauth-backend.vercel.app
-    • Click "Add to Slack" and authorize the app
-
-  Step 2: Copy Your Tokens
-    • After authorization, you'll see your tokens displayed
-    • Copy the Access Token (OAuth Token) - starts with xoxp-...
-    • Copy the Refresh Token - starts with xoxe-1-...
-
-  Step 3: Enter Your Configuration Below
-    • Backend Refresh URL: https://ai-toolkit-slack-oauth-backend.vercel.app
-    • Refresh Token: The xoxe-1-... token you copied
-```
-
-**Integration**:
-
-- Called from `slack-token.ts` when `loadSlackConfig()` returns null
-- Can be invoked directly via `--setup-slack` CLI flag
-- Handles existing file detection with overwrite confirmation
-- Backend URL defaults to `https://ai-toolkit-slack-oauth-backend.vercel.app` (user can press Enter to accept)
-
-**File Permissions**: The setup wizard enforces secure file permissions:
-
-- Directory: `0o700` (rwx------)
-- Config file: `0o600` (rw-------)
-
-**User Guidance**: Directs users to visit the OAuth backend URL to obtain their tokens. The backend handles the secure OAuth flow with Slack and provides both access and refresh tokens.
 
 ### claude-launcher.ts - Claude Launch
 
@@ -290,8 +183,7 @@ The `-p` flag tells npx to install the package, and then run the `claude-plus` b
 The script is designed to continue even when optional components fail:
 
 1. **MCP Helper Missing**: Warns and skips MCP selection
-2. **Slack Config Missing**: Warns and skips token validation
-3. **Claude Not Installed**: Fails with helpful installation instructions
+2. **Claude Not Installed**: Fails with helpful installation instructions
 
 ### User Cancellation
 
@@ -319,12 +211,10 @@ node packages/ai-toolkit-nx-claude/dist/scripts/claude-plus/index.cjs --verbose 
 
 1. **Full flow**: All steps execute successfully
 2. **Skip MCP**: `--skip-mcp` flag works
-3. **Skip Slack**: `--skip-slack` flag works
-4. **Dry run**: No actual changes made
-5. **Missing MCP helper**: Graceful warning and continue
-6. **Missing Slack config**: Graceful warning and continue
-7. **Invalid Slack token**: Refresh flow triggered
-8. **Valid Slack token**: Early exit from validation
+3. **Dry run**: No actual changes made
+4. **Missing MCP helper**: Graceful warning and continue
+5. **Removed Slack flags**: `--skip-slack` / `--setup-slack` print one notice,
+   do not reach the `claude` binary, and do not abort the launch
 
 ## Maintenance
 
