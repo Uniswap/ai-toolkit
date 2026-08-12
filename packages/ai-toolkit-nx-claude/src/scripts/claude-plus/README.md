@@ -75,8 +75,9 @@ Claude config, `claude-plus` now detects it and prints cleanup steps on launch.
 A user-scope entry shadows the OAuth server the `uniswap-integrations` plugin
 provides, so Slack tools stay broken until it is gone:
 
-1. Delete the `slack` entry under `mcpServers` in `~/.claude.json` (or
-   `$CLAUDE_CONFIG_DIR/claude.json`)
+1. Delete the `slack` entry under `mcpServers` in whichever config holds it —
+   `~/.claude.json`, `~/.claude/claude.json`, or `$CLAUDE_CONFIG_DIR/claude.json`
+   if you set that. The launch warning names the exact file.
 2. **Revoke the old credentials.** Deleting config files hides the tokens but
    leaves them valid at Slack, and the OAuth backend can still mint new access
    tokens from a live refresh token. Have a workspace admin remove the app's
