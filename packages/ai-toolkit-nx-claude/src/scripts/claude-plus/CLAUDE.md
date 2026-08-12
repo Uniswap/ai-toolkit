@@ -152,6 +152,19 @@ export function warnAboutLegacySlackResidue(residue: LegacySlackResidue): void;
 
 A user who only ever ran the setup wizard has the second and not the first.
 
+**Ownership check.** A bot token alone does not make an entry ours — a hand-added
+`@modelcontextprotocol/server-slack` has the identical shape, and telling that
+user to revoke a credential they actively use would be a false positive with no
+opt-out. `isLegacyClaudePlusEntry()` claims an entry only when it is:
+
+1. invoked via `@zencoderai/slack-mcp-server` (the pre-#368 generator entry), or
+2. invoked via `@anthropic/slack-mcp` (the #368 entry, never published), or
+3. a bare `{ env: { SLACK_BOT_TOKEN } }` stub with no `command` and no `url` —
+   what the refresh step created when no entry existed, and not something anyone
+   could actually be running.
+
+An entry with a `url` is the hosted OAuth server and is always left alone.
+
 **Behavior**:
 
 - Runs on every launch, right after the header. Upgrading does not remove

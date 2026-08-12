@@ -26,6 +26,44 @@ import { displayWarning, displayDebug } from './display';
 
 const LEGACY_ENV_FILE = path.join(os.homedir(), '.config', 'claude-code', 'slack-env.sh');
 
+/**
+ * Packages the two generations of this toolkit's Slack entry ran. Anything else
+ * is somebody's own Slack server and none of our business.
+ *
+ * - `@zencoderai/slack-mcp-server`: the pre-#368 addons-generator entry
+ * - `@anthropic/slack-mcp`: the #368 entry, which never existed on npm
+ */
+const LEGACY_SLACK_PACKAGES = ['@zencoderai/slack-mcp-server', '@anthropic/slack-mcp'];
+
+/**
+ * Whether a `mcpServers.slack` entry is one this toolkit wrote.
+ *
+ * A bot token alone is not enough to claim it: a hand-added
+ * `@modelcontextprotocol/server-slack` has the identical
+ * `mcpServers.slack.env.SLACK_BOT_TOKEN` shape, and telling that user to revoke
+ * a credential they are actively using — on every launch, with no way to
+ * silence it — is worse than staying quiet.
+ */
+function isLegacyClaudePlusEntry(slack: Record<string, unknown>): boolean {
+  // A `type: http` / `url` entry is the OAuth server, not a token-based one.
+  if (typeof slack.url === 'string') {
+    return false;
+  }
+
+  const invocation = [slack.command, ...(Array.isArray(slack.args) ? slack.args : [])]
+    .filter((part): part is string => typeof part === 'string')
+    .join(' ');
+
+  if (LEGACY_SLACK_PACKAGES.some((pkg) => invocation.includes(pkg))) {
+    return true;
+  }
+
+  // The refresh step created a bare `{ env: { SLACK_BOT_TOKEN } }` stub when no
+  // entry existed, so an entry with a token and no way to launch anything is
+  // ours by elimination — it cannot be a server anyone is really using.
+  return invocation.length === 0;
+}
+
 export interface LegacySlackResidue {
   /** Claude config files carrying an `mcpServers.slack` entry with a bot token. */
   configPaths: string[];
@@ -55,7 +93,11 @@ export function findLegacySlackResidue(verbose?: boolean): LegacySlackResidue {
         return false;
       }
       const config = JSON.parse(raw);
-      return typeof config?.mcpServers?.slack?.env?.SLACK_BOT_TOKEN === 'string';
+      const slack = config?.mcpServers?.slack;
+      if (typeof slack?.env?.SLACK_BOT_TOKEN !== 'string') {
+        return false;
+      }
+      return isLegacyClaudePlusEntry(slack);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       displayDebug(`Skipped unreadable config ${configPath}: ${message}`, verbose);
