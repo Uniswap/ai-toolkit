@@ -71,9 +71,19 @@ The `--skip-slack` and `--setup-slack` flags are still accepted so existing shel
 aliases keep working, but they do nothing except print a notice.
 
 If an earlier `claude-plus` run left a `slack` entry with a bot token in your
-Claude config, remove it — a user-scope entry shadows the OAuth server that the
-`uniswap-integrations` plugin provides. The old `~/.config/claude-code/slack-env.sh` file
-is no longer read and can be deleted.
+Claude config, `claude-plus` now detects it and prints cleanup steps on launch.
+A user-scope entry shadows the OAuth server the `uniswap-integrations` plugin
+provides, so Slack tools stay broken until it is gone:
+
+1. Delete the `slack` entry under `mcpServers` in `~/.claude.json` (or
+   `$CLAUDE_CONFIG_DIR/claude.json`)
+2. **Revoke the old credentials.** Deleting config files hides the tokens but
+   leaves them valid at Slack, and the OAuth backend can still mint new access
+   tokens from a live refresh token. Have a workspace admin remove the app's
+   grants. Nothing rotates these any more, so an unrevoked token is a
+   long-lived credential nobody is watching.
+3. Delete `~/.config/claude-code/slack-env.sh`, which is no longer read
+4. Run `/mcp` and connect `slack` over OAuth
 
 ### Claude Configuration
 

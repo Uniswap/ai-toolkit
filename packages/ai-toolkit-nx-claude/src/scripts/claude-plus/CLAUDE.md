@@ -19,6 +19,7 @@ src/scripts/claude-plus/
 ├── display.ts        # Colorized console output utilities
 ├── mcp-selector.ts   # MCP server selector integration
 ├── config-paths.ts   # Claude config path resolution
+├── legacy-slack.ts   # Detects pre-OAuth Slack bot-token entries
 ├── claude-launcher.ts # Claude Code process spawning
 ├── README.md         # User documentation
 └── CLAUDE.md         # This file (AI assistant documentation)
@@ -130,6 +131,30 @@ export function isUsingCustomConfigDir(): boolean {
 }
 ```
 
+### legacy-slack.ts - Legacy Token Detection
+
+**Purpose**: Detects the `mcpServers.slack.env.SLACK_BOT_TOKEN` entries older
+`claude-plus` versions wrote, which shadow the hosted OAuth server.
+
+**Key Functions**:
+
+```typescript
+export function findLegacySlackTokenConfigs(verbose?: boolean): string[];
+export function warnAboutLegacySlackToken(configPaths: string[]): void;
+```
+
+**Behavior**:
+
+- Runs on every launch, right after the header. Upgrading does not remove an
+  entry an older version wrote, so this is the only signal the user gets.
+- Checks every path from `getAllClaudeConfigPaths()` — this is the sole
+  remaining consumer of `config-paths.ts`.
+- **Detects only, never rewrites.** Editing a user's config without consent is a
+  destructive write, and the token may still be used elsewhere. The warning
+  covers deletion _and_ revocation, since deleting the file leaves the
+  credential valid at Slack.
+- Unreadable or malformed config files are skipped, never fatal.
+
 ### claude-launcher.ts - Claude Launch
 
 **Purpose**: Spawns Claude Code and transfers terminal control.
@@ -228,20 +253,11 @@ To add a new pre-launch step:
 4. Add the step call in `main()` with appropriate step numbering
 5. Update help text and documentation
 
-### Updating Backend Integration
-
-If the backend API changes:
-
-1. Update `refreshOAuthToken()` request format and endpoint path
-2. Update `testToken()` if auth.test response changes
-3. Update `TokenRefreshResponse` and `AuthTestResponse` interfaces
-4. Coordinate with backend team on API contract changes
-
 ## Dependencies
 
 ### Runtime
 
-- Node.js built-ins: `fs`, `path`, `https`, `child_process`
+- Node.js built-ins: `fs`, `path`, `child_process`
 
 ### External Tools (optional)
 

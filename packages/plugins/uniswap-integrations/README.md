@@ -91,7 +91,10 @@ surface rather than a scoped-down one.
 
 If you have previously run `claude-plus`, it may have written a user-scope `slack` entry
 with a `SLACK_BOT_TOKEN` into your Claude config, which shadows this plugin's HTTP server.
-Remove that entry, or run `claude-plus --skip-slack`, until the token machinery is deleted.
+Delete that entry from `~/.claude.json` (or `$CLAUDE_CONFIG_DIR/claude.json`), then ask a
+workspace admin to revoke the old app grant — deleting the config hides the token but
+leaves it valid at Slack. Recent `claude-plus` versions detect the entry and print these
+steps on launch.
 
 A workspace admin must approve the Claude app (and, when Slack adds tools, its new
 scopes) for the Uniswap org. If the tool list looks short — e.g. no `slack_add_reaction`,

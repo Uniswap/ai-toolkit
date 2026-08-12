@@ -25,7 +25,7 @@ packages/ai-toolkit-nx-claude/
 │   ├── generators/
 │   │   └── addons/     # MCP server addon installer
 │   ├── scripts/
-│   │   └── claude-plus/ # Enhanced Claude launcher with MCP + Slack
+│   │   └── claude-plus/ # Enhanced Claude launcher with MCP selection
 │   └── index.ts        # Package exports
 ├── generators.json     # Generator registration
 └── package.json        # Package configuration
@@ -58,7 +58,7 @@ npx nx generate @uniswap/ai-toolkit-nx-claude:addons
 
 ### claude-plus - Enhanced Claude Launcher
 
-**Purpose**: Streamlined Claude Code startup with MCP server selection and Slack token management.
+**Purpose**: Streamlined Claude Code startup with MCP server selection.
 
 **Usage**:
 

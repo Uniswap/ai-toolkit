@@ -19,6 +19,7 @@
 
 import { runMcpSelector } from './mcp-selector';
 import { launchClaude } from './claude-launcher';
+import { findLegacySlackTokenConfigs, warnAboutLegacySlackToken } from './legacy-slack';
 import {
   displayHeader,
   displaySuccess,
@@ -148,6 +149,14 @@ async function main(): Promise<void> {
 
   displayHeader();
   options.removedSlackFlags.forEach(warnRemovedSlackFlag);
+
+  // Surfaced on every launch, not just when a removed flag is passed: upgrading
+  // does not clear an entry an older version wrote, and the user has no other
+  // signal that their Slack tools are broken.
+  const legacyConfigs = findLegacySlackTokenConfigs(options.verbose);
+  if (legacyConfigs.length > 0) {
+    warnAboutLegacySlackToken(legacyConfigs);
+  }
 
   try {
     // Step 1: MCP Server Selection
