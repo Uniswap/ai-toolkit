@@ -42,7 +42,7 @@ src/scripts/claude-plus/
 **Flow**:
 
 ```typescript
-main() -> parseArgs() -> [runMcpSelector] -> [launchClaude]
+main() -> parseArgs() -> [findLegacySlackResidue] -> [runMcpSelector] -> [launchClaude]
 ```
 
 ### display.ts - Display Utilities
