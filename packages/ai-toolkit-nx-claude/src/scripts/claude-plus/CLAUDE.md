@@ -131,28 +131,41 @@ export function isUsingCustomConfigDir(): boolean {
 }
 ```
 
-### legacy-slack.ts - Legacy Token Detection
+### legacy-slack.ts - Legacy Credential Detection
 
-**Purpose**: Detects the `mcpServers.slack.env.SLACK_BOT_TOKEN` entries older
-`claude-plus` versions wrote, which shadow the hosted OAuth server.
+**Purpose**: Detects Slack credentials older `claude-plus` versions left on disk.
 
 **Key Functions**:
 
 ```typescript
-export function findLegacySlackTokenConfigs(verbose?: boolean): string[];
-export function warnAboutLegacySlackToken(configPaths: string[]): void;
+export function findLegacySlackResidue(verbose?: boolean): LegacySlackResidue;
+export function hasResidue(residue: LegacySlackResidue): boolean;
+export function warnAboutLegacySlackResidue(residue: LegacySlackResidue): void;
 ```
+
+**Two kinds of residue**, either of which alone triggers the warning:
+
+| Residue                                                     | Why it matters                                              |
+| ----------------------------------------------------------- | ----------------------------------------------------------- |
+| `mcpServers.slack.env.SLACK_BOT_TOKEN` in the Claude config | Shadows the hosted OAuth server, so Slack tools stay broken |
+| The wizard's shell env file under `~/.config/claude-code/`  | Holds a refresh token that can still mint bot tokens        |
+
+A user who only ever ran the setup wizard has the second and not the first.
 
 **Behavior**:
 
-- Runs on every launch, right after the header. Upgrading does not remove an
-  entry an older version wrote, so this is the only signal the user gets.
+- Runs on every launch, right after the header. Upgrading does not remove
+  anything an older version wrote, so this is the only signal the user gets.
 - Checks every path from `getAllClaudeConfigPaths()` — this is the sole
   remaining consumer of `config-paths.ts`.
-- **Detects only, never rewrites.** Editing a user's config without consent is a
-  destructive write, and the token may still be used elsewhere. The warning
-  covers deletion _and_ revocation, since deleting the file leaves the
-  credential valid at Slack.
+- Substring-rejects on `SLACK_BOT_TOKEN` before `JSON.parse`, so the common
+  (clean) case never parses a config that accumulates per-project history.
+- **Detects only, never rewrites or deletes.** Touching a user's config or
+  credentials unasked is a destructive write, and they may be in use elsewhere.
+- Cleanup steps lead with **revocation**, not deletion: deleting local files
+  hides the credentials while leaving them valid at Slack. Steps are emitted
+  only for residue actually found, so nobody is told to delete a file they do
+  not have.
 - Unreadable or malformed config files are skipped, never fatal.
 
 ### claude-launcher.ts - Claude Launch
