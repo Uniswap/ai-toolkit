@@ -83,8 +83,15 @@ Some MCP servers require authentication:
 
 #### Slack Setup
 
-No token setup. Run `/mcp`, pick `slack`, and complete the browser OAuth flow — the
-grant is scoped to your own Slack permissions.
+No token setup. Run `/mcp`, pick `slack`, and complete the browser OAuth flow.
+
+The grant carries your own Slack permissions, so it reaches every channel and DM you can
+read. The hosted server has no channel or team allowlist, so treat it as your full read
+surface rather than a scoped-down one.
+
+If you have previously run `claude-plus`, it may have written a user-scope `slack` entry
+with a `SLACK_BOT_TOKEN` into your Claude config, which shadows this plugin's HTTP server.
+Remove that entry, or run `claude-plus --skip-slack`, until the token machinery is deleted.
 
 A workspace admin must approve the Claude app (and, when Slack adds tools, its new
 scopes) for the Uniswap org. If the tool list looks short — e.g. no `slack_add_reaction`,

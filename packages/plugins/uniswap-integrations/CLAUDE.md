@@ -58,8 +58,11 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 Notion, Linear, Amplitude, Datadog, Slack, and other OAuth servers use OAuth authentication. Users authenticate via the `/mcp` command which opens a browser flow. Amplitude's OAuth flow routes through Uniswap's SSO provider (SAML 2.0), so no separate API keys are needed.
 
 Slack is the hosted first-party server at `https://mcp.slack.com/mcp`, GA since 2026-02-17.
-The grant is scoped to the connecting user's own Slack permissions and requires workspace-admin
-approval of the Claude app. Slack adds tools behind new scopes over time (`slack_add_reaction`
+The grant is per-user OAuth and requires workspace-admin approval of the Claude app. It carries
+the connecting user's own Slack permissions, which means every channel and DM that user can read
+— the hosted server has no channel or team allowlist, unlike the `SLACK_TEAM_ID` the removed
+stdio entry set. Treat it as the full read surface of the connecting account, not a narrowing.
+Slack adds tools behind new scopes over time (`slack_add_reaction`
 arrived 2026-05-13), and an existing grant keeps the scope set it was issued under — so a
 short tool list means reconnect `slack` in `/mcp`, not a broken server.
 
