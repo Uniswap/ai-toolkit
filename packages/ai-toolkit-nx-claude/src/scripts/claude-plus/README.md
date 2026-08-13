@@ -1,12 +1,10 @@
 # claude-plus
 
-Enhanced Claude Code launcher that streamlines your startup experience with MCP server selection and Slack token management.
+Enhanced Claude Code launcher that streamlines your startup experience with MCP server selection.
 
 ## Features
 
 - **MCP Server Selection**: Interactive selection of which MCP servers to enable before starting Claude
-- **Slack Token Management**: Automatic validation and refresh of Slack OAuth tokens
-- **Interactive Setup Wizard**: First-run setup prompts for Slack credentials if not configured
 - **Seamless Launch**: Starts Claude Code after setup is complete
 
 ## Installation
@@ -25,18 +23,11 @@ claude-plus
 ## Usage
 
 ```bash
-# Full startup flow (MCP selection + Slack token check + launch Claude)
-# On first run, prompts to set up Slack credentials if not configured
+# Full startup flow (MCP selection + launch Claude)
 npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus
-
-# Run the Slack OAuth setup wizard (create or update credentials)
-npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --setup-slack
 
 # Skip MCP selection (use existing configuration)
 npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --skip-mcp
-
-# Skip Slack token validation
-npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --skip-slack
 
 # Preview what would happen (dry run)
 npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --dry-run
@@ -69,63 +60,35 @@ source ~/.zshrc  # or ~/.bashrc
 
 ## Configuration
 
-### Slack OAuth Setup
+### Slack
 
-To enable automatic Slack token refresh, you need to configure a backend refresh URL and refresh token. There are three ways:
+`claude-plus` no longer manages Slack tokens. Slack is an OAuth MCP server: run
+`/mcp` inside Claude Code, pick `slack`, and complete the browser flow. The grant
+carries your own Slack permissions and requires workspace-admin approval of the
+Claude app.
 
-#### Option 1: Interactive Setup Wizard (Recommended)
+The `--skip-slack` and `--setup-slack` flags are still accepted so existing shell
+aliases keep working, but they do nothing except print a notice.
 
-Run the setup wizard which will guide you through the process and create the config file automatically:
+If an earlier `claude-plus` run left a `slack` entry with a bot token in your
+Claude config, `claude-plus` now detects it and prints cleanup steps on launch.
+A user-scope entry shadows the OAuth server the `uniswap-integrations` plugin
+provides, so Slack tools stay broken until it is gone:
 
-```bash
-npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --setup-slack
-```
-
-This will:
-
-- Prompt you for your backend refresh URL and refresh token
-- Create `~/.config/claude-code/slack-env.sh` with proper permissions (600)
-- Store credentials securely for future runs
-
-The wizard also runs automatically on first use if no credentials are found.
-
-#### Option 2: Environment Variables
-
-Set these environment variables in your shell profile:
-
-```bash
-export SLACK_REFRESH_URL="https://slack-oauth-backend.vercel.app"
-export SLACK_REFRESH_TOKEN="xoxe-1-your_refresh_token"
-```
-
-#### Option 3: Manual Configuration File
-
-Create `~/.config/claude-code/slack-env.sh` manually:
-
-```bash
-mkdir -p ~/.config/claude-code
-chmod 700 ~/.config/claude-code
-
-cat > ~/.config/claude-code/slack-env.sh << 'EOF'
-# Slack OAuth Configuration
-export SLACK_REFRESH_URL="https://slack-oauth-backend.vercel.app"
-export SLACK_REFRESH_TOKEN="xoxe-1-your_refresh_token"
-EOF
-
-chmod 600 ~/.config/claude-code/slack-env.sh
-```
-
-Then source it before running claude-plus:
-
-```bash
-source ~/.config/claude-code/slack-env.sh && claude-plus
-```
-
-**Note**: The refresh token is obtained from your OAuth backend after completing the initial OAuth flow. Contact your backend administrator if you need help obtaining these credentials.
+1. Delete the `slack` entry under `mcpServers` in whichever config holds it —
+   `~/.claude.json`, `~/.claude/claude.json`, or `$CLAUDE_CONFIG_DIR/claude.json`
+   if you set that. The launch warning names the exact file.
+2. **Revoke the old credentials.** Deleting config files hides the tokens but
+   leaves them valid at Slack, and the OAuth backend can still mint new access
+   tokens from a live refresh token. Have a workspace admin remove the app's
+   grants. Nothing rotates these any more, so an unrevoked token is a
+   long-lived credential nobody is watching.
+3. Delete `~/.config/claude-code/slack-env.sh`, which is no longer read
+4. Run `/mcp` and connect `slack` over OAuth
 
 ### Claude Configuration
 
-The tool reads and updates the Claude configuration file to manage the Slack bot token for the `slack` MCP server.
+The tool reads the Claude configuration file to resolve which MCP servers are enabled.
 
 #### Custom Configuration Directory
 
@@ -147,30 +110,21 @@ When `CLAUDE_CONFIG_DIR` is set, the tool will read/write to `$CLAUDE_CONFIG_DIR
 
 ## How It Works
 
-1. **MCP Server Selection** (Step 1/3)
+1. **MCP Server Selection** (Step 1/2)
 
    - Runs `claude-mcp-helper interactive` to present a multi-select interface
    - Allows you to enable/disable MCP servers to manage context window usage
    - Saves selection to `.claude/settings.local.json`
 
-2. **Slack Token Validation** (Step 2/3)
-
-   - Checks if the current Slack token in `$CLAUDE_CONFIG_DIR/claude.json` is valid (defaults to `~/.claude.json`)
-   - If expired, calls the backend refresh endpoint with the refresh token
-   - Backend securely handles the OAuth refresh flow with Slack
-   - Updates the Claude configuration file with the new access token
-   - Also updates the refresh token (Slack refresh tokens are single-use)
-
-3. **Claude Launch** (Step 3/3)
+2. **Claude Launch** (Step 2/2)
    - Spawns Claude Code and hands over terminal control
-   - Claude runs with your configured MCP servers and fresh Slack token
+   - Claude runs with your configured MCP servers
 
 ## Requirements
 
 - **Node.js**: 18.x or higher
 - **Claude Code**: Must be installed (`curl -fsSL https://claude.ai/install.sh | sh`)
 - **claude-mcp-helper**: Installed automatically via npx if not present
-- **Backend refresh URL and token**: Required only for Slack token refresh feature
 
 ## Troubleshooting
 
@@ -182,12 +136,11 @@ If you see "claude-mcp-helper not found", the tool will skip MCP selection and c
 npm install -g @uniswap/ai-toolkit-claude-mcp-helper
 ```
 
-### Slack Token Refresh Fails
+### Slack Tools Missing or Stale
 
-1. Verify your backend refresh URL is correct and accessible
-2. Check that your refresh token hasn't been revoked
-3. Ensure you have network connectivity to your backend service
-4. Contact your backend administrator if the backend is unavailable
+Slack is no longer handled here. Run `/mcp` inside Claude Code and reconnect
+`slack`. A short tool list means your OAuth grant predates a scope Slack added,
+not a broken server.
 
 ### Claude Won't Launch
 

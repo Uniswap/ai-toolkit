@@ -25,7 +25,7 @@ packages/ai-toolkit-nx-claude/
 │   ├── generators/
 │   │   └── addons/     # MCP server addon installer
 │   ├── scripts/
-│   │   └── claude-plus/ # Enhanced Claude launcher with MCP + Slack
+│   │   └── claude-plus/ # Enhanced Claude launcher with MCP selection
 │   └── index.ts        # Package exports
 ├── generators.json     # Generator registration
 └── package.json        # Package configuration
@@ -58,7 +58,7 @@ npx nx generate @uniswap/ai-toolkit-nx-claude:addons
 
 ### claude-plus - Enhanced Claude Launcher
 
-**Purpose**: Streamlined Claude Code startup with MCP server selection and Slack token management.
+**Purpose**: Streamlined Claude Code startup with MCP server selection.
 
 **Usage**:
 
@@ -69,16 +69,18 @@ npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus
 **Key Features**:
 
 - **MCP Server Selection**: Runs claude-mcp-helper to interactively select which MCP servers to enable
-- **Slack Token Management**: Validates Slack OAuth tokens and refreshes them if expired
 - **Claude Launch**: Starts Claude Code after setup is complete
-- **Graceful Degradation**: Continues even if MCP helper or Slack config is missing
+- **Graceful Degradation**: Continues even if the MCP helper is missing
 
 **Options**:
 
 - `--skip-mcp`: Skip MCP server selection
-- `--skip-slack`: Skip Slack token validation
 - `--dry-run`: Preview actions without executing
 - `--verbose`: Show detailed output
+
+Slack token management was removed: Slack is now an OAuth MCP server connected
+through `/mcp`. The `--skip-slack` and `--setup-slack` flags are still accepted
+but only print a notice.
 
 **Shell Alias Setup**:
 

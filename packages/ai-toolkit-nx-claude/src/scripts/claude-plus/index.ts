@@ -5,66 +5,72 @@
  *
  * This script provides a streamlined startup experience for Claude Code by:
  * 1. Running the MCP server selector (via claude-mcp-helper)
- * 2. Validating and refreshing Slack OAuth tokens if needed
- * 3. Launching Claude Code
+ * 2. Launching Claude Code
  *
  * Usage:
  *   npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus
  *
  * Environment Variables:
- *   CLAUDE_CONFIG_DIR   - Custom Claude configuration directory (default: ~/.claude)
- *   SLACK_REFRESH_URL   - Backend URL for token refresh (default: https://ai-toolkit-slack-oauth-backend.vercel.app)
- *   SLACK_REFRESH_TOKEN - Slack OAuth refresh token
+ *   CLAUDE_CONFIG_DIR - Custom Claude configuration directory (default: ~/.claude)
  *
  * Configuration:
  *   $CLAUDE_CONFIG_DIR/claude.json - Claude Code configuration file (default: ~/.claude.json)
- *   ~/.config/claude-code/slack-env.sh - Slack environment variables
  */
 
 import { runMcpSelector } from './mcp-selector';
-import { validateAndRefreshSlackToken } from './slack-token';
 import { launchClaude } from './claude-launcher';
-import { displayHeader, displaySuccess, displayInfo, displayError } from './display';
-import { runSlackSetupWizard } from './slack-setup';
+import { findLegacySlackResidue, warnAboutLegacySlackResidue, hasResidue } from './legacy-slack';
+import {
+  displayHeader,
+  displaySuccess,
+  displayInfo,
+  displayError,
+  displayWarning,
+} from './display';
 
 // claude-plus specific flags that should NOT be passed to claude
-const CLAUDE_PLUS_FLAGS = new Set([
-  '--skip-mcp',
-  '--skip-slack',
-  '--setup-slack',
-  '--dry-run',
-  '--verbose',
-  '-v',
-  '--help',
-  '-h',
-]);
+const CLAUDE_PLUS_FLAGS = new Set(['--skip-mcp', '--dry-run', '--verbose', '-v', '--help', '-h']);
+
+// Slack setup moved to the official hosted MCP server (`/mcp` -> slack). These
+// flags no longer do anything, but must not reach the claude binary.
+const REMOVED_SLACK_FLAGS = new Set(['--skip-slack', '--setup-slack']);
 
 interface ClaudePlusOptions {
   skipMcp?: boolean;
-  skipSlack?: boolean;
-  setupSlack?: boolean;
   dryRun?: boolean;
   verbose?: boolean;
+  removedSlackFlags: string[]; // Accepted for compatibility, warned about, then ignored
   claudeArgs: string[]; // Arguments to pass through to claude
+}
+
+function warnRemovedSlackFlag(flag: string): void {
+  displayWarning(
+    `${flag} is no longer supported. Slack is now an OAuth MCP server:\n` +
+      `  run /mcp inside Claude Code and connect "slack".\n`
+  );
 }
 
 function parseArgs(args: string[]): ClaudePlusOptions {
   const options: ClaudePlusOptions = {
+    removedSlackFlags: [],
     claudeArgs: [],
   };
 
   for (const arg of args) {
+    // Swallowed, not passed through: the claude binary would reject them as
+    // unknown. Warned about after the header so the notice sits with the steps.
+    if (REMOVED_SLACK_FLAGS.has(arg)) {
+      if (!options.removedSlackFlags.includes(arg)) {
+        options.removedSlackFlags.push(arg);
+      }
+      continue;
+    }
+
     // Check if this is a claude-plus specific flag
     if (CLAUDE_PLUS_FLAGS.has(arg)) {
       switch (arg) {
         case '--skip-mcp':
           options.skipMcp = true;
-          break;
-        case '--skip-slack':
-          options.skipSlack = true;
-          break;
-        case '--setup-slack':
-          options.setupSlack = true;
           break;
         case '--dry-run':
           options.dryRun = true;
@@ -96,8 +102,6 @@ Usage:
 
 Options:
   --skip-mcp     Skip the MCP server selector
-  --skip-slack   Skip Slack token validation/refresh
-  --setup-slack  Run the Slack OAuth setup wizard (create/update credentials)
   --dry-run      Show what would be done without executing
   --verbose, -v  Show detailed output
   --help, -h     Show this help message
@@ -107,42 +111,26 @@ Options:
 Description:
   This tool enhances the Claude Code startup experience by:
   1. Running the MCP server selector to choose which MCP servers to enable
-  2. Validating your Slack OAuth token and refreshing it if expired
-  3. Launching Claude Code with your configured settings
+  2. Launching Claude Code with your configured settings
 
-  On first run, if Slack credentials are not configured, you'll be prompted
-  to set them up interactively. You can also run --setup-slack to configure
-  or update credentials at any time.
-
-Slack Setup:
-  To obtain your Slack tokens, visit:
-    https://ai-toolkit-slack-oauth-backend.vercel.app/
-
-  1. Click "Add to Slack" and authorize the app
-  2. Copy the Access Token (xoxp-...) and Refresh Token (xoxe-1-...)
-  3. Run --setup-slack and enter your tokens when prompted
+Slack:
+  claude-plus no longer manages Slack tokens. Slack is now an OAuth MCP
+  server: run /mcp inside Claude Code, pick "slack", and complete the
+  browser flow. The --skip-slack and --setup-slack flags are accepted but
+  do nothing.
 
 Environment Variables:
-  CLAUDE_CONFIG_DIR   - Custom Claude configuration directory (default: ~/.claude)
-  SLACK_REFRESH_URL   - Backend URL for token refresh (default: https://ai-toolkit-slack-oauth-backend.vercel.app)
-  SLACK_REFRESH_TOKEN - Slack OAuth refresh token (required for token refresh)
+  CLAUDE_CONFIG_DIR - Custom Claude configuration directory (default: ~/.claude)
 
 Configuration Files:
-  $CLAUDE_CONFIG_DIR/claude.json      - Claude Code configuration (default: ~/.claude.json)
-  ~/.config/claude-code/slack-env.sh  - Slack environment variables (auto-created)
+  $CLAUDE_CONFIG_DIR/claude.json - Claude Code configuration (default: ~/.claude.json)
 
 Examples:
-  # Full startup flow (prompts for Slack setup if needed)
+  # Full startup flow
   npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus
-
-  # Configure or update Slack credentials
-  npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --setup-slack
 
   # Skip MCP selection (use existing config)
   npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --skip-mcp
-
-  # Skip Slack token refresh
-  npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --skip-slack
 
   # Preview what would happen
   npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus --dry-run
@@ -160,48 +148,31 @@ async function main(): Promise<void> {
   const options = parseArgs(args);
 
   displayHeader();
+  options.removedSlackFlags.forEach(warnRemovedSlackFlag);
+
+  // Surfaced on every launch, not just when a removed flag is passed: upgrading
+  // does not clear an entry an older version wrote, and the user has no other
+  // signal that their Slack tools are broken.
+  const legacyResidue = findLegacySlackResidue(options.verbose);
+  if (hasResidue(legacyResidue)) {
+    warnAboutLegacySlackResidue(legacyResidue);
+  }
 
   try {
-    // Handle explicit --setup-slack flag
-    if (options.setupSlack) {
-      displayInfo('\nRunning Slack OAuth Setup Wizard...');
-      if (options.dryRun) {
-        displayInfo('  Would run interactive Slack setup wizard');
-        displaySuccess('\nDry run complete - no changes made');
-        return;
-      }
-      await runSlackSetupWizard(options.verbose);
-      displaySuccess('\nSlack setup complete!');
-      displayInfo('Run claude-plus again to start Claude with your new configuration.\n');
-      return;
-    }
-
     // Step 1: MCP Server Selection
     if (!options.skipMcp) {
-      displayInfo('\n[1/3] MCP Server Selection');
+      displayInfo('\n[1/2] MCP Server Selection');
       if (options.dryRun) {
         displayInfo('  Would run: claude-mcp-helper interactive');
       } else {
         await runMcpSelector(options.verbose);
       }
     } else {
-      displayInfo('\n[1/3] MCP Server Selection (skipped)');
+      displayInfo('\n[1/2] MCP Server Selection (skipped)');
     }
 
-    // Step 2: Slack Token Validation
-    if (!options.skipSlack) {
-      displayInfo('\n[2/3] Slack Token Validation');
-      if (options.dryRun) {
-        displayInfo('  Would validate Slack token and refresh if needed');
-      } else {
-        await validateAndRefreshSlackToken(options.verbose);
-      }
-    } else {
-      displayInfo('\n[2/3] Slack Token Validation (skipped)');
-    }
-
-    // Step 3: Launch Claude
-    displayInfo('\n[3/3] Launching Claude Code');
+    // Step 2: Launch Claude
+    displayInfo('\n[2/2] Launching Claude Code');
     if (options.dryRun) {
       const claudeCmd =
         options.claudeArgs.length > 0 ? `claude ${options.claudeArgs.join(' ')}` : 'claude';
