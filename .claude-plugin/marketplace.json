@@ -49,6 +49,15 @@
       "name": "claude-setup",
       "source": "./packages/plugins/claude-setup",
       "description": "Interactive setup wizard for configuring any repository with Claude Code best practices"
+    },
+    {
+      "name": "uniswap-wiki",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/Uniswap/wiki.git",
+        "path": "plugin"
+      },
+      "description": "Search and read the internal Uniswap knowledge wiki from Claude, with cited sources — plus file ingest requests for gaps. Requires a GitHub credential with access to Uniswap/wiki (gh auth login or GITHUB_TOKEN)."
     }
   ]
 }
