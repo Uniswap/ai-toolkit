@@ -20,7 +20,7 @@ post:
 #
 # `synthesis` gives the agent that writes the final review body a
 # different model from the reviewers feeding it. Reading this key requires
-# review-cli >= 1.10.0, which is why the workflow's fallback pin is 1.10.1.
+# review-cli >= 1.10.0, which is why the workflow's fallback pin is 1.10.6.
 model:
   default: claude-opus-5
   synthesis: claude-fable-5
