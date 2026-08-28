@@ -84,6 +84,12 @@ on:
         type: string
         default: ""
 
+      allowed_bots:
+        description: "Comma-separated list of bot actors permitted to trigger this workflow, or '*' to allow all bots. Empty string allows no bots."
+        required: false
+        type: string
+        default: dependabot
+
       commit_history_count:
         description: "Number of recent commits to analyze for title patterns"
         required: false
@@ -514,6 +520,7 @@ jobs:
 
             Write ONLY the single word "PASS" or "FAIL" to /tmp/quality-gate-verdict.txt.
             No explanation, no other text — just the verdict word.
+          allowed_bots: ${{ inputs.allowed_bots }}
           claude_args: '--model claude-haiku-4-5-20251001 --max-turns 3 --allowed-tools Read,Write'
           track_progress: false
 
@@ -947,7 +954,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: "Read and act upon the prompt at @${{ steps.build-prompt.outputs.prompt_file_path }}"
           track_progress: false # Disable to avoid PR comments
-          allowed_bots: dependabot
+          allowed_bots: ${{ inputs.allowed_bots }}
           claude_args: ${{ steps.build-args.outputs.claude_args }}
           plugin_marketplaces: ${{ steps.build-plugins.outputs.plugin_marketplaces }}
           plugins: ${{ steps.build-plugins.outputs.plugins }}

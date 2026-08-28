@@ -5,7 +5,9 @@ Audit, map, mine, and improve your Claude Code skills, agents, and slash command
 This plugin is the curation layer over your whole Claude Code customization surface. It inventories
 every skill / agent / command you have (your own dirs plus installed marketplaces), flags overlaps,
 gaps, and weak triggering descriptions, and mines the current session for workflows worth codifying
-into a new or edited skill or agent.
+into a new or edited skill or agent. It also covers model-generation migrations: auditing a full
+Claude Code config (CLAUDE.md, rules, settings, hooks, CI scripts) for behavioral changes in a new
+model family like Opus 5.
 
 ## Installation
 
@@ -19,9 +21,10 @@ claude /plugin install skill-management
 
 ## Skills
 
-| Skill            | Description                                                                                                                                                     |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **skill-doctor** | Orchestrator/triage over your skills, agents, and commands: inventory, analyze, mine, and improve. The commands below are thin entry points into its run modes. |
+| Skill                        | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **skill-doctor**             | Orchestrator/triage over your skills, agents, and commands: inventory, analyze, mine, and improve. The commands below are thin entry points into its run modes.                                                                                                                                                                                                                                                                                                         |
+| **migrate-config-to-opus-5** | Audit and migrate a Claude Code configuration (CLAUDE.md, rules, skills, commands, agents, settings, hooks, CI scripts) for Claude Opus 5's behavioral changes — fans out subagents that read every in-scope file in full and propose specific changes, removes 4.x-era compensations (over-verification ceremony, delegation nudges, confidence filters), fixes stale model IDs/pricing, and interviews you on anything that might be policy rather than compensation. |
 
 ## Commands
 
@@ -43,8 +46,8 @@ The hook is a dependency-free Node script invoked via `node ${CLAUDE_PLUGIN_ROOT
 
 `/skill-map`, `/skill-mine`, and `/skill-new` are thin prompts that invoke the **skill-doctor** skill
 in a specific run mode. The skill does the _finding_ — what to add, merge, fix, or codify — then hands
-the deep work to the tools that own it (`skill-creator` for drafting/evals, `agent-optimizer` /
-`prompt-engineer` for agent tuning). It never auto-applies a change: it proposes a prioritized menu and
+the deep work to the tools that own it (`skill-creator` for drafting/evals,
+`development-productivity:prompt-engineer-agent` for agent tuning). It never auto-applies a change: it proposes a prioritized menu and
 lets you pick. Personal config under `~/.claude/{skills,agents,commands}` is edited in place; skill /
 agent / command files that live inside a git repo are delivered as a **draft PR** off the repo's
 default branch.

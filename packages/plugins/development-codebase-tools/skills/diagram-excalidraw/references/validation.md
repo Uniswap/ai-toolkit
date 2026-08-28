@@ -1,8 +1,11 @@
 # Validation Reference
 
-Pre-output verification rules and debugging strategies.
+Debugging strategies for diagrams that render wrong, plus an executable statement of the
+constraints from SKILL.md. The constraints themselves live in SKILL.md and are not restated
+here as a checklist — read this file when something is broken, not as a routine post-write
+review pass.
 
-## Pre-Flight Validation Algorithm
+## Validation Algorithm
 
 ```javascript
 function validateDiagram(elements) {
@@ -68,35 +71,6 @@ function findShapeNear(elements, x, y, tolerance = 15) {
   );
 }
 ```
-
-## Checklists
-
-### Pre-Generation
-
-- [ ] Identified all components from codebase
-- [ ] Selected appropriate layout pattern
-- [ ] Established naming scheme for IDs
-- [ ] Determined color palette based on component types
-
-### During Generation
-
-- [ ] Created shape for each component
-- [ ] Added text element for each label
-- [ ] Set up boundElements references on shapes
-- [ ] Set containerId on text elements
-- [ ] Created arrows with proper bindings
-- [ ] Applied elbowed/roughness/roundness to arrows
-- [ ] Positioned arrows at shape edges (not centers)
-
-### Post-Generation
-
-- [ ] All IDs are unique
-- [ ] All text elements have valid containerId references
-- [ ] All shapes with labels have boundElements array
-- [ ] No diamond shapes present
-- [ ] All arrows have proper edge positioning
-- [ ] JSON is valid (parseable)
-- [ ] File has .excalidraw extension
 
 ## Common Bugs and Fixes
 

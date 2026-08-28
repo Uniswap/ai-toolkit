@@ -8,7 +8,7 @@ model: opus
 
 Refine plans through collaborative multi-agent expert discussion.
 
-> ⚠️ **Cost Warning**: This skill uses the Opus model and spawns 3-10 agents for multi-round discussions. A typical plan-swarm session consumes **5-20x more tokens** than a standard skill invocation. Consider using `review-plan` for simpler validation needs.
+> ⚠️ **Cost Warning**: This skill uses the Opus model and spawns up to 10 agents for multi-round discussions. A typical plan-swarm session consumes **5-20x more tokens** than a standard skill invocation. Consider using `review-plan` for simpler validation needs.
 
 ## When to Activate
 
@@ -20,7 +20,7 @@ Refine plans through collaborative multi-agent expert discussion.
 
 ## Key Features
 
-- **Intelligent Agent Selection**: 3-10 agents based on plan context
+- **Intelligent Agent Selection**: up to 10 agents based on plan context
 - **True Collaboration**: Multi-round discussions
 - **Constructive Disagreement**: Respectful challenging of ideas
 - **Consensus Building**: Resolution of conflicts
@@ -30,7 +30,7 @@ Refine plans through collaborative multi-agent expert discussion.
 ### Phase 1: Context & Agent Selection
 
 - Analyze plan domains (frontend, backend, security, etc.)
-- Select 3-10 relevant specialized agents
+- Select the relevant specialized agents, up to 10
 - Brief each agent on the plan
 
 ### Phase 2: Multi-Round Discussion
@@ -47,11 +47,13 @@ Refine plans through collaborative multi-agent expert discussion.
 
 ## Agent Selection Guidelines
 
-| Plan Complexity | Agents |
-| --------------- | ------ |
-| Simple          | 3-4    |
-| Medium          | 5-7    |
-| Complex         | 8-10   |
+These are **ceilings, not quotas**. Staff only the dimensions the plan actually raises - a plan touching one domain gets one specialist, even if it is "complex". Never spawn an agent for analysis you could finish in a handful of direct tool calls.
+
+| Plan Complexity | Agents (max) |
+| --------------- | ------------ |
+| Simple          | up to 2      |
+| Medium          | up to 5      |
+| Complex         | up to 10     |
 
 ## Output Format
 

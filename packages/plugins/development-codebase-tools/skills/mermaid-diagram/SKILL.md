@@ -119,18 +119,6 @@ subgraph "Backend Services"
 subgraph Backend Services
 ```
 
-### 9. Validate Before Presenting
-
-Trace through the diagram to confirm:
-
-- Every node on its own line with unique alphanumeric ID
-- No chained arrows
-- Special-character labels double-quoted
-- No HTML/Markdown in labels
-- Comments on own lines
-- Styles reference defined nodes only
-- Subgraph names quoted or underscored
-
 ## Diagram Type Quick Reference
 
 | Type      | Directive                       | Use For                            |
@@ -180,6 +168,8 @@ When asked to fix a broken Mermaid diagram:
 1. **Identify the error type** — parse errors almost always come from one of: chained arrows, unquoted special characters, bare subgraph names, or HTML in labels.
 2. **Apply the relevant rules above** — check each rule against the broken code line by line.
 3. **Rewrite the offending lines** — fix only what is broken; preserve the diagram's intent.
-4. **Re-validate** using the checklist in Rule 9 before presenting the corrected diagram.
+4. **Say what you changed and why**, naming the rule each fix applies. This skill has no
+   renderer, so state that the corrected diagram is unverified rather than implying it was
+   checked.
 
 If the diagram is structurally ambiguous (missing nodes, unclear relationships), ask one clarifying question before rewriting.

@@ -281,10 +281,16 @@ interface TestResults {
 
 #### Coverage Metrics
 
-- **Prompt Coverage**: Percentage of prompt variations tested
-- **Capability Coverage**: Percentage of agent capabilities validated
-- **Edge Case Coverage**: Percentage of boundary conditions tested
-- **Integration Coverage**: Percentage of agent interactions tested
+A percentage needs a known denominator. "All possible prompt variations" and "all boundary
+conditions" are not enumerable, so report coverage as **counts against an enumerated list**,
+plus what you know is untested — never as a percentage of an unknown whole.
+
+- **Prompt Coverage**: prompt variations executed, and which planned variations were skipped
+- **Capability Coverage**: capabilities validated, out of the capabilities the agent's own
+  description claims (this denominator IS enumerable — list it)
+- **Edge Case Coverage**: boundary conditions exercised, and the ones you identified but did
+  not test
+- **Integration Coverage**: agent pairs exercised, out of the pairs in the workflow under test
 
 #### Failure Analysis
 
@@ -368,6 +374,16 @@ interface ContinuousTestingConfig {
 
 ## Output Specifications
 
+**Report every failure and every anomaly you observed.** Include the ones you are unsure about,
+the intermittent ones, and the low-severity ones — mark severity and confidence on each instead
+of leaving it out. Deciding what matters is the reader's job and happens after the list is
+complete; a finding dropped during testing is a finding nobody ever sees.
+
+**Length:** keep the narrative sections (`recommendations`, `behavior_analysis`,
+`root_cause_analysis`) under 600 words combined. Raw results, logs, and per-test rows are data,
+not prose — they are not covered by that bound. Cut restatement and summaries that repeat a
+section above.
+
 ### Test Execution Report
 
 ```typescript
@@ -410,24 +426,35 @@ interface TestExecutionReport {
 
 ### Agent Quality Scorecard
 
+Every field below is populated from executed test results. Do not estimate a dimension you did
+not test — mark it `not_tested` and say why.
+
 ```typescript
 interface AgentQualityScorecard {
   agent_name: string;
-  overall_score: number; // 0-100
+  overall_assessment: string; // Prose verdict. No 0-100 score: the inputs are pass/fail
+  // counts and timings, and collapsing them into one number
+  // invents a weighting nobody chose.
 
-  dimension_scores: {
-    functionality: number;
-    reliability: number;
-    performance: number;
-    usability: number;
-    security: number;
+  dimension_findings: {
+    // Per dimension: what was tested, what passed, what failed,
+    // or 'not_tested' with the reason.
+    functionality: DimensionFinding;
+    reliability: DimensionFinding;
+    performance: DimensionFinding;
+    usability: DimensionFinding;
+    security: DimensionFinding;
   };
 
   test_coverage: {
-    prompt_variations: number;
-    edge_cases: number;
-    integration_scenarios: number;
-    performance_benchmarks: number;
+    // Counts of tests actually executed, never percentages of an
+    // unknown total. Pair each with `_untested` naming known gaps.
+    prompt_variations_run: number;
+    prompt_variations_untested: string[];
+    edge_cases_run: number;
+    edge_cases_untested: string[];
+    integration_scenarios_run: number;
+    performance_benchmarks_run: number;
   };
 
   trend_indicators: {

@@ -44,7 +44,6 @@ After changes:
 - Check TypeScript compiles: `npx tsc --noEmit`
 - Run relevant tests: `nx test affected`
 - Check lint: `nx lint affected`
-- Manual review of changes
 
 ## Error Recovery
 

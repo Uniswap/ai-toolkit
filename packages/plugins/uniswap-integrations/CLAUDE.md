@@ -36,7 +36,7 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 | **vercel**          | Vercel deployment management and hosting         | OAuth |
 | **amplitude**       | Amplitude analytics, experiments, and metrics    | OAuth |
 | **datadog**         | Datadog monitoring, logs, and metrics            | OAuth |
-| **slack**           | Slack workspace integration for messaging        | Token |
+| **slack**           | Slack workspace integration for messaging        | OAuth |
 
 ### Hooks (./hooks/)
 
@@ -48,14 +48,23 @@ This plugin provides external service integrations for Claude Code, bundling MCP
 - Agents are auto-discovered from the `agents/` directory
 - Skills invoke agents via `Task(subagent_type:agent-name)`
 - MCP servers provide external service connectivity
-- OAuth-based servers (Notion, Linear, Pulumi, Figma, Vercel, Amplitude, Datadog) authenticate via `/mcp` command
-- Token-based servers (GitHub, Slack) require environment variable configuration
+- OAuth-based servers (Notion, Linear, Pulumi, Figma, Vercel, Amplitude, Datadog, Slack) authenticate via `/mcp` command
+- Token-based servers (GitHub) require environment variable configuration
 
 ## MCP Authentication
 
 ### OAuth Servers
 
-Notion, Linear, Amplitude, Datadog, and other OAuth servers use OAuth authentication. Users authenticate via the `/mcp` command which opens a browser flow. Amplitude's OAuth flow routes through Uniswap's SSO provider (SAML 2.0), so no separate API keys are needed.
+Notion, Linear, Amplitude, Datadog, Slack, and other OAuth servers use OAuth authentication. Users authenticate via the `/mcp` command which opens a browser flow. Amplitude's OAuth flow routes through Uniswap's SSO provider (SAML 2.0), so no separate API keys are needed.
+
+Slack is the hosted first-party server at `https://mcp.slack.com/mcp`, GA since 2026-02-17.
+The grant is per-user OAuth and requires workspace-admin approval of the Claude app. It carries
+the connecting user's own Slack permissions, which means every channel and DM that user can read
+— the hosted server has no channel or team allowlist, unlike the `SLACK_TEAM_ID` the removed
+stdio entry set. Treat it as the full read surface of the connecting account, not a narrowing.
+Slack adds tools behind new scopes over time (`slack_add_reaction`
+arrived 2026-05-13), and an existing grant keeps the scope set it was issued under — so a
+short tool list means reconnect `slack` in `/mcp`, not a broken server.
 
 ### Token-Based Servers
 
@@ -68,29 +77,6 @@ export GITHUB_PERSONAL_ACCESS_TOKEN="github_pat_your_token_here"
 ```
 
 Run `/uniswap-integrations:github-setup` for detailed setup instructions.
-
-#### Slack
-
-Slack requires a bot token set as `SLACK_BOT_TOKEN` environment variable:
-
-```bash
-export SLACK_BOT_TOKEN="xoxp-your-token-here"
-export SLACK_TEAM_ID="your-team-id"  # Optional
-```
-
-To obtain a Slack token:
-
-1. Visit <https://ai-toolkit-slack-oauth-backend.vercel.app/>
-2. Click "Add to Slack" and authorize the app
-3. Copy the Access Token
-
-**Recommended**: Use the `claude-plus` launcher which automatically handles Slack token validation and refresh:
-
-```bash
-npx -y -p @uniswap/ai-toolkit-nx-claude@latest claude-plus
-```
-
-For detailed documentation, see: <https://www.notion.so/uniswaplabs/Using-a-Slack-MCP-with-Claude-Claude-Code-249c52b2548b8052b901dc05d90e57fc>
 
 ## Related Plugins
 

@@ -20,8 +20,22 @@ Build comprehensive understanding of codebase areas before implementation or to 
 ## Quick Process
 
 1. **Parse the request** — extract `topic`, `files` (optional), and `focus` (optional) from the user's message
-2. **Delegate** — invoke context-loader-agent with the extracted parameters
-3. **Present findings** — format the agent output using the Output Format section below
+2. **Answer directly if you can** — see When NOT to Delegate below
+3. **Delegate** — if the question genuinely spans a subsystem, invoke context-loader-agent with the extracted parameters
+4. **Present findings** — format the agent output using the Output Format section below
+
+## When NOT to Delegate
+
+Answer with your own Grep/Glob/Read and skip the agent when:
+
+- The question is a locate ("where is the API rate limiting implemented?") — that is one Grep,
+  and several of the examples below fall in this bucket.
+- The user named specific files and wants those explained.
+- One or two files answer it end to end.
+
+Delegate only when the answer requires tracing across a subsystem: multi-file data flow,
+architecture of a module you have not read, or "understand X before I change it" where X spans
+several directories.
 
 ## Input Parsing
 
@@ -42,6 +56,10 @@ Invoke **context-loader-agent** and pass the extracted parameters:
 The agent handles file discovery, dependency tracing, pattern identification, and analysis.
 
 ## Output Format
+
+This output is fed into `/plan` as context, so its length is charged to a later session too.
+Target **under 100 lines**. Include only sections you have something concrete for, and drop
+the rest rather than padding them.
 
 Return structured analysis:
 

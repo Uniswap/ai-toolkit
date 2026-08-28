@@ -62,8 +62,15 @@ Ignore lines containing `(used in module)` — those are internal usages. Only r
 **vulture** (Python):
 
 ```bash
-python -m vulture . --min-confidence 80 2>/dev/null
+python -m vulture . 2>/dev/null
 ```
+
+Run vulture at its default confidence. A `--min-confidence` floor drops low-confidence
+candidates before you ever see them, and no wording in this skill can recover a finding the
+tool never emitted. Step 4 already screens false positives by annotating them
+`[review before removing]` rather than deleting them from the report, so filtering at the
+CLI is redundant suppression. Vulture reports a confidence percentage per finding; carry it
+into the report and let it inform the confidence ranking in Step 5.
 
 **deadcode / go vet** (Go):
 

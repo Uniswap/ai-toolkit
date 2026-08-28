@@ -168,7 +168,7 @@ The workflow will:
   - Use `mcp__github__search_issues` with queries like:
     - `org:Uniswap author:<username> created:>YYYY-MM-DD` (PRs/issues created)
     - `org:Uniswap involves:<username> updated:>YYYY-MM-DD` (all activity including comments, reviews)
-  - Get PR details for any PRs found using `mcp__github__get_pull_request`
+  - Get PR details for any PRs found using `mcp__github__pull_request_read`
   - Include PR status (open/merged/closed) and review status
 - **Fetch Linear Issues**:
   - Call Linear MCP with the assignee parameter

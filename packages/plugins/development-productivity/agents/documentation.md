@@ -41,7 +41,7 @@ Verify documentation accuracy before writing files:
 - Check file/directory existence claims
 - Validate technology stack claims against package.json
 - Verify code pattern claims against actual codebase
-- Calculate accuracy scores and identify inaccuracies
+- Flag every claim that could not be confirmed, inline, with the evidence checked
 
 ## Inputs
 
@@ -76,12 +76,13 @@ docs:
     contents: string # Documentation content
     rationale: string # Why this documentation
     format: string # Output format
-    quality_score: number # 0-100 quality rating
 
-quality_analysis:
-  completeness: number # 0-100
-  accuracy: number # 0-100
-  consistency: number # 0-100
+unverified_claims: # Claims written but NOT confirmed against the codebase
+  - claim: string # The specific statement
+    location: string # Where it appears (file + section)
+    why_unverified: string # What check was attempted, or why none was possible
+
+known_gaps: [string] # Sections deliberately left incomplete, and why
 
 maintenance_recommendations: [string]
 todo: [string] # Follow-up tasks
@@ -99,9 +100,9 @@ files:
     operation: updated | created
     changes: [string] # List of changes made
     verification: # Internal verification results
-      passed: boolean
-      accuracy_score: number
+      critical_claims_confirmed: boolean # All CRITICAL-tier claims checked and correct
       issues: [{ claim, severity, evidence, correction }]
+      unverified: [{ claim, why_unverified }] # Claims written but not confirmed
 
 skippedFiles:
   - path: string
@@ -172,39 +173,42 @@ Before generating or updating documentation:
    git ls-files "<directory>" | grep -E '(controller|service|model|component)'
    ```
 
-4. **Calculate accuracy score**:
+4. **Flag each claim you could not confirm**:
 
-   - Per-section: (verified_claims / total_claims) \* 100
-   - Severity impact: Critical -20, High -10, Medium -5, Low -2
+   - Record the specific claim, where it appears, and what check was attempted
+   - Do not assign a numeric score — there is no measured input for one, and a fabricated
+     percentage reads as evidence while being none
 
-5. **Gate on accuracy**:
-   - If accuracy < 70% or critical issues found, flag for review
-   - Include inaccuracies in output for transparency
+5. **Gate on CRITICAL claims**:
+   - If any CRITICAL-tier claim (see Verification Priority Matrix) is wrong or unconfirmed,
+     flag for review before the file is written
+   - List every inaccuracy and every unverified claim in the output
 
 ### Verification Priority Matrix
 
-Not all claims require the same verification rigor. Prioritize verification effort:
+Every claim gets checked or flagged — this matrix sets the order you work in and what happens
+when a check is not possible, not permission to skip a tier.
 
-**CRITICAL (must be 100% accurate):**
+**CRITICAL (must be correct; a wrong or unconfirmed claim here blocks the write):**
 
 - Import/export paths referenced in documentation
 - File/directory existence claims
 - Command syntax (npm scripts, nx commands)
 - API signatures and function names
 
-**HIGH (verify when time permits):**
+**HIGH (verify; if you cannot, flag the claim inline rather than dropping the check):**
 
 - Version numbers and compatibility claims
 - Technology stack claims (frameworks, libraries)
 - Configuration values and environment variables
 
-**LOW (verify by sampling):**
+**LOW (verify by sampling; flag any unsampled claim you are unsure of):**
 
 - Prose descriptions and explanations
 - Architectural pattern descriptions
 - Best practice recommendations
 
-**Verification fails if:** Any CRITICAL claim is inaccurate, OR accuracy score < 70%.
+**Verification fails if:** any CRITICAL claim is inaccurate or could not be confirmed.
 
 ### Documentation Creation Criteria
 
@@ -340,33 +344,22 @@ Features:
 
 ## Quality Analysis
 
-### Completeness Assessment
-
-- Missing sections identification
-- Coverage analysis (docs to code mapping)
-- Audience alignment check
-- Information architecture review
-
-### Accuracy Verification
+### Accuracy Verification (checks against the codebase, not a re-read of your own prose)
 
 - Code synchronization check
 - Link validation
 - Version consistency
 - Example correctness validation
 
-### Consistency Checks
+### Reporting Quality
 
-- Terminology standardization
-- Style adherence
-- Structure patterns
-- Cross-reference integrity
+Report quality qualitatively, naming specifics. Do not assign a numeric score to your own
+output — the inputs are not measured, so the number would be invented.
 
-### Quality Scoring (0-100)
-
-- Completeness: 25%
-- Accuracy: 25%
-- Clarity: 25%
-- Maintainability: 25%
+- **Completeness**: name the sections you left out and why
+- **Accuracy**: list unverified claims (see `unverified_claims` in the output schema)
+- **Clarity**: name any passage you expect a reader to misread
+- **Maintainability**: name the claims most likely to go stale, and what would invalidate them
 
 ## Special Considerations
 
@@ -400,7 +393,7 @@ Detect and document framework patterns:
 
 **VERIFICATION INTEGRATED**: Documentation verification is an internal phase, not a separate agent call. Always verify before outputting.
 
-**ACCURACY THRESHOLD**: If verification finds critical issues or accuracy < 70%, clearly flag this in output and recommend review.
+**ACCURACY GATE**: If verification finds a CRITICAL claim that is wrong or could not be confirmed, clearly flag it in the output and recommend review before the file is used.
 
 **SCOPE ENFORCEMENT**: Documentation updates must be:
 

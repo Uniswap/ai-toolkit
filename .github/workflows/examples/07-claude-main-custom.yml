@@ -349,8 +349,12 @@ jobs:
 #
 # 1. **Choose the right model**:
 #    - Haiku 4.5: Most cost-effective for simple tasks and high-volume usage
-#    - Sonnet 5: Best balance for most tasks (~80% cheaper than Opus)
-#    - Opus: Reserve for complex analysis or critical reviews
+#      ($1/$5 per MTok — still ~5x cheaper than Opus 5)
+#    - Sonnet 5: Best balance for most tasks ($3/$15 per MTok, ~40% cheaper
+#      than Opus 5)
+#    - Opus 5: $5/$25 per MTok. The Opus/Sonnet gap narrowed sharply with the
+#      Claude 5 family, so reserve Opus for complex analysis or critical
+#      reviews on judgment grounds rather than on cost grounds alone.
 #
 # 2. **Set appropriate timeouts**:
 #    - 5 minutes for simple questions

@@ -33,6 +33,10 @@ Analyze Datadog ingestion costs across logs, APM spans, and other estimated-usag
 
 ## Output Format
 
+Keep the whole report under ~400 words outside the tables. One or two sentences per section; the
+ranked table carries the detail. Do not restate the table in prose, and do not pad sections that
+have nothing to report — write "none" and move on.
+
 **Cost Summary** — total estimated ingestion for the period by signal type.
 
 **Top Ingesters** — ranked table: service | volume | WoW delta | notes.

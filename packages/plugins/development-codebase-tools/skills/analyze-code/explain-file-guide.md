@@ -39,7 +39,7 @@ For simple file explanations, direct delegation:
 
 ```typescript
 {
-  agent: "code-explainer",
+  agent: "code-explainer-agent",
   params: {
     path: parsedPath,
     depth: depth,
@@ -56,15 +56,15 @@ Coordinate multiple specialized agents:
 {
   parallel: [
     {
-      agent: 'code-explainer',
+      agent: 'code-explainer-agent',
       focus: 'architecture-and-patterns',
     },
     {
-      agent: 'security-analyzer',
+      agent: 'security-analyzer-agent',
       focus: 'vulnerability-assessment',
     },
     {
-      agent: 'performance-analyzer',
+      agent: 'performance-analyzer-agent',
       focus: 'complexity-analysis',
     },
   ];
@@ -85,7 +85,9 @@ Full system context analysis:
    - **code-explainer-agent**: Core functionality and patterns
    - **security-analyzer-agent**: Security boundaries and risks
    - **performance-analyzer-agent**: Scalability implications
-   - **refactorer-agent**: Improvement opportunities
+
+   Ceiling: these three plus the context loader. `refactorer-agent` is deliberately not in this
+   set — it is not in `allowed-tools`, so dispatching it would fail.
 
 ## Output Format
 
@@ -94,8 +96,7 @@ Full system context analysis:
   summary: {
     purpose: string; // Primary responsibility
     complexity: 'simple' | 'moderate' | 'complex' | 'highly-complex';
-    loc: number; // Lines of code
-    maintainability: number; // Score 0-100
+    loc: number; // Lines of code (counted, not estimated)
   };
 
   architecture: {
@@ -175,7 +176,10 @@ Full system context analysis:
   };
 
   testing: {
-    coverage: number; // Estimated test coverage
+    // No coverage number. This skill does not run a coverage tool, so any figure here
+    // would be a guess formatted as a measurement. Use the analyze-test-coverage skill
+    // when a real number is needed.
+    hasTests: boolean; // Whether test files for this module were found
     testability: 'high' | 'medium' | 'low';
     suggestedTests: string[]; // Types of tests needed
     mockingStrategy: string; // How to mock dependencies

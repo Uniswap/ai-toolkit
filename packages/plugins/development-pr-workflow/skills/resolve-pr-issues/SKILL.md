@@ -158,7 +158,10 @@ Three lists: `action_items`, `respond_items`, `no_action_items`.
 
 ### ACTION_REQUIRED Items
 
-**Group inline comments by file path.** For each file group, spawn a `comment-resolver-agent`:
+**Group inline comments by file path.** For each file group, spawn a `comment-resolver-agent`.
+**Cap at 3 concurrent agents** — dispatch additional file groups as earlier agents complete.
+More concurrent writers on one worktree raises the cross-agent file-conflict rate that
+Phase 5 then has to untangle.
 
 ```text
 Task(

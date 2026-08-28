@@ -1,7 +1,7 @@
 {
   "name": "skill-management",
-  "version": "1.0.2",
-  "description": "Audit, map, mine, and improve your Claude Code skills, agents, and slash commands. Inventories your whole customization surface, flags overlaps/gaps/weak triggering descriptions, and mines sessions for workflows worth codifying into new skills or agents.",
+  "version": "1.3.0",
+  "description": "Audit, map, mine, and improve your Claude Code skills, agents, and slash commands. Inventories your whole customization surface, flags overlaps/gaps/weak triggering descriptions, and mines sessions for workflows worth codifying into new skills or agents. Also migrates full Claude Code configs (CLAUDE.md, rules, settings, hooks, CI scripts) for new model generations like Opus 5.",
   "author": {
     "name": "Uniswap Labs",
     "email": "ai-services@uniswap.org"
@@ -9,6 +9,6 @@
   "homepage": "https://github.com/Uniswap/ai-toolkit",
   "keywords": ["claude-code", "skills", "agents", "commands", "meta", "curation", "ai-toolkit"],
   "license": "MIT",
-  "skills": ["./skills/skill-doctor"],
+  "skills": ["./skills/skill-doctor", "./skills/migrate-config-to-opus-5"],
   "commands": ["./commands/skill-mine.md", "./commands/skill-map.md", "./commands/skill-new.md"]
 }

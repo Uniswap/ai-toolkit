@@ -223,14 +223,14 @@ All plugins follow semantic versioning (semver). Key versioning rules:
 
 | Plugin                     | Version |
 | -------------------------- | ------- |
-| claude-setup               | 1.0.5   |
-| development-codebase-tools | 2.6.2   |
-| development-planning       | 2.0.7   |
-| development-pr-workflow    | 2.2.0   |
-| development-productivity   | 2.4.1   |
-| skill-management           | 1.0.2   |
-| spec-workflow              | 2.0.1   |
-| uniswap-integrations       | 2.6.0   |
+| claude-setup               | 1.1.0   |
+| development-codebase-tools | 2.7.0   |
+| development-planning       | 2.1.0   |
+| development-pr-workflow    | 2.5.0   |
+| development-productivity   | 2.5.0   |
+| skill-management           | 1.3.0   |
+| spec-workflow              | 2.1.0   |
+| uniswap-integrations       | 2.7.2   |
 
 **Note:** Keep this table updated when versions change.
 
@@ -340,6 +340,16 @@ review-cli 123 --repo Uniswap/ai-toolkit
 ```
 
 ## Documentation Management
+
+### Deliverable Length
+
+Match the length of written deliverables to what the task needs. This covers everything Claude Code authors as a file or a posted artifact: CLAUDE.md and README.md updates, plan and spec documents, changelog entries, Notion pages, PR bodies, and review summaries.
+
+- Cover the substance the reader actually needs to act on.
+- Skip filler sections, redundant summaries that restate the section above, and boilerplate padding.
+- Prefer editing an existing section over appending a parallel one that repeats it.
+
+This is a real constraint rather than a style preference: reasoning-effort settings do not shorten authored files, so length only comes down when it is asked for explicitly. Unbounded docs are also expensive here, since the plugin CLAUDE.md files load into the context of every session that touches those packages.
 
 ### CLAUDE.md File Management
 

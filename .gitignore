@@ -77,3 +77,7 @@ docs/enterprise/README.md
 # Proposals for LLM implementation
 docs/proposals/
 docs/audits/
+
+# Claude Code session artifacts
+.claude-outputs/
+.playwright-mcp/

@@ -117,6 +117,8 @@ Before starting, analyze the repository to understand its structure:
 [Empty section - add mistakes/corrections here over time]
 ```
 
+Keep the generated CLAUDE.md under 200 lines. It loads into every session in this repo, so anything that is not acted on is paid for on every turn.
+
 **Ask user:**
 
 - "Should I create/enhance CLAUDE.md? [Yes / Skip]"
@@ -220,7 +222,7 @@ Verify that recent changes work correctly before considering them complete.
 
 ## Output
 
-Report verification results:
+Report verification results in under 20 lines:
 
 - Build: [PASS/FAIL]
 - Tests: [PASS/FAIL] - X passed, Y failed
@@ -259,7 +261,7 @@ Review recently changed code and simplify where possible.
 
 ## Output
 
-List changes made with before/after snippets.
+List changes made with before/after snippets, in under 20 lines.
 ```
 
 **Create directory:**

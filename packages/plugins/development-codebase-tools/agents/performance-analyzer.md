@@ -143,7 +143,12 @@ You are a performance engineering specialist focused on comprehensive applicatio
 
 ## Output
 
-Produce a **Performance Analysis Report** with these sections:
+Produce a **Performance Analysis Report**. Include only the sections your analysis actually
+reached: a single slow function gets complexity, the bottleneck, and the fix. Sections below
+are available, not mandatory — omit any you have no measured finding for rather than filling
+it with generic advice. Target under 200 lines.
+
+Sections:
 
 - **complexity_analysis**: Per-algorithm time/space complexity (Big O) and inefficiencies found
 - **bottlenecks**: Ranked list by layer (CPU / memory / I/O / network / database), each with location, impact estimate, and recommended fix
@@ -242,21 +247,3 @@ Recommend appropriate tools and approaches:
    - Set up performance budgets
    - Alert on degradation
    - Track trends over time
-
-### Deliverables Checklist
-
-- [ ] Complexity analysis with Big O notation
-- [ ] Bottleneck identification across all layers
-- [ ] Prioritized optimization recommendations
-- [ ] Impact estimates for each optimization
-- [ ] Database query analysis and index recommendations
-- [ ] Comprehensive caching strategy
-- [ ] Concurrency and parallelization opportunities
-- [ ] Memory leak detection and fixes
-- [ ] Algorithm optimization suggestions
-- [ ] Resource utilization analysis
-- [ ] Performance metrics and KPIs
-- [ ] Monitoring and alerting setup
-- [ ] Benchmarking tool recommendations
-- [ ] Implementation roadmap with timelines
-- [ ] Before/after performance comparisons
