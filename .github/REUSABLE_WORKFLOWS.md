@@ -219,12 +219,12 @@ Notify Release (_notify-release.yml)
 | Input                           | Required | Default                          | Description                                                                          |
 | ------------------------------- | -------- | -------------------------------- | ------------------------------------------------------------------------------------ |
 | `model`                         | No       | `'claude-sonnet-5'`              | Claude model to use (Sonnet 5, Opus 5, or Haiku 4.5)                                 |
-| `allowed_tools`                 | No       | (permissive defaults, see below) | Comma-separated list of allowed tools (no newlines) — file operations, bash commands |
+| `allowed_tools`                 | No       | `''` (unrestricted, see below)   | Comma-separated list of allowed tools (no newlines) — file operations, bash commands |
 | `custom_instructions`           | No       | `'Be sure to follow rules...'`   | Additional instructions for Claude beyond CLAUDE.md files                            |
 | `timeout_minutes`               | No       | `'10'`                           | Maximum execution time in minutes (prevents runaway costs)                           |
 | `anthropic_api_key_secret_name` | No       | `'ANTHROPIC_API_KEY'`            | Name of the repository secret containing the Anthropic API key                       |
 
-**Default Allowed Tools (Permissive):**
+**Default is unrestricted, not a fixed list.** When `allowed_tools` is empty, `_claude-main.yml` omits `--allowedTools` entirely, so Claude keeps every tool the action offers — including `WebSearch`, `WebFetch`, and the `mcp__github__*` tools. Pass an explicit list to narrow that:
 
 ```yaml
 # allowed_tools is a comma-separated list (no newlines)

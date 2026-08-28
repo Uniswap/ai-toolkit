@@ -67,7 +67,7 @@ jobs:
       # OPTIONAL: Custom allowed tools (default: permissive set allowing read/write)
       # See Example 3 below for restricting to read-only operations
       # allowed_tools is a comma-separated list (no newlines)
-      # allowed_tools: "Read,Glob,Bash(git *)"
+      # allowed_tools: "Read,Glob,Bash(git:*)"
 # -----------------------------------------------------------------------------
 # CUSTOMIZATION EXAMPLES
 # -----------------------------------------------------------------------------

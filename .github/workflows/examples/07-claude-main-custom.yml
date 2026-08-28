@@ -291,7 +291,7 @@ jobs:
 #
 # Problem: Different behavior than expected with tool restrictions
 # Solution:
-#   1. Check tool syntax - must match exactly (e.g., Bash(git *) not Bash(git*))
+#   1. Check tool syntax - prefix grants need the colon (e.g., Bash(git:*) not Bash(git *))
 #   2. Test with permissive config first (Bash(*)), then restrict gradually
 #   3. Review Claude Code Action docs for tool specification format
 #   4. Check workflow run logs for "tool not allowed" messages
