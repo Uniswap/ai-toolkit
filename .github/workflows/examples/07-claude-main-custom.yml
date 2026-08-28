@@ -255,7 +255,7 @@ jobs:
 #   - Bash(command arg)  # Allow command with specific argument
 #
 # Examples of bash restrictions:
-#   - Bash(git *)               # All git commands
+#   - Bash(git:*)               # All git commands
 #   - Bash(git diff:*)          # Only git diff variants
 #   - Bash(npm list)            # Exact command only
 #   - Bash(npm test)            # Exact command only
