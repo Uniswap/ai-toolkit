@@ -99,7 +99,7 @@ jobs:
       # allowed_tools is a comma-separated list (no newlines/comments) — see
       # the _claude-main.yml input description for the full tool catalog.
       # Write/Edit are deliberately excluded below.
-      allowed_tools: "Read,Grep,Glob,Bash(git status),Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git branch:*),Bash(git remote:*),Bash(npm list:*),Bash(npm outdated),Bash(yarn list:*),Bash(pnpm list:*),Bash(npm run --silent),Bash(node --version),Bash(npm --version),Bash(ls:*),Bash(pwd),Bash(find:*),Bash(wc:*),Bash(grep:*),Bash(awk:*),Bash(sed:*)"
+      allowed_tools: "Read,Grep,Glob,Bash(git status),Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git branch:*),Bash(git remote:*),Bash(npm list:*),Bash(npm outdated),Bash(yarn list:*),Bash(pnpm list:*),Bash(npm run --silent),Bash(node --version),Bash(npm --version),Bash(ls:*),Bash(pwd),Bash(wc:*),Bash(grep:*)"
 
 # -----------------------------------------------------------------------------
 # ALTERNATIVE CONFIGURATIONS

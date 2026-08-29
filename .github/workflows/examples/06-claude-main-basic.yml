@@ -241,7 +241,7 @@ jobs:
 # ☐ Configure ANTHROPIC_API_KEY secret in repository settings
 # ☐ Choose appropriate model (Sonnet 5 for most cases, Opus for complex analysis)
 # ☐ Set timeout_minutes based on repository size and expected tasks
-# ☐ Decide on tool permissions (default permissive vs restricted read-only)
+# ☐ Decide on tool permissions (default unrestricted vs an explicit restricted list)
 # ☐ Add custom_instructions if you have specific coding standards
 # ☐ Test with a simple @claude mention in a draft PR
 # ☐ Monitor first few executions to ensure proper operation
@@ -256,14 +256,14 @@ jobs:
 # 1. Replace the old workflow file with this one
 # 2. Update the secret name if different (default: ANTHROPIC_API_KEY)
 # 3. The model has been updated to claude-sonnet-5 (latest)
-# 4. allowed_tools now defaults to a more permissive set (read + write)
+# 4. allowed_tools now defaults to unrestricted - the flag is omitted when empty
 # 5. Security settings (bullfrog, permissions) are now fixed and cannot be overridden
 # 6. Test the new workflow with a @claude mention
 #
 # Key differences from universe:
 # - Reusable workflow pattern (uses: instead of inline)
 # - Updated default model (Sonnet 5 by default)
-# - More permissive default tools (includes Write, Edit)
+# - Unrestricted default tools (pass allowed_tools to narrow them)
 # - Fixed security and permission settings
 # - Centralized in ai-toolkit for organization-wide consistency
 # - Additional model options (Haiku 4.5 for cost-effective usage)
