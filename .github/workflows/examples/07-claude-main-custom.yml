@@ -95,47 +95,11 @@ jobs:
       # ALLOWED TOOLS
       # Customize which operations Claude can perform
       # This example shows a RESTRICTIVE configuration for read-only analysis
-      allowed_tools: |
-        # File operations (READ-ONLY)
-        - read_file
-        - list_files
-        - search_files
-        - search_code
-        - grep
-        - glob
-
-        # Code analysis (read-only)
-        # NOTE: write_file and edit_file are deliberately excluded
-
-        # Git operations (read-only)
-        - Bash(git status)
-        - Bash(git log*)
-        - Bash(git diff*)
-        - Bash(git show*)
-        - Bash(git branch*)
-        - Bash(git remote*)
-
-        # Package management (read-only)
-        - Bash(npm list*)
-        - Bash(npm outdated)
-        - Bash(yarn list*)
-        - Bash(pnpm list*)
-
-        # Build/test information (read-only)
-        - Bash(npm run --silent)  # List available scripts
-        - Bash(node --version)
-        - Bash(npm --version)
-
-        # File system navigation
-        - Bash(ls*)
-        - Bash(pwd)
-        - Bash(find*)
-        - Bash(wc*)
-
-        # Text processing for analysis
-        - Bash(grep*)
-        - Bash(awk*)
-        - Bash(sed*)
+      #
+      # allowed_tools is a comma-separated list (no newlines/comments) — see
+      # the _claude-main.yml input description for the full tool catalog.
+      # Write/Edit are deliberately excluded below.
+      allowed_tools: "Read,Grep,Glob,Bash(git status),Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git branch:*),Bash(git remote:*),Bash(npm list:*),Bash(npm outdated),Bash(yarn list:*),Bash(pnpm list:*),Bash(npm run --silent),Bash(node --version),Bash(npm --version),Bash(ls:*),Bash(pwd),Bash(wc:*),Bash(grep:*)"
 
 # -----------------------------------------------------------------------------
 # ALTERNATIVE CONFIGURATIONS
@@ -151,19 +115,8 @@ jobs:
 #     with:
 #       model: 'claude-sonnet-5'
 #       timeout_minutes: '10'
-#       allowed_tools: |
-#         # File operations (read AND write)
-#         - read_file
-#         - write_file
-#         - edit_file
-#         - list_files
-#         - search_files
-#         - search_code
-#         - grep
-#         - glob
-#
-#         # All bash commands
-#         - Bash(*)
+#       # allowed_tools is a comma-separated list (no newlines)
+#       allowed_tools: "Read,Write,Edit,Grep,Glob,Bash"
 #
 # -------------------
 # Configuration 2: Balanced (Read + Limited Write)
@@ -173,22 +126,8 @@ jobs:
 #     with:
 #       model: 'claude-sonnet-5'
 #       timeout_minutes: '10'
-#       allowed_tools: |
-#         # File operations (read and write)
-#         - read_file
-#         - write_file
-#         - edit_file
-#         - list_files
-#         - search_files
-#         - grep
-#         - glob
-#
-#         # Limited bash (no destructive commands)
-#         - Bash(git status)
-#         - Bash(git diff*)
-#         - Bash(npm list)
-#         - Bash(npm test)
-#         - Bash(npm run build)
+#       # allowed_tools is a comma-separated list (no newlines)
+#       allowed_tools: "Read,Write,Edit,Grep,Glob,Bash(git status),Bash(git diff:*),Bash(npm list),Bash(npm test),Bash(npm run build)"
 #
 # -------------------
 # Configuration 3: Ultra-Restrictive (Code Review Only)
@@ -201,14 +140,9 @@ jobs:
 #       custom_instructions: |
 #         You are in READ-ONLY mode for code review.
 #         Provide suggestions and analysis but do not attempt file modifications.
-#       allowed_tools: |
-#         # Only basic file reading
-#         - read_file
-#         - list_files
-#         - search_files
-#         - grep
-#
-#         # No bash commands at all
+#       # allowed_tools is a comma-separated list (no newlines);
+#       # no Bash tools at all
+#       allowed_tools: "Read,Grep,Glob"
 #
 # -------------------
 # Configuration 4: Custom Secret Name
@@ -304,33 +238,31 @@ jobs:
 # TOOL CONFIGURATION REFERENCE
 # -----------------------------------------------------------------------------
 #
-# Complete list of available tools for allowed_tools configuration:
+# allowed_tools is a comma-separated list (no newlines). Complete list of
+# available tools for allowed_tools configuration:
 #
 # FILE OPERATIONS:
-#   - read_file          # Read file contents
-#   - write_file         # Create/overwrite files
-#   - edit_file          # Make targeted edits to existing files
-#   - list_files         # List directory contents
-#   - search_files       # Search for files by name pattern
-#   - search_code        # Search code content
-#   - grep               # Search file contents with regex
-#   - glob               # File pattern matching
+#   - Read                # Read file contents
+#   - Write               # Create/overwrite files
+#   - Edit                # Make targeted edits to existing files
+#   - Grep                # Search file contents with regex
+#   - Glob                # File pattern matching
 #
 # BASH COMMANDS:
-#   - Bash(*)            # Allow all bash commands (PERMISSIVE)
+#   - Bash               # Allow all bash commands (PERMISSIVE)
 #   - Bash(command)      # Allow specific command
-#   - Bash(command*)     # Allow command with any arguments
+#   - Bash(command:*)    # Allow command with any arguments
 #   - Bash(command arg)  # Allow command with specific argument
 #
 # Examples of bash restrictions:
-#   - Bash(git *)              # All git commands
-#   - Bash(git diff*)          # Only git diff variants
-#   - Bash(npm list)           # Exact command only
-#   - Bash(npm test)           # Exact command only
-#   - Bash(node --version)     # Exact command with specific args
+#   - Bash(git:*)               # All git commands
+#   - Bash(git diff:*)          # Only git diff variants
+#   - Bash(npm list)            # Exact command only
+#   - Bash(npm test)            # Exact command only
+#   - Bash(node --version)      # Exact command with specific args
 #
-# Security note: Be careful with Bash(*) as it allows any command execution.
-# Prefer explicit allowlists for production environments.
+# Security note: Be careful with unrestricted Bash as it allows any command
+# execution. Prefer explicit allowlists for production environments.
 #
 
 # -----------------------------------------------------------------------------
@@ -339,9 +271,9 @@ jobs:
 #
 # Problem: Claude says it can't perform an action
 # Solution: Check allowed_tools configuration. Add the required tool:
-#   - For file writes: add write_file or edit_file
-#   - For bash commands: add Bash(command) or Bash(*)
-#   - For file searches: ensure grep, glob, or search_files are included
+#   - For file writes: add Write or Edit
+#   - For bash commands: add Bash(command) or Bash
+#   - For file searches: ensure Grep or Glob are included
 #
 # Problem: Custom instructions not being followed
 # Solution:
@@ -359,8 +291,8 @@ jobs:
 #
 # Problem: Different behavior than expected with tool restrictions
 # Solution:
-#   1. Check tool syntax - must match exactly (e.g., Bash(git *) not Bash(git*))
-#   2. Test with permissive config first (Bash(*)), then restrict gradually
+#   1. Check tool syntax - prefix grants need the colon (e.g., Bash(git:*) not Bash(git *))
+#   2. Test with permissive config first (bare Bash), then restrict gradually
 #   3. Review Claude Code Action docs for tool specification format
 #   4. Check workflow run logs for "tool not allowed" messages
 #
@@ -397,7 +329,7 @@ jobs:
 #    - Monitor usage in Anthropic console
 #
 # 4. **Code Modification**:
-#    - If allowing write_file/edit_file, ensure you have:
+#    - If allowing Write/Edit, ensure you have:
 #      - Branch protection rules
 #      - Required PR reviews
 #      - CI checks before merge

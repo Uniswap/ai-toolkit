@@ -216,29 +216,19 @@ Notify Release (_notify-release.yml)
 
 #### Inputs
 
-| Input                           | Required | Default                          | Description                                                                        |
-| ------------------------------- | -------- | -------------------------------- | ---------------------------------------------------------------------------------- |
-| `model`                         | No       | `'claude-sonnet-5'`              | Claude model to use (Sonnet 5, Opus 5, or Haiku 4.5)                               |
-| `allowed_tools`                 | No       | (permissive defaults, see below) | YAML string specifying which tools Claude can use (file operations, bash commands) |
-| `custom_instructions`           | No       | `'Be sure to follow rules...'`   | Additional instructions for Claude beyond CLAUDE.md files                          |
-| `timeout_minutes`               | No       | `'10'`                           | Maximum execution time in minutes (prevents runaway costs)                         |
-| `anthropic_api_key_secret_name` | No       | `'ANTHROPIC_API_KEY'`            | Name of the repository secret containing the Anthropic API key                     |
+| Input                           | Required | Default                          | Description                                                                          |
+| ------------------------------- | -------- | -------------------------------- | ------------------------------------------------------------------------------------ |
+| `model`                         | No       | `'claude-sonnet-5'`              | Claude model to use (Sonnet 5, Opus 5, or Haiku 4.5)                                 |
+| `allowed_tools`                 | No       | `''` (unrestricted, see below)   | Comma-separated list of allowed tools (no newlines) — file operations, bash commands |
+| `custom_instructions`           | No       | `'Be sure to follow rules...'`   | Additional instructions for Claude beyond CLAUDE.md files                            |
+| `timeout_minutes`               | No       | `'10'`                           | Maximum execution time in minutes (prevents runaway costs)                           |
+| `anthropic_api_key_secret_name` | No       | `'ANTHROPIC_API_KEY'`            | Name of the repository secret containing the Anthropic API key                       |
 
-**Default Allowed Tools (Permissive):**
+**Default is unrestricted, not a fixed list.** When `allowed_tools` is empty, `_claude-main.yml` omits `--allowedTools` entirely, so Claude keeps every tool the action offers — including `WebSearch`, `WebFetch`, and the `mcp__github__*` tools. Pass an explicit list to narrow that:
 
 ```yaml
-# File operations (read & write)
-- read_file
-- write_file
-- edit_file
-- list_files
-- search_files
-- search_code
-- grep
-- glob
-
-# All bash commands
-- Bash(*)
+# allowed_tools is a comma-separated list (no newlines)
+allowed_tools: 'Read,Write,Edit,Grep,Glob,Bash'
 ```
 
 #### Outputs
@@ -353,20 +343,9 @@ jobs:
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     with:
-      allowed_tools: |
-        # File operations (READ-ONLY)
-        - read_file
-        - list_files
-        - search_files
-        - search_code
-        - grep
-        - glob
-
-        # Limited bash commands (read-only)
-        - Bash(git status)
-        - Bash(git log*)
-        - Bash(git diff*)
-        - Bash(npm list)
+      # allowed_tools is a comma-separated list (no newlines) — see the
+      # _claude-main.yml input description for the full tool catalog.
+      allowed_tools: 'Read,Grep,Glob,Bash(git status),Bash(git log:*),Bash(git diff:*),Bash(npm list)'
 ```
 
 #### Example: Custom Instructions for Your Codebase
@@ -493,14 +472,9 @@ Claude modified files when I only wanted analysis
 
 ```yaml
 with:
-  allowed_tools: |
-    # Read-only file operations
-    - read_file
-    - list_files
-    - search_files
-    - grep
-
-    # No write_file or edit_file
+  # allowed_tools is a comma-separated list (no newlines) — omitting
+  # write/edit tools keeps Claude read-only.
+  allowed_tools: 'Read,Grep,Glob'
 ```
 
 **Issue: API rate limit or cost concerns**

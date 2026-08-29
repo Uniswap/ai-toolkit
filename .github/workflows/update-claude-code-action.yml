@@ -27,10 +27,30 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "::group::Fetching latest release from anthropics/claude-code-action"
-          RELEASE=$(gh api repos/anthropics/claude-code-action/releases/latest)
-          LATEST_TAG=$(echo "$RELEASE" | jq -r '.tag_name')
-          RELEASE_URL=$(echo "$RELEASE" | jq -r '.html_url')
-          RELEASE_NOTES=$(echo "$RELEASE" | jq -r '.body // "No release notes provided."')
+          # Upstream publishes a moving "v1" release alongside each versioned one, and
+          # releases/latest orders by publish date, so it returns "v1". A moving tag in
+          # a pin comment fails zizmor's stale-ref audit, so select the newest concrete
+          # vX.Y.Z release instead.
+          gh api 'repos/anthropics/claude-code-action/releases?per_page=100' > /tmp/releases.json
+          # Sort by semver, not publish date: /releases is date-ordered, so a
+          # backport published after a newer release would otherwise be picked,
+          # and "Determine if update is needed" only tests SHA inequality - it
+          # would open the same downgrade PR every week.
+          LATEST_TAG=$(
+            jq -r '[.[]
+                    | select(.draft == false and .prerelease == false)
+                    | .tag_name
+                    | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))]
+                   | sort_by(.[1:] | split(".") | map(tonumber))
+                   | last // ""' \
+              < /tmp/releases.json
+          )
+          if [ -z "$LATEST_TAG" ]; then
+            echo "::error::No concrete vX.Y.Z release found for anthropics/claude-code-action; refusing to pin to a moving tag"
+            exit 1
+          fi
+          RELEASE_URL=$(jq -r --arg t "$LATEST_TAG" '.[] | select(.tag_name == $t) | .html_url' < /tmp/releases.json)
+          RELEASE_NOTES=$(jq -r --arg t "$LATEST_TAG" '.[] | select(.tag_name == $t) | .body // "No release notes provided."' < /tmp/releases.json)
           echo "Latest release tag: $LATEST_TAG"
           echo "Release URL: $RELEASE_URL"
           echo "$RELEASE_NOTES" > /tmp/release_notes.md

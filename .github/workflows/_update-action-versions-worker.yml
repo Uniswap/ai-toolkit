@@ -283,8 +283,13 @@ jobs:
           For each unique action found, check if a newer version exists:
 
           ```bash
-          # Get latest release info
-          gh api repos/{owner}/{repo}/releases/latest --jq '.tag_name'
+          # Pick the newest CONCRETE vX.Y.Z release. Do not use releases/latest:
+          # some repos publish a moving major tag (e.g. "v1") as a release of its
+          # own, and it wins on publish date. Sort by semver, not by list order.
+          gh api 'repos/{owner}/{repo}/releases?per_page=100' \
+            | jq -r '[.[] | select(.draft == false and .prerelease == false)
+                     | .tag_name | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))]
+                     | sort_by(.[1:] | split(".") | map(tonumber)) | last'
 
           # Get the SHA for that tag
           gh api repos/{owner}/{repo}/git/ref/tags/{tag} --jq '.object.sha'
@@ -315,7 +320,8 @@ jobs:
 
           **Important:**
           - The SHA must be the full 40-character commit SHA
-          - The version comment should match the release tag (e.g., `# v4.2.0` or `# v4`)
+          - The version comment must be a concrete version (e.g., `# v4.2.0`), never a moving
+            major tag like `# v4` — zizmor's stale-ref audit fails the build on those
           - Do not change the formatting or add extra spaces
 
           ### Phase 4: Commit and Create PR (turns 61-80)
@@ -437,7 +443,7 @@ jobs:
       # Supports both API key and OAuth token authentication (OAuth takes precedence)
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
+        uses: anthropics/claude-code-action@c81e3bc69d1b18badbb63ba39581218f02421678 # v1.0.201
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

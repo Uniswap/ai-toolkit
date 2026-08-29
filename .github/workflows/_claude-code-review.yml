@@ -1187,7 +1187,7 @@ jobs:
           COMPACT_SCHEMA=$(echo "$JSON_SCHEMA" | jq -c .)
           CLAUDE_ARGS="$CLAUDE_ARGS
             --json-schema '$COMPACT_SCHEMA'
-            --allowedTools $ALLOWED_TOOLS"
+            --allowedTools \"$ALLOWED_TOOLS\""
 
           echo "allowed_tools=$ALLOWED_TOOLS" >> $GITHUB_OUTPUT
           # Per-call unguessable heredoc delimiter; defense in depth against
@@ -1219,7 +1219,7 @@ jobs:
       - name: Run Claude Code Review
         if: steps.cache-check.outputs.cache-hit != 'true' && steps.diff-size.outputs.is_too_large != 'true'
         id: claude
-        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
+        uses: anthropics/claude-code-action@c81e3bc69d1b18badbb63ba39581218f02421678 # v1.0.201
         with:
           # Authentication: provide either API key or OAuth token (validated in earlier step)
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -1712,7 +1712,7 @@ jobs:
       - name: Run Claude Auto-Fix
         id: claude-fix
         if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
-        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
+        uses: anthropics/claude-code-action@c81e3bc69d1b18badbb63ba39581218f02421678 # v1.0.201
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -1727,7 +1727,7 @@ jobs:
           # - git: commit, push, status, diff operations
           # - npm run / npx nx / bun run: linters, formatters, type checkers
           # Bash(node:*) is intentionally excluded — it permits arbitrary JS execution.
-          claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }} --allowedTools Read,Edit,Write,Grep,Glob,Bash(git:*),Bash(npm run:*),Bash(npx nx:*),Bash(bun run:*),WebSearch,WebFetch"
+          claude_args: "--model ${{ inputs.auto_fix_model || inputs.model }} --allowedTools \"Read,Edit,Write,Grep,Glob,Bash(git:*),Bash(npm run:*),Bash(npx nx:*),Bash(bun run:*),WebSearch,WebFetch\""
           # Note: plugin_marketplaces and plugins are intentionally omitted here.
           # The marketplace and plugins were already installed by the "Run Claude Code
           # Review" step earlier in this job. Both steps share the same runner and

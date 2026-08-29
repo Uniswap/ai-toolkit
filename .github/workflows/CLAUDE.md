@@ -1360,7 +1360,7 @@ jobs:
     uses: ./.github/workflows/_claude-main.yml
     with:
       model: 'claude-sonnet-5'
-      allowed_tools: 'read-write'
+      allowed_tools: 'Read,Write,Edit,Grep,Glob,Bash'
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

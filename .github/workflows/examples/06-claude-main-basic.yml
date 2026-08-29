@@ -64,12 +64,10 @@ jobs:
       # OPTIONAL: Additional instructions for Claude
       # custom_instructions: 'Be sure to follow rules in all CLAUDE.md files.'
 
-      # OPTIONAL: Custom allowed tools (default: permissive set allowing read/write)
+      # OPTIONAL: Custom allowed tools (default: unrestricted - every tool the action offers)
       # See Example 3 below for restricting to read-only operations
-      # allowed_tools: |
-      #   - read_file
-      #   - list_files
-      #   - Bash(git *)
+      # allowed_tools is a comma-separated list (no newlines)
+      # allowed_tools: "Read,Glob,Bash(git:*)"
 # -----------------------------------------------------------------------------
 # CUSTOMIZATION EXAMPLES
 # -----------------------------------------------------------------------------
@@ -137,21 +135,8 @@ jobs:
 #     secrets:
 #       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 #     with:
-#       allowed_tools: |
-#         # File operations (read-only)
-#         - read_file
-#         - list_files
-#         - search_files
-#         - search_code
-#         - grep
-#         - glob
-#
-#         # Limited bash commands (read-only operations)
-#         - Bash(git status)
-#         - Bash(git log*)
-#         - Bash(git diff*)
-#         - Bash(npm list)
-#         - Bash(npm outdated)
+#       # allowed_tools is a comma-separated list (no newlines)
+#       allowed_tools: "Read,Grep,Glob,Bash(git status),Bash(git log:*),Bash(git diff:*),Bash(npm list),Bash(npm outdated)"
 #
 # -------------------
 # Example 4: Extended Timeout for Complex Tasks
@@ -256,7 +241,7 @@ jobs:
 # ☐ Configure ANTHROPIC_API_KEY secret in repository settings
 # ☐ Choose appropriate model (Sonnet 5 for most cases, Opus for complex analysis)
 # ☐ Set timeout_minutes based on repository size and expected tasks
-# ☐ Decide on tool permissions (default permissive vs restricted read-only)
+# ☐ Decide on tool permissions (default unrestricted vs an explicit restricted list)
 # ☐ Add custom_instructions if you have specific coding standards
 # ☐ Test with a simple @claude mention in a draft PR
 # ☐ Monitor first few executions to ensure proper operation
@@ -271,14 +256,14 @@ jobs:
 # 1. Replace the old workflow file with this one
 # 2. Update the secret name if different (default: ANTHROPIC_API_KEY)
 # 3. The model has been updated to claude-sonnet-5 (latest)
-# 4. allowed_tools now defaults to a more permissive set (read + write)
+# 4. allowed_tools now defaults to unrestricted - the flag is omitted when empty
 # 5. Security settings (bullfrog, permissions) are now fixed and cannot be overridden
 # 6. Test the new workflow with a @claude mention
 #
 # Key differences from universe:
 # - Reusable workflow pattern (uses: instead of inline)
 # - Updated default model (Sonnet 5 by default)
-# - More permissive default tools (includes write_file, edit_file)
+# - Unrestricted default tools (pass allowed_tools to narrow them)
 # - Fixed security and permission settings
 # - Centralized in ai-toolkit for organization-wide consistency
 # - Additional model options (Haiku 4.5 for cost-effective usage)

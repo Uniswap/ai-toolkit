@@ -91,7 +91,7 @@ on:
         description: |
           Comma-separated list of tools Claude can use.
 
-          If not provided, uses permissive defaults (all file operations and bash commands).
+          If not provided, no --allowedTools flag is passed and every tool the action offers stays available.
 
           Example (restrictive):
           allowed_tools: "Read,Grep,Glob,Bash"
@@ -409,12 +409,12 @@ jobs:
 
           # Add allowed tools (camelCase format)
           if [[ -n "$INPUT_ALLOWED_TOOLS" ]]; then
-            ARGS="$ARGS--allowedTools $INPUT_ALLOWED_TOOLS"$'\n'
+            ARGS="$ARGS--allowedTools \"$INPUT_ALLOWED_TOOLS\""$'\n'
           fi
 
           # Add disallowed tools
           if [[ -n "$INPUT_DISALLOWED_TOOLS" ]]; then
-            ARGS="$ARGS--disallowedTools $INPUT_DISALLOWED_TOOLS"$'\n'
+            ARGS="$ARGS--disallowedTools \"$INPUT_DISALLOWED_TOOLS\""$'\n'
           fi
 
           # Add system prompt
@@ -457,7 +457,7 @@ jobs:
       # Supports both API key and OAuth token authentication (validated in earlier step)
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
+        uses: anthropics/claude-code-action@c81e3bc69d1b18badbb63ba39581218f02421678 # v1.0.201
         with:
           # Authentication: provide either API key or OAuth token (validated in earlier step)
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
