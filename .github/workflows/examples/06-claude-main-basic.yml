@@ -64,7 +64,7 @@ jobs:
       # OPTIONAL: Additional instructions for Claude
       # custom_instructions: 'Be sure to follow rules in all CLAUDE.md files.'
 
-      # OPTIONAL: Custom allowed tools (default: permissive set allowing read/write)
+      # OPTIONAL: Custom allowed tools (default: unrestricted - every tool the action offers)
       # See Example 3 below for restricting to read-only operations
       # allowed_tools is a comma-separated list (no newlines)
       # allowed_tools: "Read,Glob,Bash(git:*)"

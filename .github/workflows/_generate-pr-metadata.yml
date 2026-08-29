@@ -521,7 +521,7 @@ jobs:
             Write ONLY the single word "PASS" or "FAIL" to /tmp/quality-gate-verdict.txt.
             No explanation, no other text — just the verdict word.
           allowed_bots: ${{ inputs.allowed_bots }}
-          claude_args: '--model claude-haiku-4-5-20251001 --max-turns 3 --allowed-tools Read,Write'
+          claude_args: '--model claude-haiku-4-5-20251001 --max-turns 10 --allowed-tools Read,Write'
           track_progress: false
 
       - name: Parse Quality Gate Verdict
@@ -900,7 +900,7 @@ jobs:
           CLAUDE_ARGS="--model $INPUT_MODEL"
 
           # Only add --max-turns if explicitly provided (not empty)
-          if [ -n "$INPUT_MAX_TURNS" ]; then
+          if [ -n "$INPUT_MAX_TURNS" ] && [ "$INPUT_MAX_TURNS" != "0" ]; then
             CLAUDE_ARGS="$CLAUDE_ARGS
             --max-turns $INPUT_MAX_TURNS"
             echo "ℹ️  Including --max-turns $INPUT_MAX_TURNS"
