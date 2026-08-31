@@ -289,7 +289,9 @@ jobs:
           gh api 'repos/{owner}/{repo}/releases?per_page=100' \
             | jq -r '[.[] | select(.draft == false and .prerelease == false)
                      | .tag_name | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))]
-                     | sort_by(.[1:] | split(".") | map(tonumber)) | last'
+                     | sort_by(.[1:] | split(".") | map(tonumber)) | last // empty'
+          # No output means the action has no concrete vX.Y.Z release. Skip that
+          # action and report it under "Skipped"; never fall back to a moving tag.
 
           # Get the SHA for that tag
           gh api repos/{owner}/{repo}/git/ref/tags/{tag} --jq '.object.sha'
@@ -391,7 +393,9 @@ jobs:
           ## Guidelines
 
           - Always use full 40-character SHAs, never abbreviated
-          - Preserve existing comment format (some use `# v4`, others use `# v4.0.0`)
+          - Always write a concrete version in the comment (`# v4.2.0`). If an action is
+            currently pinned with a moving major tag (`# v4`), replace it with the concrete
+            version you resolved - do not preserve the moving form
           - Skip actions that don't have GitHub releases (some use only tags)
           - Skip private or archived repositories
           - Handle rate limiting gracefully (gh CLI has built-in retry)
