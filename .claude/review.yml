@@ -23,7 +23,7 @@ post:
 # review-cli >= 1.10.0, which is why the workflow's fallback pin is 1.10.6.
 model:
   default: claude-opus-5
-  synthesis: claude-fable-5
+  synthesis: claude-fable-5-1
 
 # ─── Budget ────────────────────────────────────────
 # Soft PER-AGENT cap, matching Uniswap/universe and Uniswap/backend. Set
