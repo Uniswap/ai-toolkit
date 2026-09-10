@@ -78,11 +78,10 @@ graph TD
 
 ### Package Types
 
-| Type             | Purpose             | Publishing       | Examples                                |
-| ---------------- | ------------------- | ---------------- | --------------------------------------- |
-| **Applications** | User-facing tools   | Published        | `@uniswap/ai-toolkit-nx-claude`         |
-| **Libraries**    | Shared code         | May be published | `@uniswap/ai-toolkit-claude-mcp-helper` |
-| **Plugins**      | Claude Code plugins | Private          | `packages/plugins/*`                    |
+| Type                   | Purpose                          | Publishing | Examples                                                                 |
+| ---------------------- | -------------------------------- | ---------- | ------------------------------------------------------------------------ |
+| **Published packages** | User-facing CLIs and shared code | Published  | `@uniswap/ai-toolkit-nx-claude`, `@uniswap/ai-toolkit-claude-mcp-helper` |
+| **Plugins**            | Claude Code plugins              | Private    | `packages/plugins/*`                                                     |
 
 ### Package Anatomy
 
