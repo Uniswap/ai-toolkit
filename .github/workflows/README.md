@@ -191,7 +191,7 @@ Workflows designed to be called by other workflows using `workflow_call`. These 
 
 ### Claude GitHub App (Required for Claude-powered workflows)
 
-The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository to use any Claude-powered workflows (`_claude-main.yml`, `_claude-welcome.yml`, `_claude-code-review.yml`, `_generate-changelog.yml`, `_generate-pr-metadata.yml`, `_claude-task-worker.yml`).
+The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository to use any Claude-powered workflows (`_claude-main.yml`, `_claude-welcome.yml`, `_claude-code-review.yml`, `_generate-changelog.yml`, `_generate-pr-metadata.yml`).
 
 1. Go to: <https://github.com/apps/claude>
 2. Click **Install**

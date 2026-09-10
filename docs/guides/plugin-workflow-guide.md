@@ -163,12 +163,12 @@ git status  # Shows modified files
 
 **When to use which:**
 
-| Scenario                                     | Command                           |
-| -------------------------------------------- | --------------------------------- |
-| Starting new work from scratch               | `start-linear-task`               |
-| Already have local changes to formalize      | `linear-task-and-pr-from-changes` |
-| Quick spike that turned into real work       | `linear-task-and-pr-from-changes` |
-| Assigned a Linear task, ready to start       | `start-linear-task`               |
+| Scenario                                | Command                           |
+| --------------------------------------- | --------------------------------- |
+| Starting new work from scratch          | `start-linear-task`               |
+| Already have local changes to formalize | `linear-task-and-pr-from-changes` |
+| Quick spike that turned into real work  | `linear-task-and-pr-from-changes` |
+| Assigned a Linear task, ready to start  | `start-linear-task`               |
 
 ### "I need documentation or tests..."
 
@@ -324,4 +324,3 @@ Both standard Git and Graphite workflows are supported:
 
 - [Creating Agents](./creating-agents.md) - How to create custom agents
 - [Claude Integration](./claude-integration.md) - Claude Code integration details
-- [Autonomous Tasks](./autonomous-claude-tasks.md) - Running autonomous workflows
