@@ -147,9 +147,9 @@ jobs:
     #
     # The draft policy lives here rather than in .claude/review.yml
     # (`skip.drafts: false`) because review-cli's draft skip is a single
-    # boolean and cannot express the claude[bot] carve-out: the
-    # autonomous-task workflow opens DRAFT PRs and those must still be
-    # reviewed on open, not only once a human marks them ready.
+    # boolean and cannot express the claude[bot] carve-out: claude[bot]
+    # opens DRAFT PRs and those must still be reviewed on open, not only
+    # once a human marks them ready.
     if: |
       always() && (
         (
