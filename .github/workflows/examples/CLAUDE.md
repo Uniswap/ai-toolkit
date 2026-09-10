@@ -22,10 +22,6 @@ Example workflow implementations demonstrating AI Toolkit patterns and best prac
 9. **09-claude-code-review-with-custom-prompt.yml** - Code reviews with custom prompts
 10. **10-claude-code-review-advanced.yml** - Advanced review configuration
 
-### Autonomous Task Processing (Example 11)
-
-11. **11-autonomous-linear-tasks.yml** - Autonomous Claude Code task processing from Linear issues
-
 ### PR Metadata Generation (Examples 12-13)
 
 12. **12-generate-pr-metadata-basic.yml** - Basic auto-generated PR titles and descriptions
@@ -104,19 +100,6 @@ All examples demonstrate:
 - **09**: Reviews with custom prompts from files
 - **10**: Advanced reviews with inline comments and auto-resolution
 
-### Autonomous Task Processing (Example 11)
-
-**Patterns:**
-
-- Scheduled execution (daily at 5am EST)
-- Linear issue integration
-- Matrix-based parallel processing
-- Automatic PR creation and Linear status updates
-
-**Key Features:**
-
-- **11**: Full autonomous task processing from Linear with `@uniswap/ai-toolkit-linear-task-utils`
-
 ### PR Metadata Generation Examples (12-13)
 
 **Patterns:**
@@ -167,7 +150,6 @@ The [Claude GitHub App](https://github.com/apps/claude) must be installed on you
 Examples reference these secrets:
 
 - `ANTHROPIC_API_KEY` - Claude AI authentication (requires Claude GitHub App)
-- `LINEAR_API_KEY` - Linear API authentication (Example 11)
 - `GITHUB_TOKEN` - Built-in token (automatic)
 - `SLACK_WEBHOOK_URL` - Notifications (optional)
 

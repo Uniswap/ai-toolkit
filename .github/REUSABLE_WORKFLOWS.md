@@ -106,7 +106,7 @@ Then run from GitHub Actions UI: Actions → Manual Changelog Generator → Run 
 
 ### Claude GitHub App (Required for Claude-powered workflows)
 
-The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository to use any Claude-powered workflows (`_claude-main.yml`, `_claude-welcome.yml`, `_claude-code-review.yml`, `_generate-changelog.yml`, `_generate-pr-metadata.yml`, `_claude-task-worker.yml`).
+The [Claude GitHub App](https://github.com/apps/claude) must be installed on your repository to use any Claude-powered workflows (`_claude-main.yml`, `_claude-welcome.yml`, `_claude-code-review.yml`, `_generate-changelog.yml`, `_generate-pr-metadata.yml`).
 
 1. Go to: <https://github.com/apps/claude>
 2. Click **Install**
@@ -216,13 +216,13 @@ Notify Release (_notify-release.yml)
 
 #### Inputs
 
-| Input                           | Required | Default                          | Description                                                                          |
-| ------------------------------- | -------- | -------------------------------- | ------------------------------------------------------------------------------------ |
-| `model`                         | No       | `'claude-sonnet-5'`              | Claude model to use (Sonnet 5, Opus 5, or Haiku 4.5)                                 |
-| `allowed_tools`                 | No       | `''` (unrestricted, see below)   | Comma-separated list of allowed tools (no newlines) — file operations, bash commands |
-| `custom_instructions`           | No       | `'Be sure to follow rules...'`   | Additional instructions for Claude beyond CLAUDE.md files                            |
-| `timeout_minutes`               | No       | `'10'`                           | Maximum execution time in minutes (prevents runaway costs)                           |
-| `anthropic_api_key_secret_name` | No       | `'ANTHROPIC_API_KEY'`            | Name of the repository secret containing the Anthropic API key                       |
+| Input                           | Required | Default                        | Description                                                                          |
+| ------------------------------- | -------- | ------------------------------ | ------------------------------------------------------------------------------------ |
+| `model`                         | No       | `'claude-sonnet-5'`            | Claude model to use (Sonnet 5, Opus 5, or Haiku 4.5)                                 |
+| `allowed_tools`                 | No       | `''` (unrestricted, see below) | Comma-separated list of allowed tools (no newlines) — file operations, bash commands |
+| `custom_instructions`           | No       | `'Be sure to follow rules...'` | Additional instructions for Claude beyond CLAUDE.md files                            |
+| `timeout_minutes`               | No       | `'10'`                         | Maximum execution time in minutes (prevents runaway costs)                           |
+| `anthropic_api_key_secret_name` | No       | `'ANTHROPIC_API_KEY'`          | Name of the repository secret containing the Anthropic API key                       |
 
 **Default is unrestricted, not a fixed list.** When `allowed_tools` is empty, `_claude-main.yml` omits `--allowedTools` entirely, so Claude keeps every tool the action offers — including `WebSearch`, `WebFetch`, and the `mcp__github__*` tools. Pass an explicit list to narrow that:
 

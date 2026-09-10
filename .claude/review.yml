@@ -86,12 +86,11 @@ skip:
   # Draft filtering is done by the workflow's job-level `if:` instead.
   #
   # This is a single boolean, so it cannot express the carve-out this repo
-  # needs: claude-auto-tasks.yml opens DRAFT PRs via the autonomous task
-  # worker, and those must be reviewed when opened rather than waiting for
-  # a human to mark them ready for review. Leaving this `true` would skip
-  # every autonomous-task PR. The workflow gate reproduces the previous
-  # behavior exactly: review when not a draft, OR on ready_for_review, OR
-  # when the author is claude[bot].
+  # needs: `claude[bot]` opens DRAFT PRs, and those must be reviewed when
+  # opened rather than waiting for a human to mark them ready for review.
+  # Leaving this `true` would skip every one of them. The workflow gate
+  # expresses the carve-out: review when not a draft, OR on
+  # ready_for_review, OR when the author is claude[bot].
   drafts: false
 
 # ─── Verdicts ──────────────────────────────────────

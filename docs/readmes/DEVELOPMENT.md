@@ -62,7 +62,6 @@ graph TD
 
     subgraph "Utility Layer"
         NOTION[notion-publisher]
-        LINEAR[linear-task-utils]
         MCP[claude-mcp-helper]
     end
 
@@ -72,7 +71,6 @@ graph TD
     CLI --> DEV_PROD
     CLI --> UNI_INT
     UNI_INT --> NOTION
-    UNI_INT --> LINEAR
     CLI --> MCP
 ```
 
@@ -80,11 +78,10 @@ graph TD
 
 ### Package Types
 
-| Type             | Purpose             | Publishing       | Examples                                |
-| ---------------- | ------------------- | ---------------- | --------------------------------------- |
-| **Applications** | User-facing tools   | Published        | `@uniswap/ai-toolkit-nx-claude`         |
-| **Libraries**    | Shared code         | May be published | `@uniswap/ai-toolkit-linear-task-utils` |
-| **Plugins**      | Claude Code plugins | Private          | `packages/plugins/*`                    |
+| Type                   | Purpose                          | Publishing | Examples                                                                 |
+| ---------------------- | -------------------------------- | ---------- | ------------------------------------------------------------------------ |
+| **Published packages** | User-facing CLIs and shared code | Published  | `@uniswap/ai-toolkit-nx-claude`, `@uniswap/ai-toolkit-claude-mcp-helper` |
+| **Plugins**            | Claude Code plugins              | Private    | `packages/plugins/*`                                                     |
 
 ### Package Anatomy
 
@@ -279,7 +276,7 @@ Each package versions independently based on its changes:
     "projects": [
       "@uniswap/ai-toolkit-nx-claude", // 1.2.3
       "@uniswap/ai-toolkit-claude-mcp-helper", // 0.1.0
-      "@uniswap/ai-toolkit-linear-task-utils" // 0.2.0
+      "@uniswap/ai-toolkit-notion-publisher" // 0.2.0
     ]
   }
 }
