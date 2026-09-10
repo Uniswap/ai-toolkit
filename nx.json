@@ -89,7 +89,6 @@
     "projects": [
       "@uniswap/ai-toolkit-nx-claude",
       "@uniswap/ai-toolkit-claude-mcp-helper",
-      "@uniswap/ai-toolkit-linear-task-utils",
       "@uniswap/ai-toolkit-notion-publisher"
     ],
     "projectsRelationship": "independent",

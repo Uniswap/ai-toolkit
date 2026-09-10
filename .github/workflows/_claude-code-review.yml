@@ -356,7 +356,7 @@ jobs:
             echo "Downloading validate-claude-auth action from ai-toolkit@${TOOLKIT_REF}..."
             mkdir -p .github/actions/validate-claude-auth
 
-            # Use GitHub API (same pattern as _generate-pr-metadata.yml and _claude-task-worker.yml)
+            # Use GitHub API (same pattern as _generate-pr-metadata.yml)
             # Authentication required to avoid GitHub API rate limits on shared runner IPs
             if ! curl -fSs --max-time 30 --max-redirs 3 \
                       -H "Accept: application/vnd.github.v4.raw" \
