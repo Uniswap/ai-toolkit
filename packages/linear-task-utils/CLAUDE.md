@@ -182,8 +182,3 @@ npx nx test @uniswap/ai-toolkit-linear-task-utils --configuration=ci
   "attachmentAdded": true
 }
 ```
-
-## Related Files
-
-- `.github/workflows/claude-auto-tasks.yml` - Consumer workflow using this package
-- `.github/workflows/_claude-task-worker.yml` - Reusable worker that calls update-issue
