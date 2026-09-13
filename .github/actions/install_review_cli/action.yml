@@ -73,9 +73,24 @@ runs:
         [install.scopes]
         "@uniswap" = { url = "https://npm.pkg.github.com", token = "$GH_PACKAGES_TOKEN" }
         EOF
+        # The bunfig holds the packages token in cleartext and is only needed
+        # until the package resolves. Remove it on every exit path -- a failed
+        # `bun add` must not leave it under $RUNNER_TEMP either.
+        trap 'rm -f "$install_dir/bunfig.toml" "$RUNNER_TEMP/bun-add.err"' EXIT
         cd "$install_dir"
         bun init -y > /dev/null
-        bun add "@uniswap/review-cli@${REVIEW_CLI_VERSION}"
+        # --config is passed explicitly rather than relying on the scratch CWD
+        # alone: bun ignores the BUN_CONFIG_FILE environment variable, so the
+        # flag plus the scratch directory are what keep any other bunfig.toml
+        # out of scope. Mirrors the canonical review.yml template in
+        # Uniswap/internal-tools.
+        if ! bun add --config="$install_dir/bunfig.toml" "@uniswap/review-cli@${REVIEW_CLI_VERSION}" 2> "$RUNNER_TEMP/bun-add.err"; then
+          cat "$RUNNER_TEMP/bun-add.err" >&2
+          if grep -qE '(^|[^0-9])403([^0-9]|$)' "$RUNNER_TEMP/bun-add.err"; then
+            echo "::error::403 from GitHub Packages. $GITHUB_REPOSITORY has no read access to @uniswap/review-cli. Fix: Uniswap/internal-tools -> Packages -> review-cli -> Package settings -> Manage Actions access -> add this repository. This is a per-repo grant; no workflow change can confer it."
+          fi
+          exit 1
+        fi
 
         # Consumers gate on `bin-path != ''` to avoid resolving
         # "$REVIEW_CLI_BIN/review-cli" to "/review-cli" and dying on exit 127.
