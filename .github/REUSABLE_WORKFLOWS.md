@@ -485,7 +485,7 @@ Worried about Anthropic API costs
 
 **Solutions**:
 
-- Use `claude-sonnet-5` (default) instead of Opus for most tasks (~40% cheaper: $3/$15 vs $5/$25 per MTok)
+- Use `claude-sonnet-5` (default) instead of Opus for most tasks (~60% cheaper: $2/$10 vs $5/$25 per MTok)
 - Reduce `timeout_minutes` to limit execution time (default: 10)
 - The workflow includes concurrency control to prevent duplicate runs
 - Monitor usage at console.anthropic.com
@@ -664,7 +664,7 @@ Tips for managing Claude API costs effectively:
 1. **Model Selection Impact**:
 
    - Haiku 4.5: Most cost-effective for simple tasks
-   - Sonnet 5: ~$2 per 1M input tokens, ~$10 per 1M output tokens (introductory pricing through Aug 31, 2026; default, recommended)
+   - Sonnet 5: ~$2 per 1M input tokens, ~$10 per 1M output tokens (default, recommended)
    - Opus 5: ~$5 per 1M input tokens, ~$25 per 1M output tokens (reserve for complex tasks)
    - Typical interaction: 5K-50K tokens (mostly input)
 
