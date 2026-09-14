@@ -29,7 +29,7 @@ Config written to push delegation harder ("use subagents proactively", "delegate
 
 **Keep (policy):** cost-routing tables (cheap models for mechanical steps — that's economics), and adversarial-review/verification dispatches the user explicitly wants in fresh contexts. If the user has such a policy, write the cap language _with an explicit carve-out_ naming it, or the cap will silently eat the gate.
 
-**Related stale fact:** pre-2026 configs often justify model routing with "Opus costs ~5x Sonnet". Claude 5 pricing (as of 2026-08): Opus 5 $5/$25 per MTok vs Sonnet 5 $3/$15 → ~1.7x — but Sonnet 5 has introductory pricing of $2/$10 through 2026-08-31, so the ratio is ~2.5x until then. Haiku ($1/$5) is still ~5x under Opus. Don't rewrite a cost-ratio claim to a number that goes stale in weeks: verify current pricing at docs.claude.com before writing the replacement.
+**Related stale fact:** pre-2026 configs often justify model routing with "Opus costs ~5x Sonnet". Verified 2026-09-14 against [Pricing](https://platform.claude.com/docs/en/about-claude/pricing): Opus 5 $5/$25 per MTok vs Sonnet 5 $2/$10 → ~2.5x, while Haiku ($1/$5) is still ~5x under Opus. Sonnet 5's $2/$10 launch price is now its standard price — the increase to $3/$15 once scheduled for 2026-09-01 was cancelled — so that ratio is not a countdown to a repricing. Still verify current pricing before writing any replacement number; a cost-ratio claim is the first thing in a config to go stale.
 
 ## Delta 3 — Literal instruction-following: emphasis and filters over-apply
 
