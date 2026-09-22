@@ -22,7 +22,7 @@ post:
 # different model from the reviewers feeding it. Reading this key requires
 # review-cli >= 1.10.0, which is why the workflow's fallback pin is 1.10.6.
 model:
-  default: claude-opus-5
+  default: claude-opus-5-5
   synthesis: claude-fable-5-1
 
 # ─── Budget ────────────────────────────────────────
