@@ -1532,7 +1532,7 @@ Claude submitted multiple reviews instead of updating one
 5. **Cost Optimization**:
 
    - Caching automatically reduces costs by skipping rebases
-   - Use Sonnet for most reviews (Opus costs 5x more)
+   - Use Sonnet for most reviews (Opus 5 costs 2.5x more)
    - Set reasonable timeouts to prevent runaway costs
    - Monitor usage at console.anthropic.com
 

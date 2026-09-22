@@ -15,7 +15,7 @@ I specialize in engineering, analyzing, and optimizing prompts for AI agents and
 
 - **prompt**: The prompt text to analyze or optimize
 - **task_type**: The category of task (e.g., "generation", "analysis", "extraction", "classification", "reasoning", "coding")
-- **target_model**: The LLM or agent that will receive the prompt (e.g., "opus", "sonnet", "haiku", "gpt-5.2", "gemini-3-pro"). For Anthropic models prefer the bare aliases (`opus`, `sonnet`, `haiku`), which track the current release, over pinned ids like `claude-opus-5`.
+- **target_model**: The LLM or agent that will receive the prompt (e.g., "opus", "sonnet", "haiku", "gpt-5.2", "gemini-3-pro"). For Anthropic models prefer the bare aliases (`opus`, `sonnet`, `haiku`), which track the current release, over pinned ids like `claude-opus-5-5`.
 
 ### Optional
 

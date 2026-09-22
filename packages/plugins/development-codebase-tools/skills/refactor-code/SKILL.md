@@ -1,7 +1,7 @@
 ---
 description: Refactor code with safety checks and pattern application. Use when user says "refactor this code", "clean up this function", "simplify this logic", "extract this into a separate function", "apply the strategy pattern here", "reduce the complexity of this module", or "reorganize this file structure".
 allowed-tools: Read, Edit, Write, Glob, Grep, TodoWrite, Bash(git diff:*), Bash(git show:*), Bash(git status:*), Bash(npm test:*), Bash(npm run:*), Bash(yarn:*), Bash(pnpm:*), Bash(bun run:*), Bash(bun test:*), Bash(npx nx:*), Bash(npx vitest:*), Bash(npx jest:*), Bash(npx tsc:*), Bash(npx eslint:*), Bash(npx prettier:*), Bash(python -m pytest:*), Bash(go test:*), Bash(go build:*), Bash(cargo test:*), Bash(cargo fmt:*), Bash(mvn:*), Bash(gradle:*), Bash(./gradlew:*), Task(subagent_type:refactorer-agent), Task(subagent_type:style-enforcer-agent), Task(subagent_type:code-explainer-agent), Task(subagent_type:test-writer-agent)
-model: claude-opus-5
+model: claude-opus-5-5
 ---
 
 # Code Refactorer
