@@ -11,7 +11,7 @@ The **AI Toolkit** is a standardized collection of AI agents, skills, and comman
 - **Plugin Marketplace**: Install curated plugins that bundle agents, skills, commands, and MCP servers
 - **Pre-built AI Agents**: Specialized subagents for code explanation, refactoring, testing, research, and more. Claude Code will use these automatically without any need for manual direction by the user
 - **Ready-to-use Skills & Commands**: Quick access patterns (called "[Slash commands](https://docs.anthropic.com/en/docs/claude-code/slash-commands)") for common development workflows like reviewing PRs (`/review-pr`), generating tests (`/generate-tests`), and planning features (`/plan-implementation`)
-- **MCP Server Integrations**: Pre-configured MCP servers for Linear, Notion, Graphite, and more
+- **MCP Server Integrations**: Pre-configured MCP servers for Linear, Notion, and more
 - **Standardized Patterns**: Create a common toolset of Claude Code commands and agents shared by everyone at Uniswap
 
 **Why it exists:**
@@ -90,7 +90,7 @@ Once installed, you'll have access to powerful Claude Code agents, skills, and c
 | Plugin                         | Description                                                                  |
 | ------------------------------ | ---------------------------------------------------------------------------- |
 | **development-planning**       | Implementation planning & execution workflows                                |
-| **development-pr-workflow**    | PR management, review, & Graphite integration                                |
+| **development-pr-workflow**    | PR management & review                                                       |
 | **development-codebase-tools** | Code exploration, refactoring & analysis                                     |
 | **development-productivity**   | Documentation, research, & prompt optimization                               |
 | **uniswap-integrations**       | External service integrations (Linear, Notion, etc.)                         |

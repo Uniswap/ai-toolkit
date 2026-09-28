@@ -18,7 +18,7 @@ This plugin provides the following skills:
 
 | Skill                       | Description                                          |
 | --------------------------- | ---------------------------------------------------- |
-| **create-pr**               | Create Graphite PRs with conventional commits        |
+| **create-pr**               | Create PRs with conventional commits                 |
 | **execute-plan**            | Execute implementation plans step-by-step            |
 | **generate-commit-message** | Generate well-structured git commit messages         |
 | **plan-implementation**     | Create implementation plans for features and changes |

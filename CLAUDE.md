@@ -149,7 +149,7 @@ The repository uses a plugin-based architecture where Claude Code capabilities a
 │       ├── claude-setup/             # Repository setup wizard
 │       ├── development-codebase-tools/  # Code exploration & refactoring
 │       ├── development-planning/     # Implementation planning & execution workflows
-│       ├── development-pr-workflow/  # PR management, review, & Graphite integration
+│       ├── development-pr-workflow/  # PR management & review
 │       ├── development-productivity/ # Documentation, research, & prompt optimization
 │       ├── skill-management/         # Curate Claude Code skills, agents, & commands
 │       ├── spec-workflow/            # Spec-driven development workflows
@@ -223,10 +223,10 @@ All plugins follow semantic versioning (semver). Key versioning rules:
 
 | Plugin                     | Version |
 | -------------------------- | ------- |
-| claude-setup               | 1.1.1   |
+| claude-setup               | 2.0.0   |
 | development-codebase-tools | 2.7.1   |
-| development-planning       | 2.1.1   |
-| development-pr-workflow    | 2.5.0   |
+| development-planning       | 3.0.0   |
+| development-pr-workflow    | 3.0.0   |
 | development-productivity   | 2.5.2   |
 | skill-management           | 1.3.2   |
 | spec-workflow              | 2.1.0   |
@@ -286,10 +286,10 @@ All plugin components (skills, agents, commands) must follow these naming conven
 
 To differentiate skills from agents and avoid naming conflicts:
 
-| Component  | Format    | Pattern                        | Examples                                                                      |
-| ---------- | --------- | ------------------------------ | ----------------------------------------------------------------------------- |
-| **Skills** | verb-noun | Action-oriented (what it does) | `review-plan`, `create-pr`, `generate-commit-message`, `split-graphite-stack` |
-| **Agents** | noun-role | Entity-oriented (what it is)   | `code-reviewer`, `plan-reviewer`, `stack-splitter`, `context-loader`          |
+| Component  | Format    | Pattern                        | Examples                                                                   |
+| ---------- | --------- | ------------------------------ | -------------------------------------------------------------------------- |
+| **Skills** | verb-noun | Action-oriented (what it does) | `review-plan`, `create-pr`, `generate-commit-message`, `resolve-pr-issues` |
+| **Agents** | noun-role | Entity-oriented (what it is)   | `code-reviewer`, `plan-reviewer`, `comment-resolver`, `context-loader`     |
 
 **Why this matters:**
 

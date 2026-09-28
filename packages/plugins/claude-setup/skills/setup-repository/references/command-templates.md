@@ -100,52 +100,6 @@ Report:
 
 ````
 
-### Graphite Version
-
-```markdown
----
-name: commit-push-pr
-description: Commit changes and create a pull request via Graphite
-allowed-tools: Bash(git:*), Bash(gt:*), Read, Glob
----
-
-# Commit, Push, and Create PR (Graphite)
-
-Automate the commit-to-PR workflow using Graphite CLI.
-
-## Workflow
-
-### 1. Stage Changes
-```bash
-git add [file1] [file2] ...
-````
-
-### 2. Create Commit with Graphite
-
-```bash
-gt create -m "[commit message]"
-```
-
-### 3. Submit PR
-
-```bash
-gt submit
-```
-
-For stack updates:
-
-```bash
-gt modify --no-verify && gt submit --stack --update-only
-```
-
-## Notes
-
-- Graphite handles pushing and PR creation
-- Supports stacked PRs automatically
-- Use `gt sync` to sync with remote
-
-````
-
 ---
 
 ## /test-and-fix

@@ -352,8 +352,6 @@ git for-each-ref --format='%(refname:short) %(committerdate)' \
   refs/heads/ | sort -k2
 ```
 
-Or, just use Graphite!
-
 ## Troubleshooting Workflows
 
 ## Summary

@@ -2,32 +2,17 @@
 
 ## Overview
 
-This plugin provides pull request review and management workflows for Claude Code, including PR review, issue resolution, and Graphite stack management. It supports both **standard Git + GitHub CLI** (default) and **Graphite** workflows.
+This plugin provides pull request review and management workflows for Claude Code, including PR review and issue resolution. It uses **standard Git + GitHub CLI** workflows.
 
 > **Note**: PR creation and commit message generation have been moved to the `development-planning` plugin to enable a seamless workflow: plan → execute → create PR.
 
 ## Git Workflow Support
 
-This plugin supports two PR creation workflows:
-
-### Standard Git + GitHub CLI (Default)
+PR creation uses standard Git + GitHub CLI:
 
 - Uses `git push` and `gh pr create`
 - Works with any Git repository
 - No additional tooling required beyond standard Git and GitHub CLI
-- Enabled by default in all commands
-
-### Graphite (Opt-in)
-
-- Uses `gt submit` for branch tracking and PR creation
-- Supports PR stacking and stack management
-- Requires Graphite CLI to be installed
-- Enable with `--use-graphite` flag
-
-**Graphite-only features:**
-
-- `stack-splitter-agent` - Requires Graphite for PR stacking
-- `update-graphite-stack` (skill) - Requires Graphite for stack management
 
 ## Plugin Components
 
@@ -37,8 +22,6 @@ This plugin supports two PR creation workflows:
 - **resolve-pr-issues**: Orchestrated PR issue resolution — triages inline comments, review bodies, and CI failures, then dispatches `comment-resolver-agent` subagents per file group for code changes and posts replies for items that don't need action
 - **backtest-change**: Gate a data-driven change (monitor threshold, alert cadence, query, sampling rate, perf tweak) on live historical data — replay old-vs-new over the same window and refuse to ship when the data disproves the premise. **Auto-triggers** whenever someone proposes a measurable change and names a number; the number is treated as a hypothesis, not a specification
 - **review-code**: Comprehensive code review for architecture, security, performance, and style
-- **split-graphite-stack**: Split monolithic branches into logical PR stacks
-- **update-graphite-stack**: Update Graphite PR stacks by resolving comments and syncing
 
 ### Commands (./commands/)
 
@@ -56,18 +39,11 @@ This plugin supports two PR creation workflows:
 ### Agents (./agents/)
 
 - **review-executor-agent**: Executes code review tasks and implements feedback (used by `resolve-all-prs`)
-- **stack-splitter-agent**: Splits monolithic branches into logical PR stacks
 - **comment-resolver-agent**: Resolves PR review comments by applying code changes to specific files, handling CI failures, and reporting results (used by `resolve-pr-issues`)
 
 ### MCP Integration (./.mcp.json)
 
-This plugin bundles the Graphite MCP server for optional Graphite workflows:
-
-- Stacked PR creation and management (when `--use-graphite` is set)
-- PR submission with `gt submit`
-- Stack synchronization with `gt sync`
-
-The GitHub MCP is also used for standard Git workflows with `gh pr create`.
+This plugin bundles no MCP servers; `.mcp.json` is intentionally empty. The GitHub MCP, when configured, is used alongside `gh pr create`.
 
 ## Canonical Workflow
 
@@ -109,7 +85,6 @@ This ensures consistent worktree behavior across all tooling and avoids duplicat
 - Skills invoke agents via `Task(subagent_type:agent-name)`, where the name is the agent's
   frontmatter `name:` (not its filename). Agents in another plugin need the
   `plugin-name:agent-name` form — e.g. `development-codebase-tools:security-analyzer-agent`
-- Graphite MCP enables stacked PR workflows
 
 ## File Structure
 
@@ -121,9 +96,7 @@ development-pr-workflow/
 │   ├── backtest-change/
 │   ├── resolve-all-prs/
 │   ├── resolve-pr-issues/
-│   ├── review-code/
-│   ├── split-graphite-stack/
-│   └── update-graphite-stack/
+│   └── review-code/
 ├── commands/
 │   ├── backtest-change.md
 │   ├── linear-task-and-pr-from-changes.md
@@ -135,7 +108,6 @@ development-pr-workflow/
 │   └── setup-worktree-core.md
 ├── agents/
 │   ├── review-executor.md
-│   ├── stack-splitter.md
 │   └── comment-resolver.md
 ├── .mcp.json
 ├── project.json

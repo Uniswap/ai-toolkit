@@ -1,12 +1,12 @@
 ---
 description: Create or update pull requests with conventional commits. Use when user says "create a PR for these changes", "submit this for review", "open a pull request", "push these changes and create a PR", "I'm ready to submit this work", or "create PR and link to issue #123".
-allowed-tools: Bash(git:*), Bash(gt:*), Bash(gh:*), Read, Glob, Grep, Task(subagent_type:pr-creator-agent), Task(subagent_type:commit-message-generator-agent)
+allowed-tools: Bash(git:*), Bash(gh:*), Read, Glob, Grep, Task(subagent_type:pr-creator-agent), Task(subagent_type:commit-message-generator-agent)
 model: opus
 ---
 
 # PR Creator
 
-Create or update pull requests with auto-generated conventional commits and descriptions. Supports both standard Git + GitHub CLI (default) and Graphite workflows.
+Create or update pull requests with auto-generated conventional commits and descriptions. Uses standard Git + GitHub CLI.
 
 ## What It Does
 
@@ -15,12 +15,12 @@ Create or update pull requests with auto-generated conventional commits and desc
 3. **Generate Commit**: Use `commit-message-generator-agent` to draft a conventional commit message, then ask user to confirm before staging/committing
 4. **Create PR Title**: `<type>(<scope>): <description>`
 5. **Write Description**: Comprehensive PR body (summary, modified files, testing notes, linked issues)
-6. **Submit**: Use `gt submit` (Graphite) or `gh pr create` (default)
+6. **Submit**: Use `gh pr create`
 
 ## Error Handling
 
 - **No changes / no commits ahead of target**: Stop and inform the user — there is nothing to submit
-- **PR already exists for this branch**: Switch to update mode; run `git push` to publish the latest commits (use `gt submit` for Graphite). If the PR title or body also need updating, **read the live body first** (`gh pr view <n> --json body -q .body`) and edit *from* it — never regenerate the body from scratch. The author may have hand-edited the description or pasted images/screenshots (`![](https://github.com/user-attachments/...)`) that exist only in the live body, not in any file; overwriting silently destroys them. Splice your change into the current body and apply with `gh pr edit <n> --body-file <tmp>`.
+- **PR already exists for this branch**: Switch to update mode; run `git push` to publish the latest commits. If the PR title or body also need updating, **read the live body first** (`gh pr view <n> --json body -q .body`) and edit *from* it — never regenerate the body from scratch. The author may have hand-edited the description or pasted images/screenshots (`![](https://github.com/user-attachments/...)`) that exist only in the live body, not in any file; overwriting silently destroys them. Splice your change into the current body and apply with `gh pr edit <n> --body-file <tmp>`.
 - **User rejects commit message**: Re-generate with user-provided guidance, then confirm again before proceeding
 
 ## Conventional Commit Types
@@ -54,8 +54,6 @@ Create or update pull requests with auto-generated conventional commits and desc
 - Custom target branch (default: main)
 - Breaking change detection
 - Issue linking
-- PR creation method: standard git + GitHub CLI (default) or Graphite (`--use-graphite`)
-- Stack-aware creation (only with Graphite)
 - Update existing vs create new
 
 ## Examples
