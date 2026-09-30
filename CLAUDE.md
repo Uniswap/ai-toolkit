@@ -228,7 +228,7 @@ All plugins follow semantic versioning (semver). Key versioning rules:
 | development-planning       | 3.0.0   |
 | development-pr-workflow    | 3.0.0   |
 | development-productivity   | 2.5.2   |
-| skill-management           | 1.3.2   |
+| skill-management           | 1.3.3   |
 | spec-workflow              | 2.1.0   |
 | uniswap-integrations       | 2.7.2   |
 
