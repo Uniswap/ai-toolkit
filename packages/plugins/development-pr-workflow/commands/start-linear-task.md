@@ -237,7 +237,6 @@ Follow the complete worktree setup workflow defined in `@../shared/setup-worktre
 - Worktrees directory detection and creation
 - Git worktree creation with proper branch setup
 - Claude settings copying (`.claude/` directory)
-- Branch tracking configuration (PR target branch)
 - Auto-detection and execution of setup scripts (npm, yarn, pnpm, bun)
 - Git index reset for corruption prevention
 
@@ -261,7 +260,6 @@ Display a summary of what was created:
 
 ⚙️  Configuration:
    ✓ Claude settings copied
-   ✓ Branch tracking: Standard git ({BRANCH_NAME} → {TRUNK_BRANCH})
    ✓ Setup script completed (auto-detected: npm ci)
    ✓ Git index reset (corruption prevention)
 

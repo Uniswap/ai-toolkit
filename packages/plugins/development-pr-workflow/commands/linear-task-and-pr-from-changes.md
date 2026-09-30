@@ -231,7 +231,6 @@ Follow the complete worktree setup workflow defined in `@../shared/setup-worktre
 - Worktrees directory detection and creation
 - Git worktree creation with proper branch setup
 - Claude settings copying (`.claude/` directory)
-- Branch tracking configuration (PR target branch)
 - Auto-detection and execution of setup scripts (npm, yarn, pnpm, bun)
 - Git index reset for corruption prevention
 
@@ -259,7 +258,6 @@ WORKING_DIR=$(pwd)
 git fetch origin "$TRUNK_BRANCH"
 git checkout -b "$BRANCH_NAME" "origin/$TRUNK_BRANCH"
 
-# Standard git - no additional tracking needed
 echo "Branch '$BRANCH_NAME' created. PR target: '$TRUNK_BRANCH'"
 ```
 
@@ -330,7 +328,6 @@ gh pr create --base "$TRUNK_BRANCH" --title "<PR title>" --body "<PR description
 
 ⚙️  Worktree Configuration:
    ✓ Claude settings copied
-   ✓ Branch tracking: Standard git (PR target: main)
    ✓ Setup script completed (auto-detected: npm ci)
    ✓ Git index reset (corruption prevention)
 
@@ -349,7 +346,7 @@ To continue working:
    https://linear.app/team/issue/DEV-123
 
 🌿 Branch: johndoe/DEV-123-task-slug → main
-   ✓ Standard git (PR target: main)
+   PR target: main
 
 🔗 PR: https://github.com/org/repo/pull/456
 

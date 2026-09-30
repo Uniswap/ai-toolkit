@@ -9,7 +9,7 @@ This plugin provides the complete implementation lifecycle for Claude Code: plan
 ### Skills (./skills/)
 
 - **create-pr**: Creates PRs with auto-generated conventional commit messages
-- **execute-plan**: Executes plans step-by-step with progress tracking, creating a single PR at the end
+- **execute-plan**: Executes plans step-by-step with progress tracking, then offers to generate tests, update docs, or create a pull request
 - **generate-commit-message**: Generates well-structured git commit messages
 - **plan-implementation**: Creates comprehensive implementation plans with step-by-step breakdowns
 - **plan-swarm**: Multi-agent collaborative plan refinement through expert discussion

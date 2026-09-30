@@ -1,6 +1,6 @@
 {
   "name": "development-pr-workflow",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Pull request review and issue resolution",
   "author": {
     "name": "Uniswap Labs",

@@ -19,7 +19,7 @@ arguments:
   - name: trunk
     type: string
     required: false
-    description: Target branch for PR (e.g., "main", "develop"). Required when branch tracking is enabled (no default).
+    description: Target branch for PR (e.g., "main", "develop"). Optional, no default. Shown in the configuration summary.
   - name: worktree_base
     type: string
     required: true
@@ -39,7 +39,7 @@ notes: |
     - BRANCH_NAME: The branch name for the worktree (required)
     - SETUP_SCRIPT: Script/command to run after worktree creation (optional, auto-detects package manager if not set)
     - SKIP_SETUP: Set to "true" to skip setup script entirely (optional)
-    - TRUNK_BRANCH: Target branch for PR (required when tracking enabled, no default)
+    - TRUNK_BRANCH: Target branch for PR (optional, no default)
     - WORKTREE_BASE: Branch to create worktree FROM (required - always prompted if not provided)
     - SKIP_INDEX_RESET: Set to "true" to skip git index reset (optional)
 ---
@@ -166,26 +166,7 @@ fi
 
 ---
 
-## Step 5: Configure Worktree - Branch Tracking (Optional)
-
-Record the PR target branch for the new worktree branch.
-**TRUNK_BRANCH is required when tracking is enabled (no default).**
-
-```bash
-# Only track if TRUNK_BRANCH is provided
-if [[ -n "${TRUNK_BRANCH:-}" ]]; then
-  echo "Branch '$BRANCH_NAME' created from '$WORKTREE_BASE'."
-  echo "PR target branch: '$TRUNK_BRANCH'"
-  # No additional tracking needed for standard git - branch is ready for PR creation
-else
-  echo "Note: No trunk branch specified. Branch tracking skipped."
-  echo "You can set the PR target branch later when creating a PR."
-fi
-```
-
----
-
-## Step 6: Run Setup Script (with Auto-Detection)
+## Step 5: Run Setup Script (with Auto-Detection)
 
 Run a setup script or auto-detect and run package manager install.
 **Skip this step entirely if `SKIP_SETUP` is set to "true".**
@@ -270,7 +251,7 @@ fi
 
 ---
 
-## Step 7: Reset Git Index (Optional - Corruption Prevention)
+## Step 6: Reset Git Index (Optional - Corruption Prevention)
 
 After running setup scripts (especially `npm ci` which installs lefthook), reset the git index to prevent corruption from Claude Code hooks.
 **Skip this step if `SKIP_INDEX_RESET` is set to "true".**
@@ -323,11 +304,7 @@ echo "  Location: $NEW_DIR"
 echo "  Branch: $BRANCH_NAME"
 echo "  Created from: $WORKTREE_BASE"
 [[ -f "$NEW_DIR/.claude/settings.local.json" ]] && echo "  Claude settings: copied" || echo "  Claude settings: skipped"
-if [[ -n "${TRUNK_BRANCH:-}" ]]; then
-  echo "  Branch tracking: Standard git (PR target: $TRUNK_BRANCH)"
-else
-  echo "  Branch tracking: not configured"
-fi
+echo "  PR target: ${TRUNK_BRANCH:-not set}"
 if [[ "${SKIP_SETUP:-}" != "true" ]] && [[ -n "${SETUP_SCRIPT:-}" ]]; then
   if [[ "${SETUP_AUTO_DETECTED:-}" == "true" ]]; then
     echo "  Setup script: executed (auto-detected: $SETUP_SCRIPT)"
