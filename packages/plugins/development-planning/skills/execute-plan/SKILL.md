@@ -6,7 +6,7 @@ model: claude-opus-5-5
 
 # Plan Executor
 
-Execute implementation plans by reading the plan file and implementing each step directly with progress tracking, creating a single PR at the end.
+Execute implementation plans by reading the plan file and implementing each step directly with progress tracking, then offering to generate tests, update docs, or create a pull request.
 
 ## When to Activate
 

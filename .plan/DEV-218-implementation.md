@@ -16,7 +16,7 @@ The `packages/commands/` directory contains legacy Nx packages that were previou
 
 2. **All commands have plugin equivalents**: The 27 commands in `packages/commands/agnostic/` are covered by the 5 plugins:
    - `development-planning` - planning, spec execution
-   - `development-pr-workflow` - PR management, Graphite, commits
+   - `development-pr-workflow` - PR management, commits
    - `development-codebase-tools` - code analysis, exploration
    - `development-productivity` - docs, tests, research
    - `uniswap-integrations` - Linear, standup, deployments
