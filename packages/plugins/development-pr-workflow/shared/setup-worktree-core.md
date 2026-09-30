@@ -304,11 +304,7 @@ echo "  Location: $NEW_DIR"
 echo "  Branch: $BRANCH_NAME"
 echo "  Created from: $WORKTREE_BASE"
 [[ -f "$NEW_DIR/.claude/settings.local.json" ]] && echo "  Claude settings: copied" || echo "  Claude settings: skipped"
-if [[ -n "${TRUNK_BRANCH:-}" ]]; then
-  echo "  PR target: $TRUNK_BRANCH"
-else
-  echo "  PR target: not set"
-fi
+echo "  PR target: ${TRUNK_BRANCH:-not set}"
 if [[ "${SKIP_SETUP:-}" != "true" ]] && [[ -n "${SETUP_SCRIPT:-}" ]]; then
   if [[ "${SETUP_AUTO_DETECTED:-}" == "true" ]]; then
     echo "  Setup script: executed (auto-detected: $SETUP_SCRIPT)"
