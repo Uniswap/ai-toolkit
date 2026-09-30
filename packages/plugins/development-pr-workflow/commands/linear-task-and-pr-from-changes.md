@@ -258,7 +258,6 @@ WORKING_DIR=$(pwd)
 git fetch origin "$TRUNK_BRANCH"
 git checkout -b "$BRANCH_NAME" "origin/$TRUNK_BRANCH"
 
-# Standard git - no additional tracking needed
 echo "Branch '$BRANCH_NAME' created. PR target: '$TRUNK_BRANCH'"
 ```
 
@@ -347,7 +346,7 @@ To continue working:
    https://linear.app/team/issue/DEV-123
 
 🌿 Branch: johndoe/DEV-123-task-slug → main
-   ✓ Standard git (PR target: main)
+   PR target: main
 
 🔗 PR: https://github.com/org/repo/pull/456
 

@@ -25,7 +25,7 @@ Execute implementation plans by reading the plan file and implementing each step
    - Run tests when appropriate
    - Report progress
 3. **Commit Points**: Ask user about commits at logical points
-4. **Follow-up**: Offer test generation and documentation
+4. **Follow-up**: Offer test generation, documentation, and a pull request
 
 ## Execution Rules
 
@@ -89,7 +89,7 @@ This is **Step 4** of the implementation workflow:
 
 1. Explore → 2. Plan → 3. Review → 4. **Execute** (this) → 5. PR Creation
 
-After execution completes, the pr-creator-agent handles step 5 (PR creation) within this same plugin.
+If the user asks for a pull request, the pr-creator-agent handles step 5 (PR creation) within this same plugin.
 
 ## Detailed Reference
 
