@@ -54,7 +54,7 @@ graph TD
 
     subgraph "Plugin Layer"
         DEV_PLAN[development-planning<br/>Planning & Execution]
-        DEV_PR[development-pr-workflow<br/>PR & Graphite]
+        DEV_PR[development-pr-workflow<br/>PR & Review]
         DEV_CODE[development-codebase-tools<br/>Code Analysis]
         DEV_PROD[development-productivity<br/>Docs & Research]
         UNI_INT[uniswap-integrations<br/>External Services]
@@ -344,18 +344,6 @@ git rebase --continue
 
 # 5. Force push (with lease for safety)
 git push origin next --force-with-lease
-```
-
-### Alternative: Graphite CLI
-
-The workflow includes Graphite as a fallback:
-
-```bash
-# Initialize Graphite
-gt init --trunk main --no-interactive
-
-# Sync branches
-gt sync --force --no-interactive
 ```
 
 ## Local Development

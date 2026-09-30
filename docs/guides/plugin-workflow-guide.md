@@ -99,8 +99,6 @@ This guide documents the canonical development workflows across the Uniswap AI T
 | "Review this PR"                    | review-code                     |
 | "Address PR comments"               | work-through-pr-comments        |
 | "Fix CI failures"                   | resolve-pr-issues               |
-| "Split into smaller PRs" (Graphite) | split-graphite-stack            |
-| "Update my PR stack" (Graphite)     | update-graphite-stack           |
 | "Start working on a Linear task"    | start-linear-task               |
 | "Create task + PR from changes"     | linear-task-and-pr-from-changes |
 
@@ -306,19 +304,11 @@ The **agent-orchestrator** in development-codebase-tools coordinates multi-agent
 
 ## Git Workflow Support
 
-Both standard Git and Graphite workflows are supported:
-
-### Standard Git + GitHub CLI (Default)
+Workflows use standard Git + GitHub CLI:
 
 - Works out of the box
 - Uses `git push` and `gh pr create`
 - Suitable for most development workflows
-
-### Graphite (Opt-in)
-
-- Enable with `--use-graphite` flag
-- Supports stacked PRs
-- Features: stack-splitter, graphite-stack-updater
 
 ## Related Documentation
 

@@ -1,6 +1,6 @@
 # @uniswap/development-pr-workflow
 
-Pull request review and management workflows for Claude Code with Graphite integration.
+Pull request review and management workflows for Claude Code.
 
 > **Note**: PR creation and commit message generation have moved to the `development-planning` plugin to enable a seamless workflow: plan → execute → create PR.
 
@@ -16,14 +16,12 @@ claude /plugin install development-pr-workflow
 
 ## Skills
 
-| Skill                     | Description                                                         |
-| ------------------------- | ------------------------------------------------------------------- |
-| **backtest-change**       | Gate a data-driven change on live historical data before it ships   |
-| **resolve-all-prs**       | Batch resolve issues on all your open PRs in parallel (auto-commit) |
-| **resolve-pr-issues**     | Address PR review comments and fix CI failures                      |
-| **review-code**           | Comprehensive code review using specialized agents                  |
-| **split-graphite-stack**  | Split monolithic branches into logical PR stacks                    |
-| **update-graphite-stack** | Update Graphite PR stacks by resolving comments and syncing         |
+| Skill                 | Description                                                         |
+| --------------------- | ------------------------------------------------------------------- |
+| **backtest-change**   | Gate a data-driven change on live historical data before it ships   |
+| **resolve-all-prs**   | Batch resolve issues on all your open PRs in parallel (auto-commit) |
+| **resolve-pr-issues** | Address PR review comments and fix CI failures                      |
+| **review-code**       | Comprehensive code review using specialized agents                  |
 
 ## Commands
 
@@ -41,15 +39,6 @@ claude /plugin install development-pr-workflow
 | -------------------------- | ------------------------------------------------------------ |
 | **review-executor-agent**  | Executes code review tasks and implements feedback           |
 | **comment-resolver-agent** | Resolves triaged PR review comments by applying code changes |
-| **stack-splitter-agent**   | Splits monolithic branches into logical PR stacks            |
-
-## MCP Integration
-
-This plugin includes the Graphite MCP server for seamless PR stack management:
-
-- Create stacked PRs with `gt create`
-- Submit stacks with `gt submit`
-- Sync and rebase with `gt sync`
 
 ## Canonical Development Workflow
 
@@ -83,8 +72,7 @@ This plugin handles **steps 6-7** of the canonical development workflow:
 /start-linear-task DEV-123
 
 # Use skills contextually
-"Review my PR for any issues"                       # triggers review-code skill
-"Help me split this large branch into smaller PRs"  # triggers split-graphite-stack skill
+"Review my PR for any issues"  # triggers review-code skill
 ```
 
 ## License

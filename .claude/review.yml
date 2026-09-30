@@ -61,11 +61,6 @@ skip:
   branch_prefixes:
     # GitHub merge queue's synthetic refs — already reviewed at the source PR.
     - gh-readonly-queue/
-    # Graphite's stacked-diff bookkeeping refs, not pushed by humans.
-    - graphite-base/
-    # Graphite merge queue branches. Not a review-cli default; this repo
-    # uses Graphite, so it has to be added explicitly.
-    - gtmq
     # Release automation (e.g. release/next-to-main-20260727-173053).
     - release/
     - cherry-pick/

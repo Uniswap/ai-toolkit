@@ -67,7 +67,6 @@ Registered in `addon-registry.ts`. This MCP server is available for manual insta
 The following MCP servers are **NOT** available via this addons generator because they are bundled via plugins:
 
 - **spec-workflow-mcp** - Available via spec-workflow plugin
-- **graphite-mcp** - Available via development-pr-workflow plugin
 - **nx-mcp** - Available via uniswap-integrations plugin
 - **notion-mcp** - Available via uniswap-integrations plugin
 - **linear-mcp** - Available via uniswap-integrations plugin

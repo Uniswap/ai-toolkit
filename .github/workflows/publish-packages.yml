@@ -1366,11 +1366,6 @@ jobs:
           git config user.name "Uniswap Labs Service Account"
           git config user.email "hello-happy-puppy@uniswap.org"
 
-      - name: Install Graphite CLI
-        run: |
-          npm install -g @withgraphite/graphite-cli@1.8.3 # no public repo for SHA pin
-          gt --version
-
       - name: Sync next branch with main
         env:
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
@@ -1430,14 +1425,6 @@ jobs:
 
             exit 1
           fi
-
-      - name: Alternative sync with Graphite (if available)
-        if: failure()
-        continue-on-error: true
-        run: |
-          echo "Attempting alternative sync with Graphite CLI..."
-          gt init --trunk main --no-interactive || true
-          gt sync --force --no-interactive && echo "✅ Synced using Graphite" || echo "⚠️ Graphite sync also failed"
 
   # ============================================================================
   # NOTIFY WORKFLOW CHANGES: Slack notification for workflow-only updates

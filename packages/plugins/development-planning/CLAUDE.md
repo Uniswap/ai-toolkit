@@ -8,16 +8,12 @@ This plugin provides the complete implementation lifecycle for Claude Code: plan
 
 ### Skills (./skills/)
 
-- **create-pr**: Creates Graphite PRs with auto-generated conventional commit messages
-- **execute-plan**: Executes plans step-by-step with progress tracking; supports **single PR mode** (default) and **Graphite stack mode** for creating one PR per logical chunk
+- **create-pr**: Creates PRs with auto-generated conventional commit messages
+- **execute-plan**: Executes plans step-by-step with progress tracking, creating a single PR at the end
 - **generate-commit-message**: Generates well-structured git commit messages
 - **plan-implementation**: Creates comprehensive implementation plans with step-by-step breakdowns
 - **plan-swarm**: Multi-agent collaborative plan refinement through expert discussion
 - **review-plan**: Reviews plans for completeness, feasibility, and alignment with codebase patterns
-
-### Shared (./shared/)
-
-- **graphite-stack-execution.md**: Comprehensive guide for creating Graphite PR stacks incrementally during plan execution
 
 ### Agents (./agents/)
 
@@ -75,8 +71,6 @@ development-planning/
 │   ├── plan-implementation/
 │   ├── plan-swarm/
 │   └── review-plan/
-├── shared/
-│   └── graphite-stack-execution.md
 ├── agents/
 │   ├── commit-message-generator.md
 │   ├── execute-plan.md

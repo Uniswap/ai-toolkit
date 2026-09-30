@@ -145,8 +145,7 @@ Keep the generated CLAUDE.md under 200 lines. It loads into every session in thi
 
 **Customize options:**
 
-- Git tool: `git` vs `gh` vs `gt` (Graphite)
-- PR creation method: GitHub CLI vs Graphite
+- Git tool: `git` vs `gh`
 - Commit message style: conventional commits vs freeform
 
 #### Command Template: commit-push-pr.md

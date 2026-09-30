@@ -18,7 +18,7 @@
     {
       "name": "development-pr-workflow",
       "source": "./packages/plugins/development-pr-workflow",
-      "description": "Pull request management including review, creation, issue resolution, and Graphite stack management"
+      "description": "Pull request management including review, creation, and issue resolution"
     },
     {
       "name": "development-codebase-tools",

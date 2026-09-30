@@ -24,10 +24,6 @@ arguments:
     type: string
     required: true
     description: Branch to create the worktree FROM (start point). Required - always prompted if not specified.
-  - name: use_graphite
-    type: boolean
-    required: false
-    description: Use Graphite for branch tracking. If false or not set, uses standard git. Defaults to false.
   - name: skip_setup
     type: boolean
     required: false
@@ -43,7 +39,6 @@ notes: |
     - BRANCH_NAME: The branch name for the worktree (required)
     - SETUP_SCRIPT: Script/command to run after worktree creation (optional, auto-detects package manager if not set)
     - SKIP_SETUP: Set to "true" to skip setup script entirely (optional)
-    - USE_GRAPHITE: Set to "true" to use Graphite for branch tracking, "false" for standard git (optional, defaults to false)
     - TRUNK_BRANCH: Target branch for PR (required when tracking enabled, no default)
     - WORKTREE_BASE: Branch to create worktree FROM (required - always prompted if not provided)
     - SKIP_INDEX_RESET: Set to "true" to skip git index reset (optional)
@@ -173,34 +168,15 @@ fi
 
 ## Step 5: Configure Worktree - Branch Tracking (Optional)
 
-Track the branch with your preferred tool (Graphite or standard git).
-**USE_GRAPHITE determines which tracking method to use (defaults to false/standard git).**
-**TRUNK_BRANCH is required when any tracking is enabled (no default).**
+Record the PR target branch for the new worktree branch.
+**TRUNK_BRANCH is required when tracking is enabled (no default).**
 
 ```bash
 # Only track if TRUNK_BRANCH is provided
 if [[ -n "${TRUNK_BRANCH:-}" ]]; then
-  if [[ "${USE_GRAPHITE:-}" == "true" ]]; then
-    # Use Graphite for branch tracking
-    if command -v gt >/dev/null 2>&1; then
-      echo "Tracking branch '$BRANCH_NAME' with Graphite (parent: '$TRUNK_BRANCH')..."
-      if ! gt -C "$NEW_DIR" track --parent "$TRUNK_BRANCH"; then
-        echo "Warning: Failed to track branch with Graphite. You can run this manually:"
-        echo "  cd \"$NEW_DIR\" && gt track --parent \"$TRUNK_BRANCH\""
-      else
-        echo "Successfully tracked branch with Graphite."
-      fi
-    else
-      echo "Warning: 'gt' (Graphite CLI) not found. Skipping Graphite setup."
-      echo "Install it from: https://graphite.dev/docs/installing-the-cli"
-      echo "Or use standard git workflow without Graphite."
-    fi
-  else
-    # Standard git - just configure upstream tracking
-    echo "Branch '$BRANCH_NAME' created from '$WORKTREE_BASE'."
-    echo "PR target branch: '$TRUNK_BRANCH'"
-    # No additional tracking needed for standard git - branch is ready for PR creation
-  fi
+  echo "Branch '$BRANCH_NAME' created from '$WORKTREE_BASE'."
+  echo "PR target branch: '$TRUNK_BRANCH'"
+  # No additional tracking needed for standard git - branch is ready for PR creation
 else
   echo "Note: No trunk branch specified. Branch tracking skipped."
   echo "You can set the PR target branch later when creating a PR."
@@ -330,7 +306,7 @@ After executing these instructions, the following variables will be available:
 | `BRANCH_NAME`         | The branch name (input variable)                               |
 | `WORKTREE_BASE`       | The branch the worktree was created from (required input)      |
 | `START_POINT`         | The actual git ref used as start point (same as WORKTREE_BASE) |
-| `TRUNK_BRANCH`        | The target branch for PR / Graphite parent (if applicable)     |
+| `TRUNK_BRANCH`        | The target branch for PR (if applicable)                       |
 | `SETUP_SCRIPT`        | The setup script that was run (if any)                         |
 | `SETUP_AUTO_DETECTED` | "true" if setup script was auto-detected from lockfile         |
 
@@ -348,11 +324,7 @@ echo "  Branch: $BRANCH_NAME"
 echo "  Created from: $WORKTREE_BASE"
 [[ -f "$NEW_DIR/.claude/settings.local.json" ]] && echo "  Claude settings: copied" || echo "  Claude settings: skipped"
 if [[ -n "${TRUNK_BRANCH:-}" ]]; then
-  if [[ "${USE_GRAPHITE:-}" == "true" ]]; then
-    echo "  Branch tracking: Graphite ($BRANCH_NAME → $TRUNK_BRANCH)"
-  else
-    echo "  Branch tracking: Standard git (PR target: $TRUNK_BRANCH)"
-  fi
+  echo "  Branch tracking: Standard git (PR target: $TRUNK_BRANCH)"
 else
   echo "  Branch tracking: not configured"
 fi
