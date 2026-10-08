@@ -83,7 +83,7 @@ on:
         description: "Claude model to use"
         required: false
         type: string
-        default: "claude-sonnet-5"
+        default: "claude-sonnet-5-5"
 
       max_turns:
         description: "Maximum conversation turns for Claude"
@@ -707,7 +707,7 @@ jobs:
       # Run Claude
       - name: Run Claude Docs Check
         id: claude
-        uses: anthropics/claude-code-action@756cc22e19660d20e8cc9496b4f242475a7f7790 # v1.0.235
+        uses: anthropics/claude-code-action@6fed3ca145920b639991cb756090506e1bcaf515 # v1.0.245
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -1032,7 +1032,7 @@ jobs:
       - name: Run Claude Auto-Fix
         id: claude-fix
         if: steps.auto-fix-check.outputs.should_fix == 'true' && steps.pr-branch.outputs.repo_full_name == github.repository
-        uses: anthropics/claude-code-action@756cc22e19660d20e8cc9496b4f242475a7f7790 # v1.0.235
+        uses: anthropics/claude-code-action@6fed3ca145920b639991cb756090506e1bcaf515 # v1.0.245
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
