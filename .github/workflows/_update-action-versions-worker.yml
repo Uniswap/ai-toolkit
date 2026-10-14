@@ -21,7 +21,7 @@
 #   - branch_name: Branch to work on (required)
 #   - target_branch: Base branch for PR (default: main)
 #   - dry_run: Skip PR creation, report only (default: false)
-#   - model: Claude model to use (default: claude-sonnet-5)
+#   - model: Claude model to use (default: claude-sonnet-5-5)
 #   - timeout_minutes: Execution timeout (default: 30)
 #   - debug_mode: Show full Claude output (default: true)
 #
@@ -56,7 +56,7 @@ on:
         description: "Claude model to use"
         required: false
         type: string
-        default: "claude-sonnet-5"
+        default: "claude-sonnet-5-5"
 
       timeout_minutes:
         description: "Maximum execution time in minutes"
@@ -447,7 +447,7 @@ jobs:
       # Supports both API key and OAuth token authentication (OAuth takes precedence)
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@a874e9ecd7bb36efdad65429c6b35815f5a08f10 # v1.0.210
+        uses: anthropics/claude-code-action@6fed3ca145920b639991cb756090506e1bcaf515 # v1.0.245
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

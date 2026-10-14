@@ -38,11 +38,11 @@
 #     secrets:
 #       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 #     with:
-#       model: 'claude-sonnet-5'
+#       model: 'claude-sonnet-5-5'
 #
 # INPUTS:
 # - prompt (optional): Direct automation prompt (enables automation mode)
-# - model (optional): Claude model to use (default: claude-sonnet-5)
+# - model (optional): Claude model to use (default: claude-sonnet-5-5)
 # - allowed_tools (optional): Comma-separated list of allowed tools
 # - disallowed_tools (optional): Comma-separated list of disallowed tools
 # - custom_instructions (optional): Additional instructions for Claude (system prompt)
@@ -78,14 +78,14 @@ on:
           Claude model to use for this execution.
 
           Available models:
-          - claude-sonnet-5 (default, recommended) - Latest Sonnet model with best balance of speed and capability
-          - claude-opus-5 - Most capable model for complex tasks
-          - claude-haiku-4-5-20251001 - Fast, cost-effective model for simpler tasks
+          - claude-sonnet-5-5 (default, recommended) - Latest Sonnet model with best balance of speed and capability
+          - claude-opus-5-5 - Most capable model for complex tasks
+          - claude-haiku-5-5 - Fast, cost-effective model for simpler tasks
 
-          Default: claude-sonnet-5
+          Default: claude-sonnet-5-5
         required: false
         type: string
-        default: "claude-sonnet-5"
+        default: "claude-sonnet-5-5"
 
       allowed_tools:
         description: |
@@ -457,7 +457,7 @@ jobs:
       # Supports both API key and OAuth token authentication (validated in earlier step)
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@a874e9ecd7bb36efdad65429c6b35815f5a08f10 # v1.0.210
+        uses: anthropics/claude-code-action@6fed3ca145920b639991cb756090506e1bcaf515 # v1.0.245
         with:
           # Authentication: provide either API key or OAuth token (validated in earlier step)
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
