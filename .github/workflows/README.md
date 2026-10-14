@@ -110,7 +110,7 @@ Workflows designed to be called by other workflows using `workflow_call`. These 
 
 - **generate-changelog.yml**:
 
-  - Uses Claude Haiku 4.5 for intelligent changelog generation
+  - Uses Claude Haiku 5.5 for intelligent changelog generation
   - Supports custom prompts via file or inline text
   - Automatic fallback to commit list if AI generation fails
   - Configurable token limits

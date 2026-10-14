@@ -1,7 +1,7 @@
 ---
 name: daily-standup
 description: This provides a daily standup, checking GitHub and Linear over the past day and providing a summary of what you&#39;ve been working on and what you will continue to work on.
-model: claude-haiku-4-5
+model: claude-haiku-5-5
 ---
 
 ## Workflow Process

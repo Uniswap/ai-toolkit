@@ -335,8 +335,10 @@ jobs:
             -H "anthropic-version: 2023-06-01" \
             -d @- <<EOF
           {
-            "model": "claude-haiku-4-5",
+            "model": "claude-haiku-5-5",
             "max_tokens": $MAX_TOKENS,
+            "thinking": {"type": "disabled"},
+            "output_config": {"effort": "low"},
             "messages": [{
               "role": "user",
               "content": $(echo "$FULL_PROMPT" | jq -Rs .)
@@ -345,8 +347,10 @@ jobs:
           EOF
           )
 
-          # Extract the changelog from the response
-          CHANGELOG=$(echo "$RESPONSE" | jq -r '.content[0].text // empty')
+          # Haiku 5.5 thinks by default and thinking tokens count toward
+          # max_tokens, so the request disables thinking. Join text blocks by
+          # type rather than reading content[0], in case a thinking block leads.
+          CHANGELOG=$(echo "$RESPONSE" | jq -r '[.content[]? | select(.type == "text") | .text] | join("")')
 
           if [ -z "$CHANGELOG" ]; then
             echo "Error: Failed to generate changelog from API response"
