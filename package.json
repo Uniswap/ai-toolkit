@@ -60,7 +60,7 @@
     "jsonc-eslint-parser": "^2.4.2",
     "lefthook": "^1.13.6",
     "markdownlint-cli2": "^0.20.0",
-    "nx": "22.0.2",
+    "nx": "22.7.7",
     "prettier": "^2.8.8",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.9",
