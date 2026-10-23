@@ -19,7 +19,7 @@ This service automates the Slack OAuth 2.0 flow, enabling users to easily obtain
 
 ## 📋 Prerequisites
 
-- Node.js 22.21.1
+- Node.js 22.23.4 or later
 - A Slack App configured with OAuth
 - Access to Slack workspace with admin privileges
 - Domain with HTTPS for production deployment (optional for local development)

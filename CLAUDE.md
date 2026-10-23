@@ -571,7 +571,7 @@ When working with GitHub Actions workflows (`.github/workflows/*.yml`), follow t
    - name: Setup Bun
      uses: oven-sh/setup-bun@v2
      with:
-       bun-version: '1.3.12'
+       bun-version: '1.4.4'
 
    - name: Install dependencies
      run: bun install --frozen-lockfile
@@ -610,7 +610,7 @@ When working with GitHub Actions workflows (`.github/workflows/*.yml`), follow t
 - name: Setup Bun
   uses: oven-sh/setup-bun@v2
   with:
-    bun-version: '1.3.12'
+    bun-version: '1.4.4'
 
 - name: Install dependencies
   run: bun install --frozen-lockfile

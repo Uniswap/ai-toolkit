@@ -47,7 +47,7 @@ graph LR
 
 ### Prerequisites
 
-- **Node.js 22+** and **Bun 1.3.12+** (`curl -fsSL https://bun.sh/install | bash`)
+- **Node.js 22+** and **Bun 1.4.4+** (`curl -fsSL https://bun.sh/install | bash`)
 - **Git** configured with your GitHub credentials
 
 ### Initial Setup
