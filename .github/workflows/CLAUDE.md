@@ -1110,7 +1110,7 @@ Version pinning is centralized using GitHub repository variables (`vars.*`):
 
 | Variable       | Value     | Purpose                                    |
 | -------------- | --------- | ------------------------------------------ |
-| `NODE_VERSION` | `22.21.1` | Node.js version for all workflows          |
+| `NODE_VERSION` | `22.23.4` | Node.js version for all workflows          |
 | `NPM_VERSION`  | `11.7.0`  | npm version (required for OIDC publishing) |
 
 **Usage in workflows:**
@@ -1122,7 +1122,7 @@ Version pinning is centralized using GitHub repository variables (`vars.*`):
 
 - uses: oven-sh/setup-bun@<sha> # vX.Y.Z
   with:
-    bun-version: '1.3.12'
+    bun-version: '1.4.4'
 
 - run: bun install --frozen-lockfile
 
