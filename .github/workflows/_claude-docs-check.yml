@@ -211,7 +211,7 @@ jobs:
       # consume toolkit_ref, and the validation runs before any step that
       # downloads action.yml or post-*.ts content using it.
       - name: Security Scan
-        uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+        uses: bullfrogsec/bullfrog@7dee337d4575320b6d8cbe9a56d48d2fb765963a # v0.11.1
         with:
           egress-policy: block
           # Per-workflow tightened allowlist. Audit-mode sampling missed
@@ -223,7 +223,11 @@ jobs:
           #   marketplace.json (Uniswap/ai-toolkit/next/.claude-plugin/).
           # claude.ai: Claude SDK install path (https://claude.ai/install.sh)
           #   AND runtime telemetry/session lookup even on API-key auth.
+          # bullfrog >= v0.9 no longer allows these by default (checkout, gh/API calls, cache and artifact storage).
           allowed-domains: |
+            github.com
+            api.github.com
+            *.blob.core.windows.net
             release-assets.githubusercontent.com
             raw.githubusercontent.com
             api.anthropic.com

@@ -25,7 +25,7 @@ jobs:
     name: 🔡 Check PR Title
     runs-on: ubuntu-latest
     steps:
-      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3
+      - uses: bullfrogsec/bullfrog@7dee337d4575320b6d8cbe9a56d48d2fb765963a # v0.11.1
         with:
           # List of IPs to allow outbound connections to.
           # By default, only localhost and IPs required for the essential operations of Github Actions are allowed.
@@ -35,7 +35,10 @@ jobs:
           # Wildcards are accepted. For example, if allowing `*.google.com`, this will allow `www.google.com`, `console.cloud.google.com` but not `google.com`.
           # By default, only domains required for essential operations of Github Actions and uploading job summaries are allowed.
           # Refer to https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners#communication-requirements-for-github-hosted-runners-and-github for additional domains that should be allowed for additional Github Actions features.
-          #allowed-domains:
+          # bullfrog >= v0.9 no longer allows these by default; the title check calls the GitHub API.
+          allowed-domains: |
+            github.com
+            api.github.com
 
           # The egress policy to enforce. Valid values are `audit` and `block`.
           # Default: audit

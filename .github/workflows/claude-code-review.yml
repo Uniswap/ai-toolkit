@@ -106,7 +106,7 @@ jobs:
       category: ${{ steps.check.outputs.category }}
       skip_reason: ${{ steps.check.outputs.skip_reason }}
     steps:
-      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+      - uses: bullfrogsec/bullfrog@7dee337d4575320b6d8cbe9a56d48d2fb765963a # v0.11.1
 
       - name: Checkout repository (for composite action)
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -200,7 +200,7 @@ jobs:
       # push-driven runs, which have no comment to reply to.
       reply_id: ${{ steps.post_reply.outputs.id }}
     steps:
-      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+      - uses: bullfrogsec/bullfrog@7dee337d4575320b6d8cbe9a56d48d2fb765963a # v0.11.1
 
       # Sparse checkout of just the composite action and `.claude/`. The
       # gate needs BOTH: the action to install the CLI, and
@@ -408,7 +408,7 @@ jobs:
       # optional telemetry step below.
       HAS_DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY != '' }}
     steps:
-      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+      - uses: bullfrogsec/bullfrog@7dee337d4575320b6d8cbe9a56d48d2fb765963a # v0.11.1
 
       # Pin the checkout to the PR head. issue_comment and
       # workflow_dispatch events default GITHUB_REF to the default
@@ -886,7 +886,7 @@ jobs:
     # real floor, matching the workflow-level default above.
     permissions: {}
     steps:
-      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+      - uses: bullfrogsec/bullfrog@7dee337d4575320b6d8cbe9a56d48d2fb765963a # v0.11.1
 
       - name: Report skipped review
         env:
@@ -909,7 +909,7 @@ jobs:
       contents: write # enable auto-merge on the PR
       pull-requests: write # `gh pr merge --auto` updates the PR's merge state
     steps:
-      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+      - uses: bullfrogsec/bullfrog@7dee337d4575320b6d8cbe9a56d48d2fb765963a # v0.11.1
 
       - name: Enable auto-merge for Dependabot updates
         run: gh pr merge --auto --squash "$PR_NUMBER"
