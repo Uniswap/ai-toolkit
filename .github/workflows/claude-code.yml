@@ -13,25 +13,60 @@ on:
   pull_request_review:
     types: [submitted]
 
-permissions:
-  id-token: write # Required for OIDC authentication in _claude-main.yml
-  contents: read
-  issues: write
-  pull-requests: write
-  actions: read # Required to read CI results on PRs in _claude-main.yml
+permissions: {}
 
 jobs:
-  claude:
+  fork-guard:
     # Only run when @claude is mentioned and the comment is not from a bot
     # Security: fork guard applied to events where PR context is available
-    # (pull_request_review_comment, pull_request_review). issue_comment events
-    # are lower risk because _claude-main.yml checks out the default branch, not fork code.
+    # (pull_request_review_comment, pull_request_review) right here, and to
+    # issue_comment on a PR by the step below. issue_comment payloads don't
+    # carry the PR head repo, so it has to be looked up. _claude-main.yml checks
+    # out the default branch, but Claude still reads the fork's diff with Bash
+    # available and secrets in the job, so a member's @claude on a fork PR must
+    # not reach it.
     if: |
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot' && github.event.pull_request.head.repo.full_name == github.repository) ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.review.user.type != 'Bot' && github.event.pull_request.head.repo.full_name == github.repository) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) && github.event.issue.user.type != 'Bot')
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      ok: ${{ steps.check.outputs.ok }}
+    steps:
+      - name: Refuse fork PRs on issue_comment
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+          IS_PR_COMMENT: ${{ github.event_name == 'issue_comment' && github.event.issue.pull_request != null }}
+        run: |
+          set -euo pipefail
+          if [ "$IS_PR_COMMENT" != "true" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # A deleted fork has no head repo; treat it as a fork.
+          HEAD_REPO=$(gh api "repos/$GH_REPO/pulls/$PR_NUMBER" --jq '.head.repo.full_name // ""')
+          if [ "$HEAD_REPO" = "$GH_REPO" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Skipping @claude on fork PR (head=${HEAD_REPO:-deleted} -> $GH_REPO)"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
 
+  claude:
+    needs: fork-guard
+    if: needs.fork-guard.outputs.ok == 'true'
+    permissions:
+      id-token: write # Required for OIDC authentication in _claude-main.yml
+      contents: read
+      issues: write
+      pull-requests: write
+      actions: read # Required to read CI results on PRs in _claude-main.yml
     uses: ./.github/workflows/_claude-main.yml
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

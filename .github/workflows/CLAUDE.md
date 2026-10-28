@@ -1390,7 +1390,7 @@ jobs:
   my-job:
     runs-on: ubuntu-latest
     steps:
-      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+      - uses: bullfrogsec/bullfrog@7dee337d4575320b6d8cbe9a56d48d2fb765963a # v0.11.1
 
       - name: Do something
         run: echo "This step comes after Bullfrog"
