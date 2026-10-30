@@ -5,7 +5,7 @@
  * Claude becomes the foreground application.
  */
 
-import { spawn } from 'child_process';
+import spawn from 'cross-spawn';
 import { displayError, displayWarning } from './display';
 
 /**
@@ -14,6 +14,10 @@ import { displayError, displayWarning } from './display';
  * This spawns claude as a child process with stdio inherited,
  * effectively handing over control to Claude.
  *
+ * No shell is involved: args reach claude verbatim, so a prompt containing
+ * `$(...)`, backticks or `;` is passed as text instead of being executed.
+ * cross-spawn resolves claude.cmd on Windows without needing `shell: true`.
+ *
  * @param args - Arguments to pass through to the claude command
  */
 export async function launchClaude(args: string[] = []): Promise<void> {
@@ -21,7 +25,6 @@ export async function launchClaude(args: string[] = []): Promise<void> {
     // Spawn claude with inherited stdio so it takes over the terminal
     const child = spawn('claude', args, {
       stdio: 'inherit',
-      shell: true,
     });
 
     child.on('error', (error) => {

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { execSync } from 'child_process';
+import spawn from 'cross-spawn';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -26,12 +26,21 @@ export async function handleNxExecution(generatorName: string, args: string[]) {
   } else {
     // Execute through nx command (when in ai-toolkit workspace)
     try {
-      const nxArgs = ['nx', 'generate', `@uniswap/ai-toolkit-nx-claude:${generatorName}`, ...args];
+      // Pass args as an array with no shell so they can't be interpreted as shell syntax
+      const nxArgs = ['generate', `@uniswap/ai-toolkit-nx-claude:${generatorName}`, ...args];
 
-      execSync(nxArgs.join(' '), {
+      const result = spawn.sync('nx', nxArgs, {
         stdio: 'inherit',
         cwd: process.cwd(),
       });
+      if (result.error) {
+        throw result.error;
+      }
+      if (result.status !== 0) {
+        throw Object.assign(new Error(`nx generate exited with code ${result.status}`), {
+          status: result.status,
+        });
+      }
     } catch (error: any) {
       handleExecutionError(error, generatorName);
     }

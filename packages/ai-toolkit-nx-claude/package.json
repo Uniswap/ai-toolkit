@@ -152,6 +152,7 @@
   "generators": "./generators.json",
   "dependencies": {
     "@nx/devkit": "*",
+    "cross-spawn": "^7.0.6",
     "enquirer": "*"
   }
 }
