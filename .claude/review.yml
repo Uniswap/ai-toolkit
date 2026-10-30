@@ -69,8 +69,8 @@ skip:
     # Release automation (e.g. release/next-to-main-20260727-173053).
     - release/
     - cherry-pick/
-    # Weekly action-version bump branches opened by
-    # update-action-versions.yml. Not a review-cli default either.
+    # Action-version bump branches opened by
+    # _update-action-versions-worker.yml. Not a review-cli default either.
     - chore/update-action-versions-
   # Deliberately empty, overriding the `*[bot]` default.
   #

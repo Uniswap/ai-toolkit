@@ -27,9 +27,8 @@ Contains GitHub Actions workflow definitions that automate CI/CD, code quality, 
 
 - `ci-check-pr-title.yml` - Validates PR titles follow conventional commit format
 
-### Dependency Management (2 workflows)
+### Dependency Management (1 workflow)
 
-- `update-action-versions.yml` - Scheduled workflow to update GitHub Actions to latest versions
 - `_update-action-versions-worker.yml` - Reusable worker for analyzing and updating action versions
 
 ### Reusable Workflows (8 workflows, prefixed with `_`)
@@ -921,16 +920,11 @@ The workflow determines which prompt to use in this priority order:
 
 ### GitHub Actions Version Updater (`_update-action-versions-worker.yml`)
 
-This workflow uses Claude Code to automatically update GitHub Actions to their latest versions. It runs weekly and creates PRs with version updates.
-
-**Schedule:**
-
-- **Frequency**: Every Monday at 5:00 AM Eastern Time (10:00 AM UTC)
-- **Cron**: `0 10 * * 1`
+This reusable workflow uses Claude Code to update GitHub Actions to their latest versions and opens a PR with the changes. This repo no longer runs it on a schedule; callers invoke it with `workflow_call` (see the usage examples below).
 
 **How It Works:**
 
-1. Consumer workflow (`update-action-versions.yml`) creates an update branch
+1. The calling workflow creates an update branch
 2. Calls the reusable worker (`_update-action-versions-worker.yml`)
 3. Claude Code scans all workflow files for external actions pinned to SHAs
 4. Queries GitHub API for latest releases and their commit SHAs
@@ -993,19 +987,6 @@ After (if v4.2.3 is latest):
 - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 ```
 
-**Manual Trigger:**
-
-```bash
-# Run with defaults
-gh workflow run update-action-versions.yml
-
-# Dry run (analysis only)
-gh workflow run update-action-versions.yml -f dry_run=true
-
-# Use Opus model
-gh workflow run update-action-versions.yml -f model=claude-opus-5
-```
-
 **Usage example (API Key):**
 
 ```yaml
@@ -1062,7 +1043,6 @@ These workflows are prefixed with two `__` and are only used within this reposit
 - `claude-welcome.yml` - New PR welcomes
 - `generate-pr-title-description.yml` - Auto-generated PR titles and descriptions
 - `release-update-production.yml` - Production sync automation
-- `update-action-versions.yml` - Automated GitHub Actions version updates (scheduled)
 
 ## Subdirectories
 
@@ -1201,8 +1181,7 @@ gh workflow run publish-packages.yml \
 
 **Note**: Force publishing only runs on the `next` branch and publishes with the `next` npm tag using prerelease versioning.
 
-- **On Schedule**: `update-action-versions.yml` (weekly on Mondays at 5am ET)
-- **Manual Dispatch**: `release-update-production.yml`, `claude-code-review.yml`, `update-action-versions.yml`
+- **Manual Dispatch**: `release-update-production.yml`, `claude-code-review.yml`
 
 ## Architecture: Publish Workflow
 
